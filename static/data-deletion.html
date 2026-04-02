@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatGenius — Data Deletion</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--navy:#0b1628;--navy-card:#162040;--cyan:#00d4ff;--white:#f0f4f8;--gray:#8892a4}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--navy);color:var(--white);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem 1rem}
+        .container{max-width:600px;width:100%}
+        .logo{text-align:center;margin-bottom:2rem;font-size:1.8rem;font-weight:800;letter-spacing:-0.5px}
+        .logo span{color:var(--cyan)}
+        .card{background:var(--navy-card);border-radius:20px;padding:2.5rem;border:1px solid rgba(0,212,255,0.08);box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+        h1{font-size:1.5rem;font-weight:800;margin-bottom:1rem;text-align:center}
+        p{font-size:0.95rem;line-height:1.7;color:var(--gray);margin-bottom:1rem}
+        a{color:var(--cyan);text-decoration:none}
+        a:hover{text-decoration:underline}
+        strong{color:var(--white)}
+        .status{background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.2);border-radius:12px;padding:1rem;margin:1.5rem 0;text-align:center;color:var(--cyan);font-size:0.9rem}
+        .back-link{display:block;text-align:center;margin-top:1.5rem}
+        .back-link a{color:var(--gray);font-size:0.85rem}
+        .back-link a:hover{color:var(--cyan)}
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="logo">Chat<span>Genius</span></div>
+    <div class="card">
+        <h1>Data Deletion Request</h1>
+        <p>In accordance with Facebook's data deletion requirements, you can request the deletion of all data ChatGenius has received about you through Facebook Login.</p>
+        <p>When you request data deletion, we will permanently remove:</p>
+        <p><strong>- Your account information</strong> (name, email, profile picture)<br>
+        <strong>- Chat conversation history</strong><br>
+        <strong>- Booking and lead data</strong> associated with your account</p>
+        <div class="status" id="status">To request data deletion, please email <a href="mailto:privacy@chatgenius.ai">privacy@chatgenius.ai</a> with the subject line "Data Deletion Request" and include the email address associated with your account.</div>
+        <p>We will process your request within <strong>30 days</strong> and send you a confirmation once your data has been deleted.</p>
+        <p style="font-size:0.85rem;color:var(--gray)">You can also manage your Facebook app connections at <a href="https://www.facebook.com/settings?tab=applications">Facebook Settings &gt; Apps and Websites</a>.</p>
+    </div>
+    <div class="back-link"><a href="/">&larr; Back to homepage</a></div>
+</div>
+</body>
+</html>

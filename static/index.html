@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatGenius AI — Never Miss a Customer Again</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --navy: #0b1628;
+            --navy-light: #111d33;
+            --navy-card: #162040;
+            --cyan: #00d4ff;
+            --cyan-glow: rgba(0, 212, 255, 0.15);
+            --white: #f0f4f8;
+            --gray: #8892a4;
+            --gradient: linear-gradient(135deg, #00d4ff, #0090ff);
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            background: var(--navy);
+            color: var(--white);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* ── NAV ── */
+        nav {
+            position: fixed; top: 0; width: 100%; z-index: 1000;
+            background: rgba(11, 22, 40, 0.92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+            padding: 0 2rem;
+        }
+        .nav-inner {
+            max-width: 1200px; margin: auto;
+            display: flex; align-items: center; justify-content: space-between;
+            height: 68px;
+        }
+        .logo { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; }
+        .logo span { color: var(--cyan); }
+        .nav-links { display: flex; gap: 2rem; list-style: none; }
+        .nav-links a { color: var(--gray); text-decoration: none; font-size: 0.92rem; transition: color .2s; }
+        .nav-links a:hover { color: var(--cyan); }
+        .nav-cta {
+            background: var(--gradient); color: #fff; border: none; padding: 0.55rem 1.4rem;
+            border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.92rem; transition: transform .2s;
+        }
+        .nav-cta:hover { transform: translateY(-1px); }
+        .hamburger { display: none; background: none; border: none; color: var(--white); font-size: 1.5rem; cursor: pointer; }
+
+        /* ── SHARED ── */
+        section { padding: 6rem 2rem; }
+        .container { max-width: 1100px; margin: auto; }
+        .section-label {
+            text-transform: uppercase; font-size: 0.8rem; letter-spacing: 3px;
+            color: var(--cyan); font-weight: 700; margin-bottom: 0.75rem;
+        }
+        .section-title { font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 800; margin-bottom: 1rem; }
+        .section-sub { color: var(--gray); max-width: 600px; margin: 0 auto 3rem; font-size: 1.05rem; }
+        .btn-primary {
+            display: inline-block; background: var(--gradient); color: #fff;
+            padding: 0.85rem 2.2rem; border-radius: 10px; font-weight: 700;
+            text-decoration: none; font-size: 1.05rem; border: none; cursor: pointer;
+            transition: transform .2s, box-shadow .2s;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,212,255,0.3); }
+        .btn-secondary {
+            display: inline-block; background: transparent; color: var(--cyan);
+            padding: 0.85rem 2.2rem; border-radius: 10px; font-weight: 700;
+            text-decoration: none; font-size: 1.05rem; border: 2px solid var(--cyan);
+            cursor: pointer; transition: background .2s;
+        }
+        .btn-secondary:hover { background: var(--cyan-glow); }
+
+        /* ── HERO ── */
+        #hero {
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            text-align: center; padding-top: 68px;
+            background: radial-gradient(ellipse at 50% 0%, rgba(0,212,255,0.08) 0%, transparent 60%);
+        }
+        .hero-badge {
+            display: inline-block; background: var(--cyan-glow); color: var(--cyan);
+            padding: 0.4rem 1rem; border-radius: 20px; font-size: 0.85rem; font-weight: 600;
+            margin-bottom: 1.5rem; border: 1px solid rgba(0,212,255,0.2);
+        }
+        .hero-title {
+            font-size: clamp(2.4rem, 6vw, 4rem); font-weight: 900; line-height: 1.1;
+            margin-bottom: 1.5rem;
+        }
+        .hero-title .highlight { color: var(--cyan); }
+        .hero-sub { color: var(--gray); font-size: clamp(1rem, 2vw, 1.25rem); max-width: 620px; margin: 0 auto 2.5rem; }
+        .hero-btns { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+        .hero-stats {
+            display: flex; gap: 3rem; justify-content: center; margin-top: 4rem; flex-wrap: wrap;
+        }
+        .hero-stat-num { font-size: 2rem; font-weight: 800; color: var(--cyan); }
+        .hero-stat-label { font-size: 0.85rem; color: var(--gray); }
+
+        /* ── PROBLEM ── */
+        #problem { background: var(--navy-light); text-align: center; }
+        .problem-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 2rem;
+        }
+        .problem-card {
+            background: var(--navy-card); border-radius: 16px; padding: 2rem;
+            border: 1px solid rgba(255,255,255,0.04);
+        }
+        .problem-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+        .problem-card h3 { font-size: 1.15rem; margin-bottom: 0.5rem; }
+        .problem-card p { color: var(--gray); font-size: 0.95rem; }
+
+        /* ── SOLUTION ── */
+        #solution { text-align: center; }
+        .solution-content {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center;
+            text-align: left; margin-top: 2rem;
+        }
+        .solution-points { list-style: none; }
+        .solution-points li {
+            padding: 1rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex; gap: 1rem; align-items: flex-start;
+        }
+        .solution-points .check {
+            color: var(--cyan); font-size: 1.3rem; flex-shrink: 0; margin-top: 2px;
+        }
+        .solution-points h4 { font-size: 1.05rem; margin-bottom: 0.25rem; }
+        .solution-points p { color: var(--gray); font-size: 0.9rem; }
+        .solution-visual {
+            background: var(--navy-card); border-radius: 20px; padding: 2rem;
+            border: 1px solid rgba(0,212,255,0.1); position: relative; overflow: hidden;
+        }
+        .solution-visual::before {
+            content: ''; position: absolute; top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(0,212,255,0.05) 0%, transparent 60%);
+        }
+        .solution-chat-preview { position: relative; z-index: 1; }
+        .sol-msg {
+            padding: 0.7rem 1rem; border-radius: 12px; margin-bottom: 0.75rem;
+            font-size: 0.9rem; max-width: 85%; animation: fadeUp 0.5s ease both;
+        }
+        .sol-msg.user { background: rgba(0,212,255,0.15); margin-left: auto; text-align: right; }
+        .sol-msg.bot { background: rgba(255,255,255,0.06); }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ── FEATURES ── */
+        #features { background: var(--navy-light); text-align: center; }
+        .features-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;
+        }
+        .feature-card {
+            background: var(--navy-card); border-radius: 16px; padding: 2rem;
+            border: 1px solid rgba(255,255,255,0.04); text-align: left;
+            transition: transform .2s, border-color .2s;
+        }
+        .feature-card:hover { transform: translateY(-4px); border-color: rgba(0,212,255,0.2); }
+        .feature-icon {
+            width: 48px; height: 48px; border-radius: 12px; display: flex;
+            align-items: center; justify-content: center; font-size: 1.5rem;
+            background: var(--cyan-glow); margin-bottom: 1.25rem;
+        }
+        .feature-card h3 { font-size: 1.1rem; margin-bottom: 0.5rem; }
+        .feature-card p { color: var(--gray); font-size: 0.92rem; }
+
+        /* ── PRICING ── */
+        #pricing { text-align: center; }
+        .pricing-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;
+            align-items: stretch;
+        }
+        .price-card {
+            background: var(--navy-card); border-radius: 20px; padding: 2.5rem 2rem;
+            border: 1px solid rgba(255,255,255,0.04); display: flex;
+            flex-direction: column; transition: transform .2s;
+        }
+        .price-card.featured {
+            border-color: var(--cyan); position: relative;
+            box-shadow: 0 0 40px rgba(0,212,255,0.1);
+        }
+        .price-card.featured::before {
+            content: 'Most Popular'; position: absolute; top: -14px; left: 50%;
+            transform: translateX(-50%); background: var(--gradient); color: #fff;
+            padding: 0.3rem 1.2rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700;
+        }
+        .price-card:hover { transform: translateY(-4px); }
+        .price-name { font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .price-amount { font-size: 3rem; font-weight: 900; margin-bottom: 0.25rem; }
+        .price-amount span { font-size: 1rem; font-weight: 400; color: var(--gray); }
+        .price-desc { color: var(--gray); font-size: 0.9rem; margin-bottom: 2rem; }
+        .price-features { list-style: none; text-align: left; margin-bottom: 2rem; flex: 1; }
+        .price-features li { padding: 0.5rem 0; font-size: 0.92rem; color: var(--gray); }
+        .price-features li::before { content: '✓ '; color: var(--cyan); font-weight: 700; }
+
+        /* ── TESTIMONIALS ── */
+        #testimonials { background: var(--navy-light); text-align: center; }
+        .testimonials-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;
+        }
+        .testimonial-card {
+            background: var(--navy-card); border-radius: 16px; padding: 2rem;
+            border: 1px solid rgba(255,255,255,0.04); text-align: left;
+        }
+        .testimonial-stars { color: #f5a623; font-size: 1.1rem; margin-bottom: 1rem; }
+        .testimonial-text { color: var(--gray); font-size: 0.95rem; margin-bottom: 1.5rem; font-style: italic; line-height: 1.7; }
+        .testimonial-author { display: flex; align-items: center; gap: 0.75rem; }
+        .testimonial-avatar {
+            width: 44px; height: 44px; border-radius: 50%;
+            background: var(--gradient); display: flex; align-items: center;
+            justify-content: center; font-weight: 800; font-size: 1.1rem; color: #fff;
+        }
+        .testimonial-name { font-weight: 700; font-size: 0.95rem; }
+        .testimonial-role { color: var(--gray); font-size: 0.82rem; }
+
+        /* ── CTA ── */
+        #cta {
+            text-align: center;
+            background: linear-gradient(180deg, var(--navy) 0%, var(--navy-light) 100%);
+        }
+        .cta-box {
+            background: var(--navy-card); border-radius: 24px; padding: 4rem 2rem;
+            border: 1px solid rgba(0,212,255,0.12);
+            background-image: radial-gradient(ellipse at 50% 0%, rgba(0,212,255,0.06) 0%, transparent 60%);
+        }
+
+        /* ── DEMO ── */
+        #demo { text-align: center; background: var(--navy-light); }
+
+        /* ── CHATBOT WIDGET ── */
+        .chat-container {
+            max-width: 500px; margin: 0 auto;
+            background: var(--navy-card); border-radius: 20px; overflow: hidden;
+            border: 1px solid rgba(0,212,255,0.15);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .chat-header {
+            background: linear-gradient(135deg, #0d2137, #162040);
+            padding: 1.25rem 1.5rem; display: flex; align-items: center; gap: 0.75rem;
+            border-bottom: 1px solid rgba(0,212,255,0.1);
+        }
+        .chat-header-dot {
+            width: 10px; height: 10px; border-radius: 50%; background: #22c55e;
+            box-shadow: 0 0 8px rgba(34,197,94,0.5); animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .chat-header-title { font-weight: 700; font-size: 0.95rem; }
+        .chat-header-sub { font-size: 0.78rem; color: var(--gray); }
+        .chat-messages {
+            height: 380px; overflow-y: auto; padding: 1.5rem;
+            display: flex; flex-direction: column; gap: 0.75rem;
+            scroll-behavior: smooth;
+        }
+        .chat-messages::-webkit-scrollbar { width: 4px; }
+        .chat-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        .chat-msg {
+            max-width: 80%; padding: 0.75rem 1rem; border-radius: 14px;
+            font-size: 0.92rem; line-height: 1.5; animation: fadeUp 0.3s ease;
+        }
+        .chat-msg.bot {
+            background: rgba(255,255,255,0.06); align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+        .chat-msg.user {
+            background: linear-gradient(135deg, #0077cc, #00aaff);
+            align-self: flex-end; border-bottom-right-radius: 4px;
+        }
+        .chat-msg.typing { display: flex; gap: 4px; align-items: center; padding: 0.85rem 1.2rem; }
+        .chat-msg.typing .dot {
+            width: 7px; height: 7px; border-radius: 50%; background: var(--gray);
+            animation: typingDot 1.4s infinite;
+        }
+        .chat-msg.typing .dot:nth-child(2) { animation-delay: 0.2s; }
+        .chat-msg.typing .dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typingDot { 0%, 60%, 100% { opacity: 0.3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-4px); } }
+        /* ── Chat dropdown (doctors, categories) ── */
+        .chat-dropdown-wrap {
+            align-self: flex-start; width: 260px; margin-top: 2px;
+            animation: fadeUp 0.25s ease;
+        }
+        .chat-dropdown-btn {
+            width: 100%; display: flex; align-items: center; justify-content: space-between;
+            padding: 0.6rem 0.85rem; border-radius: 10px;
+            background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.25);
+            color: #fff; font-size: 0.88rem; font-weight: 600; cursor: pointer;
+            transition: all 0.2s; font-family: inherit;
+        }
+        .chat-dropdown-btn:hover { background: rgba(0,212,255,0.14); border-color: rgba(0,212,255,0.4); }
+        .chat-dropdown-btn .arrow { transition: transform 0.2s; font-size: 0.7rem; color: var(--cyan); }
+        .chat-dropdown-btn.open .arrow { transform: rotate(180deg); }
+        .chat-dropdown-btn.picked { opacity: 0.6; pointer-events: none; }
+        .chat-dropdown-list {
+            margin-top: 4px; border-radius: 10px; overflow: hidden;
+            background: rgba(13,33,55,0.95); border: 1px solid rgba(0,212,255,0.15);
+            max-height: 0; opacity: 0; transition: max-height 0.25s ease, opacity 0.2s;
+        }
+        .chat-dropdown-list.open { max-height: 220px; opacity: 1; overflow-y: auto; }
+        .chat-dropdown-list::-webkit-scrollbar { width: 3px; }
+        .chat-dropdown-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+        .chat-dd-item {
+            display: flex; align-items: center; gap: 0.6rem;
+            padding: 0.55rem 0.85rem; cursor: pointer; transition: background 0.15s;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .chat-dd-item:last-child { border-bottom: none; }
+        .chat-dd-item:hover { background: rgba(0,212,255,0.1); }
+        .chat-dd-item:active { background: rgba(0,212,255,0.18); }
+        .chat-dd-item.selected { background: rgba(0,212,255,0.12); }
+        .chat-dd-avatar {
+            width: 30px; height: 30px; border-radius: 50%;
+            background: linear-gradient(135deg, #0077cc, #00d4ff);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.7rem; font-weight: 700; color: #fff; flex-shrink: 0;
+        }
+        .chat-dd-info { flex: 1; min-width: 0; }
+        .chat-dd-name { font-weight: 600; font-size: 0.82rem; color: #fff; }
+        .chat-dd-sub { font-size: 0.7rem; color: rgba(255,255,255,0.4); }
+        .chat-dd-item.booked { opacity: 0.35; pointer-events: none; text-decoration: line-through; }
+        .chat-dd-item.booked .chat-dd-sub { color: var(--red, #ef4444); }
+
+        /* ── Calendar Widget ── */
+        .chat-calendar-wrap {
+            align-self: flex-start; width: 260px; margin-top: 4px;
+            animation: fadeUp 0.3s ease;
+        }
+        .chat-calendar {
+            background: rgba(13,33,55,0.95); border: 1px solid rgba(0,212,255,0.15);
+            border-radius: 12px; padding: 0.65rem;
+        }
+        .cal-nav {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        .cal-nav-btn {
+            background: none; border: none; color: var(--cyan); font-size: 1rem;
+            cursor: pointer; padding: 4px 8px; border-radius: 6px; font-weight: 700;
+        }
+        .cal-nav-btn:hover { background: rgba(0,212,255,0.12); }
+        .cal-nav-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+        .cal-month-label {
+            font-size: 0.85rem; font-weight: 700; color: var(--cyan);
+            text-align: center; cursor: pointer;
+        }
+        .cal-weekdays {
+            display: grid; grid-template-columns: repeat(7,1fr); gap: 2px;
+            margin-bottom: 2px;
+        }
+        .cal-weekdays span {
+            text-align: center; font-size: 0.65rem; color: var(--gray);
+            font-weight: 600; padding: 2px 0;
+        }
+        .cal-days {
+            display: grid; grid-template-columns: repeat(7,1fr); gap: 2px;
+        }
+        .cal-day {
+            text-align: center; padding: 6px 2px; border-radius: 6px;
+            font-size: 0.8rem; cursor: pointer; transition: background 0.15s;
+            color: var(--white); border: none; background: none; font-family: inherit;
+        }
+        .cal-day:hover:not(.disabled):not(.empty) { background: rgba(0,212,255,0.15); }
+        .cal-day.today { border: 1px solid var(--cyan); font-weight: 700; }
+        .cal-day.disabled { color: rgba(255,255,255,0.2); cursor: not-allowed; pointer-events: none; }
+        .cal-day.off-day { color: var(--red, #ef4444); text-decoration: line-through; cursor: not-allowed; pointer-events: none; opacity: 0.5; }
+        .cal-day.empty { cursor: default; }
+        .cal-day.selected { background: var(--gradient); color: #fff; font-weight: 700; }
+
+        .chat-input-area {
+            padding: 1rem 1.25rem; border-top: 1px solid rgba(255,255,255,0.05);
+            display: flex; gap: 0.75rem; background: rgba(0,0,0,0.15);
+        }
+        .chat-input {
+            flex: 1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px; padding: 0.7rem 1rem; color: var(--white);
+            font-size: 0.92rem; outline: none; transition: border-color .2s;
+        }
+        .chat-input::placeholder { color: var(--gray); }
+        .chat-input:focus { border-color: rgba(0,212,255,0.4); }
+        .chat-send {
+            background: var(--gradient); border: none; color: #fff; width: 44px; height: 44px;
+            border-radius: 12px; cursor: pointer; font-size: 1.2rem;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform .2s;
+        }
+        .chat-send:hover { transform: scale(1.05); }
+        .chat-send:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .model-status {
+            padding: 0.6rem 1.25rem; font-size: 0.78rem; color: var(--gray);
+            text-align: center; background: rgba(0,0,0,0.1);
+        }
+        .model-status .status-dot {
+            display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+            margin-right: 4px; vertical-align: middle;
+        }
+        .model-status .status-dot.loading { background: #f5a623; animation: pulse 1s infinite; }
+        .model-status .status-dot.ready { background: #22c55e; }
+        .model-status .status-dot.error { background: #ef4444; }
+
+        /* ── FOOTER ── */
+        footer {
+            padding: 3rem 2rem 2rem; text-align: center; color: var(--gray);
+            font-size: 0.85rem; border-top: 1px solid rgba(255,255,255,0.04);
+        }
+
+        /* ── MOBILE ── */
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .hamburger { display: block; }
+            .nav-links.open {
+                display: flex; flex-direction: column; position: absolute;
+                top: 68px; left: 0; width: 100%; background: var(--navy);
+                padding: 1.5rem 2rem; gap: 1rem; border-bottom: 1px solid rgba(0,212,255,0.08);
+            }
+            .solution-content { grid-template-columns: 1fr; }
+            .hero-stats { gap: 1.5rem; }
+            .chat-messages { height: 300px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+    <div class="nav-inner">
+        <div class="logo">Chat<span>Genius</span></div>
+        <ul class="nav-links" id="navLinks">
+            <li><a href="#problem">Problem</a></li>
+            <li><a href="#solution">Solution</a></li>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#pricing">Pricing</a></li>
+            <li><a href="#demo">Demo</a></li>
+        </ul>
+        <button class="nav-cta" onclick="window.location.href='/login?signup=1'">Get Started Free</button>
+        <button class="hamburger" id="hamburger" onclick="document.getElementById('navLinks').classList.toggle('open')">&#9776;</button>
+    </div>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+    <div class="container">
+        <div class="hero-badge">AI-Powered Customer Engagement</div>
+        <h1 class="hero-title">Never Miss a<br><span class="highlight">Customer Again</span></h1>
+        <p class="hero-sub">Our AI chatbot answers questions, books appointments, and captures leads for your business — 24/7, with zero human effort.</p>
+        <div class="hero-btns">
+            <a href="/login?signup=1" class="btn-primary">Get Started Free</a>
+            <a href="#demo" class="btn-secondary">Try Live Demo</a>
+        </div>
+        <div class="hero-stats">
+            <div><div class="hero-stat-num">10,000+</div><div class="hero-stat-label">Businesses Trust Us</div></div>
+            <div><div class="hero-stat-num">5M+</div><div class="hero-stat-label">Conversations Handled</div></div>
+            <div><div class="hero-stat-num">98%</div><div class="hero-stat-label">Customer Satisfaction</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- PROBLEM -->
+<section id="problem">
+    <div class="container">
+        <div class="section-label" style="text-align:center;">The Problem</div>
+        <h2 class="section-title" style="text-align:center;">Your Business Is Losing Customers Right Now</h2>
+        <p class="section-sub" style="text-align:center;">Every minute you can't respond is a minute your competitor can. Here's what's happening behind the scenes.</p>
+        <div class="problem-grid">
+            <div class="problem-card">
+                <div class="problem-icon">&#9203;</div>
+                <h3>Slow Response Times</h3>
+                <p>78% of customers buy from the company that responds first. If you take longer than 5 minutes, you've already lost them.</p>
+            </div>
+            <div class="problem-card">
+                <div class="problem-icon">&#127769;</div>
+                <h3>After-Hours Leads Disappear</h3>
+                <p>Over 40% of inquiries come outside business hours. Without someone there to respond, those leads vanish overnight.</p>
+            </div>
+            <div class="problem-card">
+                <div class="problem-icon">&#128176;</div>
+                <h3>Hiring Is Expensive</h3>
+                <p>A full-time support rep costs $3,000+/month. Most small businesses can't afford round-the-clock human coverage.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SOLUTION -->
+<section id="solution">
+    <div class="container">
+        <div class="section-label" style="text-align:center;">The Solution</div>
+        <h2 class="section-title" style="text-align:center;">Let AI Handle It — Automatically</h2>
+        <p class="section-sub" style="text-align:center;">ChatGenius works around the clock so you don't have to. It learns your business, answers questions, and converts visitors into customers.</p>
+        <div class="solution-content">
+            <ul class="solution-points">
+                <li>
+                    <span class="check">&#10003;</span>
+                    <div><h4>Instant, Accurate Replies</h4><p>Answers customer questions in seconds using AI trained on your business data.</p></div>
+                </li>
+                <li>
+                    <span class="check">&#10003;</span>
+                    <div><h4>Automated Appointment Booking</h4><p>Lets customers schedule meetings directly in the chat — no back-and-forth emails.</p></div>
+                </li>
+                <li>
+                    <span class="check">&#10003;</span>
+                    <div><h4>Smart Lead Capture</h4><p>Collects names, emails, and phone numbers naturally during the conversation.</p></div>
+                </li>
+                <li>
+                    <span class="check">&#10003;</span>
+                    <div><h4>Setup in Under 5 Minutes</h4><p>Copy one line of code to your website. No developers needed.</p></div>
+                </li>
+            </ul>
+            <div class="solution-visual">
+                <div class="solution-chat-preview">
+                    <div class="sol-msg bot">Hi! Welcome to Sunrise Dental. How can I help you today?</div>
+                    <div class="sol-msg user" style="animation-delay:.3s">I'd like to book a cleaning appointment</div>
+                    <div class="sol-msg bot" style="animation-delay:.6s">I'd love to help! We have openings this Thursday at 2 PM and Friday at 10 AM. Which works better for you?</div>
+                    <div class="sol-msg user" style="animation-delay:.9s">Thursday at 2 PM please</div>
+                    <div class="sol-msg bot" style="animation-delay:1.2s">You're all set! I've booked your cleaning for Thursday at 2 PM. We'll send a confirmation to your email. See you then!</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+    <div class="container">
+        <div class="section-label" style="text-align:center;">Features</div>
+        <h2 class="section-title" style="text-align:center;">Everything You Need to Convert More Leads</h2>
+        <p class="section-sub" style="text-align:center;">Powerful features designed specifically for small and medium businesses.</p>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">&#9889;</div>
+                <h3>24/7 Instant Replies</h3>
+                <p>Your AI chatbot never sleeps. It responds to every visitor instantly, day or night, weekday or weekend.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#128197;</div>
+                <h3>Appointment Booking</h3>
+                <p>Customers can book appointments directly in the chat. Syncs with your calendar automatically.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#127919;</div>
+                <h3>Lead Capture</h3>
+                <p>Automatically collects contact information from interested visitors and sends it to your CRM.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#128268;</div>
+                <h3>Easy Website Integration</h3>
+                <p>Add the chatbot to any website with a single line of code. Works with WordPress, Shopify, Wix, and more.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#128640;</div>
+                <h3>No Coding Required</h3>
+                <p>Set up and customize your chatbot through our simple dashboard. No technical skills needed.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#127981;</div>
+                <h3>Works in Any Industry</h3>
+                <p>From dental offices to law firms, restaurants to real estate — our AI adapts to your specific business.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing">
+    <div class="container">
+        <div class="section-label" style="text-align:center;">Pricing</div>
+        <h2 class="section-title" style="text-align:center;">Simple, Transparent Pricing</h2>
+        <p class="section-sub" style="text-align:center;">No hidden fees. No long-term contracts. Start free, upgrade when you're ready.</p>
+        <div class="pricing-grid">
+            <div class="price-card">
+                <div class="price-name">Basic</div>
+                <div class="price-amount">$49<span>/month</span></div>
+                <div class="price-desc">Perfect for solo businesses just getting started.</div>
+                <ul class="price-features">
+                    <li>500 conversations/month</li>
+                    <li>1 chatbot</li>
+                    <li>Basic lead capture</li>
+                    <li>Email support</li>
+                    <li>Website widget</li>
+                </ul>
+                <a href="/login?signup=1" class="btn-secondary" style="text-align:center">Start Free Trial</a>
+            </div>
+            <div class="price-card featured">
+                <div class="price-name">Pro</div>
+                <div class="price-amount">$149<span>/month</span></div>
+                <div class="price-desc">For growing businesses that need more power.</div>
+                <ul class="price-features">
+                    <li>5,000 conversations/month</li>
+                    <li>3 chatbots</li>
+                    <li>Appointment booking</li>
+                    <li>CRM integration</li>
+                    <li>Priority support</li>
+                    <li>Advanced analytics</li>
+                </ul>
+                <a href="/login?signup=1" class="btn-primary" style="text-align:center">Start Free Trial</a>
+            </div>
+            <div class="price-card">
+                <div class="price-name">Agency</div>
+                <div class="price-amount">$299<span>/month</span></div>
+                <div class="price-desc">For agencies managing multiple client accounts.</div>
+                <ul class="price-features">
+                    <li>Unlimited conversations</li>
+                    <li>Unlimited chatbots</li>
+                    <li>White-label branding</li>
+                    <li>API access</li>
+                    <li>Dedicated account manager</li>
+                    <li>Custom integrations</li>
+                </ul>
+                <a href="/login?signup=1" class="btn-secondary" style="text-align:center">Start Free Trial</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section id="testimonials">
+    <div class="container">
+        <div class="section-label" style="text-align:center;">Testimonials</div>
+        <h2 class="section-title" style="text-align:center;">Loved by Business Owners</h2>
+        <p class="section-sub" style="text-align:center;">Don't just take our word for it — hear from real businesses using ChatGenius.</p>
+        <div class="testimonials-grid">
+            <div class="testimonial-card">
+                <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+                <p class="testimonial-text">"We were missing 60% of our after-hours leads. After installing ChatGenius, our bookings increased by 40% in the first month. It literally pays for itself."</p>
+                <div class="testimonial-author">
+                    <div class="testimonial-avatar">S</div>
+                    <div><div class="testimonial-name">Sarah Mitchell</div><div class="testimonial-role">Owner, Sunrise Dental Clinic</div></div>
+                </div>
+            </div>
+            <div class="testimonial-card">
+                <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+                <p class="testimonial-text">"I was skeptical about AI chatbots, but ChatGenius genuinely understands what my clients are asking. It handles 80% of inquiries without any human help. Game changer."</p>
+                <div class="testimonial-author">
+                    <div class="testimonial-avatar">M</div>
+                    <div><div class="testimonial-name">Marcus Johnson</div><div class="testimonial-role">Founder, Johnson Legal Group</div></div>
+                </div>
+            </div>
+            <div class="testimonial-card">
+                <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+                <p class="testimonial-text">"Setup took 3 minutes. Within a week, the chatbot had captured 47 new leads that we would have completely missed. Best $149 I spend every month."</p>
+                <div class="testimonial-author">
+                    <div class="testimonial-avatar">L</div>
+                    <div><div class="testimonial-name">Lisa Chen</div><div class="testimonial-role">Manager, Prestige Real Estate</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section id="cta">
+    <div class="container">
+        <div class="cta-box">
+            <div class="section-label">Limited Time Offer</div>
+            <h2 class="section-title">Start Your 14-Day Free Trial Today</h2>
+            <p class="section-sub" style="margin-bottom:2rem;">No credit card required. Full access to all Pro features. Cancel anytime. See why 10,000+ businesses already trust ChatGenius.</p>
+            <a href="/login?signup=1" class="btn-primary" style="font-size:1.15rem;padding:1rem 3rem;">Start Free Trial &rarr;</a>
+        </div>
+    </div>
+</section>
+
+<!-- LIVE DEMO -->
+<section id="demo">
+    <div class="container">
+        <div class="section-label" style="text-align:center;">Live Demo</div>
+        <h2 class="section-title" style="text-align:center;">Try the AI Chatbot Right Now</h2>
+        <p class="section-sub" style="text-align:center;">This chatbot runs a real AI model directly in your browser — no backend, no API keys. Type a message and see for yourself.</p>
+
+        <div class="chat-container">
+            <div class="chat-header">
+                <div class="chat-header-dot"></div>
+                <div>
+                    <div class="chat-header-title">ChatGenius Assistant</div>
+                    <div class="chat-header-sub">AI-powered &bull; Always online</div>
+                </div>
+            </div>
+            <div class="model-status" id="modelStatus">
+                <span class="status-dot loading" id="statusDot"></span>
+                <span id="statusText">Loading AI model...</span>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="chat-msg bot">Hi there! Welcome to ChatGenius. I can help you with:<br><br><strong>1.</strong> Answer questions about our platform<br><strong>2.</strong> Book an appointment<br><strong>3.</strong> Save your contact info for a callback<br><br>What would you like to do?</div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" class="chat-input" id="chatInput" placeholder="Type your message..." autocomplete="off">
+                <button class="chat-send" id="chatSend" title="Send">&#10148;</button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+    <div class="container">
+        <div class="logo" style="margin-bottom:1rem;">Chat<span>Genius</span></div>
+        <p>&copy; 2026 ChatGenius AI. All rights reserved. Built with intelligence.</p>
+    </div>
+</footer>
+
+<script>
+    // Redirect logged-in users to dashboard
+    if (localStorage.getItem('token') && localStorage.getItem('user')) {
+        window.location.href = '/user-dashboard';
+    }
+
+    const messagesEl = document.getElementById('chatMessages');
+    const inputEl = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('chatSend');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+
+    // Unique session ID per browser tab
+    const sessionId = 'session_' + Math.random().toString(36).substr(2, 9);
+
+    statusDot.className = 'status-dot ready';
+    statusText.textContent = 'AI Assistant — Book, Ask, or Leave Info';
+
+    // Simple markdown to HTML
+    function md(text) {
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n\n/g, '<br><br>')
+            .replace(/\n/g, '<br>');
+    }
+
+    function addMessage(text, sender) {
+        const div = document.createElement('div');
+        div.className = `chat-msg ${sender}`;
+        if (sender === 'bot') {
+            div.innerHTML = md(text);
+        } else {
+            div.textContent = text;
+        }
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function showTyping() {
+        const div = document.createElement('div');
+        div.className = 'chat-msg bot typing';
+        div.id = 'typing-indicator';
+        div.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function removeTyping() {
+        const el = document.getElementById('typing-indicator');
+        if (el) el.remove();
+    }
+
+    function renderCalendar(options) {
+        const offDates = new Set(options.off_dates || []);
+        const today = new Date(); today.setHours(0,0,0,0);
+        const MAX_MONTHS = 4;
+        const WEEKDAYS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+        let currentOffset = 0;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'chat-calendar-wrap';
+        const cal = document.createElement('div');
+        cal.className = 'chat-calendar';
+
+        const nav = document.createElement('div');
+        nav.className = 'cal-nav';
+        const prevBtn = document.createElement('button');
+        prevBtn.className = 'cal-nav-btn';
+        prevBtn.innerHTML = '&#9664;';
+        const monthLabel = document.createElement('span');
+        monthLabel.className = 'cal-month-label';
+        const nextBtn = document.createElement('button');
+        nextBtn.className = 'cal-nav-btn';
+        nextBtn.innerHTML = '&#9654;';
+        nav.appendChild(prevBtn);
+        nav.appendChild(monthLabel);
+        nav.appendChild(nextBtn);
+        cal.appendChild(nav);
+
+        const wkRow = document.createElement('div');
+        wkRow.className = 'cal-weekdays';
+        WEEKDAYS.forEach(w => { const s = document.createElement('span'); s.textContent = w; wkRow.appendChild(s); });
+        cal.appendChild(wkRow);
+
+        const daysGrid = document.createElement('div');
+        daysGrid.className = 'cal-days';
+        cal.appendChild(daysGrid);
+
+        function renderMonth() {
+            const d = new Date(today.getFullYear(), today.getMonth() + currentOffset, 1);
+            monthLabel.textContent = d.toLocaleString('default', { month: 'long', year: 'numeric' });
+            prevBtn.disabled = currentOffset === 0;
+            nextBtn.disabled = currentOffset >= MAX_MONTHS - 1;
+            daysGrid.innerHTML = '';
+
+            const firstDay = d.getDay();
+            for (let i = 0; i < firstDay; i++) {
+                const empty = document.createElement('div');
+                empty.className = 'cal-day empty';
+                daysGrid.appendChild(empty);
+            }
+            const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+            for (let day = 1; day <= daysInMonth; day++) {
+                const btn = document.createElement('button');
+                btn.className = 'cal-day';
+                btn.textContent = day;
+                const thisDate = new Date(d.getFullYear(), d.getMonth(), day);
+                const iso = thisDate.getFullYear() + '-' + String(thisDate.getMonth()+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+
+                if (thisDate < today) { btn.classList.add('disabled'); }
+                else if (offDates.has(iso)) { btn.classList.add('off-day'); btn.title = 'Doctor off day'; }
+                else {
+                    btn.onclick = function() {
+                        daysGrid.querySelectorAll('.cal-day.selected').forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                        const display = thisDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                        setTimeout(() => { inputEl.value = display; handleSend(); }, 250);
+                    };
+                }
+                if (thisDate.getTime() === today.getTime()) btn.classList.add('today');
+                daysGrid.appendChild(btn);
+            }
+        }
+
+        prevBtn.onclick = () => { if (currentOffset > 0) { currentOffset--; renderMonth(); } };
+        nextBtn.onclick = () => { if (currentOffset < MAX_MONTHS - 1) { currentOffset++; renderMonth(); } };
+        renderMonth();
+
+        wrap.appendChild(cal);
+        messagesEl.appendChild(wrap);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function renderOptions(options) {
+        if (options.type === 'calendar') { renderCalendar(options); return; }
+        const type = options.type;
+        const items = options.items;
+        const isDoctor = type === 'doctors';
+        const isTime = type === 'timeslots';
+        const isDate = type === 'dates';
+        const isCancel = type === 'cancel_bookings';
+        const label = isDoctor ? 'Select Doctor' : isTime ? 'Select Time' : isDate ? 'Select Date' : isCancel ? 'Select Appointment' : 'Select Specialty';
+
+        const wrap = document.createElement('div');
+        wrap.className = 'chat-dropdown-wrap';
+        if (isTime) wrap.style.width = '280px';
+        if (isDate) wrap.style.width = '260px';
+
+        const btn = document.createElement('button');
+        btn.className = 'chat-dropdown-btn';
+        btn.innerHTML = `<span>${label}</span><span class="arrow">&#x25BC;</span>`;
+        wrap.appendChild(btn);
+
+        const list = document.createElement('div');
+        list.className = 'chat-dropdown-list';
+
+        items.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'chat-dd-item';
+
+            if (isDoctor) {
+                const initials = item.name.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+                row.innerHTML = `<div class="chat-dd-avatar">${initials}</div><div class="chat-dd-info"><div class="chat-dd-name">Dr. ${item.name}</div><div class="chat-dd-sub">${item.specialty} &bull; ${item.availability}</div></div>`;
+            } else if (isTime) {
+                const icon = item.booked ? '&#x1F6AB;' : (item.hour < 12 ? '&#x2600;&#xFE0F;' : '&#x1F319;');
+                const bg = item.booked ? 'linear-gradient(135deg,#666,#888)' : (item.hour < 12 ? 'linear-gradient(135deg,#f59e0b,#f97316)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)');
+                const subText = item.booked ? 'Booked' : (item.hour < 12 ? 'Morning' : 'Afternoon');
+                row.innerHTML = `<div class="chat-dd-avatar" style="font-size:0.9rem;background:${bg}">${icon}</div><div class="chat-dd-info"><div class="chat-dd-name">${item.name}</div><div class="chat-dd-sub">${subText}</div></div>`;
+                if (item.booked) row.classList.add('booked');
+            } else if (isDate) {
+                const display = item.display || item.name;
+                row.innerHTML = `<div class="chat-dd-avatar" style="font-size:0.9rem;background:linear-gradient(135deg,#22c55e,#16a34a)">&#x1F4C5;</div><div class="chat-dd-info"><div class="chat-dd-name">${display}</div></div>`;
+            } else if (isCancel) {
+                row.innerHTML = `<div class="chat-dd-avatar" style="font-size:0.9rem;background:linear-gradient(135deg,#ef4444,#dc2626)">&#x2716;</div><div class="chat-dd-info"><div class="chat-dd-name">${item.name}</div></div>`;
+            } else {
+                const initials = item.name.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+                row.innerHTML = `<div class="chat-dd-avatar">${initials}</div><div class="chat-dd-info"><div class="chat-dd-name">${item.name}</div></div>`;
+            }
+
+            row.onclick = () => {
+                list.querySelectorAll('.chat-dd-item').forEach(r => r.classList.remove('selected'));
+                row.classList.add('selected');
+                btn.querySelector('span').textContent = item.name;
+                btn.classList.add('picked');
+                list.classList.remove('open');
+                btn.classList.remove('open');
+                setTimeout(() => {
+                    inputEl.value = isCancel ? String(item.index) : item.name;
+                    handleSend();
+                }, 300);
+            };
+            list.appendChild(row);
+        });
+
+        wrap.appendChild(list);
+
+        btn.onclick = () => {
+            if (btn.classList.contains('picked')) return;
+            btn.classList.toggle('open');
+            list.classList.toggle('open');
+        };
+
+        messagesEl.appendChild(wrap);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+
+        if (items.length <= 8) {
+            btn.classList.add('open');
+            list.classList.add('open');
+        }
+    }
+
+    let isProcessing = false;
+    async function handleSend() {
+        const text = inputEl.value.trim();
+        if (!text || isProcessing) return;
+
+        isProcessing = true;
+        sendBtn.disabled = true;
+        inputEl.value = '';
+
+        addMessage(text, 'user');
+        showTyping();
+
+        try {
+            const res = await fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text, session_id: sessionId })
+            });
+            const data = await res.json();
+            removeTyping();
+
+            if (data.error) {
+                addMessage('Sorry, something went wrong. Please try again.', 'bot');
+            } else {
+                addMessage(data.reply, 'bot');
+                if (data.options) renderOptions(data.options);
+            }
+        } catch (e) {
+            removeTyping();
+            addMessage('Could not reach the server. Make sure the backend is running.', 'bot');
+        }
+
+        isProcessing = false;
+        sendBtn.disabled = false;
+        inputEl.focus();
+    }
+
+    sendBtn.addEventListener('click', handleSend);
+    inputEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleSend();
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatGenius — Log In</title>
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Facebook SDK -->
+    <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--navy:#0b1628;--navy-light:#111d33;--navy-card:#162040;--cyan:#00d4ff;--cyan-glow:rgba(0,212,255,0.15);--white:#f0f4f8;--gray:#8892a4;--red:#ef4444;--green:#22c55e;--gradient:linear-gradient(135deg,#00d4ff,#0090ff)}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--navy);color:var(--white);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
+        .auth-wrapper{width:100%;max-width:440px}
+        .auth-logo{text-align:center;margin-bottom:2rem;font-size:1.8rem;font-weight:800;letter-spacing:-0.5px}
+        .auth-logo span{color:var(--cyan)}
+        .auth-card{background:var(--navy-card);border-radius:20px;padding:2.5rem;border:1px solid rgba(0,212,255,0.08);box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+        .auth-card h2{font-size:1.5rem;font-weight:800;margin-bottom:0.5rem;text-align:center}
+        .auth-card .subtitle{color:var(--gray);text-align:center;margin-bottom:2rem;font-size:0.92rem}
+
+        .social-btns{display:flex;flex-direction:column;gap:0.75rem;margin-bottom:1.75rem}
+        .social-btn{display:flex;align-items:center;justify-content:center;gap:0.75rem;width:100%;padding:0.8rem;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--white);font-size:0.95rem;font-weight:600;cursor:pointer;transition:background .2s,border-color .2s}
+        .social-btn:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.2)}
+        .social-btn svg{width:20px;height:20px;flex-shrink:0}
+        .social-btn.google:hover{border-color:rgba(234,67,53,0.4)}
+        .social-btn.facebook:hover{border-color:rgba(24,119,242,0.4)}
+        .social-btn:disabled{opacity:0.6;cursor:wait}
+
+        .divider{display:flex;align-items:center;gap:1rem;margin-bottom:1.75rem}
+        .divider::before,.divider::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.08)}
+        .divider span{color:var(--gray);font-size:0.82rem;text-transform:uppercase;letter-spacing:1px}
+
+        .form-group{margin-bottom:1.25rem}
+        .form-group label{display:block;font-size:0.85rem;font-weight:600;margin-bottom:0.5rem;color:var(--gray)}
+        .form-group input,.form-group select{width:100%;padding:0.8rem 1rem;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--white);font-size:0.95rem;outline:none;transition:border-color .2s}
+        .form-group input::placeholder{color:rgba(136,146,164,0.6)}
+        .form-group input:focus,.form-group select:focus{border-color:var(--cyan)}
+        .form-group select option{background:var(--navy-card);color:var(--white)}
+
+        /* Role selector */
+        .role-selector{display:flex;gap:0.75rem;margin-bottom:1.75rem}
+        .role-option{flex:1;padding:1rem;border-radius:12px;border:2px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.02);cursor:pointer;text-align:center;transition:all .2s}
+        .role-option:hover{border-color:rgba(0,212,255,0.3);background:rgba(0,212,255,0.05)}
+        .role-option.selected{border-color:var(--cyan);background:var(--cyan-glow)}
+        .role-option .role-icon{font-size:1.5rem;margin-bottom:0.4rem}
+        .role-option .role-name{font-weight:700;font-size:0.95rem}
+        .role-option .role-desc{font-size:0.78rem;color:var(--gray);margin-top:0.25rem}
+
+        .forgot{text-align:right;margin-bottom:1.5rem}
+        .forgot a{color:var(--cyan);font-size:0.85rem;text-decoration:none}
+        .forgot a:hover{text-decoration:underline}
+
+        .submit-btn{width:100%;padding:0.85rem;border-radius:12px;border:none;background:var(--gradient);color:#fff;font-size:1rem;font-weight:700;cursor:pointer;transition:transform .2s,box-shadow .2s}
+        .submit-btn:hover{transform:translateY(-1px);box-shadow:0 8px 30px rgba(0,212,255,0.3)}
+        .submit-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+
+        .auth-footer{text-align:center;margin-top:1.5rem;font-size:0.9rem;color:var(--gray)}
+        .auth-footer a{color:var(--cyan);text-decoration:none;font-weight:600}
+        .auth-footer a:hover{text-decoration:underline}
+
+        .alert{padding:0.75rem 1rem;border-radius:10px;margin-bottom:1.25rem;font-size:0.88rem;display:none}
+        .alert-error{background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.2);color:#f87171}
+        .alert-success{background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.2);color:#4ade80}
+        .alert-info{background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.2);color:var(--cyan)}
+
+        .back-link{display:block;text-align:center;margin-top:1.5rem}
+        .back-link a{color:var(--gray);text-decoration:none;font-size:0.85rem}
+        .back-link a:hover{color:var(--cyan)}
+
+        .pw-strength{height:4px;border-radius:2px;margin-top:0.5rem;background:rgba(255,255,255,0.06);overflow:hidden}
+        .pw-strength-bar{height:100%;width:0;border-radius:2px;transition:width .3s,background .3s}
+
+        @media(max-width:480px){.auth-card{padding:1.75rem 1.25rem}.role-selector{flex-direction:column}}
+    </style>
+</head>
+<body>
+
+<div class="auth-wrapper">
+    <div class="auth-logo">Chat<span>Genius</span></div>
+
+    <div class="auth-card">
+        <!-- LOGIN FORM (default) -->
+        <div id="loginForm">
+            <h2>Welcome back</h2>
+            <p class="subtitle">Log in to your ChatGenius account</p>
+
+            <div class="alert alert-error" id="loginError"></div>
+            <div class="alert alert-info" id="loginInfo"></div>
+
+            <div class="social-btns">
+                <button class="social-btn google" id="googleLoginBtn" onclick="googleSignIn()">
+                    <svg viewBox="0 0 24 24"><path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.27 0 3.198 2.698 1.24 6.65l4.026 3.115Z"/><path fill="#34A853" d="M16.04 18.013C14.95 18.71 13.56 19.09 12 19.09c-3.09 0-5.712-2.09-6.65-4.91L1.24 17.35C3.198 21.302 7.27 24 12 24c2.933 0 5.735-1.043 7.834-3l-3.793-2.987Z"/><path fill="#4A90D9" d="M19.834 21c2.195-2.048 3.62-5.096 3.62-9 0-.71-.109-1.473-.272-2.182H12v4.637h6.436c-.317 1.559-1.17 2.766-2.395 3.558L19.834 21Z"/><path fill="#FBBC05" d="M5.35 14.18A7.15 7.15 0 0 1 4.909 12c0-.758.13-1.49.357-2.18L1.24 6.65A11.95 11.95 0 0 0 0 12c0 1.936.464 3.77 1.24 5.35l4.11-3.17Z"/></svg>
+                    Continue with Google
+                </button>
+                <button class="social-btn facebook" id="fbLoginBtn" onclick="facebookSignIn()">
+                    <svg viewBox="0 0 24 24"><path fill="#1877F2" d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047v-2.66c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.971H15.83c-1.491 0-1.956.93-1.956 1.886v2.264h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073Z"/></svg>
+                    Continue with Facebook
+                </button>
+            </div>
+
+            <div class="divider"><span>or email</span></div>
+
+            <form onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Email address</label>
+                    <input type="email" id="loginEmail" placeholder="you@company.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="loginPassword" placeholder="Enter your password" required>
+                </div>
+                <div class="forgot"><a href="#" onclick="showForgot()">Forgot password?</a></div>
+                <button type="submit" class="submit-btn" id="loginBtn">Log In</button>
+            </form>
+
+            <p class="auth-footer">Don't have an account? <a href="#" onclick="showSignup()">Sign up free</a></p>
+        </div>
+
+        <!-- SIGNUP FORM -->
+        <div id="signupForm" style="display:none">
+            <h2>Create your account</h2>
+            <p class="subtitle">Choose your role to get started</p>
+
+            <div class="alert alert-error" id="signupError"></div>
+            <div class="alert alert-success" id="signupSuccess"></div>
+
+            <!-- Role selector -->
+            <div class="role-selector" style="flex-wrap:wrap">
+                <div class="role-option selected" id="roleHeadAdmin" onclick="selectRole('head_admin')" style="flex:1 1 100%">
+                    <div class="role-icon">&#128081;</div>
+                    <div class="role-name">Head Administrator</div>
+                    <div class="role-desc">Own a practice, invite admins & doctors, full control</div>
+                </div>
+                <div class="role-option" id="roleAdmin" onclick="selectRole('admin')">
+                    <div class="role-icon">&#128188;</div>
+                    <div class="role-name">Administrator</div>
+                    <div class="role-desc">Join a practice as admin, manage doctors & bookings</div>
+                </div>
+                <div class="role-option" id="roleDoctor" onclick="selectRole('doctor')">
+                    <div class="role-icon">&#129657;</div>
+                    <div class="role-name">Doctor</div>
+                    <div class="role-desc">Join a practice, view your appointments</div>
+                </div>
+            </div>
+
+            <div class="social-btns">
+                <button class="social-btn google" onclick="googleSignIn()">
+                    <svg viewBox="0 0 24 24"><path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.27 0 3.198 2.698 1.24 6.65l4.026 3.115Z"/><path fill="#34A853" d="M16.04 18.013C14.95 18.71 13.56 19.09 12 19.09c-3.09 0-5.712-2.09-6.65-4.91L1.24 17.35C3.198 21.302 7.27 24 12 24c2.933 0 5.735-1.043 7.834-3l-3.793-2.987Z"/><path fill="#4A90D9" d="M19.834 21c2.195-2.048 3.62-5.096 3.62-9 0-.71-.109-1.473-.272-2.182H12v4.637h6.436c-.317 1.559-1.17 2.766-2.395 3.558L19.834 21Z"/><path fill="#FBBC05" d="M5.35 14.18A7.15 7.15 0 0 1 4.909 12c0-.758.13-1.49.357-2.18L1.24 6.65A11.95 11.95 0 0 0 0 12c0 1.936.464 3.77 1.24 5.35l4.11-3.17Z"/></svg>
+                    Sign up with Google
+                </button>
+                <button class="social-btn facebook" onclick="facebookSignIn()">
+                    <svg viewBox="0 0 24 24"><path fill="#1877F2" d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047v-2.66c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.971H15.83c-1.491 0-1.956.93-1.956 1.886v2.264h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073Z"/></svg>
+                    Sign up with Facebook
+                </button>
+            </div>
+
+            <div class="divider"><span>or</span></div>
+
+            <form onsubmit="handleSignup(event)">
+                <div class="form-group">
+                    <label>Full name</label>
+                    <input type="text" id="signupName" placeholder="John Smith" required>
+                </div>
+                <div class="form-group">
+                    <label>Email address</label>
+                    <input type="email" id="signupEmail" placeholder="you@company.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="signupPassword" placeholder="At least 8 characters" required minlength="8" oninput="checkPwStrength(this.value)">
+                    <div class="pw-strength"><div class="pw-strength-bar" id="pwBar"></div></div>
+                </div>
+                <div class="form-group" id="companyGroup">
+                    <label>Company name <span style="color:var(--gray);font-weight:400">(optional)</span></label>
+                    <input type="text" id="signupCompany" placeholder="Your dental practice name">
+                </div>
+                <div class="form-group" id="specialtyGroup" style="display:none">
+                    <label>Your Specialty</label>
+                    <select id="signupSpecialty" class="form-input">
+                        <option value="">Select your specialty...</option>
+                        <option>General Dentist</option><option>Pediatric Dentist</option>
+                        <option>Orthodontist</option><option>Endodontist</option>
+                        <option>Periodontist</option><option>Oral &amp; Maxillofacial Surgeon</option>
+                        <option>Prosthodontist</option><option>Oral Pathologist</option>
+                        <option>Oral Radiologist</option><option>Dental Anesthesiologist</option>
+                        <option>Orofacial Pain Specialist</option><option>Dental Public Health Specialist</option>
+                        <option>Cosmetic Dentist</option><option>Family Dentist</option>
+                    </select>
+                </div>
+                <button type="submit" class="submit-btn" id="signupBtn">Create Account</button>
+            </form>
+
+            <p class="auth-footer">Already have an account? <a href="#" onclick="showLogin()">Log in</a></p>
+        </div>
+
+        <!-- FORGOT PASSWORD -->
+        <div id="forgotForm" style="display:none">
+            <h2>Reset password</h2>
+            <p class="subtitle">Enter your email and we'll send you a reset link</p>
+
+            <div class="alert alert-error" id="forgotError"></div>
+            <div class="alert alert-success" id="forgotSuccess"></div>
+
+            <form onsubmit="handleForgot(event)">
+                <div class="form-group">
+                    <label>Email address</label>
+                    <input type="email" id="forgotEmail" placeholder="you@company.com" required>
+                </div>
+                <button type="submit" class="submit-btn">Send Reset Link</button>
+            </form>
+
+            <p class="auth-footer"><a href="#" onclick="showLogin()">&larr; Back to login</a></p>
+        </div>
+    </div>
+
+    <div class="back-link">
+        <a href="/">&larr; Back to homepage</a>
+        <span style="color:var(--gray);margin:0 0.5rem">|</span>
+        <a href="/privacy" style="color:var(--gray);font-size:0.85rem">Privacy Policy</a>
+    </div>
+</div>
+
+<!-- Role Picker Overlay (shown when new user logs in via social without an account) -->
+<div id="rolePickerOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:var(--navy-card);border-radius:20px;padding:2.5rem;width:90%;max-width:440px;border:1px solid rgba(0,212,255,0.1);box-shadow:0 20px 60px rgba(0,0,0,0.4)">
+        <h2 style="font-size:1.4rem;font-weight:800;text-align:center;margin-bottom:0.5rem">Welcome! Choose your role</h2>
+        <p style="color:var(--gray);text-align:center;margin-bottom:1.75rem;font-size:0.9rem">It looks like you don't have an account yet. How will you use ChatGenius?</p>
+        <div class="role-selector" style="flex-wrap:wrap">
+            <div class="role-option selected" id="pickerRoleHeadAdmin" onclick="selectPickerRole('head_admin')" style="flex:1 1 100%">
+                <div class="role-icon">&#128081;</div>
+                <div class="role-name">Head Administrator</div>
+                <div class="role-desc">Own a practice, invite admins & doctors, full control</div>
+            </div>
+            <div class="role-option" id="pickerRoleAdmin" onclick="selectPickerRole('admin')">
+                <div class="role-icon">&#128188;</div>
+                <div class="role-name">Administrator</div>
+                <div class="role-desc">Join a practice as admin, manage doctors & bookings</div>
+            </div>
+            <div class="role-option" id="pickerRoleDoctor" onclick="selectPickerRole('doctor')">
+                <div class="role-icon">&#129657;</div>
+                <div class="role-name">Doctor</div>
+                <div class="role-desc">Join a practice, view your appointments</div>
+            </div>
+        </div>
+        <div class="form-group" id="pickerSpecialtyGroup" style="display:none;margin-top:1rem">
+            <label style="display:block;font-size:0.85rem;font-weight:600;margin-bottom:0.5rem;color:var(--gray)">Your Specialty</label>
+            <select id="pickerSpecialty" style="width:100%;padding:0.8rem 1rem;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--white);font-size:0.95rem;outline:none">
+                <option value="">Select your specialty...</option>
+                <option>General Dentist</option><option>Pediatric Dentist</option>
+                <option>Orthodontist</option><option>Endodontist</option>
+                <option>Periodontist</option><option>Oral &amp; Maxillofacial Surgeon</option>
+                <option>Prosthodontist</option><option>Oral Pathologist</option>
+                <option>Oral Radiologist</option><option>Dental Anesthesiologist</option>
+                <option>Orofacial Pain Specialist</option><option>Dental Public Health Specialist</option>
+                <option>Cosmetic Dentist</option><option>Family Dentist</option>
+            </select>
+        </div>
+        <button class="submit-btn" onclick="confirmRolePicker()" style="margin-top:0.5rem">Continue</button>
+    </div>
+</div>
+
+<script>
+    // Redirect if already logged in
+    if (localStorage.getItem('token') && localStorage.getItem('user')) {
+        window.location.href = '/user-dashboard';
+    }
+
+    let GOOGLE_CLIENT_ID = '';
+    let FACEBOOK_APP_ID  = '';
+    let configLoaded = false;
+    let selectedRole = 'head_admin';
+    let pickerRole = 'head_admin';
+    let pendingSocialData = null;  // Stores social data while waiting for role pick
+
+    // Role selector (signup only)
+    function selectRole(role) {
+        selectedRole = role;
+        document.getElementById('roleHeadAdmin').classList.toggle('selected', role === 'head_admin');
+        document.getElementById('roleAdmin').classList.toggle('selected', role === 'admin');
+        document.getElementById('roleDoctor').classList.toggle('selected', role === 'doctor');
+        document.getElementById('companyGroup').style.display = role === 'doctor' ? 'none' : 'block';
+        document.getElementById('specialtyGroup').style.display = role === 'doctor' ? 'block' : 'none';
+    }
+
+    // Role picker overlay (for new social login users)
+    function selectPickerRole(role) {
+        pickerRole = role;
+        document.getElementById('pickerRoleHeadAdmin').classList.toggle('selected', role === 'head_admin');
+        document.getElementById('pickerRoleAdmin').classList.toggle('selected', role === 'admin');
+        document.getElementById('pickerRoleDoctor').classList.toggle('selected', role === 'doctor');
+        document.getElementById('pickerSpecialtyGroup').style.display = role === 'doctor' ? 'block' : 'none';
+    }
+
+    function showRolePicker(socialData) {
+        pendingSocialData = socialData;
+        pickerRole = 'head_admin';
+        document.getElementById('pickerRoleHeadAdmin').classList.add('selected');
+        document.getElementById('pickerRoleAdmin').classList.remove('selected');
+        document.getElementById('pickerRoleDoctor').classList.remove('selected');
+        document.getElementById('rolePickerOverlay').style.display = 'flex';
+    }
+
+    async function confirmRolePicker() {
+        if (!pendingSocialData) return;
+        const pickerSpecialty = document.getElementById('pickerSpecialty').value;
+        if (pickerRole === 'doctor' && !pickerSpecialty) {
+            alert('Please select your specialty.');
+            return;
+        }
+        document.getElementById('rolePickerOverlay').style.display = 'none';
+        // Re-send the social token with the chosen role + role_confirmed flag
+        const d = pendingSocialData;
+        pendingSocialData = null;
+        try {
+            const res = await fetch('/auth/social-token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    provider: d.provider,
+                    token: d.token,
+                    name: d.name,
+                    email: d.email,
+                    avatar_url: d.avatar_url,
+                    role: pickerRole,
+                    specialty: pickerSpecialty,
+                    role_confirmed: true,
+                })
+            });
+            const data = await res.json();
+            if (data.error) {
+                showAlert('loginError', data.error);
+            } else {
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+                window.location.href = '/user-dashboard';
+            }
+        } catch (err) {
+            showAlert('loginError', 'Login failed. Please try again.');
+        }
+    }
+
+    async function loadSocialConfig() {
+        try {
+            const res = await fetch('/auth/social-config');
+            const cfg = await res.json();
+            GOOGLE_CLIENT_ID = cfg.google_client_id || '';
+            FACEBOOK_APP_ID  = cfg.facebook_app_id || '';
+            configLoaded = true;
+            if (GOOGLE_CLIENT_ID) initGoogle();
+            if (FACEBOOK_APP_ID) initFacebook();
+        } catch(e) {
+            configLoaded = true;
+        }
+    }
+
+    // Page switching
+    function showLogin() {
+        document.getElementById('loginForm').style.display = 'block';
+        document.getElementById('signupForm').style.display = 'none';
+        document.getElementById('forgotForm').style.display = 'none';
+        clearAlerts();
+    }
+    function showSignup() {
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('signupForm').style.display = 'block';
+        document.getElementById('forgotForm').style.display = 'none';
+        clearAlerts();
+    }
+    function showForgot() {
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('signupForm').style.display = 'none';
+        document.getElementById('forgotForm').style.display = 'block';
+        clearAlerts();
+    }
+    function clearAlerts() {
+        document.querySelectorAll('.alert').forEach(a => { a.style.display = 'none'; a.textContent = ''; });
+    }
+    function showAlert(id, msg) {
+        const el = document.getElementById(id);
+        el.textContent = msg;
+        el.style.display = 'block';
+    }
+
+    if (new URLSearchParams(window.location.search).get('signup') === '1') showSignup();
+
+    // Send social token to backend with role
+    async function sendSocialToken(provider, token, name, email, avatarUrl) {
+        document.querySelectorAll('.social-btn').forEach(b => b.disabled = true);
+        // From signup form, role is already confirmed; from login form, it's not
+        const isFromSignup = document.getElementById('signupForm').style.display !== 'none';
+        try {
+            const res = await fetch('/auth/social-token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    provider, token, name, email, avatar_url: avatarUrl,
+                    role: selectedRole,
+                    specialty: isFromSignup ? (document.getElementById('signupSpecialty').value || '') : '',
+                    role_confirmed: isFromSignup,
+                })
+            });
+            const data = await res.json();
+            if (data.needs_role) {
+                // New user from login form — show role picker
+                showRolePicker(data);
+            } else if (data.error) {
+                showAlert('loginError', data.error);
+                showAlert('signupError', data.error);
+            } else {
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+                window.location.href = '/user-dashboard';
+            }
+        } catch (err) {
+            showAlert('loginError', 'Login failed. Please try again.');
+        }
+        document.querySelectorAll('.social-btn').forEach(b => b.disabled = false);
+    }
+
+    // Google Sign-In
+    let googleClient = null;
+
+    function initGoogle() {
+        if (!GOOGLE_CLIENT_ID) return;
+        try {
+            googleClient = google.accounts.oauth2.initTokenClient({
+                client_id: GOOGLE_CLIENT_ID,
+                scope: 'email profile',
+                callback: handleGoogleResponse,
+            });
+        } catch(e) {}
+    }
+
+    function googleSignIn() {
+        clearAlerts();
+        if (!GOOGLE_CLIENT_ID) {
+            sendSocialToken('google', 'demo_google_token', 'Google User', 'demo.user@gmail.com', '');
+            return;
+        }
+        if (!googleClient) initGoogle();
+        if (googleClient) {
+            googleClient.requestAccessToken();
+        } else {
+            showAlert('loginError', 'Google Sign-In is loading. Please try again in a moment.');
+        }
+    }
+
+    async function handleGoogleResponse(tokenResponse) {
+        if (tokenResponse.error) {
+            showAlert('loginError', 'Google sign-in was cancelled.');
+            return;
+        }
+        await sendSocialToken('google', tokenResponse.access_token, '', '', '');
+    }
+
+    // Facebook Sign-In
+    let fbReady = false;
+
+    function initFacebook() {
+        if (!FACEBOOK_APP_ID || typeof FB === 'undefined') return;
+        FB.init({ appId: FACEBOOK_APP_ID, cookie: true, xfbml: true, version: 'v19.0' });
+        fbReady = true;
+    }
+
+    window.fbAsyncInit = function() {
+        if (FACEBOOK_APP_ID) initFacebook();
+    };
+
+    function facebookSignIn() {
+        clearAlerts();
+        if (!FACEBOOK_APP_ID) {
+            sendSocialToken('facebook', 'demo_facebook_token', 'Facebook User', 'demo.user@facebook.com', '');
+            return;
+        }
+        if (!fbReady) {
+            showAlert('loginError', 'Facebook SDK is loading. Please try again in a moment.');
+            return;
+        }
+        FB.login(function(response) {
+            if (response.authResponse) {
+                sendSocialToken('facebook', response.authResponse.accessToken, '', '', '');
+            } else {
+                showAlert('loginError', 'Facebook sign-in was cancelled.');
+            }
+        }, { scope: 'email,public_profile' });
+    }
+
+    // Email/password login
+    async function handleLogin(e) {
+        e.preventDefault();
+        clearAlerts();
+        const btn = document.getElementById('loginBtn');
+        btn.disabled = true; btn.textContent = 'Logging in...';
+        try {
+            const res = await fetch('/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: document.getElementById('loginEmail').value,
+                    password: document.getElementById('loginPassword').value,
+                })
+            });
+            const data = await res.json();
+            if (data.error) {
+                showAlert('loginError', data.error);
+            } else {
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+                window.location.href = '/user-dashboard';
+            }
+        } catch (err) {
+            showAlert('loginError', 'Could not reach the server. Please try again.');
+        }
+        btn.disabled = false; btn.textContent = 'Log In';
+    }
+
+    // Email/password signup
+    function checkPwStrength(pw) {
+        const bar = document.getElementById('pwBar');
+        let score = 0;
+        if (pw.length >= 8) score++;
+        if (pw.length >= 12) score++;
+        if (/[A-Z]/.test(pw)) score++;
+        if (/[0-9]/.test(pw)) score++;
+        if (/[^A-Za-z0-9]/.test(pw)) score++;
+        const pct = (score / 5) * 100;
+        bar.style.width = pct + '%';
+        bar.style.background = pct <= 40 ? '#ef4444' : pct <= 70 ? '#f5a623' : '#22c55e';
+    }
+
+    async function handleSignup(e) {
+        e.preventDefault();
+        clearAlerts();
+        const btn = document.getElementById('signupBtn');
+        btn.disabled = true; btn.textContent = 'Creating account...';
+        try {
+            const res = await fetch('/auth/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: document.getElementById('signupName').value,
+                    email: document.getElementById('signupEmail').value,
+                    password: document.getElementById('signupPassword').value,
+                    company: document.getElementById('signupCompany').value,
+                    role: selectedRole,
+                    specialty: document.getElementById('signupSpecialty').value || '',
+                })
+            });
+            const data = await res.json();
+            if (data.error) {
+                showAlert('signupError', data.error);
+            } else {
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+                window.location.href = '/user-dashboard';
+            }
+        } catch (err) {
+            showAlert('signupError', 'Could not reach the server. Please try again.');
+        }
+        btn.disabled = false; btn.textContent = 'Create Account';
+    }
+
+    // Forgot password
+    async function handleForgot(e) {
+        e.preventDefault();
+        clearAlerts();
+        try {
+            const res = await fetch('/auth/forgot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: document.getElementById('forgotEmail').value })
+            });
+            const data = await res.json();
+            if (data.error) showAlert('forgotError', data.error);
+            else showAlert('forgotSuccess', 'If that email exists, we\'ve sent a reset link. Check your inbox!');
+        } catch (err) {
+            showAlert('forgotError', 'Could not reach the server.');
+        }
+    }
+
+    window.addEventListener('load', () => { loadSocialConfig(); });
+</script>
+
+</body>
+</html>

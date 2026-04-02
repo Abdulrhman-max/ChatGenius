@@ -1,0 +1,429 @@
+[
+  {
+    "category": "procedures",
+    "keywords": ["root canal", "endodontic", "tooth infection", "infected tooth", "nerve"],
+    "patterns": ["what is a root canal", "do root canals hurt", "how long does a root canal take", "is root canal painful", "root canal procedure", "why do i need a root canal", "root canal recovery", "how much is a root canal"],
+    "answer": "A **root canal** is a treatment to save a badly infected or damaged tooth. The dentist removes the infected nerve tissue inside the tooth, cleans the canal, and seals it. Despite its reputation, modern root canals are **no more painful than getting a filling** — you'll be fully numbed. The procedure takes about **60-90 minutes** and most patients return to normal activities the next day. Cost typically ranges from **$700-$1,500** depending on the tooth.",
+    "follow_up": "If you're experiencing tooth pain, I'd recommend seeing an **Endodontist**. Would you like to **book an appointment**?"
+  },
+  {
+    "category": "procedures",
+    "keywords": ["cleaning", "dental cleaning", "teeth cleaning", "prophylaxis", "hygiene", "scale", "polish"],
+    "patterns": ["what happens during a cleaning", "how often should i get a cleaning", "do cleanings hurt", "why do i need a cleaning", "how long does a cleaning take", "teeth cleaning cost", "deep cleaning vs regular cleaning"],
+    "answer": "A **dental cleaning** (prophylaxis) removes plaque and tartar buildup that brushing alone can't get. Your hygienist will scale your teeth, polish them, and floss. It typically takes **30-60 minutes** and is generally painless. You should get a cleaning **every 6 months** — this is the single best thing you can do to prevent cavities, gum disease, and tooth loss. A standard cleaning costs **$75-$200**, and most insurance covers it fully.",
+    "follow_up": "Would you like to **book a cleaning appointment**?"
+  },
+  {
+    "category": "procedures",
+    "keywords": ["filling", "cavity", "cavities", "tooth decay", "decay", "composite", "amalgam"],
+    "patterns": ["what is a filling", "do fillings hurt", "how long do fillings last", "types of fillings", "cavity filling cost", "how do you fix a cavity", "i have a cavity", "filling fell out"],
+    "answer": "A **dental filling** repairs a tooth damaged by decay (a cavity). The dentist removes the decayed portion and fills it with a material — usually **tooth-colored composite resin** for a natural look, or **amalgam (silver)** for back teeth. The procedure takes **20-60 minutes** per tooth and you'll be numbed so it's painless. Fillings typically last **5-15 years**. Cost ranges from **$150-$400** per tooth depending on size and material.",
+    "follow_up": "If you think you have a cavity, it's best to treat it early before it gets bigger. Would you like to **book an appointment**?"
+  },
+  {
+    "category": "procedures",
+    "keywords": ["crown", "dental crown", "cap", "tooth cap", "porcelain crown", "ceramic crown"],
+    "patterns": ["what is a dental crown", "when do you need a crown", "how long do crowns last", "crown cost", "does getting a crown hurt", "types of crowns", "crown vs filling", "crown fell off"],
+    "answer": "A **dental crown** is a custom-made cap that covers and protects a damaged, weakened, or cosmetically imperfect tooth. Crowns are recommended after root canals, for large fractures, or for severely worn teeth. They're made from **porcelain, ceramic, or metal** and typically require **2 visits** — one to prepare and take impressions, another to place it. Crowns last **10-15+ years** with good care. Cost ranges from **$800-$1,700** per crown.",
+    "follow_up": "Would you like to **book an appointment** to discuss whether a crown is right for you?"
+  },
+  {
+    "category": "procedures",
+    "keywords": ["implant", "dental implant", "tooth implant", "missing tooth", "replace tooth", "titanium"],
+    "patterns": ["what is a dental implant", "how much do implants cost", "are implants painful", "how long do implants last", "implant vs bridge", "am i a candidate for implants", "implant procedure", "how long does implant take"],
+    "answer": "A **dental implant** is a titanium post surgically placed in the jawbone to replace a missing tooth root. A crown is then attached on top, giving you a tooth that looks, feels, and functions like a natural one. Implants are the **gold standard** for tooth replacement — they last **25+ years** (often a lifetime). The full process takes **3-6 months** due to healing time. Cost is typically **$3,000-$5,000** per implant including the crown. Success rate is over **95%**.",
+    "follow_up": "Would you like to **book a consultation** to see if implants are right for you?"
+  },
+  {
+    "category": "procedures",
+    "keywords": ["braces", "orthodontic", "invisalign", "aligner", "straighten", "crooked", "alignment"],
+    "patterns": ["how much do braces cost", "how long do braces take", "braces vs invisalign", "do braces hurt", "am i too old for braces", "invisible braces", "clear aligners", "how do braces work"],
+    "answer": "**Braces** gradually move teeth into proper alignment using brackets and wires (traditional) or clear plastic trays (**Invisalign**). Treatment typically takes **12-24 months**. Traditional metal braces cost **$3,000-$7,000**, while Invisalign runs **$3,500-$8,000**. You're **never too old** for braces — about 25% of orthodontic patients are adults! Invisalign is popular for adults because the aligners are nearly invisible and removable for eating and brushing.",
+    "follow_up": "Would you like to **book a consultation** with our orthodontist?"
+  },
+  {
+    "category": "procedures",
+    "keywords": ["whitening", "teeth whitening", "bleaching", "whiter", "yellow", "stain", "discolor", "bright"],
+    "patterns": ["how much does teeth whitening cost", "does whitening work", "is whitening safe", "how long does whitening last", "whitening options", "how to whiten teeth", "professional whitening vs strips", "teeth are yellow"],
+    "answer": "**Professional teeth whitening** can brighten your smile by **several shades** in just one visit. In-office whitening takes about **60-90 minutes** and costs **$300-$800**. Take-home custom trays from your dentist cost **$200-$400** and work over 1-2 weeks. Professional whitening is **safe and much more effective** than over-the-counter strips. Results typically last **6 months to 2 years** depending on your habits (coffee, wine, smoking can re-stain faster).",
+    "follow_up": "Want a brighter smile? Would you like to **book a whitening appointment**?"
+  },
+  {
+    "category": "procedures",
+    "keywords": ["extraction", "tooth extraction", "pull tooth", "remove tooth", "pulled", "take out"],
+    "patterns": ["does tooth extraction hurt", "how long does extraction take", "tooth extraction cost", "what to expect after extraction", "when do you need an extraction", "extraction recovery time", "how to heal after extraction"],
+    "answer": "A **tooth extraction** is the removal of a tooth that's severely damaged, decayed, infected, or crowding other teeth. You'll receive local anesthesia so you **won't feel pain** during the procedure — just pressure. Simple extractions take **20-40 minutes**. Recovery is usually **3-7 days**. Afterward: avoid straws, smoking, and hard foods for 48 hours. Cost ranges from **$150-$400** for a simple extraction. Surgical extractions (like impacted teeth) cost **$225-$600**.",
+    "follow_up": "Would you like to **book an appointment** to evaluate your tooth?"
+  },
+  {
+    "category": "procedures",
+    "keywords": ["wisdom", "wisdom tooth", "wisdom teeth", "third molar", "impacted wisdom"],
+    "patterns": ["do i need wisdom teeth removed", "wisdom teeth removal cost", "does wisdom tooth removal hurt", "when should wisdom teeth come out", "impacted wisdom tooth", "wisdom teeth recovery", "how long to recover from wisdom teeth"],
+    "answer": "**Wisdom teeth** (third molars) often need removal because they're impacted, growing at wrong angles, or causing crowding. Most people get them removed between **ages 17-25**. The procedure takes **45-90 minutes** under sedation — you won't feel a thing. Recovery takes about **5-7 days** (soft foods, ice packs, rest). Cost is **$225-$600 per tooth**, or **$800-$2,000** for all four. Getting them out early is easier and heals faster.",
+    "follow_up": "Would you like to **book a consultation** to check your wisdom teeth?"
+  },
+  {
+    "category": "procedures",
+    "keywords": ["veneer", "veneers", "porcelain veneer", "cosmetic", "smile makeover"],
+    "patterns": ["what are veneers", "how much do veneers cost", "how long do veneers last", "are veneers worth it", "veneer procedure", "veneers vs crowns", "can veneers fix my teeth"],
+    "answer": "**Dental veneers** are thin porcelain or composite shells bonded to the front of your teeth to improve their appearance — perfect for fixing chips, gaps, stains, or uneven teeth. Porcelain veneers last **10-20 years** and look incredibly natural. The process requires **2-3 visits**. Cost is **$900-$2,500 per tooth** for porcelain, **$250-$1,500** for composite. Many patients call veneers life-changing because of the confidence boost.",
+    "follow_up": "Interested in transforming your smile? Would you like to **book a cosmetic consultation**?"
+  },
+  {
+    "category": "procedures",
+    "keywords": ["denture", "dentures", "false teeth", "partial denture", "full denture"],
+    "patterns": ["what are dentures", "dentures cost", "types of dentures", "how long do dentures last", "are dentures comfortable", "dentures vs implants", "do dentures look natural"],
+    "answer": "**Dentures** are removable replacements for missing teeth. **Full dentures** replace all teeth in an arch, while **partial dentures** replace several missing teeth and clip onto remaining ones. Modern dentures look very natural. They take **3-6 weeks** to make (multiple visits for fitting). Cost: **$600-$1,500** for partials, **$1,000-$3,000** for full sets. They last **5-10 years** before needing replacement. Implant-supported dentures are more stable but cost more.",
+    "follow_up": "Would you like to **book a consultation** to discuss your options?"
+  },
+  {
+    "category": "symptoms",
+    "keywords": ["toothache", "tooth pain", "tooth hurts", "teeth hurt", "aching tooth", "throbbing", "sharp pain"],
+    "patterns": ["my tooth hurts", "i have a toothache", "sharp pain in my tooth", "tooth is throbbing", "why does my tooth hurt", "tooth pain when eating", "tooth pain at night", "sudden tooth pain"],
+    "answer": "I'm sorry you're in pain! **Toothaches** can be caused by several things:\n\n- **Cavity or decay** — the most common cause\n- **Cracked or chipped tooth**\n- **Infection or abscess** — especially if there's swelling or fever (this is urgent!)\n- **Gum disease**\n- **Grinding teeth** (bruxism)\n\n**Immediate relief tips:** Take ibuprofen (anti-inflammatory), apply a cold compress to your cheek, rinse with warm salt water, and avoid very hot or cold foods.",
+    "follow_up": "Tooth pain shouldn't be ignored — it usually gets worse. I'd recommend **booking an appointment** as soon as possible. Would you like to?"
+  },
+  {
+    "category": "symptoms",
+    "keywords": ["bleeding gums", "gum bleeding", "blood brushing", "gums bleed", "pink toothbrush"],
+    "patterns": ["my gums bleed when i brush", "why are my gums bleeding", "bleeding gums", "gums bleed when flossing", "blood when i brush my teeth", "is it normal for gums to bleed"],
+    "answer": "**Bleeding gums** are NOT normal and are usually a sign of **gingivitis** (early gum disease). The good news: it's **completely reversible** at this stage! Common causes:\n\n- **Plaque buildup** from inadequate brushing/flossing\n- Not flossing regularly (gums bleed when you start but improve in 1-2 weeks)\n- **Hormonal changes** (pregnancy, medications)\n- Vitamin deficiency\n\n**What to do:** Brush gently twice daily, floss daily, use an antiseptic mouthwash, and get a professional cleaning.",
+    "follow_up": "A professional cleaning can reverse gingivitis. Would you like to **book an appointment** with our hygienist?"
+  },
+  {
+    "category": "symptoms",
+    "keywords": ["sensitive", "sensitivity", "hot", "cold", "ice cream", "coffee hurts"],
+    "patterns": ["my teeth are sensitive", "tooth sensitive to cold", "pain when drinking cold water", "teeth hurt with ice cream", "sensitive to hot and cold", "why are my teeth sensitive", "how to fix sensitive teeth"],
+    "answer": "**Tooth sensitivity** is very common and usually manageable. Common causes:\n\n- **Worn enamel** from aggressive brushing or acidic foods\n- **Receding gums** exposing tooth roots\n- **Cavities or cracks**\n- **Recent dental work** (temporary, usually fades in days)\n- **Teeth grinding**\n\n**Quick relief:** Use a **sensitivity toothpaste** (like Sensodyne) for 2 weeks — it really works. Use a soft-bristle toothbrush and avoid whitening toothpaste. If sensitivity is sudden, severe, or on one tooth, see a dentist soon.",
+    "follow_up": "If sensitivity persists more than 2 weeks, it's worth getting checked. Would you like to **book an appointment**?"
+  },
+  {
+    "category": "symptoms",
+    "keywords": ["swollen", "swelling", "puffy gums", "face swelling", "abscess", "bump on gum", "pus"],
+    "patterns": ["my gums are swollen", "swelling in my mouth", "bump on my gum", "abscess", "face is swollen from tooth", "pus coming from gum", "swollen jaw"],
+    "answer": "**Swelling in the mouth or face is often a sign of infection and should be treated urgently.** A dental abscess (pocket of pus) can spread to other parts of the body if untreated.\n\n**Warning signs that need immediate attention:**\n- Facial swelling\n- Fever\n- Difficulty swallowing or breathing\n- Pus drainage\n\n**Until you can see a dentist:** Rinse with warm salt water, take ibuprofen for pain and swelling, and DON'T put aspirin directly on the gum. If you have fever + facial swelling, go to an **emergency room**.",
+    "follow_up": "This sounds urgent. Please **book an emergency appointment** right away or call us directly."
+  },
+  {
+    "category": "symptoms",
+    "keywords": ["bad breath", "halitosis", "breath smells", "mouth odor", "stinky breath"],
+    "patterns": ["why do i have bad breath", "how to fix bad breath", "bad breath causes", "chronic bad breath", "breath smells bad", "mouth smells"],
+    "answer": "**Bad breath (halitosis)** affects about 25% of people. Common causes:\n\n- **Poor oral hygiene** — bacteria on teeth, gums, and especially the tongue\n- **Gum disease** — a major cause of persistent bad breath\n- **Dry mouth** — from medications or mouth breathing\n- **Food** — garlic, onions, coffee\n- **Medical conditions** — acid reflux, sinus issues, diabetes\n\n**Solutions:** Brush twice daily, **floss daily**, clean your tongue (huge difference!), stay hydrated, use mouthwash. If bad breath persists despite good hygiene, see a dentist — it could indicate gum disease.",
+    "follow_up": "Persistent bad breath often means an underlying issue. Would you like to **book a checkup**?"
+  },
+  {
+    "category": "symptoms",
+    "keywords": ["jaw pain", "tmj", "jaw clicking", "jaw popping", "jaw lock", "can't open mouth", "grinding", "clenching", "bruxism"],
+    "patterns": ["my jaw hurts", "jaw clicking when i eat", "tmj pain", "i grind my teeth", "jaw pops when i open", "can't open my mouth wide", "jaw locked", "teeth grinding at night"],
+    "answer": "**Jaw pain and TMJ issues** are very common. TMJ (temporomandibular joint) problems cause:\n\n- Jaw pain or tenderness\n- Clicking/popping sounds\n- Difficulty opening your mouth\n- Headaches, especially in the morning\n- Ear pain\n\n**Common causes:** Teeth grinding (bruxism), stress, misaligned bite, arthritis.\n\n**Relief tips:** Apply warm compress, eat soft foods, avoid chewing gum, try jaw relaxation exercises, take anti-inflammatory medication. A **night guard** from your dentist can protect teeth from grinding and often provides significant relief.",
+    "follow_up": "Would you like to **book an appointment** to evaluate your jaw? We may recommend a custom night guard."
+  },
+  {
+    "category": "symptoms",
+    "keywords": ["broken tooth", "chipped tooth", "cracked tooth", "fractured tooth", "piece broke off"],
+    "patterns": ["i broke my tooth", "chipped tooth what to do", "tooth cracked", "piece of tooth fell off", "how to fix a broken tooth", "cracked tooth pain"],
+    "answer": "A **broken or chipped tooth** needs attention, but don't panic!\n\n**Immediate steps:**\n1. Rinse your mouth with warm water\n2. If bleeding, apply gentle pressure with gauze\n3. Apply a cold compress to reduce swelling\n4. Save any large pieces in milk or saliva\n5. Cover sharp edges with dental wax or sugarless gum\n6. Take ibuprofen for pain\n\n**Treatment depends on severity:** Small chips can be smoothed or bonded. Larger fractures may need a crown. A cracked tooth to the root may need a root canal or extraction.",
+    "follow_up": "See a dentist **within 24-48 hours** to prevent further damage. Would you like to **book an appointment**?"
+  },
+  {
+    "category": "symptoms",
+    "keywords": ["knocked out", "avulsed", "tooth fell out", "tooth came out", "lost tooth accident"],
+    "patterns": ["my tooth got knocked out", "tooth fell out from accident", "what to do if tooth falls out", "tooth came out completely", "emergency knocked out tooth"],
+    "answer": "A **knocked-out tooth is a dental emergency** — but it can often be saved if you act fast!\n\n**Critical steps (within 30 minutes):**\n1. Pick up the tooth by the **crown** (white part) — NEVER touch the root\n2. If dirty, rinse gently with milk or water (don't scrub!)\n3. Try to **put it back in the socket** and hold it in place by biting on a cloth\n4. If you can't reinsert it, keep it in **milk** or between your cheek and gum\n5. Get to a dentist **within 30-60 minutes** — every minute counts!\n\n**Do NOT** let it dry out, wrap it in tissue, or put it in regular water.",
+    "follow_up": "This is an emergency! Please **call us immediately** or come in right away."
+  },
+  {
+    "category": "prevention",
+    "keywords": ["brush", "brushing", "how to brush", "toothbrush", "electric toothbrush", "brushing technique"],
+    "patterns": ["how often should i brush", "how to brush properly", "electric vs manual toothbrush", "best brushing technique", "how long should i brush", "when to change toothbrush"],
+    "answer": "**Proper brushing is the foundation of dental health:**\n\n- Brush **twice daily** for **2 full minutes** each time\n- Use a **soft-bristle** toothbrush (hard bristles damage enamel and gums)\n- Hold at a **45-degree angle** to your gums\n- Use **gentle, circular motions** — don't scrub back and forth\n- Don't forget your **tongue** — it harbors bacteria\n- Replace your toothbrush **every 3 months** or when bristles fray\n- **Electric toothbrushes** are more effective for most people — especially Sonicare or Oral-B with a timer\n- Wait **30 minutes** after eating acidic foods before brushing",
+    "follow_up": "Regular checkups help catch what brushing misses. Would you like to **book a cleaning**?"
+  },
+  {
+    "category": "prevention",
+    "keywords": ["floss", "flossing", "between teeth", "interdental", "water flosser"],
+    "patterns": ["how often should i floss", "do i really need to floss", "flossing technique", "water flosser vs string floss", "flossing hurts", "gums bleed when i floss", "is flossing important"],
+    "answer": "**Yes, you really need to floss!** Brushing only cleans about 60% of tooth surfaces — flossing gets the other 40% between teeth where cavities and gum disease love to start.\n\n- Floss **once daily** (ideally before bed)\n- Use about **18 inches** of floss, wrapping around your fingers\n- Curve the floss into a **C-shape** around each tooth\n- Slide gently under the gumline\n- **Bleeding stops** after 1-2 weeks of consistent flossing\n- **Water flossers** (like Waterpik) are a great alternative, especially with braces or bridges\n- Even once a day makes a **massive difference** in preventing gum disease",
+    "follow_up": "Want to make sure your oral hygiene routine is on track? **Book a cleaning** and our hygienist can give you personalized tips."
+  },
+  {
+    "category": "prevention",
+    "keywords": ["mouthwash", "rinse", "mouth rinse", "listerine", "fluoride rinse"],
+    "patterns": ["should i use mouthwash", "best mouthwash", "does mouthwash work", "mouthwash before or after brushing", "fluoride mouthwash"],
+    "answer": "**Mouthwash is a helpful addition** but NOT a substitute for brushing and flossing.\n\n- **Fluoride mouthwash** (like ACT) strengthens enamel and prevents cavities\n- **Antiseptic mouthwash** (like Listerine) kills bacteria and helps with gum disease\n- **Alcohol-free** versions are gentler and work just as well\n- Use **after brushing and flossing** — wait 30 minutes after brushing so it doesn't wash away toothpaste fluoride\n- Swish for **30-60 seconds**\n- Don't eat or drink for 30 minutes after using",
+    "follow_up": "Our dentist can recommend the best mouthwash for your specific needs. Would you like to **book an appointment**?"
+  },
+  {
+    "category": "prevention",
+    "keywords": ["diet", "food", "sugar", "soda", "acidic", "candy", "good food teeth", "bad food teeth"],
+    "patterns": ["what foods are bad for teeth", "does sugar cause cavities", "foods good for teeth", "is soda bad for teeth", "how does diet affect teeth"],
+    "answer": "**Your diet hugely impacts dental health:**\n\n**Foods that HARM teeth:**\n- Sugary snacks and candy (especially sticky ones like gummies)\n- Soda and sports drinks (acid + sugar)\n- Citrus fruits in excess (acid erodes enamel)\n- Ice chewing (cracks teeth!)\n- Constant snacking (keeps acid levels high)\n\n**Foods that HELP teeth:**\n- Cheese and dairy (calcium + neutralizes acid)\n- Crunchy vegetables (carrots, celery — natural cleaning)\n- Leafy greens (calcium, vitamins)\n- Nuts and seeds\n- Water (especially fluoridated)\n- Sugar-free gum with xylitol (stimulates saliva)",
+    "follow_up": "Good nutrition plus regular checkups = healthy teeth for life. Would you like to **book a checkup**?"
+  },
+  {
+    "category": "children",
+    "keywords": ["baby", "child", "kid", "children", "toddler", "infant", "pediatric", "teething", "first tooth", "baby teeth"],
+    "patterns": ["when should my child first see a dentist", "baby teething", "are baby teeth important", "how to care for baby teeth", "child afraid of dentist", "fluoride for kids", "when do kids lose teeth", "thumb sucking"],
+    "answer": "**Children's dental care is crucial for lifelong oral health:**\n\n- **First dental visit:** By age 1 or when the first tooth appears\n- **Baby teeth matter!** They hold space for permanent teeth — cavities in baby teeth can affect adult teeth\n- **Start brushing** as soon as the first tooth appears — use a rice-grain amount of fluoride toothpaste\n- Kids can start **flossing** when teeth touch (usually around age 2-3)\n- **Sealants** (thin protective coatings on molars) can prevent 80% of cavities in kids\n- Children typically lose baby teeth between **ages 6-12**\n- Thumb sucking is normal but should stop by **age 4** to avoid bite issues",
+    "follow_up": "Our pediatric dentist makes visits fun and stress-free for kids! Would you like to **book an appointment** for your child?"
+  },
+  {
+    "category": "children",
+    "keywords": ["teething", "baby teething", "teething pain", "teething symptoms", "first teeth"],
+    "patterns": ["when do babies start teething", "teething remedies", "how to help teething baby", "teething symptoms", "baby drooling teeth"],
+    "answer": "**Teething typically starts around 6 months** (but can range from 3-12 months). Symptoms include:\n\n- Drooling, fussiness, and irritability\n- Swollen gums\n- Chewing on everything\n- Mild fever (under 101°F)\n- Disrupted sleep\n\n**How to help:**\n- Cold teething rings or washcloths\n- Gently rub gums with a clean finger\n- Infant pain reliever (consult your pediatrician for dosing)\n- Chilled (not frozen) fruit in a mesh feeder\n\n**NOT recommended:** Teething gels with benzocaine (FDA warning), amber teething necklaces (choking hazard)",
+    "follow_up": "Would you like to **book a first dental visit** for your little one?"
+  },
+  {
+    "category": "anxiety",
+    "keywords": ["afraid", "fear", "scared", "anxious", "anxiety", "nervous", "phobia", "hate dentist", "terrified"],
+    "patterns": ["i'm afraid of the dentist", "dental anxiety", "scared of dentist", "how to overcome dental fear", "nervous about dental appointment", "i hate the dentist", "dental phobia", "haven't been to dentist in years because scared"],
+    "answer": "**Dental anxiety is incredibly common** — you are NOT alone. About 36% of people have some dental fear, and 12% have extreme anxiety. We completely understand and are here to help.\n\n**Options to help you feel comfortable:**\n- **Communication** — we'll explain every step before we do it, and you can raise your hand anytime to pause\n- **Nitrous oxide** (laughing gas) — mild sedation that relaxes you, wears off in minutes\n- **Oral sedation** — a pill taken before your appointment for deeper relaxation\n- **IV sedation** — for severe anxiety, you'll be in a twilight state\n- **Headphones/music** — bring your own or we provide them\n- **Breaks** — we go at YOUR pace\n\nMany of our patients started out terrified and now come in comfortably.",
+    "follow_up": "We specialize in treating anxious patients with compassion. Would you like to **book a gentle, no-pressure first visit**?"
+  },
+  {
+    "category": "anxiety",
+    "keywords": ["sedation", "laughing gas", "nitrous", "sleep dentistry", "put to sleep", "pain free", "anesthesia"],
+    "patterns": ["do you offer sedation", "can i be put to sleep", "laughing gas dentistry", "sedation options", "pain free dentistry", "will i feel anything"],
+    "answer": "**Yes, we offer several sedation options** to ensure your comfort:\n\n1. **Local anesthesia** — numbing injection at the treatment site (standard for most procedures)\n2. **Nitrous oxide (laughing gas)** — inhaled through a mask, creates mild euphoria and relaxation. Wears off in minutes. You can drive yourself home.\n3. **Oral sedation** — a prescription pill taken 1 hour before. You'll be awake but deeply relaxed and may not remember much. Need a ride home.\n4. **IV sedation** — administered through an IV for deeper sedation. Ideal for extensive work or extreme anxiety. Need a ride home.\n\nAll procedures use local anesthesia for numbing — **you should never feel pain** during dental work.",
+    "follow_up": "We'll find the right sedation level for you. Would you like to **book a consultation**?"
+  },
+  {
+    "category": "insurance",
+    "keywords": ["insurance", "dental plan", "coverage", "in-network", "out of network", "delta", "cigna", "aetna", "metlife", "claim"],
+    "patterns": ["do you accept insurance", "what insurance do you take", "does insurance cover this", "how does dental insurance work", "am i covered", "insurance for dental implants", "how to use dental insurance"],
+    "answer": "**Dental insurance** helps cover preventive and restorative care. Here's what you should know:\n\n- **Most plans cover 100%** of preventive care (cleanings, exams, X-rays)\n- **Basic procedures** (fillings, extractions) are typically covered at **70-80%**\n- **Major procedures** (crowns, bridges, root canals) usually covered at **50%**\n- **Cosmetic procedures** (whitening, veneers) are usually NOT covered\n- **Annual maximum** is typically **$1,000-$2,000** — use it or lose it!\n- Most plans have a **deductible** of $25-$100\n\nWe accept most major dental insurance plans. Our front desk can verify your specific coverage before your visit.",
+    "follow_up": "Would you like us to **check your insurance coverage**? Book an appointment and we'll verify your benefits!"
+  },
+  {
+    "category": "insurance",
+    "keywords": ["no insurance", "uninsured", "without insurance", "can't afford", "payment plan", "financing", "cost without insurance"],
+    "patterns": ["i don't have insurance", "dental care without insurance", "can't afford dentist", "payment plans available", "financing options", "how to pay without insurance"],
+    "answer": "**No insurance? Don't let that stop you from getting care!** We believe everyone deserves good dental health.\n\n**Options available:**\n- **Payment plans** — spread the cost over several months\n- **CareCredit/dental financing** — low or no-interest financing for treatment\n- **Cash/self-pay discounts** — many offices offer 10-20% off for paying upfront\n- **Dental discount plans** — not insurance but saves 20-50% (plans like Dental Solutions or DentalPlans.com)\n- **Community health centers** — offer reduced-fee dental care\n- **Dental schools** — quality care at reduced costs\n\nDon't skip preventive care — a $150 cleaning now prevents a $1,500 root canal later.",
+    "follow_up": "We work with patients on budgets. Would you like to **book an appointment** to discuss options?"
+  },
+  {
+    "category": "emergency",
+    "keywords": ["emergency", "urgent", "same day", "walk in", "after hours", "can't wait", "severe pain", "unbearable"],
+    "patterns": ["dental emergency", "i need to see a dentist today", "urgent dental care", "same day appointment", "after hours dentist", "emergency tooth pain", "is this a dental emergency"],
+    "answer": "**Dental emergencies we handle:**\n\n**GO IMMEDIATELY (call us or ER):**\n- Knocked-out tooth\n- Uncontrollable bleeding\n- Facial swelling affecting breathing/swallowing\n- Jaw fracture\n\n**See us within 24 hours:**\n- Severe toothache not relieved by medication\n- Broken/cracked tooth with sharp edges\n- Lost filling or crown\n- Dental abscess (swelling + fever)\n\n**Can wait a few days:**\n- Chipped tooth (no pain)\n- Lost retainer\n- Mild tooth sensitivity\n\n**While waiting:** Take ibuprofen, apply cold compress, rinse with warm salt water. Don't put aspirin directly on gums.",
+    "follow_up": "If you're in pain, please call us directly for an **emergency appointment**. We'll fit you in as soon as possible."
+  },
+  {
+    "category": "general",
+    "keywords": ["how often", "regular", "checkup", "check up", "routine", "exam", "visit frequency"],
+    "patterns": ["how often should i see the dentist", "do i need to go every 6 months", "how often dental checkup", "when should i go to the dentist", "is yearly dental visit enough", "skipped dentist for years"],
+    "answer": "**Most people should see the dentist every 6 months** for a checkup and cleaning. However:\n\n- **Every 3-4 months:** If you have gum disease, high cavity risk, diabetes, smoke, or are pregnant\n- **Every 6 months:** Standard recommendation for most healthy adults and children\n- **Once a year:** Minimum for people with excellent oral health and low risk\n\n**What happens at a checkup:**\n- Professional cleaning (removes tartar brushing can't)\n- Cavity check\n- Gum health evaluation\n- Oral cancer screening\n- X-rays (usually yearly)\n\n**Haven't been in years?** No judgment! We see this all the time. The important thing is starting now.",
+    "follow_up": "When was your last checkup? Would you like to **book one**?"
+  },
+  {
+    "category": "general",
+    "keywords": ["pregnant", "pregnancy", "prenatal", "expecting", "baby on the way"],
+    "patterns": ["is dental work safe during pregnancy", "can i go to the dentist while pregnant", "pregnancy and dental health", "dental care during pregnancy", "dental x-rays during pregnancy"],
+    "answer": "**Yes, dental care during pregnancy is safe AND important!** Pregnancy hormones increase risk of gum disease (pregnancy gingivitis affects 60-75% of pregnant women).\n\n**Safe during pregnancy:**\n- Cleanings and checkups — **highly recommended**\n- Fillings and crowns — safe, especially in 2nd trimester\n- Emergency procedures — anytime if needed\n- Local anesthesia (lidocaine) — safe\n\n**Typically postponed until after delivery:**\n- Elective/cosmetic procedures\n- Teeth whitening\n\n**X-rays:** Safe with lead apron protection when necessary, but usually postponed unless urgent.\n\nUntreated dental infections can actually affect your baby, so don't skip dental care!",
+    "follow_up": "Would you like to **book a prenatal dental checkup**?"
+  },
+  {
+    "category": "general",
+    "keywords": ["x-ray", "xray", "radiation", "digital xray", "panoramic", "scan"],
+    "patterns": ["are dental x-rays safe", "how often do i need x-rays", "dental x-ray radiation", "types of dental x-rays", "do i really need x-rays"],
+    "answer": "**Dental X-rays are very safe** with extremely low radiation:\n\n- A dental X-ray has **less radiation than you get from a day of normal background exposure**\n- Digital X-rays (which most offices use now) have **80% less radiation** than old film X-rays\n- We use lead aprons and thyroid collars for extra protection\n\n**Types and frequency:**\n- **Bitewings** (cavity detection) — every 6-12 months\n- **Periapical** (full tooth + root) — as needed\n- **Panoramic** (full mouth overview) — every 3-5 years\n- **CBCT 3D scan** — for implants, wisdom teeth planning\n\nX-rays catch problems **invisible to the eye** — cavities between teeth, bone loss, infections, and impacted teeth. They're essential for good diagnosis.",
+    "follow_up": "X-rays are part of a thorough checkup. Would you like to **book an appointment**?"
+  },
+  {
+    "category": "myths",
+    "keywords": ["myth", "true or false", "is it true", "do i really", "heard that"],
+    "patterns": ["is it true that sugar causes cavities", "do i really need to floss", "is whitening bad for teeth", "do dental fillings contain mercury", "can you over-brush your teeth"],
+    "answer": "Let me bust some **common dental myths:**\n\n**Myth: Sugar directly causes cavities**\n✅ Truth: Bacteria feed on sugar and produce acid that causes cavities. Time matters more — sipping soda all day is worse than eating candy at once.\n\n**Myth: Harder brushing = cleaner teeth**\n✅ Truth: Aggressive brushing damages enamel and gums. Gentle circular motions are better.\n\n**Myth: White teeth = healthy teeth**\n✅ Truth: Natural tooth color varies. Yellow teeth can be perfectly healthy; white teeth can have hidden problems.\n\n**Myth: Baby teeth don't matter**\n✅ Truth: They affect speech, nutrition, and guide permanent teeth into position.\n\n**Myth: No pain = no problem**\n✅ Truth: Many serious dental issues (cavities, gum disease, oral cancer) are painless until advanced.",
+    "follow_up": "The best way to separate fact from fiction is a professional opinion. Would you like to **book a checkup**?"
+  },
+  {
+    "category": "myths",
+    "keywords": ["mercury", "amalgam", "silver filling", "toxic", "bpa"],
+    "patterns": ["are silver fillings safe", "do fillings contain mercury", "should i replace silver fillings", "amalgam filling danger", "are old fillings toxic"],
+    "answer": "**Silver (amalgam) fillings and safety:**\n\nAmalgam fillings DO contain mercury, but in a **stable compound** that's been used safely for **150+ years**. Major health organizations (ADA, FDA, WHO) confirm they are safe for most people.\n\n**However:**\n- If a filling is **cracked, leaking, or has decay underneath**, it should be replaced regardless of type\n- Some patients prefer to replace them with **tooth-colored composite** for cosmetic reasons\n- **Don't remove** good amalgam fillings unnecessarily — removal temporarily exposes you to more mercury vapor than leaving them in place\n- For **new fillings**, most dentists now use composite resin by default\n\nIf you're concerned, talk to your dentist about your specific fillings.",
+    "follow_up": "Want to discuss your fillings? Would you like to **book a consultation**?"
+  },
+  {
+    "category": "cosmetic",
+    "keywords": ["smile", "look better", "ugly teeth", "gap", "cosmetic", "appearance", "confident", "embarrassed"],
+    "patterns": ["i don't like my smile", "how to improve my smile", "cosmetic dentistry options", "embarrassed about my teeth", "gap in my front teeth", "teeth are ugly", "smile makeover options"],
+    "answer": "**Modern cosmetic dentistry can transform any smile!** Options include:\n\n- **Teeth whitening** — brighten by several shades ($300-$800)\n- **Veneers** — cover chips, gaps, stains, uneven teeth ($900-$2,500/tooth)\n- **Bonding** — quick fix for chips and gaps ($200-$600/tooth)\n- **Invisalign** — straighten teeth invisibly ($3,500-$8,000)\n- **Gum contouring** — reshape uneven gumline ($200-$400/tooth)\n- **Dental implants** — replace missing teeth permanently ($3,000-$5,000)\n- **Full smile makeover** — combines multiple treatments for dramatic results\n\nA cosmetic consultation lets us create a personalized plan for your dream smile.",
+    "follow_up": "Everyone deserves to feel confident about their smile. Would you like to **book a cosmetic consultation**?"
+  },
+  {
+    "category": "general",
+    "keywords": ["age", "old", "elderly", "senior", "aging teeth", "older"],
+    "patterns": ["dental care for seniors", "teeth problems with age", "do teeth get worse with age", "dental implants for elderly", "dry mouth elderly", "dentures for seniors"],
+    "answer": "**Dental care is just as important (if not more) as you age:**\n\n**Common issues for seniors:**\n- **Dry mouth** — often from medications, increases cavity risk. Sip water, use dry mouth products\n- **Gum recession** — exposes roots, increases sensitivity. Gentle brushing helps\n- **Root decay** — more common with age\n- **Darkening teeth** — enamel thins, revealing darker dentin underneath\n- **Existing dental work** needing replacement (old fillings, crowns)\n\n**Good news:** You're never too old for dental implants, cosmetic improvements, or better oral health. Modern dentistry can keep your natural teeth healthy for life with proper care.",
+    "follow_up": "We provide gentle, patient care for all ages. Would you like to **book an appointment**?"
+  },
+  {
+    "category": "general",
+    "keywords": ["smoke", "smoking", "tobacco", "vape", "vaping", "e-cigarette", "chewing tobacco"],
+    "patterns": ["how does smoking affect teeth", "smoking and dental health", "is vaping bad for teeth", "teeth staining from smoking", "can dentist tell if i smoke"],
+    "answer": "**Smoking and tobacco are devastating for oral health:**\n\n- **Gum disease** — smokers are 2x more likely to develop it, and it responds worse to treatment\n- **Oral cancer** — risk is 6x higher for smokers\n- **Tooth loss** — smokers lose teeth at 2x the rate\n- **Staining** — deep yellow-brown stains\n- **Slow healing** — after extractions, implants, or surgery\n- **Bad breath** — persistent\n- **Implant failure** — significantly higher rate\n\n**Vaping** is NOT safe for teeth either — the nicotine reduces blood flow to gums, and flavoring chemicals can damage enamel.\n\nYes, your dentist can tell if you smoke. But we're not here to judge — we're here to help protect your health.",
+    "follow_up": "We can help manage the dental effects of smoking. Would you like to **book a checkup**?"
+  },
+  {
+    "category": "general",
+    "keywords": ["diabetes", "diabetic", "blood sugar"],
+    "patterns": ["diabetes and dental health", "diabetic dental care", "does diabetes affect teeth", "gum disease and diabetes"],
+    "answer": "**Diabetes and dental health are closely connected** — each affects the other:\n\n- Diabetics are **2-3x more likely** to develop gum disease\n- Gum disease makes it **harder to control blood sugar** (a vicious cycle)\n- **Dry mouth** from diabetes increases cavity risk\n- Slower healing after dental procedures\n- Higher risk of fungal infections (thrush)\n\n**Important for diabetics:**\n- See your dentist **every 3-4 months** (not just every 6)\n- Keep blood sugar well-controlled\n- Tell your dentist about your diabetes and medications\n- Brush and floss diligently\n- Watch for gum disease signs (bleeding, swelling, redness)",
+    "follow_up": "Diabetic patients benefit greatly from regular dental care. Would you like to **book an appointment**?"
+  },
+  {
+    "category": "general",
+    "keywords": ["fluoride", "fluoride treatment", "fluoride safe", "too much fluoride", "fluorosis"],
+    "patterns": ["is fluoride safe", "do i need fluoride treatment", "fluoride in toothpaste", "is fluoride bad for you", "fluoride for kids", "what does fluoride do"],
+    "answer": "**Fluoride is one of the most effective tools against cavities:**\n\n- It **strengthens enamel** and can even reverse early cavities\n- It's naturally found in water, soil, and some foods\n- **Community water fluoridation** reduces cavities by 25%\n- All major health organizations support fluoride use (ADA, WHO, CDC)\n\n**Types of fluoride protection:**\n- Fluoride toothpaste (daily)\n- Fluoride mouthwash (daily)\n- Professional fluoride treatments (at dental visits)\n- Fluoridated water\n\n**For children:** Use a rice-grain amount of fluoride toothpaste (under 3), pea-sized (3-6), and teach them to spit, not swallow. Excess fluoride during development can cause cosmetic fluorosis (white spots), but this is rare and purely aesthetic.",
+    "follow_up": "Our dentist can assess your fluoride needs. Would you like to **book an appointment**?"
+  },
+  {
+    "category": "general",
+    "keywords": ["sealant", "dental sealant", "protect teeth", "prevent cavities"],
+    "patterns": ["what are dental sealants", "do sealants work", "sealants for adults", "how long do sealants last", "sealant cost"],
+    "answer": "**Dental sealants** are thin, protective coatings applied to the chewing surfaces of back teeth (molars) where most cavities form.\n\n- They **prevent 80% of cavities** in molars\n- Application is **quick and painless** — painted on and hardened with a light (no drilling!)\n- Last **5-10 years** and can be reapplied\n- Cost: **$30-$60 per tooth** — usually covered by insurance for children\n- **Most beneficial for kids** ages 6-14 when permanent molars come in\n- Adults can get them too if they have cavity-prone molars without fillings\n\nSealants are one of the most cost-effective preventive measures in dentistry — far cheaper than fixing a cavity later!",
+    "follow_up": "Would you like to **book an appointment** to discuss sealants for you or your child?"
+  },
+  {
+    "category": "general",
+    "keywords": ["mouth guard", "night guard", "sports guard", "mouthguard", "teeth grinding", "protect teeth sport"],
+    "patterns": ["do i need a mouth guard", "night guard for grinding", "mouth guard for sports", "custom mouth guard cost", "teeth grinding protection"],
+    "answer": "**Mouth guards protect teeth from damage:**\n\n**Night guards (for teeth grinding/bruxism):**\n- Grinding wears down teeth, causes jaw pain, headaches, and can crack teeth\n- A custom night guard from your dentist ($300-$600) is FAR superior to store-bought ones\n- Lasts 3-5 years with proper care\n\n**Sports guards:**\n- Essential for contact sports (football, basketball, hockey, martial arts, boxing)\n- Also recommended for skateboarding, cycling, gymnastics\n- Custom-fitted guards from your dentist offer the best protection and comfort ($200-$400)\n- Over-the-counter boil-and-bite guards ($15-$30) are better than nothing\n\n**Signs you need a night guard:** Morning jaw pain, headaches, worn/flattened teeth, chipped teeth, partner hears you grinding",
+    "follow_up": "Would you like to **book an appointment** for a custom mouth guard fitting?"
+  },
+  {
+    "category": "general",
+    "keywords": ["oral cancer", "mouth cancer", "screening", "lump", "sore that won't heal"],
+    "patterns": ["oral cancer signs", "mouth cancer symptoms", "do you screen for oral cancer", "lump in my mouth", "sore that won't heal in mouth", "white patch in mouth"],
+    "answer": "**Oral cancer screening is part of every dental checkup.** Early detection saves lives — the 5-year survival rate is **84% when caught early** vs 39% when late.\n\n**Warning signs to watch for:**\n- A sore in the mouth that **doesn't heal within 2 weeks**\n- Red or white patches\n- Unexplained numbness\n- Persistent sore throat or feeling something stuck\n- Difficulty chewing, swallowing, or moving the tongue/jaw\n- Lump or thickening in cheek, lip, or neck\n- Unexplained bleeding\n\n**Risk factors:** Tobacco use, heavy alcohol, HPV, excessive sun exposure (lip cancer), family history\n\n**Important:** If you notice any of these signs lasting more than 2 weeks, see a dentist promptly.",
+    "follow_up": "Regular checkups include oral cancer screening. Would you like to **book an appointment**?"
+  },
+  {
+    "category": "general",
+    "keywords": ["dry mouth", "xerostomia", "no saliva", "thirsty", "mouth dry"],
+    "patterns": ["why is my mouth dry", "dry mouth causes", "how to treat dry mouth", "dry mouth at night", "medication causing dry mouth"],
+    "answer": "**Dry mouth (xerostomia)** is more than just annoying — it significantly increases cavity risk because saliva protects teeth.\n\n**Common causes:**\n- **Medications** — #1 cause (over 500 medications cause it, including antidepressants, antihistamines, blood pressure meds)\n- Mouth breathing/snoring\n- Dehydration\n- Diabetes\n- Sjögren's syndrome\n- Radiation therapy\n\n**Relief strategies:**\n- Sip water frequently throughout the day\n- Use **Biotene** or other dry mouth products\n- Chew sugar-free gum with xylitol\n- Use a humidifier at night\n- Avoid caffeine, alcohol, and tobacco\n- Ask your doctor about medication alternatives\n- Use fluoride rinse to protect teeth from increased cavity risk",
+    "follow_up": "Dry mouth needs dental monitoring to prevent cavities. Would you like to **book an appointment**?"
+  },
+  {
+    "category": "general",
+    "keywords": ["tongue", "tongue pain", "tongue sore", "white tongue", "geographic tongue", "tongue bump"],
+    "patterns": ["white coating on tongue", "sore tongue", "bumps on tongue", "geographic tongue", "burning tongue", "tongue problems"],
+    "answer": "**Common tongue concerns:**\n\n- **White coating** — usually buildup of bacteria/debris. Brush or scrape your tongue daily. If it doesn't go away, it could be thrush (fungal) or leukoplakia (see a dentist)\n- **Bumps** — usually inflamed taste buds from biting, hot food, or irritation. Heal in 1-2 weeks\n- **Geographic tongue** — harmless irregular patches that move around. No treatment needed\n- **Burning tongue syndrome** — burning sensation without visible cause. Can be hormonal, nutritional, or stress-related\n- **Canker sores** — painful white/gray sores, heal in 1-2 weeks. Rinse with salt water\n\n**See a dentist if:** A sore doesn't heal in 2 weeks, you see red/white patches, or there's persistent pain.",
+    "follow_up": "If your tongue issue persists, it's worth getting checked. Would you like to **book an appointment**?"
+  },
+  {
+    "category": "general",
+    "keywords": ["stain", "stains", "discolor", "yellow", "brown", "coffee stain", "tea stain", "wine stain"],
+    "patterns": ["why are my teeth yellow", "how to remove coffee stains", "teeth discoloration causes", "tea staining teeth", "wine stains on teeth"],
+    "answer": "**Tooth discoloration has two types:**\n\n**Extrinsic (surface stains):**\n- Coffee, tea, red wine, cola\n- Tobacco\n- Dark berries\n- Curry and tomato sauce\n✅ **Solution:** Professional cleaning, whitening treatments\n\n**Intrinsic (deeper stains):**\n- Natural aging (enamel thins, darker dentin shows)\n- Childhood medication (tetracycline)\n- Excessive fluoride (fluorosis)\n- Tooth trauma\n✅ **Solution:** Professional whitening, veneers, or bonding\n\n**Prevention tips:**\n- Rinse mouth with water after coffee/wine\n- Use a straw for dark beverages\n- Brush 30 minutes after staining foods (not immediately — acid softens enamel)\n- Regular professional cleanings remove surface stains",
+    "follow_up": "A professional cleaning or whitening can make a big difference. Would you like to **book an appointment**?"
+  },
+  {
+    "category": "general",
+    "keywords": ["breath", "morning breath", "halitosis", "smell", "bad taste"],
+    "patterns": ["how to get rid of morning breath", "why does my breath smell", "bad taste in mouth", "what causes morning breath"],
+    "answer": "**Morning breath is normal** — saliva production decreases while sleeping, allowing bacteria to multiply. But persistent bad breath throughout the day may indicate:\n\n- **Poor oral hygiene** (biggest cause)\n- **Gum disease**\n- **Tongue bacteria** — the tongue harbors most odor-causing bacteria\n- **Dry mouth**\n- **Tonsil stones**\n- **Acid reflux or digestive issues**\n- **Sinus/post-nasal drip**\n\n**Effective solutions:**\n1. Clean your **tongue** daily (tongue scraper works best)\n2. Floss daily (rotting food between teeth = bad smell)\n3. Stay hydrated\n4. Use alcohol-free mouthwash\n5. Chew sugar-free gum to stimulate saliva",
+    "follow_up": "If bad breath persists despite good hygiene, a dental checkup can find the cause. Would you like to **book one**?"
+  },
+  {
+    "category": "procedures",
+    "keywords": ["bridge", "dental bridge", "fixed bridge", "pontic", "missing tooth bridge"],
+    "patterns": ["what is a dental bridge", "bridge vs implant", "how much does a bridge cost", "how long does a bridge last", "bridge for missing tooth"],
+    "answer": "A **dental bridge** fills the gap left by one or more missing teeth. It consists of crowns on the teeth beside the gap (abutment teeth) with a false tooth (pontic) in between.\n\n**Types:**\n- **Traditional bridge** — most common, uses crowns on both sides\n- **Cantilever bridge** — anchored on only one side\n- **Maryland bridge** — bonded with a metal/porcelain framework (less invasive)\n\n**Details:**\n- Requires **2-3 visits**\n- Lasts **5-15 years** with good care\n- Cost: **$1,500-$5,000** depending on the number of teeth\n- Requires healthy adjacent teeth for support\n\n**Bridge vs Implant:** Implants don't require altering adjacent teeth and last longer, but bridges are faster and less expensive.",
+    "follow_up": "Would you like to **book a consultation** to discuss your tooth replacement options?"
+  },
+  {
+    "category": "procedures",
+    "keywords": ["gum surgery", "gum graft", "periodontal surgery", "flap surgery", "deep cleaning", "scaling", "root planing"],
+    "patterns": ["what is gum surgery", "do i need gum surgery", "deep cleaning for gum disease", "gum graft cost", "what is scaling and root planing"],
+    "answer": "**Gum treatment depends on the stage of disease:**\n\n**Non-surgical (for mild-moderate gum disease):**\n- **Scaling and root planing** (deep cleaning) — removes tartar below the gumline and smooths root surfaces. Done with numbing. Takes 1-2 hours. Cost: **$200-$400 per quadrant**. This resolves most early gum disease.\n\n**Surgical (for advanced gum disease):**\n- **Flap surgery** — gums are lifted to clean deep pockets, then repositioned ($1,000-$3,000)\n- **Gum grafting** — replaces receded gum tissue, usually taken from the palate ($600-$1,200 per area)\n- **Bone grafting** — rebuilds bone lost to disease ($200-$1,200)\n\n**Prevention is key** — regular cleanings and good hygiene prevent gum disease from progressing.",
+    "follow_up": "Would you like to **book an appointment** for a gum health evaluation?"
+  },
+  {
+    "category": "general",
+    "keywords": ["sleep apnea", "snoring", "cpap", "oral appliance", "airway"],
+    "patterns": ["can dentist help with snoring", "dental device for sleep apnea", "sleep apnea mouth guard", "alternative to cpap"],
+    "answer": "**Yes, dentists can help with snoring and sleep apnea!**\n\nDentists can create a **custom oral appliance** (mandibular advancement device) that repositions your lower jaw slightly forward during sleep, keeping your airway open.\n\n**This is ideal for:**\n- Mild to moderate sleep apnea\n- Patients who can't tolerate CPAP\n- Simple snoring\n\n**Benefits over CPAP:**\n- Small, portable, easy to travel with\n- Silent\n- More comfortable for many patients\n- No electricity needed\n\n**Cost:** $1,500-$3,000 (often covered by medical insurance, not dental)\n**Effectiveness:** Reduces apnea events by 50%+ in most patients",
+    "follow_up": "Would you like to **book a consultation** to discuss sleep apnea treatment?"
+  },
+  {
+    "category": "general",
+    "keywords": ["canker sore", "mouth ulcer", "cold sore", "fever blister", "sore in mouth", "aphthous"],
+    "patterns": ["canker sore vs cold sore", "how to treat canker sore", "why do i keep getting canker sores", "cold sore treatment", "mouth ulcer that won't heal"],
+    "answer": "**Canker sores vs Cold sores — they're different!**\n\n**Canker sores (inside the mouth):**\n- White/gray center with red border\n- NOT contagious\n- Triggered by stress, injury, acidic foods, or nutritional deficiency\n- Heal in **1-2 weeks**\n- Treatment: Rinse with salt water, OTC numbing gel, avoid spicy/acidic foods\n\n**Cold sores (on/around lips):**\n- Fluid-filled blisters\n- Caused by **herpes simplex virus** (HSV-1) — contagious!\n- Triggered by stress, sun, illness\n- Heal in **7-10 days**\n- Treatment: Antiviral medication (Valtrex/Abreva) works best if started early\n\n**See a dentist if:** Any mouth sore lasts more than **2 weeks**.",
+    "follow_up": "If you have persistent or frequent sores, we can help. Would you like to **book an appointment**?"
+  },
+  {
+    "category": "general",
+    "keywords": ["wisdom", "age", "when", "appointment", "first time", "new patient", "what to expect"],
+    "patterns": ["what to expect at first dental visit", "new patient appointment", "what happens at the dentist", "first time at this dentist", "how long is a dental appointment"],
+    "answer": "**What to expect at your first visit:**\n\n1. **Paperwork** — medical/dental history, insurance info, consent forms (arrive 15 min early)\n2. **X-rays** — usually a full set or panoramic image\n3. **Examination** — dentist checks each tooth, gums, bite, jaw, oral cancer screening\n4. **Cleaning** — hygienist removes plaque and tartar, polishes teeth, flosses\n5. **Discussion** — dentist reviews findings and recommends any needed treatment\n\n**Typical duration:** 60-90 minutes for first visit\n**What to bring:** ID, insurance card, list of medications, previous dental records if available\n\nThe first visit is mostly about getting to know your mouth and creating a baseline for your care.",
+    "follow_up": "Ready to get started? Would you like to **book your first appointment**?"
+  },
+  {
+    "category": "general",
+    "keywords": ["electric toothbrush", "sonicare", "oral-b", "best toothbrush", "manual vs electric"],
+    "patterns": ["should i get an electric toothbrush", "best electric toothbrush", "sonicare vs oral-b", "is electric toothbrush worth it"],
+    "answer": "**Electric toothbrushes ARE more effective** than manual ones for most people:\n\n- Remove **21% more plaque** than manual brushing\n- **Built-in timers** ensure you brush for the full 2 minutes\n- **Pressure sensors** prevent you from brushing too hard\n- Especially helpful for people with **arthritis**, **braces**, or **limited dexterity**\n\n**Top recommendations:**\n- **Oral-B iO** — oscillating/rotating, excellent plaque removal\n- **Sonicare DiamondClean** — sonic vibration, gentle on gums\n- Budget pick: **Oral-B Pro 1000** (~$30, still great)\n\n**The best toothbrush is the one you'll actually use consistently!** If you prefer manual, use a soft-bristle one and replace every 3 months.",
+    "follow_up": "Our hygienist can recommend the best brush for your needs. Would you like to **book a cleaning**?"
+  },
+  {
+    "category": "general",
+    "keywords": ["receding gums", "gum recession", "gums pulling back", "long teeth", "exposed root"],
+    "patterns": ["why are my gums receding", "how to fix receding gums", "gum recession treatment", "can receding gums grow back", "gums pulling away from teeth"],
+    "answer": "**Gum recession** is when the gum tissue pulls back, exposing more of the tooth or root. It's gradual so many people don't notice until it's significant.\n\n**Common causes:**\n- **Aggressive brushing** — #1 cause! Use a soft brush and gentle pressure\n- **Gum disease** — plaque and tartar destroy gum tissue\n- **Genetics** — some people are more susceptible\n- **Grinding/clenching teeth**\n- **Tobacco use**\n- **Misaligned teeth or bite**\n\n**Can gums grow back?** Unfortunately no — once gum tissue is lost, it doesn't regenerate naturally.\n\n**Treatment options:**\n- Mild: Improved brushing technique + deep cleaning\n- Moderate-severe: **Gum grafting** surgery ($600-$1,200 per area)\n- Early intervention is KEY — don't wait!",
+    "follow_up": "Early treatment prevents further recession. Would you like to **book an appointment**?"
+  },
+  {
+    "category": "general",
+    "keywords": ["loose tooth", "wiggly tooth", "tooth moving", "wobbly"],
+    "patterns": ["my tooth is loose", "loose tooth adult", "why is my tooth wiggling", "can a loose tooth be saved"],
+    "answer": "**A loose tooth in an adult is always a concern** and needs prompt attention.\n\n**Common causes:**\n- **Gum disease** — most common cause, as bacteria destroy bone supporting teeth\n- **Injury/trauma** — impact to the face\n- **Grinding/clenching** — chronic force loosens teeth over time\n- **Bone loss** — from gum disease or other conditions\n- **Abscess/infection** — around the tooth root\n\n**Can it be saved?** Often yes, if caught early enough:\n- Deep cleaning + antibiotics for gum disease\n- Splinting (bonding loose tooth to stable neighbors)\n- Night guard for grinders\n- Bone grafting in some cases\n\n**Don't wiggle it!** Keep it as still as possible and eat soft foods.",
+    "follow_up": "A loose tooth needs urgent evaluation. Please **book an appointment** soon — the sooner we act, the better the chances of saving it."
+  },
+  {
+    "category": "general",
+    "keywords": ["crown fell", "filling fell", "cap came off", "temporary crown", "lost filling", "lost crown"],
+    "patterns": ["my crown fell off", "filling fell out", "temporary crown came off", "what to do if crown falls off", "lost my filling"],
+    "answer": "**Don't panic — this is fixable!**\n\n**If your crown fell off:**\n1. Save the crown! Clean it gently\n2. You can temporarily reattach with **denture adhesive** or **toothpaste** (NOT super glue!)\n3. Avoid chewing on that side\n4. See your dentist within **a few days**\n\n**If your filling fell out:**\n1. Keep the area clean\n2. You can place **dental cement** or **sugar-free gum** over the hole temporarily\n3. Avoid hot/cold foods on that side\n4. See your dentist within **1-2 days** (exposed tooth can decay quickly)\n\n**For temporary crowns:** These are designed to be temporary — reattach with denture adhesive and call your dentist.",
+    "follow_up": "Let's get that fixed quickly. Would you like to **book an appointment**?"
+  },
+  {
+    "category": "general",
+    "keywords": ["halitosis", "tonsil stone", "tonsillolith", "white thing throat", "smell from throat"],
+    "patterns": ["what are tonsil stones", "tonsil stones causing bad breath", "how to remove tonsil stones", "white chunks in throat"],
+    "answer": "**Tonsil stones (tonsilloliths)** are calcified debris trapped in tonsil crevices. They're surprisingly common and a major cause of bad breath.\n\n**Symptoms:**\n- Persistent bad breath despite good oral hygiene\n- White or yellow lumps visible on tonsils\n- Sore throat or discomfort\n- Difficulty swallowing (rare, only if large)\n\n**Treatment:**\n- **Gargling** with warm salt water (dislodges small ones)\n- **Water flosser** aimed at low pressure\n- **Gentle removal** with a cotton swab (be careful!)\n- **Good oral hygiene** — brush, floss, tongue scrape, use mouthwash\n- **Tonsillectomy** — for severe recurring cases\n\nThey're harmless but annoying. Many people have them and don't realize they're the cause of bad breath.",
+    "follow_up": "If bad breath persists, a dental checkup can rule out other causes. Would you like to **book an appointment**?"
+  },
+  {
+    "category": "general",
+    "keywords": ["retainer", "after braces", "teeth shifting", "keep teeth straight"],
+    "patterns": ["do i need to wear my retainer", "how long to wear retainer", "teeth moving after braces", "retainer forever", "lost my retainer"],
+    "answer": "**Yes, retainers are essential after orthodontic treatment!** Teeth naturally want to shift back to their original position.\n\n**How long to wear:**\n- **First 6-12 months:** Full-time (only remove for eating and brushing)\n- **After that:** Nightly, indefinitely (yes, forever!)\n- Most orthodontists now recommend **permanent bonded retainers** on the lower front teeth plus a removable one for upper teeth\n\n**If you stopped wearing it and teeth shifted:**\n- Mild shifting: A new retainer might push them back\n- Moderate shifting: Short course of Invisalign (3-6 months)\n- Severe shifting: May need full retreatment\n\n**Lost your retainer?** Get a replacement ASAP — teeth can shift noticeably within weeks.",
+    "follow_up": "Need a new retainer or concerned about shifting? Would you like to **book an appointment**?"
+  },
+  {
+    "category": "general",
+    "keywords": ["mouthwash", "alcohol", "antibacterial", "rinse", "swish"],
+    "patterns": ["best time to use mouthwash", "how often mouthwash", "mouthwash after brushing"],
+    "answer": "**Mouthwash tips for maximum benefit:**\n\n**When to use:** Use at a **different time** than brushing (e.g., after lunch) for extra protection throughout the day. If you use it after brushing, wait **30 minutes** so it doesn't wash away the concentrated fluoride from your toothpaste.\n\n**Choosing the right one:**\n- **Cavity prevention:** Fluoride rinse (ACT)\n- **Gum disease:** Antiseptic (Listerine, Crest Pro-Health)\n- **Dry mouth:** Biotene\n- **Sensitivity:** Sensodyne mouthwash\n\n**How to use:** Swish **30-60 seconds**, don't eat/drink for 30 minutes after. **Alcohol-free** versions work just as well without the burn.",
+    "follow_up": "Want personalized product recommendations? Ask at your next visit! Would you like to **book an appointment**?"
+  },
+  {
+    "category": "general",
+    "keywords": ["cost", "expensive", "afford", "cheap", "save money", "budget dental"],
+    "patterns": ["how to save money on dental care", "dental work is expensive", "cheapest dental option", "can't afford dental work", "reduce dental costs"],
+    "answer": "**Ways to make dental care more affordable:**\n\n1. **Don't skip preventive care** — a $150 cleaning prevents a $1,500 root canal\n2. **Use your insurance maximums** — most plans are use-it-or-lose-it annually\n3. **Ask about payment plans** — many offices offer interest-free financing\n4. **CareCredit** — widely accepted dental financing with promotional 0% interest periods\n5. **Dental discount plans** — save 20-50% without insurance ($80-$200/year)\n6. **Dental schools** — supervised students provide care at 50-70% less\n7. **Community health centers** — sliding-scale fees based on income\n8. **Schedule major work** across two calendar years to use two years of insurance maximums\n9. **Ask for a cash discount** — many offices offer 10-20% off",
+    "follow_up": "We work with patients on all budgets. Would you like to **book a consultation** to discuss your options?"
+  },
+  {
+    "category": "general",
+    "keywords": ["covid", "safe", "infection control", "sterilize", "clean", "pandemic", "protocol"],
+    "patterns": ["is it safe to go to the dentist", "dental office safety protocols", "how do you sterilize", "infection control at dentist"],
+    "answer": "**Dental offices maintain some of the highest safety standards** of any healthcare setting:\n\n**Standard protocols:**\n- All instruments are **sterilized in autoclaves** (steam pressure sterilization)\n- Disposable gloves, masks, and protective eyewear for every patient\n- Treatment rooms **disinfected between every patient**\n- High-volume suction reduces aerosols\n- Regular staff training on infection control\n- OSHA and CDC guideline compliance\n\nDental offices were already experts in infection control long before COVID. Your safety is always our top priority. If you have specific health concerns, let us know before your visit so we can take any extra precautions.",
+    "follow_up": "Feel confident and safe visiting us! Would you like to **book an appointment**?"
+  }
+]

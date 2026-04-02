@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatGenius Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --navy: #0b1628; --navy-light: #111d33; --navy-card: #162040;
+            --cyan: #00d4ff; --white: #f0f4f8; --gray: #8892a4;
+            --green: #22c55e; --yellow: #f5a623; --red: #ef4444;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--navy); color: var(--white); }
+
+        .header {
+            background: var(--navy-light); padding: 1.25rem 2rem;
+            border-bottom: 1px solid rgba(0,212,255,0.08);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .header h1 { font-size: 1.3rem; font-weight: 800; }
+        .header h1 span { color: var(--cyan); }
+        .header a { color: var(--cyan); text-decoration: none; font-size: 0.9rem; }
+
+        .dashboard { max-width: 1100px; margin: 2rem auto; padding: 0 2rem; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card {
+            background: var(--navy-card); border-radius: 12px; padding: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.04);
+        }
+        .stat-label { font-size: 0.82rem; color: var(--gray); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; }
+        .stat-value { font-size: 2rem; font-weight: 800; color: var(--cyan); }
+
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+        .tab {
+            padding: 0.6rem 1.5rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);
+            background: transparent; color: var(--gray); cursor: pointer; font-size: 0.9rem; font-weight: 600;
+        }
+        .tab.active { background: var(--cyan); color: var(--navy); border-color: var(--cyan); }
+
+        table { width: 100%; border-collapse: collapse; background: var(--navy-card); border-radius: 12px; overflow: hidden; }
+        th { background: rgba(0,212,255,0.08); padding: 0.8rem 1rem; text-align: left; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 1px; color: var(--gray); }
+        td { padding: 0.8rem 1rem; border-top: 1px solid rgba(255,255,255,0.04); font-size: 0.9rem; }
+        tr:hover td { background: rgba(0,212,255,0.03); }
+        .badge {
+            display: inline-block; padding: 0.2rem 0.7rem; border-radius: 20px;
+            font-size: 0.75rem; font-weight: 700;
+        }
+        .badge-green { background: rgba(34,197,94,0.15); color: var(--green); }
+        .badge-yellow { background: rgba(245,166,35,0.15); color: var(--yellow); }
+        .empty { text-align: center; padding: 3rem; color: var(--gray); }
+        .refresh-btn {
+            background: linear-gradient(135deg, #00d4ff, #0090ff); color: #fff; border: none;
+            padding: 0.5rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Chat<span>Genius</span> Dashboard</h1>
+    <div style="display:flex;gap:1rem;align-items:center;">
+        <button class="refresh-btn" onclick="loadAll()">Refresh</button>
+        <a href="/">&larr; Back to Site</a>
+    </div>
+</div>
+
+<div class="dashboard">
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">Total Leads</div>
+            <div class="stat-value" id="totalLeads">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Total Bookings</div>
+            <div class="stat-value" id="totalBookings">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Today's Bookings</div>
+            <div class="stat-value" id="todayBookings">0</div>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('leads', this)">Leads</button>
+        <button class="tab" onclick="switchTab('bookings', this)">Bookings</button>
+    </div>
+
+    <div id="leadsTable">
+        <table>
+            <thead><tr><th>Name</th><th>Phone</th><th>Source</th><th>Date</th></tr></thead>
+            <tbody id="leadsBody"><tr><td colspan="4" class="empty">No leads yet</td></tr></tbody>
+        </table>
+    </div>
+
+    <div id="bookingsTable" style="display:none;">
+        <table>
+            <thead><tr><th>Customer</th><th>Email</th><th>Phone</th><th>Date</th><th>Time</th><th>Status</th></tr></thead>
+            <tbody id="bookingsBody"><tr><td colspan="6" class="empty">No bookings yet</td></tr></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    function switchTab(tab, el) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
+        document.getElementById('leadsTable').style.display = tab === 'leads' ? 'block' : 'none';
+        document.getElementById('bookingsTable').style.display = tab === 'bookings' ? 'block' : 'none';
+    }
+
+    async function loadAll() {
+        try {
+            const [statsRes, leadsRes, bookingsRes] = await Promise.all([
+                fetch('/api/stats'), fetch('/api/leads'), fetch('/api/bookings')
+            ]);
+            const stats = await statsRes.json();
+            const leads = await leadsRes.json();
+            const bookings = await bookingsRes.json();
+
+            document.getElementById('totalLeads').textContent = stats.total_leads;
+            document.getElementById('totalBookings').textContent = stats.total_bookings;
+            document.getElementById('todayBookings').textContent = stats.today_bookings;
+
+            const leadsBody = document.getElementById('leadsBody');
+            if (leads.length === 0) {
+                leadsBody.innerHTML = '<tr><td colspan="4" class="empty">No leads yet — they\'ll appear here when visitors leave their info in the chatbot.</td></tr>';
+            } else {
+                leadsBody.innerHTML = leads.map(l => `
+                    <tr>
+                        <td><strong>${l.name}</strong></td>
+                        <td>${l.phone}</td>
+                        <td><span class="badge badge-green">${l.source}</span></td>
+                        <td>${new Date(l.created_at).toLocaleString()}</td>
+                    </tr>
+                `).join('');
+            }
+
+            const bookingsBody = document.getElementById('bookingsBody');
+            if (bookings.length === 0) {
+                bookingsBody.innerHTML = '<tr><td colspan="6" class="empty">No bookings yet — they\'ll appear here when visitors book through the chatbot.</td></tr>';
+            } else {
+                bookingsBody.innerHTML = bookings.map(b => `
+                    <tr>
+                        <td><strong>${b.customer_name}</strong></td>
+                        <td>${b.customer_email || '—'}</td>
+                        <td>${b.customer_phone || '—'}</td>
+                        <td>${b.date}</td>
+                        <td>${b.time}</td>
+                        <td><span class="badge badge-green">${b.status}</span></td>
+                    </tr>
+                `).join('');
+            }
+        } catch (e) {
+            console.error('Failed to load dashboard data:', e);
+        }
+    }
+
+    loadAll();
+    setInterval(loadAll, 10000);
+</script>
+
+</body>
+</html>

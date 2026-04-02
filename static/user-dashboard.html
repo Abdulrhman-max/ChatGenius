@@ -1,0 +1,1986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatGenius — Dashboard</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--navy:#0b1628;--navy-light:#111d33;--navy-card:#162040;--cyan:#00d4ff;--cyan-glow:rgba(0,212,255,0.15);--white:#f0f4f8;--gray:#8892a4;--green:#22c55e;--yellow:#f5a623;--red:#ef4444;--gradient:linear-gradient(135deg,#00d4ff,#0090ff)}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--navy);color:var(--white);min-height:100vh}
+        .layout{display:flex;min-height:100vh}
+        .sidebar{width:260px;background:var(--navy-light);border-right:1px solid rgba(0,212,255,0.06);padding:1.5rem;display:flex;flex-direction:column;position:fixed;height:100vh;overflow-y:auto}
+        .sidebar-logo{font-size:1.3rem;font-weight:800;margin-bottom:2rem;padding-bottom:1rem;border-bottom:1px solid rgba(255,255,255,0.05)}
+        .sidebar-logo span{color:var(--cyan)}
+        .sidebar-nav{list-style:none;flex:1}
+        .sidebar-nav li{margin-bottom:0.25rem}
+        .sidebar-nav a{display:flex;align-items:center;gap:0.75rem;padding:0.7rem 1rem;border-radius:10px;color:var(--gray);text-decoration:none;font-size:0.92rem;font-weight:500;transition:all .2s}
+        .sidebar-nav a:hover,.sidebar-nav a.active{background:var(--cyan-glow);color:var(--white)}
+        .sidebar-nav a.active{border-left:3px solid var(--cyan)}
+        .sidebar-nav .icon{font-size:1.1rem;width:24px;text-align:center}
+        .sidebar-user{border-top:1px solid rgba(255,255,255,0.05);padding-top:1rem;margin-top:1rem}
+        .sidebar-user-info{display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem}
+        .sidebar-avatar{width:38px;height:38px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1rem}
+        .sidebar-user-name{font-weight:600;font-size:0.9rem}
+        .sidebar-user-email{color:var(--gray);font-size:0.78rem}
+        .sidebar-role{font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;padding:0.15rem 0.5rem;border-radius:4px;display:inline-block;margin-top:0.2rem}
+        .role-admin{background:rgba(0,212,255,0.15);color:var(--cyan)}
+        .role-head_admin{background:rgba(245,166,35,0.15);color:var(--yellow)}
+        .role-doctor{background:rgba(34,197,94,0.15);color:var(--green)}
+        .logout-btn{display:block;width:100%;padding:0.6rem;border-radius:8px;border:1px solid rgba(239,68,68,0.3);background:transparent;color:var(--red);font-size:0.85rem;cursor:pointer;transition:background .2s}
+        .logout-btn:hover{background:rgba(239,68,68,0.1)}
+        .main{flex:1;margin-left:260px;padding:2rem}
+        .main-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem}
+        .main-header h1{font-size:1.6rem;font-weight:800}
+        .plan-badge{display:inline-flex;align-items:center;gap:0.4rem;padding:0.35rem 1rem;border-radius:20px;font-size:0.82rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
+        .plan-free{background:rgba(136,146,164,0.15);color:var(--gray)}
+        .plan-basic{background:rgba(0,212,255,0.12);color:var(--cyan)}
+        .plan-pro{background:rgba(34,197,94,0.12);color:var(--green)}
+        .plan-agency{background:rgba(245,166,35,0.12);color:var(--yellow)}
+        .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:2rem}
+        .stat-card{background:var(--navy-card);border-radius:14px;padding:1.5rem;border:1px solid rgba(255,255,255,0.04)}
+        .stat-label{font-size:0.78rem;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:0.4rem}
+        .stat-value{font-size:2rem;font-weight:800;color:var(--cyan)}
+        .stat-sub{font-size:0.8rem;color:var(--gray);margin-top:0.25rem}
+        .section{background:var(--navy-card);border-radius:16px;padding:1.75rem;border:1px solid rgba(255,255,255,0.04);margin-bottom:1.5rem}
+        .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem}
+        .section-title{font-size:1.15rem;font-weight:700}
+        .plans-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem}
+        .plan-card{background:rgba(255,255,255,0.02);border-radius:14px;padding:1.5rem;border:1px solid rgba(255,255,255,0.06);transition:border-color .2s}
+        .plan-card:hover{border-color:rgba(0,212,255,0.2)}
+        .plan-card.current{border-color:var(--cyan);background:var(--cyan-glow)}
+        .plan-card h3{font-size:1rem;margin-bottom:0.25rem}
+        .plan-price{font-size:1.8rem;font-weight:900;margin-bottom:0.5rem}
+        .plan-price small{font-size:0.85rem;font-weight:400;color:var(--gray)}
+        .plan-features{list-style:none;margin-bottom:1.25rem}
+        .plan-features li{padding:0.3rem 0;font-size:0.85rem;color:var(--gray)}
+        .plan-features li::before{content:'\2713 ';color:var(--cyan)}
+        .plan-btn{display:block;width:100%;padding:0.65rem;border-radius:10px;border:none;font-weight:700;font-size:0.88rem;cursor:pointer;text-align:center;transition:transform .2s}
+        .plan-btn-primary{background:var(--gradient);color:#fff}
+        .plan-btn-outline{background:transparent;border:1px solid rgba(255,255,255,0.15);color:var(--white)}
+        .plan-btn-current{background:rgba(0,212,255,0.15);color:var(--cyan);cursor:default}
+        .plan-btn:hover:not(.plan-btn-current){transform:translateY(-1px)}
+        table{width:100%;border-collapse:collapse}
+        th{text-align:left;padding:0.65rem 0.75rem;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray);border-bottom:1px solid rgba(255,255,255,0.06)}
+        td{padding:0.65rem 0.75rem;font-size:0.88rem;border-bottom:1px solid rgba(255,255,255,0.03)}
+        .badge{display:inline-block;padding:0.15rem 0.6rem;border-radius:20px;font-size:0.72rem;font-weight:700}
+        .badge-green{background:rgba(34,197,94,0.15);color:var(--green)}
+        .badge-cyan{background:rgba(0,212,255,0.15);color:var(--cyan)}
+        .badge-yellow{background:rgba(245,166,35,0.15);color:var(--yellow)}
+        .badge-red{background:rgba(239,68,68,0.15);color:var(--red)}
+        .empty-msg{text-align:center;padding:2rem;color:var(--gray);font-size:0.9rem}
+        .usage-bar-bg{height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;margin-top:0.5rem}
+        .usage-bar{height:100%;border-radius:4px;background:var(--gradient);transition:width .5s}
+        .form-group{margin-bottom:1.25rem}
+        .form-label{display:block;font-size:0.82rem;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.4rem}
+        .form-hint{font-size:0.78rem;color:var(--gray);margin-bottom:0.4rem}
+        .form-input,.form-textarea{width:100%;padding:0.7rem 1rem;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--white);font-size:0.92rem;font-family:inherit;outline:none;transition:border-color .2s}
+        .form-input:focus,.form-textarea:focus{border-color:var(--cyan)}
+        .form-textarea{min-height:80px;resize:vertical}
+        .form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+        .btn-primary{padding:0.7rem 1.5rem;border-radius:10px;border:none;background:var(--gradient);color:#fff;font-weight:700;font-size:0.92rem;cursor:pointer;transition:transform .2s}
+        .btn-primary:hover{transform:translateY(-1px)}
+        .btn-danger{padding:0.5rem 1rem;border-radius:8px;border:1px solid rgba(239,68,68,0.3);background:transparent;color:var(--red);font-size:0.82rem;cursor:pointer}
+        .btn-danger:hover{background:rgba(239,68,68,0.1)}
+        .btn-small{padding:0.4rem 0.8rem;border-radius:8px;border:none;font-size:0.82rem;cursor:pointer;font-weight:600}
+        .btn-edit{background:rgba(0,212,255,0.12);color:var(--cyan)}
+        .btn-delete{background:rgba(239,68,68,0.12);color:var(--red)}
+        .btn-accept{background:rgba(34,197,94,0.15);color:var(--green)}
+        .btn-reject{background:rgba(239,68,68,0.12);color:var(--red)}
+        .doctor-card{background:rgba(255,255,255,0.02);border-radius:12px;padding:1.25rem;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:flex-start;gap:1rem;margin-bottom:0.75rem}
+        .doctor-avatar{width:48px;height:48px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.1rem;flex-shrink:0}
+        .doctor-info{flex:1}
+        .doctor-name{font-weight:700;font-size:1rem}
+        .doctor-specialty{color:var(--cyan);font-size:0.85rem;margin-top:0.15rem}
+        .doctor-availability{color:var(--gray);font-size:0.82rem;margin-top:0.25rem}
+        .doctor-actions{display:flex;gap:0.5rem}
+        .save-msg{color:var(--green);font-size:0.88rem;margin-left:1rem;display:none}
+        .request-card{background:rgba(255,255,255,0.02);border-radius:12px;padding:1.25rem;border:1px solid rgba(255,255,255,0.06);margin-bottom:0.75rem}
+        .request-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem}
+        .request-biz{font-weight:700;font-size:1rem}
+        .request-admin{color:var(--gray);font-size:0.85rem}
+        .request-actions{display:flex;gap:0.5rem;margin-top:0.75rem}
+        .notif-badge{background:var(--red);color:#fff;font-size:0.7rem;font-weight:800;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;margin-left:0.5rem}
+        .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center}
+        .modal-overlay.show{display:flex}
+        .modal{background:var(--navy-card);border-radius:16px;padding:2rem;width:90%;max-width:480px;border:1px solid rgba(0,212,255,0.1)}
+        .modal h2{font-size:1.15rem;margin-bottom:1.25rem}
+        /* ── Toast notifications ── */
+        .toast-container{position:fixed;top:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;gap:0.6rem;pointer-events:none}
+        .toast{pointer-events:auto;display:flex;align-items:center;gap:0.75rem;padding:0.85rem 1.25rem;border-radius:12px;font-size:0.9rem;font-weight:500;min-width:280px;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,0.35);animation:toastIn .35s ease;backdrop-filter:blur(12px)}
+        .toast.toast-out{animation:toastOut .3s ease forwards}
+        .toast-success{background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#4ade80}
+        .toast-error{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#f87171}
+        .toast-warning{background:rgba(245,166,35,0.15);border:1px solid rgba(245,166,35,0.3);color:#f5a623}
+        .toast-info{background:rgba(0,212,255,0.12);border:1px solid rgba(0,212,255,0.25);color:var(--cyan)}
+        .toast-icon{font-size:1.2rem;flex-shrink:0}
+        .toast-msg{flex:1;line-height:1.4}
+        .toast-close{background:none;border:none;color:inherit;opacity:0.6;cursor:pointer;font-size:1.1rem;padding:0 0 0 0.5rem;flex-shrink:0}
+        .toast-close:hover{opacity:1}
+        @keyframes toastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+        @keyframes toastOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(40px)}}
+
+        /* ── Confirm modal ── */
+        .confirm-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;align-items:center;justify-content:center;animation:fadeIn .2s ease}
+        .confirm-overlay.show{display:flex}
+        .confirm-box{background:var(--navy-card);border-radius:16px;padding:2rem;width:90%;max-width:380px;border:1px solid rgba(0,212,255,0.1);box-shadow:0 20px 60px rgba(0,0,0,0.4);text-align:center}
+        .confirm-icon{font-size:2.5rem;margin-bottom:0.75rem}
+        .confirm-title{font-size:1.1rem;font-weight:700;margin-bottom:0.5rem}
+        .confirm-msg{color:var(--gray);font-size:0.9rem;margin-bottom:1.5rem;line-height:1.5}
+        .confirm-btns{display:flex;gap:0.75rem;justify-content:center}
+        .confirm-btn{padding:0.6rem 1.5rem;border-radius:10px;border:none;font-weight:700;font-size:0.9rem;cursor:pointer;transition:transform .15s}
+        .confirm-btn:hover{transform:translateY(-1px)}
+        .confirm-btn-cancel{background:rgba(255,255,255,0.08);color:var(--gray)}
+        .confirm-btn-danger{background:rgba(239,68,68,0.2);color:#f87171}
+        .confirm-btn-primary{background:var(--gradient);color:#fff}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+        /* ── Profile popup ── */
+        .profile-popup{display:none;position:fixed;bottom:70px;left:16px;width:320px;z-index:5000;animation:profileIn .25s ease}
+        .profile-popup.show{display:block}
+        .profile-card{background:linear-gradient(145deg,#1a2744,#162040);border-radius:18px;padding:0;border:1px solid rgba(0,212,255,0.12);box-shadow:0 16px 48px rgba(0,0,0,0.5),0 0 0 1px rgba(255,255,255,0.03) inset;overflow:hidden}
+        .profile-header{background:linear-gradient(135deg,rgba(0,212,255,0.12),rgba(0,144,255,0.08));padding:1.5rem 1.5rem 1rem;text-align:center;position:relative}
+        .profile-close{position:absolute;top:0.75rem;right:0.75rem;background:rgba(255,255,255,0.06);border:none;color:var(--gray);font-size:1.1rem;cursor:pointer;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all .2s}
+        .profile-close:hover{background:rgba(255,255,255,0.12);color:var(--white)}
+        .profile-avatar-wrap{position:relative;display:inline-block;margin-bottom:0.75rem}
+        .profile-avatar-lg{width:72px;height:72px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.8rem;color:#fff;border:3px solid rgba(0,212,255,0.2);overflow:hidden}
+        .profile-avatar-lg img{width:100%;height:100%;object-fit:cover}
+        .profile-avatar-edit{position:absolute;bottom:0;right:0;width:26px;height:26px;border-radius:50%;background:var(--gradient);border:2px solid var(--navy-card);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.7rem;transition:transform .15s}
+        .profile-avatar-edit:hover{transform:scale(1.1)}
+        .profile-role-pill{display:inline-block;padding:0.2rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-top:0.25rem}
+        .profile-body{padding:1.25rem 1.5rem 1.5rem}
+        .profile-field{margin-bottom:1rem}
+        .profile-field label{display:block;font-size:0.75rem;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.35rem}
+        .profile-input{width:100%;padding:0.6rem 0.85rem;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);color:var(--white);font-size:0.88rem;font-family:inherit;outline:none;transition:border-color .2s,box-shadow .2s}
+        .profile-input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,212,255,0.08)}
+        .profile-input::placeholder{color:rgba(136,146,164,0.5)}
+        .profile-divider{height:1px;background:rgba(255,255,255,0.05);margin:0.25rem 0 1rem}
+        .profile-save{width:100%;padding:0.7rem;border-radius:10px;border:none;background:var(--gradient);color:#fff;font-weight:700;font-size:0.9rem;cursor:pointer;transition:transform .15s,box-shadow .15s}
+        .profile-save:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,212,255,0.25)}
+        .profile-save:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+        .profile-backdrop{display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:4999}
+        .profile-backdrop.show{display:block}
+        @keyframes profileIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+        @media(max-width:768px){.sidebar{display:none}.main{margin-left:0}.form-row{grid-template-columns:1fr}.profile-popup{left:50%;transform:translateX(-50%);bottom:20px}}
+
+        /* ── Manage Doctors page ── */
+        .manage-card {
+            background: var(--navy-card); border-radius: 14px; padding: 1.25rem 1.5rem;
+            border: 1px solid rgba(0,212,255,0.08); margin-bottom: 0.75rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .manage-card:hover { border-color: rgba(0,212,255,0.2); box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+        .manage-card-header {
+            display: flex; align-items: center; gap: 0.85rem; margin-bottom: 1rem;
+        }
+        .manage-card-avatar {
+            width: 44px; height: 44px; border-radius: 50%;
+            background: linear-gradient(135deg, #0077cc, #00d4ff);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.05rem; font-weight: 700; color: #fff; flex-shrink: 0;
+        }
+        .manage-card-name { font-weight: 700; font-size: 1rem; }
+        .manage-card-specialty { font-size: 0.82rem; color: var(--gray); }
+        .manage-card-status { margin-left: auto; }
+
+        .time-row {
+            display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+        }
+        .time-group {
+            display: flex; align-items: center; gap: 0; background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden;
+        }
+        .time-group:focus-within { border-color: rgba(0,212,255,0.4); }
+        .time-input {
+            width: 38px; text-align: center; border: none; background: none;
+            color: #fff; font-size: 0.95rem; font-weight: 600; padding: 0.5rem 0;
+            outline: none; font-family: inherit;
+        }
+        .time-input::placeholder { color: rgba(255,255,255,0.25); }
+        .time-colon {
+            color: rgba(255,255,255,0.4); font-size: 1rem; font-weight: 700;
+            padding: 0 2px; user-select: none;
+        }
+        .time-ampm {
+            background: rgba(0,212,255,0.08); border: none; border-left: 1px solid rgba(255,255,255,0.08);
+            color: #fff; font-size: 0.82rem; font-weight: 600; padding: 0.5rem 0.5rem;
+            cursor: pointer; outline: none; font-family: inherit;
+            -webkit-appearance: none; appearance: none;
+        }
+        .time-ampm option { background: var(--navy-card); color: #fff; }
+        .time-arrow {
+            color: var(--cyan); font-size: 1.1rem; font-weight: 700; padding: 0 0.25rem;
+            user-select: none;
+        }
+        .time-label { font-size: 0.78rem; color: var(--gray); margin-bottom: 0.35rem; }
+
+        .manage-save-btn {
+            padding: 0.5rem 1.25rem; border-radius: 8px; border: none;
+            background: var(--gradient); color: #fff; font-weight: 700;
+            font-size: 0.85rem; cursor: pointer; transition: transform 0.15s, opacity 0.15s;
+        }
+        .manage-save-btn:hover { transform: translateY(-1px); }
+        .manage-save-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .manage-toggle { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
+        .manage-toggle input { opacity: 0; width: 0; height: 0; }
+        .manage-toggle-slider {
+            position: absolute; inset: 0; background: rgba(255,255,255,0.12);
+            border-radius: 24px; cursor: pointer; transition: background 0.25s;
+        }
+        .manage-toggle-slider::before {
+            content: ''; position: absolute; width: 18px; height: 18px;
+            left: 3px; top: 3px; background: #fff; border-radius: 50%;
+            transition: transform 0.25s;
+        }
+        .manage-toggle input:checked + .manage-toggle-slider { background: var(--green); }
+        .manage-toggle input:checked + .manage-toggle-slider::before { transform: translateX(18px); }
+
+        .manage-error {
+            color: var(--red); font-size: 0.78rem; margin-top: 0.35rem; display: none;
+        }
+
+        /* ── Chat dropdown (doctors, categories) ── */
+        .chat-dropdown-wrap {
+            align-self: flex-start; width: 260px; margin-top: 2px;
+            animation: dropIn 0.25s ease;
+        }
+        @keyframes dropIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+        .chat-dropdown-btn {
+            width: 100%; display: flex; align-items: center; justify-content: space-between;
+            padding: 0.6rem 0.85rem; border-radius: 10px;
+            background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.25);
+            color: #fff; font-size: 0.88rem; font-weight: 600; cursor: pointer;
+            transition: all 0.2s; font-family: inherit;
+        }
+        .chat-dropdown-btn:hover { background: rgba(0,212,255,0.14); border-color: rgba(0,212,255,0.4); }
+        .chat-dropdown-btn .arrow { transition: transform 0.2s; font-size: 0.7rem; color: var(--cyan); }
+        .chat-dropdown-btn.open .arrow { transform: rotate(180deg); }
+        .chat-dropdown-btn.picked { opacity: 0.6; pointer-events: none; }
+        .chat-dropdown-list {
+            margin-top: 4px; border-radius: 10px; overflow: hidden;
+            background: var(--navy-card); border: 1px solid rgba(0,212,255,0.15);
+            max-height: 0; opacity: 0; transition: max-height 0.25s ease, opacity 0.2s;
+        }
+        .chat-dropdown-list.open { max-height: 220px; opacity: 1; overflow-y: auto; }
+        .chat-dropdown-list::-webkit-scrollbar { width: 3px; }
+        .chat-dropdown-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+        .chat-dd-item {
+            display: flex; align-items: center; gap: 0.6rem;
+            padding: 0.55rem 0.85rem; cursor: pointer; transition: background 0.15s;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .chat-dd-item:last-child { border-bottom: none; }
+        .chat-dd-item:hover { background: rgba(0,212,255,0.1); }
+        .chat-dd-item:active { background: rgba(0,212,255,0.18); }
+        .chat-dd-item.selected { background: rgba(0,212,255,0.12); }
+        .chat-dd-avatar {
+            width: 30px; height: 30px; border-radius: 50%;
+            background: linear-gradient(135deg, #0077cc, #00d4ff);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.7rem; font-weight: 700; color: #fff; flex-shrink: 0;
+        }
+        .chat-dd-info { flex: 1; min-width: 0; }
+        .chat-dd-name { font-weight: 600; font-size: 0.82rem; color: #fff; }
+        .chat-dd-sub { font-size: 0.7rem; color: rgba(255,255,255,0.4); }
+        .chat-dd-item.booked {
+            opacity: 0.35; pointer-events: none; text-decoration: line-through;
+        }
+        .chat-dd-item.booked .chat-dd-sub { color: var(--red); }
+
+        /* ── Calendar Widget ── */
+        .chat-calendar-wrap {
+            align-self: flex-start; width: 260px; margin-top: 4px;
+            animation: dropIn 0.3s ease;
+        }
+        .chat-calendar {
+            background: var(--navy-card); border: 1px solid rgba(0,212,255,0.15);
+            border-radius: 12px; padding: 0.65rem;
+        }
+        .cal-nav {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        .cal-nav-btn {
+            background: none; border: none; color: var(--cyan); font-size: 1rem;
+            cursor: pointer; padding: 4px 8px; border-radius: 6px; font-weight: 700;
+        }
+        .cal-nav-btn:hover { background: rgba(0,212,255,0.12); }
+        .cal-nav-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+        .cal-month-label {
+            font-size: 0.85rem; font-weight: 700; color: var(--cyan); text-align: center;
+        }
+        .cal-weekdays { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; margin-bottom: 2px; }
+        .cal-weekdays span { text-align: center; font-size: 0.65rem; color: var(--gray); font-weight: 600; padding: 2px 0; }
+        .cal-days { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; }
+        .cal-day {
+            text-align: center; padding: 6px 2px; border-radius: 6px;
+            font-size: 0.8rem; cursor: pointer; transition: background 0.15s;
+            color: var(--white); border: none; background: none; font-family: inherit;
+        }
+        .cal-day:hover:not(.disabled):not(.empty) { background: rgba(0,212,255,0.15); }
+        .cal-day.today { border: 1px solid var(--cyan); font-weight: 700; }
+        .cal-day.disabled { color: rgba(255,255,255,0.2); cursor: not-allowed; pointer-events: none; }
+        .cal-day.off-day { color: var(--red); text-decoration: line-through; cursor: not-allowed; pointer-events: none; opacity: 0.5; }
+        .cal-day.empty { cursor: default; }
+        .cal-day.selected { background: var(--gradient); color: #fff; font-weight: 700; }
+
+        /* ── Breaks & Off Days in Manage ── */
+        .manage-subsection { margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.06); }
+        .manage-subsection-title { font-size: 0.82rem; font-weight: 700; color: var(--cyan); margin-bottom: 0.5rem; }
+        .break-row, .offday-row {
+            display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.5rem;
+            background: rgba(255,255,255,0.03); border-radius: 8px; margin-bottom: 0.35rem;
+            font-size: 0.82rem;
+        }
+        .break-row span, .offday-row span { flex: 1; }
+        .break-del, .offday-del {
+            background: none; border: none; color: var(--red); cursor: pointer;
+            font-size: 0.9rem; padding: 2px 6px; border-radius: 4px;
+        }
+        .break-del:hover, .offday-del:hover { background: rgba(239,68,68,0.15); }
+        .add-break-form, .add-offday-form {
+            display: flex; align-items: center; gap: 0.4rem; margin-top: 0.4rem; flex-wrap: wrap;
+        }
+        .add-break-form input, .add-offday-form input {
+            padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.04); color: var(--white); font-size: 0.82rem;
+            outline: none; font-family: inherit;
+        }
+        .add-break-form input:focus, .add-offday-form input:focus { border-color: var(--cyan); }
+        .add-break-btn, .add-offday-btn {
+            padding: 0.35rem 0.75rem; border-radius: 6px; border: none;
+            background: rgba(0,212,255,0.12); color: var(--cyan); font-size: 0.78rem;
+            font-weight: 700; cursor: pointer;
+        }
+        .add-break-btn:hover, .add-offday-btn:hover { background: rgba(0,212,255,0.2); }
+
+        /* ── File Upload ── */
+        .upload-area {
+            border: 2px dashed rgba(0,212,255,0.25); border-radius: 12px;
+            padding: 1.5rem; text-align: center; margin-bottom: 1rem;
+            transition: border-color 0.2s, background 0.2s; cursor: pointer;
+        }
+        .upload-area:hover { border-color: rgba(0,212,255,0.5); background: rgba(0,212,255,0.03); }
+        .upload-area.dragging { border-color: var(--cyan); background: rgba(0,212,255,0.06); }
+        .upload-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .upload-text { color: var(--gray); font-size: 0.88rem; }
+        .upload-text strong { color: var(--cyan); }
+        .upload-progress { display: none; margin-top: 0.75rem; }
+        .upload-progress .usage-bar-bg { height: 6px; }
+    </style>
+</head>
+<body>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Confirm modal -->
+<div class="confirm-overlay" id="confirmOverlay">
+    <div class="confirm-box">
+        <div class="confirm-icon" id="confirmIcon"></div>
+        <div class="confirm-title" id="confirmTitle"></div>
+        <div class="confirm-msg" id="confirmMsg"></div>
+        <div class="confirm-btns">
+            <button class="confirm-btn confirm-btn-cancel" id="confirmCancelBtn" onclick="resolveConfirm(false)">Cancel</button>
+            <button class="confirm-btn" id="confirmOkBtn" onclick="resolveConfirm(true)">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<!-- Profile popup -->
+<div class="profile-backdrop" id="profileBackdrop" onclick="closeProfile()"></div>
+<div class="profile-popup" id="profilePopup">
+    <div class="profile-card">
+        <div class="profile-header">
+            <button class="profile-close" onclick="closeProfile()">&times;</button>
+            <div class="profile-avatar-wrap">
+                <div class="profile-avatar-lg" id="profileAvatarLg">?</div>
+                <label class="profile-avatar-edit" title="Change photo">
+                    &#9998;
+                    <input type="file" accept="image/*" onchange="handleAvatarChange(this)" style="display:none">
+                </label>
+            </div>
+            <div style="font-weight:700;font-size:1rem" id="profileDisplayName">User</div>
+            <div class="profile-role-pill" id="profileRolePill">Admin</div>
+        </div>
+        <div class="profile-body">
+            <div class="profile-field">
+                <label>Full Name</label>
+                <input type="text" class="profile-input" id="profileName" placeholder="Your name">
+            </div>
+            <div class="profile-field">
+                <label>Email</label>
+                <input type="email" class="profile-input" id="profileEmail" placeholder="you@example.com">
+            </div>
+            <div class="profile-divider"></div>
+            <div class="profile-field">
+                <label>Current Password</label>
+                <input type="password" class="profile-input" id="profileCurrentPw" placeholder="Required to change password">
+            </div>
+            <div class="profile-field">
+                <label>New Password</label>
+                <input type="password" class="profile-input" id="profileNewPw" placeholder="Leave blank to keep current">
+            </div>
+            <button class="profile-save" id="profileSaveBtn" onclick="saveProfile()">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+<div class="layout">
+    <nav class="sidebar">
+        <div class="sidebar-logo">Chat<span>Genius</span></div>
+        <ul class="sidebar-nav" id="sidebarNav">
+            <li><a href="#" class="active" onclick="showPage('overview')"><span class="icon">&#9783;</span> Overview</a></li>
+            <li class="head-admin-only" style="display:none"><a href="#" onclick="showPage('plan')"><span class="icon">&#9733;</span> My Plan</a></li>
+            <li><a href="#" onclick="showPage('bookings')"><span class="icon">&#128197;</span> Bookings</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('leads')"><span class="icon">&#127919;</span> Leads</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('company')"><span class="icon">&#127970;</span> Company Info</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('doctors')"><span class="icon">&#129657;</span> Doctors</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('manage')"><span class="icon">&#9881;</span> Manage</a></li>
+            <li class="head-admin-only" style="display:none"><a href="#" onclick="showPage('admins')"><span class="icon">&#128101;</span> Admins</a></li>
+            <li class="doctor-only" style="display:none"><a href="#" onclick="showPage('requests')"><span class="icon">&#128233;</span> Requests <span class="notif-badge" id="requestBadge" style="display:none">0</span></a></li>
+            <li class="invited-admin-only" style="display:none"><a href="#" onclick="showPage('admin-requests')"><span class="icon">&#128233;</span> Invitations <span class="notif-badge" id="adminRequestBadge" style="display:none">0</span></a></li>
+            <li><a href="#" onclick="showPage('demo')"><span class="icon">&#128172;</span> Try Demo</a></li>
+        </ul>
+        <div class="sidebar-user">
+            <div class="sidebar-user-info" onclick="toggleProfile()" style="cursor:pointer;border-radius:10px;padding:0.4rem;margin:-0.4rem;transition:background .2s" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
+                <div class="sidebar-avatar" id="avatarInitial">?</div>
+                <div>
+                    <div class="sidebar-user-name" id="sidebarName">Loading...</div>
+                    <div class="sidebar-user-email" id="sidebarEmail">...</div>
+                    <span class="sidebar-role role-admin" id="sidebarRole">Admin</span>
+                </div>
+            </div>
+            <button class="logout-btn" onclick="logout()">Log Out</button>
+        </div>
+    </nav>
+
+    <main class="main">
+
+        <!-- OVERVIEW PAGE -->
+        <div id="page-overview">
+            <div class="main-header">
+                <h1>Welcome back, <span id="welcomeName">there</span>!</h1>
+                <span class="plan-badge plan-free" id="headerBadge">Free Trial</span>
+            </div>
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-label">Appointments</div>
+                    <div class="stat-value" id="statBookings">0</div>
+                    <div class="stat-sub">all time</div>
+                </div>
+                <div class="stat-card admin-only">
+                    <div class="stat-label">Leads Captured</div>
+                    <div class="stat-value" id="statLeads">0</div>
+                    <div class="stat-sub">all time</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Today</div>
+                    <div class="stat-value" id="statToday">0</div>
+                    <div class="stat-sub">appointments today</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Role</div>
+                    <div class="stat-value" id="statRole" style="font-size:1.4rem">Admin</div>
+                    <div class="stat-sub" id="statRoleSub"></div>
+                </div>
+            </div>
+            <div class="section">
+                <div class="section-header"><div class="section-title">Recent Activity</div></div>
+                <table>
+                    <thead><tr><th>Type</th><th>Name</th><th>Details</th><th>Date</th></tr></thead>
+                    <tbody id="activityBody"><tr><td colspan="4" class="empty-msg">No activity yet.</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PLAN PAGE (admin only) -->
+        <div id="page-plan" style="display:none">
+            <div class="main-header"><h1>My Plan</h1></div>
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-header">
+                    <div class="section-title">Current Plan</div>
+                    <span class="plan-badge plan-free" id="planPageBadge">Free Trial</span>
+                </div>
+                <p style="color:var(--gray);font-size:0.92rem" id="planDescription">You're on the free trial.</p>
+            </div>
+            <div class="plans-grid">
+                <div class="plan-card" id="planCard-basic"><h3>Basic</h3><div class="plan-price">$49<small>/mo</small></div><ul class="plan-features"><li>500 conversations/month</li><li>1 chatbot</li><li>Email support</li></ul><button class="plan-btn plan-btn-outline" onclick="selectPlan('basic')">Choose Basic</button></div>
+                <div class="plan-card" id="planCard-pro"><h3>Pro <span style="color:var(--cyan);font-size:0.75rem">POPULAR</span></h3><div class="plan-price">$149<small>/mo</small></div><ul class="plan-features"><li>5,000 conversations/month</li><li>3 chatbots</li><li>Appointment booking</li><li>Priority support</li></ul><button class="plan-btn plan-btn-primary" onclick="selectPlan('pro')">Choose Pro</button></div>
+                <div class="plan-card" id="planCard-agency"><h3>Agency</h3><div class="plan-price">$299<small>/mo</small></div><ul class="plan-features"><li>Unlimited conversations</li><li>Unlimited chatbots</li><li>White-label</li><li>Dedicated manager</li></ul><button class="plan-btn plan-btn-outline" onclick="selectPlan('agency')">Choose Agency</button></div>
+            </div>
+        </div>
+
+        <!-- BOOKINGS PAGE -->
+        <div id="page-bookings" style="display:none">
+            <div class="main-header"><h1 id="bookingsTitle">Bookings</h1></div>
+            <div class="section">
+                <table>
+                    <thead><tr><th>Customer</th><th>Doctor</th><th>Date</th><th>Time</th><th>Status</th></tr></thead>
+                    <tbody id="bookingsBody"><tr><td colspan="5" class="empty-msg">No bookings yet</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- LEADS PAGE (admin only) -->
+        <div id="page-leads" style="display:none">
+            <div class="main-header"><h1>Captured Leads</h1></div>
+            <div class="section">
+                <table>
+                    <thead><tr><th>Name</th><th>Phone</th><th>Source</th><th>Captured</th></tr></thead>
+                    <tbody id="leadsBody"><tr><td colspan="4" class="empty-msg">No leads yet</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- COMPANY INFO PAGE (admin only) -->
+        <div id="page-company" style="display:none">
+            <div class="main-header"><h1>Company Info</h1></div>
+            <p style="color:var(--gray);font-size:0.9rem;margin-bottom:1.5rem">Fill in your business details. This powers your chatbot's responses — customers get answers based on what you provide here.</p>
+
+            <!-- File Upload Section -->
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-header"><div class="section-title">Auto-Fill from File</div></div>
+                <p style="color:var(--gray);font-size:0.85rem;margin-bottom:1rem">Upload a PDF, DOCX, or TXT file with your business info. AI will extract and fill the fields below automatically.</p>
+                <div class="upload-area" id="uploadArea" onclick="document.getElementById('uploadFileInput').click()" ondragover="event.preventDefault();this.classList.add('dragging')" ondragleave="this.classList.remove('dragging')" ondrop="event.preventDefault();this.classList.remove('dragging');handleFileDrop(event)">
+                    <div class="upload-icon">&#128196;</div>
+                    <div class="upload-text">Click or drag a file here<br><strong>PDF, DOCX, or TXT</strong> (max 5MB)</div>
+                    <input type="file" id="uploadFileInput" accept=".pdf,.docx,.doc,.txt" style="display:none" onchange="handleFileSelect(this)">
+                </div>
+                <div class="upload-progress" id="uploadProgress">
+                    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.35rem">
+                        <span style="font-size:0.85rem" id="uploadFileName">file.pdf</span>
+                        <span style="color:var(--gray);font-size:0.78rem" id="uploadStatus">Extracting...</span>
+                    </div>
+                    <div class="usage-bar-bg"><div class="usage-bar" id="uploadBar" style="width:0%"></div></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header"><div class="section-title">Business Details</div><span class="save-msg" id="companySaveMsg">Saved!</span></div>
+                <div class="form-group"><label class="form-label">Business Name</label><input type="text" class="form-input" id="ci_business_name" placeholder="e.g. Bright Smile Dental Clinic"></div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Address</label><input type="text" class="form-input" id="ci_address" placeholder="123 Main St, Austin, TX 78701"></div>
+                    <div class="form-group"><label class="form-label">Phone</label><input type="text" class="form-input" id="ci_phone" placeholder="(512) 555-0100"></div>
+                </div>
+                <div class="form-group"><label class="form-label">Business Hours</label><textarea class="form-textarea" id="ci_business_hours" placeholder="Mon-Fri: 9AM-5PM&#10;Sat: 10AM-2PM&#10;Sun: Closed"></textarea></div>
+                <div class="form-group"><label class="form-label">Services Offered</label><textarea class="form-textarea" id="ci_services" placeholder="Cleanings, Fillings, Whitening, Implants, Braces..."></textarea></div>
+                <div class="form-group"><label class="form-label">Pricing &amp; Insurance</label><textarea class="form-textarea" id="ci_pricing_insurance" placeholder="Cleaning: $75-$150&#10;Insurance: Delta Dental, Cigna, Aetna&#10;Payment: Cash, Credit, CareCredit"></textarea></div>
+                <div class="form-group"><label class="form-label">Emergency Info</label><textarea class="form-textarea" id="ci_emergency_info" placeholder="Emergency line: (512) 555-0199&#10;Walk-ins accepted for emergencies"></textarea></div>
+                <div class="form-group"><label class="form-label">About &amp; Credentials</label><textarea class="form-textarea" id="ci_about" placeholder="Serving Austin since 2005. ADA accredited..."></textarea></div>
+                <button class="btn-primary" onclick="saveCompanyInfo()">Save Company Info</button>
+            </div>
+        </div>
+
+        <!-- DOCTORS PAGE (admin only) -->
+        <div id="page-doctors" style="display:none">
+            <div class="main-header">
+                <h1>Doctors Available</h1>
+                <button class="btn-primary" onclick="openDoctorModal()">+ Add Doctor</button>
+            </div>
+            <p style="color:var(--gray);font-size:0.9rem;margin-bottom:1.5rem">Add doctors by their email. They'll receive a request to join your practice. Once accepted, customers can choose them when booking.</p>
+            <div id="doctorsList"><div class="section"><p class="empty-msg">No doctors added yet.</p></div></div>
+        </div>
+
+        <!-- REQUESTS PAGE (doctor only) -->
+        <div id="page-requests" style="display:none">
+            <div class="main-header"><h1>Practice Requests</h1></div>
+            <p style="color:var(--gray);font-size:0.9rem;margin-bottom:1.5rem">These are invitations from dental practices that want to add you as a doctor. Accept to join and start receiving bookings.</p>
+            <div id="requestsList"><div class="section"><p class="empty-msg">No pending requests.</p></div></div>
+        </div>
+
+        <!-- ADMIN MANAGEMENT PAGE (head_admin only) -->
+        <div id="page-admins" style="display:none">
+            <div class="main-header"><h1>Manage Admins</h1></div>
+            <p style="color:var(--gray);font-size:0.9rem;margin-bottom:1.5rem">Invite administrators to help manage your company. They will have the same permissions as you except inviting other admins.</p>
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-title">Invite Admin</span>
+                </div>
+                <div style="display:flex;gap:0.75rem;align-items:flex-end">
+                    <div class="form-group" style="flex:1;margin-bottom:0">
+                        <label class="form-label">Admin Email</label>
+                        <input type="email" class="form-input" id="inviteAdminEmail" placeholder="admin@example.com">
+                    </div>
+                    <button class="btn-primary" onclick="inviteAdmin()" style="margin-bottom:0;white-space:nowrap">Send Invite</button>
+                </div>
+                <div id="inviteAdminMsg" style="margin-top:0.75rem;font-size:0.88rem;display:none"></div>
+            </div>
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-title">Current Admins</span>
+                </div>
+                <div id="companyAdminsList"><p class="empty-msg">No admins yet.</p></div>
+            </div>
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-title">Sent Invitations</span>
+                </div>
+                <div id="sentAdminRequests"><p class="empty-msg">No invitations sent.</p></div>
+            </div>
+        </div>
+
+        <!-- ADMIN REQUESTS PAGE (for invited admins: head_admin role users who received invites) -->
+        <div id="page-admin-requests" style="display:none">
+            <div class="main-header"><h1>Company Invitations</h1></div>
+            <p style="color:var(--gray);font-size:0.9rem;margin-bottom:1.5rem">These are invitations from companies that want to add you as an administrator. Accept to join and help manage their practice.</p>
+            <div id="adminRequestsList"><div class="section"><p class="empty-msg">No pending invitations.</p></div></div>
+        </div>
+
+        <!-- DEMO PAGE -->
+        <div id="page-demo" style="display:none">
+            <div class="main-header"><h1>Try the Chatbot Demo</h1></div>
+            <div class="stats-row" style="grid-template-columns:repeat(2,1fr)">
+                <div class="stat-card"><div class="stat-label">Questions Used Today</div><div class="stat-value" id="demoUsedCount">0</div><div class="stat-sub" id="demoLimitSub">of 25 daily limit</div><div class="usage-bar-bg"><div class="usage-bar" id="demoUsageBar" style="width:0%"></div></div></div>
+                <div class="stat-card"><div class="stat-label">Questions Remaining</div><div class="stat-value" id="demoRemaining">25</div><div class="stat-sub">resets at midnight</div></div>
+            </div>
+            <div class="section" style="padding:0;overflow:hidden;height:500px;display:flex;flex-direction:column">
+                <div style="padding:1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:0.75rem">
+                    <div style="width:10px;height:10px;border-radius:50%;background:var(--green)"></div>
+                    <span style="font-weight:600;font-size:0.95rem">ChatGenius AI</span>
+                    <span style="color:var(--gray);font-size:0.82rem;margin-left:auto" id="demoLimitLabel">25 questions/day</span>
+                </div>
+                <div id="demoChatMessages" style="flex:1;overflow-y:auto;padding:1.25rem;display:flex;flex-direction:column;gap:0.75rem">
+                    <div style="background:rgba(0,212,255,0.08);border-radius:12px 12px 12px 4px;padding:0.75rem 1rem;max-width:80%;font-size:0.92rem;line-height:1.5;color:var(--white)">
+                        Hi! I'm your dental office assistant. Ask me anything about our services, hours, pricing, or book an appointment!
+                    </div>
+                </div>
+                <div style="padding:0.75rem 1rem;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:0.75rem">
+                    <input type="text" id="demoInput" placeholder="Type your question..." style="flex:1;padding:0.7rem 1rem;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--white);font-size:0.92rem;outline:none" onkeydown="if(event.key==='Enter')sendDemoMessage()">
+                    <button onclick="sendDemoMessage()" id="demoSendBtn" style="padding:0.7rem 1.25rem;border-radius:10px;border:none;background:var(--gradient);color:#fff;font-weight:700;cursor:pointer;font-size:0.92rem">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MANAGE DOCTORS PAGE (admin only) -->
+        <div id="page-manage" style="display:none">
+            <div class="main-header">
+                <h1>Manage Doctors</h1>
+            </div>
+            <p style="color:var(--gray);font-size:0.9rem;margin-bottom:1rem">Set working hours and availability for each doctor. Changes are saved per doctor.</p>
+
+            <!-- Search bar -->
+            <div style="margin-bottom:1.25rem">
+                <input type="text" id="manageSearchInput" placeholder="Search doctors by name or specialty..." oninput="filterManageDoctors()" style="width:100%;max-width:400px;padding:0.65rem 1rem;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--white);font-size:0.9rem;outline:none">
+            </div>
+
+            <!-- Success message -->
+            <div id="manageSaveSuccess" style="display:none;padding:0.65rem 1rem;border-radius:10px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);color:var(--green);font-size:0.88rem;margin-bottom:1rem;animation:dropIn 0.25s ease">
+                Changes saved successfully!
+            </div>
+
+            <div id="manageDoctorsList"></div>
+        </div>
+
+    </main>
+</div>
+
+<!-- Doctor Modal -->
+<div class="modal-overlay" id="doctorModal">
+    <div class="modal">
+        <h2 id="doctorModalTitle">Add Doctor</h2>
+        <input type="hidden" id="dm_id" value="">
+        <div class="form-group"><label class="form-label">Doctor Name</label><input type="text" class="form-input" id="dm_name" placeholder="e.g. John Smith"></div>
+        <div class="form-group"><label class="form-label">Email Address</label><div class="form-hint">The doctor must have an account with this email to accept</div><input type="email" class="form-input" id="dm_email" placeholder="doctor@example.com"></div>
+        <div class="form-group"><label class="form-label">Bio (optional)</label><textarea class="form-textarea" id="dm_bio" placeholder="Experience, certifications..."></textarea></div>
+        <div class="form-group"><label class="form-label">Availability</label><input type="text" class="form-input" id="dm_availability" placeholder="e.g. Mon-Fri"></div>
+        <div style="display:flex;gap:0.75rem;margin-top:1.5rem">
+            <button class="btn-primary" onclick="saveDoctor()">Save & Send Request</button>
+            <button class="btn-danger" onclick="closeDoctorModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ── Toast & Confirm system ──
+    const TOAST_ICONS = { success: '\u2705', error: '\u274C', warning: '\u26A0\uFE0F', info: '\u2139\uFE0F' };
+    function showToast(message, type = 'info', duration = 3500) {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = 'toast toast-' + type;
+        toast.innerHTML = `<span class="toast-icon">${TOAST_ICONS[type] || ''}</span><span class="toast-msg">${message}</span><button class="toast-close" onclick="this.parentElement.classList.add('toast-out');setTimeout(()=>this.parentElement.remove(),300)">&times;</button>`;
+        container.appendChild(toast);
+        setTimeout(() => { if (toast.parentElement) { toast.classList.add('toast-out'); setTimeout(() => toast.remove(), 300); } }, duration);
+    }
+
+    let _confirmResolve = null;
+    function showConfirm(title, message, { icon = '\u26A0\uFE0F', okText = 'Confirm', okClass = 'confirm-btn-danger' } = {}) {
+        return new Promise(resolve => {
+            _confirmResolve = resolve;
+            document.getElementById('confirmIcon').textContent = icon;
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMsg').textContent = message;
+            const okBtn = document.getElementById('confirmOkBtn');
+            okBtn.textContent = okText;
+            okBtn.className = 'confirm-btn ' + okClass;
+            document.getElementById('confirmOverlay').classList.add('show');
+        });
+    }
+    function resolveConfirm(value) {
+        document.getElementById('confirmOverlay').classList.remove('show');
+        if (_confirmResolve) { _confirmResolve(value); _confirmResolve = null; }
+    }
+
+    const PLAN_LABELS = { free_trial: 'Free Trial', basic: 'Basic', pro: 'Pro', agency: 'Agency' };
+    const PLAN_CLASSES = { free_trial: 'plan-free', basic: 'plan-basic', pro: 'plan-pro', agency: 'plan-agency' };
+    const PLAN_DAILY_LIMITS = { free_trial: 25, basic: 100, pro: 500, agency: 999999 };
+
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!token || !user) { window.location.href = '/login'; }
+
+    const isAdmin = user && (user.role === 'admin' || user.role === 'head_admin');
+    const isHeadAdmin = user && user.role === 'head_admin';
+    const isDoctor = user && user.role === 'doctor';
+    const headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+
+    // ── Role-based UI ──
+    function applyRoleUI() {
+        // Hide/show role-based elements
+        document.querySelectorAll('.admin-only').forEach(el => el.style.display = isAdmin ? '' : 'none');
+        document.querySelectorAll('.doctor-only').forEach(el => el.style.display = isDoctor ? '' : 'none');
+        document.querySelectorAll('.head-admin-only').forEach(el => el.style.display = isHeadAdmin ? '' : 'none');
+        // Show invitations link only for admins NOT yet linked to a company
+        const isUnlinkedAdmin = user && user.role === 'admin' && (!user.admin_id || user.admin_id === 0);
+        document.querySelectorAll('.invited-admin-only').forEach(el => el.style.display = isUnlinkedAdmin ? '' : 'none');
+
+        // Update role badge
+        const roleEl = document.getElementById('sidebarRole');
+        if (isDoctor) {
+            roleEl.textContent = 'Doctor';
+            roleEl.className = 'sidebar-role role-doctor';
+        } else if (isHeadAdmin) {
+            roleEl.textContent = 'Head Admin';
+            roleEl.className = 'sidebar-role role-head_admin';
+        } else if (user && user.role === 'admin') {
+            roleEl.textContent = 'Admin';
+            roleEl.className = 'sidebar-role role-admin';
+        }
+
+        const roleName = isDoctor ? 'Doctor' : (isHeadAdmin ? 'Head Administrator' : 'Administrator');
+        const roleSub = isDoctor
+            ? (user.admin_id ? 'Linked to a practice' : 'No practice yet — check Requests')
+            : (isHeadAdmin ? 'Practice owner' : (user.admin_id ? 'Linked to a company' : 'Practice owner'));
+        document.getElementById('statRole').textContent = roleName;
+        document.getElementById('statRoleSub').textContent = roleSub;
+
+        if (isDoctor) {
+            document.getElementById('bookingsTitle').textContent = 'My Appointments';
+        }
+    }
+
+    function initUI() {
+        if (!user) return;
+        const firstName = user.name ? user.name.split(' ')[0] : 'there';
+        document.getElementById('welcomeName').textContent = firstName;
+        document.getElementById('sidebarName').textContent = user.name || 'User';
+        document.getElementById('sidebarEmail').textContent = user.email || '';
+        const avatarEl = document.getElementById('avatarInitial');
+        if (user.avatar_url && user.avatar_url.length > 5) {
+            avatarEl.innerHTML = `<img src="${user.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+        } else {
+            avatarEl.textContent = (user.name || '?')[0].toUpperCase();
+        }
+
+        const plan = user.plan || 'free_trial';
+        const label = PLAN_LABELS[plan] || 'Free Trial';
+        const cls = PLAN_CLASSES[plan] || 'plan-free';
+        document.getElementById('headerBadge').textContent = label;
+        document.getElementById('headerBadge').className = 'plan-badge ' + cls;
+        if (document.getElementById('planPageBadge')) {
+            document.getElementById('planPageBadge').textContent = label;
+            document.getElementById('planPageBadge').className = 'plan-badge ' + cls;
+        }
+
+        applyRoleUI();
+    }
+
+    function showPage(page) {
+        document.querySelectorAll('[id^="page-"]').forEach(p => p.style.display = 'none');
+        document.getElementById('page-' + page).style.display = 'block';
+        document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
+        if (event && event.currentTarget) event.currentTarget.classList.add('active');
+        if (page === 'manage') loadManageDoctors();
+        if (page === 'admins') loadAdminManagement();
+        if (page === 'admin-requests') loadAdminRequests();
+    }
+
+    async function loadData() {
+        try {
+            const [statsRes, leadsRes, bookingsRes] = await Promise.all([
+                fetch('/api/stats', { headers }), fetch('/api/leads', { headers }), fetch('/api/bookings', { headers })
+            ]);
+            const stats = await statsRes.json();
+            const leads = await leadsRes.json();
+            const bookings = await bookingsRes.json();
+
+            document.getElementById('statBookings').textContent = stats.total_bookings;
+            document.getElementById('statLeads').textContent = stats.total_leads;
+            document.getElementById('statToday').textContent = stats.today_bookings;
+
+            // Activity feed
+            const activities = [];
+            bookings.forEach(b => activities.push({ type: 'Booking', name: b.customer_name, details: `${b.date} at ${b.time}${b.doctor_name ? ' — Dr. ' + b.doctor_name : ''}`, date: b.created_at, badge: 'badge-green' }));
+            if (isAdmin) leads.forEach(l => activities.push({ type: 'Lead', name: l.name, details: l.phone, date: l.created_at, badge: 'badge-cyan' }));
+            activities.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const actBody = document.getElementById('activityBody');
+            actBody.innerHTML = activities.length === 0
+                ? '<tr><td colspan="4" class="empty-msg">No activity yet.</td></tr>'
+                : activities.slice(0, 10).map(a => `<tr><td><span class="badge ${a.badge}">${a.type}</span></td><td>${a.name}</td><td>${a.details}</td><td>${new Date(a.date).toLocaleString()}</td></tr>`).join('');
+
+            // Bookings table
+            const bBody = document.getElementById('bookingsBody');
+            bBody.innerHTML = bookings.length === 0
+                ? '<tr><td colspan="5" class="empty-msg">No bookings yet</td></tr>'
+                : bookings.map(b => {
+                    const isCancelled = b.status === 'cancelled';
+                    const rowStyle = isCancelled ? 'style="text-decoration:line-through;opacity:0.5"' : '';
+                    const badgeClass = isCancelled ? 'badge-red' : 'badge-green';
+                    return `<tr ${rowStyle}><td>${b.customer_name}</td><td>${b.doctor_name ? 'Dr. ' + b.doctor_name : '—'}</td><td>${b.date}</td><td>${b.time}</td><td><span class="badge ${badgeClass}">${b.status}</span></td></tr>`;
+                }).join('');
+
+            // Leads table
+            if (isAdmin) {
+                const lBody = document.getElementById('leadsBody');
+                lBody.innerHTML = leads.length === 0
+                    ? '<tr><td colspan="4" class="empty-msg">No leads yet</td></tr>'
+                    : leads.map(l => `<tr><td>${l.name}</td><td>${l.phone}</td><td><span class="badge badge-cyan">${l.source}</span></td><td>${new Date(l.created_at).toLocaleString()}</td></tr>`).join('');
+            }
+        } catch (e) { console.error('Failed to load data:', e); }
+    }
+
+    function selectPlan(plan) {
+        if (user.plan === plan) return;
+        fetch('/auth/update-plan', { method: 'POST', headers, body: JSON.stringify({ plan }) })
+        .then(r => r.json()).then(data => {
+            if (!data.error) {
+                user.plan = plan;
+                localStorage.setItem('user', JSON.stringify(user));
+                initUI();
+                showToast('Plan updated to ' + PLAN_LABELS[plan] + '!', 'success');
+            }
+        });
+    }
+
+    function logout() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+    }
+
+    // ── Token expiry ──
+    function checkTokenExpiry() {
+        if (!user || !user.token_expires_at) return;
+        const expiresAt = new Date(user.token_expires_at + ' UTC');
+        const msLeft = expiresAt.getTime() - new Date().getTime();
+        if (msLeft <= 0) { showToast('Session expired. Logging out...', 'warning'); setTimeout(logout, 1500); return; }
+        setTimeout(function() { showToast('Session expired. Logging out...', 'warning'); setTimeout(logout, 1500); }, msLeft);
+    }
+
+    async function verifySession() {
+        try {
+            const res = await fetch('/auth/me', { headers });
+            if (res.status === 401) { showToast('Session expired. Logging out...', 'warning'); setTimeout(logout, 1500); }
+            else {
+                const data = await res.json();
+                if (data.user) {
+                    // Update local user data in case role/admin_id changed
+                    Object.assign(user, data.user);
+                    localStorage.setItem('user', JSON.stringify(user));
+                    applyRoleUI();
+                }
+            }
+        } catch(e) {}
+    }
+
+    // ── Company Info ──
+    async function loadCompanyInfo() {
+        if (!isAdmin) return;
+        try {
+            const res = await fetch('/api/company-info', { headers });
+            const info = await res.json();
+            if (info && !info.error) {
+                ['business_name','address','phone','business_hours','services','pricing_insurance','emergency_info','about'].forEach(f => {
+                    const el = document.getElementById('ci_' + f);
+                    if (el && info[f]) el.value = info[f];
+                });
+            }
+        } catch(e) {}
+    }
+
+    async function saveCompanyInfo() {
+        const data = {};
+        ['business_name','address','phone','business_hours','services','pricing_insurance','emergency_info','about'].forEach(f => {
+            const el = document.getElementById('ci_' + f);
+            data[f] = el ? el.value.trim() : '';
+        });
+        try {
+            await fetch('/api/company-info', { method: 'POST', headers, body: JSON.stringify(data) });
+            const msg = document.getElementById('companySaveMsg');
+            msg.style.display = 'inline';
+            setTimeout(() => msg.style.display = 'none', 3000);
+        } catch(e) { showToast('Failed to save.', 'error'); }
+    }
+
+    // ── Doctors (admin) ──
+    let doctorsCache = [];
+
+    async function loadDoctors() {
+        if (!isAdmin) return;
+        try {
+            const res = await fetch('/api/doctors', { headers });
+            doctorsCache = await res.json();
+            renderDoctors();
+        } catch(e) {}
+    }
+
+    function renderDoctors() {
+        const container = document.getElementById('doctorsList');
+        if (!doctorsCache || doctorsCache.length === 0) {
+            container.innerHTML = '<div class="section"><p class="empty-msg">No doctors added yet. Click "+ Add Doctor" to get started.</p></div>';
+            return;
+        }
+        container.innerHTML = doctorsCache.map(d => {
+            const statusBadge = d.status === 'active'
+                ? '<span class="badge badge-green">Active</span>'
+                : '<span class="badge badge-yellow">Pending</span>';
+            return `
+            <div class="doctor-card">
+                <div class="doctor-avatar">${(d.name || '?')[0].toUpperCase()}</div>
+                <div class="doctor-info">
+                    <div class="doctor-name">Dr. ${d.name} ${statusBadge}</div>
+                    <div class="doctor-specialty">${d.specialty || 'General'}</div>
+                    <div class="doctor-availability">Email: ${d.email || '—'} | Availability: ${d.availability || 'Mon-Fri'}</div>
+                </div>
+                <div class="doctor-actions">
+                    <button class="btn-small btn-edit" onclick="editDoctor(${d.id})">Edit</button>
+                    ${isHeadAdmin ? `<button class="btn-small btn-delete" onclick="deleteDoctor(${d.id}, '${d.name.replace(/'/g, "\\'")}')">Delete</button>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function openDoctorModal(doc) {
+        document.getElementById('doctorModalTitle').textContent = doc ? 'Edit Doctor' : 'Add Doctor';
+        document.getElementById('dm_id').value = doc ? doc.id : '';
+        document.getElementById('dm_name').value = doc ? doc.name : '';
+        document.getElementById('dm_email').value = doc ? (doc.email || '') : '';
+        document.getElementById('dm_bio').value = doc ? doc.bio : '';
+        document.getElementById('dm_availability').value = doc ? doc.availability : 'Mon-Fri';
+        // Disable email editing for existing doctors
+        document.getElementById('dm_email').disabled = !!doc;
+        document.getElementById('doctorModal').classList.add('show');
+    }
+
+    function closeDoctorModal() { document.getElementById('doctorModal').classList.remove('show'); }
+
+    function editDoctor(id) {
+        const doc = doctorsCache.find(d => d.id === id);
+        if (doc) openDoctorModal(doc);
+    }
+
+    async function saveDoctor() {
+        const id = document.getElementById('dm_id').value;
+        const data = {
+            name: document.getElementById('dm_name').value.trim(),
+            email: document.getElementById('dm_email').value.trim(),
+            bio: document.getElementById('dm_bio').value.trim(),
+            availability: document.getElementById('dm_availability').value.trim() || 'Mon-Fri'
+        };
+        if (!data.name) { showToast('Doctor name is required.', 'warning'); return; }
+        if (!id && !data.email) { showToast('Doctor email is required.', 'warning'); return; }
+
+        const url = id ? `/api/doctors/${id}` : '/api/doctors';
+        const method = id ? 'PUT' : 'POST';
+        try {
+            const res = await fetch(url, { method, headers, body: JSON.stringify(data) });
+            const result = await res.json();
+            if (result.error) { showToast(result.error, 'error'); return; }
+            closeDoctorModal();
+            loadDoctors();
+            if (!id) {
+                showToast('Doctor added and linked to the company!', 'success', 5000);
+            } else {
+                showToast('Doctor saved!', 'success');
+            }
+        } catch(e) { showToast('Failed to save doctor.', 'error'); }
+    }
+
+    async function deleteDoctor(id, name) {
+        const ok = await showConfirm('Delete Doctor', `Are you sure you want to delete Dr. ${name}? This cannot be undone.`, { icon: '\uD83D\uDDD1\uFE0F', okText: 'Delete', okClass: 'confirm-btn-danger' });
+        if (!ok) return;
+        try {
+            const res = await fetch(`/api/doctors/${id}`, { method: 'DELETE', headers });
+            const data = await res.json();
+            if (data.error) { showToast(data.error, 'error'); return; }
+            loadDoctors(); showToast('Doctor removed.', 'success');
+        } catch(e) { showToast('Failed to delete.', 'error'); }
+    }
+
+    // ── Manage Doctors ──
+    let manageDoctors = [];
+
+    async function loadManageDoctors() {
+        if (!isAdmin) return;
+        try {
+            const res = await fetch('/api/doctors', { headers });
+            manageDoctors = await res.json();
+            renderManageDoctors();
+        } catch(e) {}
+    }
+
+    function parseTime(str) {
+        // Parse "09:30 AM" → { hh: '09', mm: '30', ampm: 'AM' }
+        if (!str || str === '00:00 AM' || str === '00:00') return { hh: '00', mm: '00', ampm: 'AM' };
+        const m = str.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+        if (!m) return { hh: '00', mm: '00', ampm: 'AM' };
+        return { hh: m[1].padStart(2, '0'), mm: m[2], ampm: (m[3] || 'AM').toUpperCase() };
+    }
+
+    function formatTime(hh, mm, ampm) {
+        return (hh || '00').padStart(2, '0') + ':' + (mm || '00').padStart(2, '0') + ' ' + (ampm || 'AM');
+    }
+
+    function timeTo24(hh, mm, ampm) {
+        let h = parseInt(hh) || 0;
+        if (ampm === 'PM' && h < 12) h += 12;
+        if (ampm === 'AM' && h === 12) h = 0;
+        return h * 60 + (parseInt(mm) || 0);
+    }
+
+    function renderManageDoctors(filter) {
+        const container = document.getElementById('manageDoctorsList');
+        const q = (filter || '').toLowerCase();
+        const filtered = manageDoctors.filter(d =>
+            !q || d.name.toLowerCase().includes(q) || (d.specialty || '').toLowerCase().includes(q)
+        );
+
+        if (!filtered.length) {
+            container.innerHTML = '<div class="section"><p class="empty-msg">' + (manageDoctors.length ? 'No doctors match your search.' : 'No doctors added yet.') + '</p></div>';
+            return;
+        }
+
+        container.innerHTML = filtered.map(d => {
+            const start = parseTime(d.start_time);
+            const end = parseTime(d.end_time);
+            const apptLen = d.appointment_length || 60;
+            const isActive = d.is_active !== 0 && d.is_active !== false;
+            const statusBadge = d.status === 'active'
+                ? '<span class="badge badge-green">Active</span>'
+                : '<span class="badge badge-yellow">Pending</span>';
+
+            return `
+            <div class="manage-card" id="manage-card-${d.id}">
+                <div class="manage-card-header">
+                    <div class="manage-card-avatar">${(d.name || '?')[0].toUpperCase()}</div>
+                    <div>
+                        <div class="manage-card-name">Dr. ${d.name} ${statusBadge}</div>
+                        <div class="manage-card-specialty">${d.specialty || 'General Dentist'}</div>
+                    </div>
+                    <div class="manage-card-status" style="display:flex;align-items:center;gap:0.5rem">
+                        <span style="font-size:0.78rem;color:var(--gray)">${isActive ? 'Available' : 'Unavailable'}</span>
+                        <label class="manage-toggle">
+                            <input type="checkbox" ${isActive ? 'checked' : ''} onchange="toggleDoctorActive(${d.id}, this.checked)">
+                            <span class="manage-toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:0.5rem">
+                    <div class="time-label">Working Hours</div>
+                    <div class="time-row">
+                        <div class="time-group">
+                            <input type="text" class="time-input" id="sh_${d.id}" value="${start.hh}" maxlength="2" placeholder="HH" oninput="clampTimeInput(this,12)" onblur="padTime(this)">
+                            <span class="time-colon">:</span>
+                            <input type="text" class="time-input" id="sm_${d.id}" value="${start.mm}" maxlength="2" placeholder="MM" oninput="clampTimeInput(this,59)" onblur="padTime(this)">
+                            <select class="time-ampm" id="sa_${d.id}">
+                                <option value="AM" ${start.ampm === 'AM' ? 'selected' : ''}>AM</option>
+                                <option value="PM" ${start.ampm === 'PM' ? 'selected' : ''}>PM</option>
+                            </select>
+                        </div>
+                        <span class="time-arrow">&rarr;</span>
+                        <div class="time-group">
+                            <input type="text" class="time-input" id="eh_${d.id}" value="${end.hh}" maxlength="2" placeholder="HH" oninput="clampTimeInput(this,12)" onblur="padTime(this)">
+                            <span class="time-colon">:</span>
+                            <input type="text" class="time-input" id="em_${d.id}" value="${end.mm}" maxlength="2" placeholder="MM" oninput="clampTimeInput(this,59)" onblur="padTime(this)">
+                            <select class="time-ampm" id="ea_${d.id}">
+                                <option value="AM" ${end.ampm === 'AM' ? 'selected' : ''}>AM</option>
+                                <option value="PM" ${end.ampm === 'PM' ? 'selected' : ''}>PM</option>
+                            </select>
+                        </div>
+                        <button class="manage-save-btn" onclick="saveDoctorSchedule(${d.id})">Save</button>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.65rem">
+                        <div class="time-label" style="margin:0">Appointment Length</div>
+                        <select id="al_${d.id}" class="time-ampm" style="border-radius:8px;padding:0.4rem 0.5rem;border:1px solid rgba(255,255,255,0.1);min-width:90px">
+                            <option value="15" ${apptLen === 15 ? 'selected' : ''}>15 min</option>
+                            <option value="30" ${apptLen === 30 ? 'selected' : ''}>30 min</option>
+                            <option value="45" ${apptLen === 45 ? 'selected' : ''}>45 min</option>
+                            <option value="60" ${apptLen === 60 ? 'selected' : ''}>1 hour</option>
+                            <option value="90" ${apptLen === 90 ? 'selected' : ''}>1.5 hours</option>
+                            <option value="120" ${apptLen === 120 ? 'selected' : ''}>2 hours</option>
+                        </select>
+                    </div>
+                    <div class="manage-error" id="manage-err-${d.id}"></div>
+                </div>
+
+                <!-- Breaks Section -->
+                <div class="manage-subsection">
+                    <div class="manage-subsection-title">Breaks</div>
+                    <div id="breaks-list-${d.id}"><span style="color:var(--gray);font-size:0.78rem">Loading...</span></div>
+                    <div class="add-break-form">
+                        <input type="time" id="brk-start-${d.id}" style="width:110px">
+                        <span style="color:var(--gray);font-size:0.82rem">to</span>
+                        <input type="time" id="brk-end-${d.id}" style="width:110px">
+                        <button class="add-break-btn" onclick="addBreak(${d.id})">+ Add</button>
+                    </div>
+                </div>
+
+                <!-- Off Days Section -->
+                <div class="manage-subsection">
+                    <div class="manage-subsection-title">Off Days</div>
+                    <div id="offdays-list-${d.id}"><span style="color:var(--gray);font-size:0.78rem">Loading...</span></div>
+                    <div class="add-offday-form">
+                        <input type="date" id="off-date-${d.id}" style="width:150px">
+                        <input type="text" id="off-reason-${d.id}" placeholder="Reason (optional)" style="width:140px">
+                        <button class="add-offday-btn" onclick="addOffDay(${d.id})">+ Add</button>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+
+        // Load breaks and off days for each doctor
+        filtered.forEach(d => {
+            loadBreaks(d.id);
+            loadOffDays(d.id);
+        });
+    }
+
+    function clampTimeInput(el, max) {
+        el.value = el.value.replace(/[^0-9]/g, '');
+        if (el.value !== '' && parseInt(el.value) > max) el.value = String(max);
+    }
+
+    function padTime(el) {
+        if (el.value.length === 1) el.value = '0' + el.value;
+        if (el.value === '') el.value = '00';
+    }
+
+    function filterManageDoctors() {
+        const q = document.getElementById('manageSearchInput').value;
+        renderManageDoctors(q);
+    }
+
+    async function toggleDoctorActive(id, checked) {
+        const doc = manageDoctors.find(d => d.id === id);
+        if (!doc) return;
+        try {
+            await fetch(`/api/doctors/${id}`, {
+                method: 'PUT', headers,
+                body: JSON.stringify({ name: doc.name, specialty: doc.specialty || '', bio: doc.bio || '', availability: doc.availability || 'Mon-Fri', is_active: checked })
+            });
+            doc.is_active = checked ? 1 : 0;
+            // Update label
+            const card = document.getElementById('manage-card-' + id);
+            if (card) {
+                const label = card.querySelector('.manage-card-status span');
+                if (label) label.textContent = checked ? 'Available' : 'Unavailable';
+            }
+            showManageSuccess();
+        } catch(e) {}
+    }
+
+    async function saveDoctorSchedule(id) {
+        const doc = manageDoctors.find(d => d.id === id);
+        if (!doc) return;
+
+        const sh = document.getElementById('sh_' + id).value || '00';
+        const sm = document.getElementById('sm_' + id).value || '00';
+        const sa = document.getElementById('sa_' + id).value;
+        const eh = document.getElementById('eh_' + id).value || '00';
+        const em = document.getElementById('em_' + id).value || '00';
+        const ea = document.getElementById('ea_' + id).value;
+
+        const errEl = document.getElementById('manage-err-' + id);
+
+        // Validate not empty
+        if (!sh || !sm || !eh || !em) {
+            errEl.textContent = 'Please fill in all time fields.';
+            errEl.style.display = 'block';
+            return;
+        }
+
+        // Validate start < end
+        const startMin = timeTo24(sh, sm, sa);
+        const endMin = timeTo24(eh, em, ea);
+        if (startMin >= endMin) {
+            errEl.textContent = 'Start time must be before end time.';
+            errEl.style.display = 'block';
+            return;
+        }
+
+        errEl.style.display = 'none';
+
+        const startTime = formatTime(sh, sm, sa);
+        const endTime = formatTime(eh, em, ea);
+        const apptLength = parseInt(document.getElementById('al_' + id).value) || 60;
+
+        try {
+            const res = await fetch(`/api/doctors/${id}`, {
+                method: 'PUT', headers,
+                body: JSON.stringify({
+                    name: doc.name, specialty: doc.specialty || '',
+                    bio: doc.bio || '', availability: doc.availability || 'Mon-Fri',
+                    start_time: startTime, end_time: endTime,
+                    appointment_length: apptLength
+                })
+            });
+            const result = await res.json();
+            if (result.error) {
+                errEl.textContent = result.error;
+                errEl.style.display = 'block';
+                return;
+            }
+            // Update cache
+            doc.start_time = startTime;
+            doc.end_time = endTime;
+            doc.appointment_length = apptLength;
+            showManageSuccess();
+        } catch(e) {
+            errEl.textContent = 'Failed to save. Try again.';
+            errEl.style.display = 'block';
+        }
+    }
+
+    function showManageSuccess() {
+        const el = document.getElementById('manageSaveSuccess');
+        el.style.display = 'block';
+        setTimeout(() => { el.style.display = 'none'; }, 2500);
+    }
+
+    // ── Doctor Requests (doctor role) ──
+    let requestsCache = [];
+
+    async function loadRequests() {
+        if (!isDoctor) return;
+        try {
+            const res = await fetch('/api/doctor-requests', { headers });
+            requestsCache = await res.json();
+            renderRequests();
+            // Update badge
+            const pending = requestsCache.filter(r => r.status === 'pending').length;
+            const badge = document.getElementById('requestBadge');
+            if (pending > 0) { badge.textContent = pending; badge.style.display = 'inline-flex'; }
+            else { badge.style.display = 'none'; }
+        } catch(e) {}
+    }
+
+    function renderRequests() {
+        const container = document.getElementById('requestsList');
+        const pending = requestsCache.filter(r => r.status === 'pending');
+        if (pending.length === 0) {
+            container.innerHTML = '<div class="section"><p class="empty-msg">No pending requests. When a dental practice adds you, the invitation will appear here.</p></div>';
+            return;
+        }
+        container.innerHTML = pending.map(r => `
+            <div class="request-card">
+                <div class="request-header">
+                    <div class="request-biz">${r.business_name || 'Dental Practice'}</div>
+                    <span class="badge badge-yellow">Pending</span>
+                </div>
+                <div class="request-admin">Invited by: ${r.admin_name}</div>
+                <div style="color:var(--gray);font-size:0.82rem;margin-top:0.25rem">Sent: ${new Date(r.created_at).toLocaleDateString()}</div>
+                <div class="request-actions">
+                    <button class="btn-small btn-accept" onclick="respondRequest(${r.id}, true)">Accept</button>
+                    <button class="btn-small btn-reject" onclick="respondRequest(${r.id}, false)">Decline</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async function respondRequest(requestId, accept) {
+        const action = accept ? 'accept' : 'decline';
+        const ok = await showConfirm(accept ? 'Join Practice' : 'Decline Invitation',
+            accept ? 'You will join this practice and start receiving bookings.' : 'Are you sure you want to decline this invitation?',
+            { icon: accept ? '\uD83C\uDFE5' : '\u26A0\uFE0F', okText: accept ? 'Join' : 'Decline', okClass: accept ? 'confirm-btn-primary' : 'confirm-btn-danger' });
+        if (!ok) return;
+        try {
+            const res = await fetch(`/api/doctor-requests/${requestId}/respond`, {
+                method: 'POST', headers, body: JSON.stringify({ accept })
+            });
+            const data = await res.json();
+            if (data.error) { showToast(data.error, 'error'); return; }
+            if (data.user) {
+                Object.assign(user, data.user);
+                localStorage.setItem('user', JSON.stringify(user));
+                applyRoleUI();
+            }
+            loadRequests();
+            if (accept) showToast('You have joined the practice! Your bookings will now appear here.', 'success', 5000);
+            else showToast('Invitation declined.', 'info');
+        } catch(e) { showToast('Failed to respond.', 'error'); }
+    }
+
+    // ── Admin Management (head_admin) ──
+
+    async function loadAdminManagement() {
+        if (!isHeadAdmin) return;
+        try {
+            const [adminsRes, requestsRes] = await Promise.all([
+                fetch('/api/company-admins', { headers }),
+                fetch('/api/admin-requests?mode=sent', { headers })
+            ]);
+            const admins = await adminsRes.json();
+            const requests = await requestsRes.json();
+
+            // Render current admins
+            const adminsContainer = document.getElementById('companyAdminsList');
+            if (admins.length === 0) {
+                adminsContainer.innerHTML = '<p class="empty-msg">No admins yet. Send an invitation below.</p>';
+            } else {
+                adminsContainer.innerHTML = admins.map(a => `
+                    <div class="doctor-card">
+                        <div class="doctor-avatar">${(a.name || '?')[0].toUpperCase()}</div>
+                        <div class="doctor-info">
+                            <div class="doctor-name">${a.name}</div>
+                            <div class="doctor-specialty">${a.email}</div>
+                            <div class="doctor-availability">Joined: ${new Date(a.created_at).toLocaleDateString()}</div>
+                        </div>
+                        <div class="doctor-actions">
+                            <button class="btn-small btn-delete" onclick="removeAdmin(${a.id})">Remove</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Render sent invitations
+            const reqContainer = document.getElementById('sentAdminRequests');
+            if (requests.length === 0) {
+                reqContainer.innerHTML = '<p class="empty-msg">No invitations sent.</p>';
+            } else {
+                reqContainer.innerHTML = requests.map(r => {
+                    const statusBadge = r.status === 'pending' ? 'badge-yellow' : (r.status === 'accepted' ? 'badge-green' : 'badge-red');
+                    return `
+                        <div class="request-card">
+                            <div class="request-header">
+                                <div class="request-biz">${r.admin_email}</div>
+                                <div style="display:flex;align-items:center;gap:0.5rem">
+                                    <span class="badge ${statusBadge}">${r.status}</span>
+                                    <button class="btn-small btn-delete" onclick="deleteAdminInvite(${r.id})">Delete</button>
+                                </div>
+                            </div>
+                            <div style="color:var(--gray);font-size:0.82rem;margin-top:0.25rem">Sent: ${new Date(r.created_at).toLocaleDateString()}</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        } catch(e) { console.error('Failed to load admin management', e); }
+    }
+
+    async function inviteAdmin() {
+        const emailInput = document.getElementById('inviteAdminEmail');
+        const email = emailInput.value.trim().toLowerCase();
+        const msgEl = document.getElementById('inviteAdminMsg');
+        if (!email) { msgEl.textContent = 'Please enter an email.'; msgEl.style.color = 'var(--red)'; msgEl.style.display = 'block'; return; }
+        try {
+            const res = await fetch('/api/admin-requests', { method: 'POST', headers, body: JSON.stringify({ email }) });
+            const data = await res.json();
+            if (data.error) {
+                msgEl.textContent = data.error; msgEl.style.color = 'var(--red)'; msgEl.style.display = 'block';
+            } else {
+                msgEl.textContent = 'Invitation sent!'; msgEl.style.color = 'var(--green)'; msgEl.style.display = 'block';
+                emailInput.value = '';
+                loadAdminManagement();
+                setTimeout(() => { msgEl.style.display = 'none'; }, 3000);
+            }
+        } catch(e) { msgEl.textContent = 'Failed to send.'; msgEl.style.color = 'var(--red)'; msgEl.style.display = 'block'; }
+    }
+
+    async function removeAdmin(adminUserId) {
+        const ok = await showConfirm('Remove Admin', 'This admin will lose access to your company. Are you sure?', { icon: '\uD83D\uDDD1\uFE0F', okText: 'Remove', okClass: 'confirm-btn-danger' });
+        if (!ok) return;
+        try {
+            await fetch(`/api/company-admins/${adminUserId}`, { method: 'DELETE', headers });
+            loadAdminManagement();
+            showToast('Admin removed from company.', 'success');
+        } catch(e) { showToast('Failed to remove.', 'error'); }
+    }
+
+    async function deleteAdminInvite(requestId) {
+        const ok = await showConfirm('Delete Invitation', 'Are you sure you want to delete this invitation?', { icon: '\uD83D\uDDD1\uFE0F', okText: 'Delete', okClass: 'confirm-btn-danger' });
+        if (!ok) return;
+        try {
+            await fetch(`/api/admin-requests/${requestId}`, { method: 'DELETE', headers });
+            loadAdminManagement();
+            showToast('Invitation deleted.', 'success');
+        } catch(e) { showToast('Failed to delete.', 'error'); }
+    }
+
+    // ── Admin Requests (for invited admins / head_admins who received invites) ──
+
+    async function loadAdminRequests() {
+        try {
+            const res = await fetch('/api/admin-requests?mode=received', { headers });
+            const requests = await res.json();
+            const pending = requests.filter(r => r.status === 'pending');
+
+            // Update badge
+            const badge = document.getElementById('adminRequestBadge');
+            if (pending.length > 0) { badge.textContent = pending.length; badge.style.display = 'inline-flex'; }
+            else { badge.style.display = 'none'; }
+
+            const container = document.getElementById('adminRequestsList');
+            if (pending.length === 0) {
+                container.innerHTML = '<div class="section"><p class="empty-msg">No pending invitations.</p></div>';
+                return;
+            }
+            container.innerHTML = pending.map(r => `
+                <div class="request-card">
+                    <div class="request-header">
+                        <div class="request-biz">${r.business_name || 'Company'}</div>
+                        <span class="badge badge-yellow">Pending</span>
+                    </div>
+                    <div class="request-admin">Invited by: ${r.head_admin_name}</div>
+                    <div style="color:var(--gray);font-size:0.82rem;margin-top:0.25rem">Sent: ${new Date(r.created_at).toLocaleDateString()}</div>
+                    <div class="request-actions">
+                        <button class="btn-small btn-accept" onclick="respondAdminRequest(${r.id}, true)">Accept</button>
+                        <button class="btn-small btn-reject" onclick="respondAdminRequest(${r.id}, false)">Decline</button>
+                    </div>
+                </div>
+            `).join('');
+        } catch(e) {}
+    }
+
+    async function respondAdminRequest(requestId, accept) {
+        const ok = await showConfirm(accept ? 'Join Company' : 'Decline Invitation',
+            accept ? 'You will join this company as an administrator.' : 'Are you sure you want to decline this invitation?',
+            { icon: accept ? '\uD83C\uDFE2' : '\u26A0\uFE0F', okText: accept ? 'Join' : 'Decline', okClass: accept ? 'confirm-btn-primary' : 'confirm-btn-danger' });
+        if (!ok) return;
+        try {
+            const res = await fetch(`/api/admin-requests/${requestId}/respond`, {
+                method: 'POST', headers, body: JSON.stringify({ accept })
+            });
+            const data = await res.json();
+            if (data.error) { showToast(data.error, 'error'); return; }
+            if (data.user) {
+                Object.assign(user, data.user);
+                localStorage.setItem('user', JSON.stringify(user));
+                applyRoleUI();
+            }
+            if (accept) {
+                showToast('You have joined the company as an administrator!', 'success', 5000);
+                // Redirect to dashboard — invitations link will auto-hide via applyRoleUI
+                showPage('dashboard');
+            } else {
+                loadAdminRequests();
+                showToast('Invitation declined.', 'info');
+            }
+        } catch(e) { showToast('Failed to respond.', 'error'); }
+    }
+
+    // ── Profile popup ──
+    let profileAvatarData = null;
+
+    function toggleProfile() {
+        const popup = document.getElementById('profilePopup');
+        if (popup.classList.contains('show')) { closeProfile(); return; }
+        openProfile();
+    }
+
+    function openProfile() {
+        profileAvatarData = null;
+        document.getElementById('profileName').value = user.name || '';
+        document.getElementById('profileEmail').value = user.email || '';
+        document.getElementById('profileCurrentPw').value = '';
+        document.getElementById('profileNewPw').value = '';
+        document.getElementById('profileDisplayName').textContent = user.name || 'User';
+
+        // Avatar
+        const avatarEl = document.getElementById('profileAvatarLg');
+        if (user.avatar_url) {
+            avatarEl.innerHTML = `<img src="${user.avatar_url}" alt="">`;
+        } else {
+            avatarEl.textContent = (user.name || '?')[0].toUpperCase();
+        }
+
+        // Role pill
+        const pill = document.getElementById('profileRolePill');
+        const roleMap = { head_admin: ['Head Admin', 'role-head_admin'], admin: ['Admin', 'role-admin'], doctor: ['Doctor', 'role-doctor'] };
+        const [label, cls] = roleMap[user.role] || ['User', 'role-admin'];
+        pill.textContent = label;
+        pill.className = 'profile-role-pill ' + cls;
+
+        document.getElementById('profilePopup').classList.add('show');
+        document.getElementById('profileBackdrop').classList.add('show');
+    }
+
+    function closeProfile() {
+        document.getElementById('profilePopup').classList.remove('show');
+        document.getElementById('profileBackdrop').classList.remove('show');
+    }
+
+    function handleAvatarChange(input) {
+        const file = input.files[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) { showToast('Image too large (max 2MB).', 'error'); return; }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            profileAvatarData = e.target.result;
+            document.getElementById('profileAvatarLg').innerHTML = `<img src="${profileAvatarData}" alt="">`;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    async function saveProfile() {
+        const btn = document.getElementById('profileSaveBtn');
+        btn.disabled = true; btn.textContent = 'Saving...';
+        const body = {
+            name: document.getElementById('profileName').value.trim(),
+            email: document.getElementById('profileEmail').value.trim(),
+            current_password: document.getElementById('profileCurrentPw').value,
+            new_password: document.getElementById('profileNewPw').value,
+        };
+        if (profileAvatarData) body.avatar_url = profileAvatarData;
+
+        try {
+            const res = await fetch('/auth/update-profile', { method: 'POST', headers, body: JSON.stringify(body) });
+            const data = await res.json();
+            if (data.error) { showToast(data.error, 'error'); btn.disabled = false; btn.textContent = 'Save Changes'; return; }
+            // Update local user data
+            Object.assign(user, data.user);
+            localStorage.setItem('user', JSON.stringify(user));
+            initUI();
+            applyRoleUI();
+            closeProfile();
+            showToast('Profile updated!', 'success');
+        } catch(e) {
+            showToast('Failed to save profile.', 'error');
+        }
+        btn.disabled = false; btn.textContent = 'Save Changes';
+    }
+
+    // ── Demo chatbot ──
+    const DEMO_DAILY_LIMIT = PLAN_DAILY_LIMITS[(user && user.plan) || 'free_trial'] || 25;
+    const isUnlimited = (user && user.plan === 'agency');
+    const demoSessionId = 'demo_' + Math.random().toString(36).substr(2, 9);
+
+    function getDemoKey() {
+        const today = new Date().toISOString().split('T')[0];
+        return 'demo_usage_' + (user ? user.id : '0') + '_' + today;
+    }
+    function getDemoUsage() { return parseInt(localStorage.getItem(getDemoKey()) || '0', 10); }
+    function setDemoUsage(count) { localStorage.setItem(getDemoKey(), count.toString()); }
+
+    function updateDemoUI() {
+        const used = getDemoUsage();
+        const remaining = isUnlimited ? 999999 : Math.max(0, DEMO_DAILY_LIMIT - used);
+        const el = (id) => document.getElementById(id);
+        if (el('demoUsedCount')) el('demoUsedCount').textContent = used;
+        if (el('demoRemaining')) el('demoRemaining').textContent = isUnlimited ? 'Unlimited' : remaining;
+        if (el('demoUsageBar')) el('demoUsageBar').style.width = isUnlimited ? '0%' : Math.min((used / DEMO_DAILY_LIMIT) * 100, 100) + '%';
+        if (el('demoLimitLabel')) el('demoLimitLabel').textContent = isUnlimited ? 'Unlimited' : DEMO_DAILY_LIMIT + '/day';
+        if (el('demoLimitSub')) el('demoLimitSub').textContent = isUnlimited ? 'unlimited' : 'of ' + DEMO_DAILY_LIMIT + ' daily limit';
+        if (el('demoInput')) el('demoInput').disabled = (!isUnlimited && remaining <= 0);
+        if (el('demoSendBtn')) el('demoSendBtn').disabled = (!isUnlimited && remaining <= 0);
+    }
+
+    function addDemoMessage(text, isUser) {
+        const container = document.getElementById('demoChatMessages');
+        const div = document.createElement('div');
+        div.style.cssText = isUser
+            ? 'background:var(--gradient);border-radius:12px 12px 4px 12px;padding:0.75rem 1rem;max-width:80%;font-size:0.92rem;line-height:1.5;color:#fff;align-self:flex-end'
+            : 'background:rgba(0,212,255,0.08);border-radius:12px 12px 12px 4px;padding:0.75rem 1rem;max-width:80%;font-size:0.92rem;line-height:1.5;color:var(--white)';
+        div.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // ── Breaks CRUD ──
+    async function loadBreaks(doctorId) {
+        try {
+            const res = await fetch(`/api/doctors/${doctorId}/breaks`, { headers });
+            const breaks = await res.json();
+            const container = document.getElementById('breaks-list-' + doctorId);
+            if (!breaks.length) {
+                container.innerHTML = '<span style="color:var(--gray);font-size:0.78rem">No breaks set</span>';
+                return;
+            }
+            container.innerHTML = breaks.map(b => `
+                <div class="break-row">
+                    <span>${b.start_time} to ${b.end_time}</span>
+                    <button class="break-del" onclick="deleteBreak(${doctorId}, ${b.id})" title="Remove">&times;</button>
+                </div>
+            `).join('');
+        } catch(e) { console.error(e); }
+    }
+
+    async function addBreak(doctorId) {
+        const startEl = document.getElementById('brk-start-' + doctorId);
+        const endEl = document.getElementById('brk-end-' + doctorId);
+        if (!startEl.value || !endEl.value) { showToast('Please set break start and end times.', 'warning'); return; }
+        function to12h(t) {
+            const [h, m] = t.split(':').map(Number);
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            const hh = h % 12 || 12;
+            return String(hh).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ' ' + ampm;
+        }
+        try {
+            const res = await fetch(`/api/doctors/${doctorId}/breaks`, {
+                method: 'POST', headers,
+                body: JSON.stringify({ start_time: to12h(startEl.value), end_time: to12h(endEl.value) })
+            });
+            const result = await res.json();
+            if (result.error) { showToast(result.error, 'error'); return; }
+            startEl.value = ''; endEl.value = '';
+            loadBreaks(doctorId);
+            showToast('Break added.', 'success');
+        } catch(e) { showToast('Failed to add break.', 'error'); }
+    }
+
+    async function deleteBreak(doctorId, breakId) {
+        try {
+            await fetch(`/api/doctors/${doctorId}/breaks/${breakId}`, { method: 'DELETE', headers });
+            loadBreaks(doctorId);
+            showManageSuccess();
+        } catch(e) {}
+    }
+
+    // ── Off Days CRUD ──
+    async function loadOffDays(doctorId) {
+        try {
+            const res = await fetch(`/api/doctors/${doctorId}/off-days`, { headers });
+            const days = await res.json();
+            const container = document.getElementById('offdays-list-' + doctorId);
+            if (!days.length) {
+                container.innerHTML = '<span style="color:var(--gray);font-size:0.78rem">No off days set</span>';
+                return;
+            }
+            container.innerHTML = days.map(d => `
+                <div class="offday-row">
+                    <span><strong>${d.off_date}</strong>${d.reason ? ' &mdash; ' + d.reason : ''}</span>
+                    <button class="offday-del" onclick="deleteOffDay(${doctorId}, ${d.id})" title="Remove">&times;</button>
+                </div>
+            `).join('');
+        } catch(e) { console.error(e); }
+    }
+
+    async function addOffDay(doctorId) {
+        const dateEl = document.getElementById('off-date-' + doctorId);
+        const reasonEl = document.getElementById('off-reason-' + doctorId);
+        if (!dateEl.value) { showToast('Please select a date.', 'warning'); return; }
+        try {
+            const res = await fetch(`/api/doctors/${doctorId}/off-days`, {
+                method: 'POST', headers,
+                body: JSON.stringify({ off_date: dateEl.value, reason: reasonEl.value.trim() })
+            });
+            const result = await res.json();
+            if (result.error) { showToast(result.error, 'error'); return; }
+            dateEl.value = ''; reasonEl.value = '';
+            loadOffDays(doctorId);
+            showToast('Off day added.', 'success');
+        } catch(e) { showToast('Failed to add off day.', 'error'); }
+    }
+
+    async function deleteOffDay(doctorId, offDayId) {
+        try {
+            await fetch(`/api/doctors/${doctorId}/off-days/${offDayId}`, { method: 'DELETE', headers });
+            loadOffDays(doctorId);
+            showManageSuccess();
+        } catch(e) {}
+    }
+
+    // ── File Upload ──
+    function handleFileDrop(e) {
+        const file = e.dataTransfer.files[0];
+        if (file) uploadFile(file);
+    }
+    function handleFileSelect(input) {
+        const file = input.files[0];
+        if (file) uploadFile(file);
+        input.value = '';
+    }
+    async function uploadFile(file) {
+        const maxSize = 5 * 1024 * 1024;
+        if (file.size > maxSize) { showToast('File too large (max 5MB).', 'error'); return; }
+        const allowed = ['.pdf','.docx','.doc','.txt'];
+        const ext = '.' + file.name.split('.').pop().toLowerCase();
+        if (!allowed.includes(ext)) { showToast('Unsupported file type. Use PDF, DOCX, or TXT.', 'error'); return; }
+
+        document.getElementById('uploadFileName').textContent = file.name;
+        document.getElementById('uploadStatus').textContent = 'Uploading & extracting...';
+        document.getElementById('uploadProgress').style.display = 'block';
+        document.getElementById('uploadBar').style.width = '30%';
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            document.getElementById('uploadBar').style.width = '60%';
+            const res = await fetch('/api/company-info/upload', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token },
+                body: formData
+            });
+            const data = await res.json();
+            document.getElementById('uploadBar').style.width = '100%';
+
+            if (data.error) {
+                document.getElementById('uploadStatus').textContent = 'Error: ' + data.error;
+                document.getElementById('uploadStatus').style.color = 'var(--red)';
+                return;
+            }
+
+            document.getElementById('uploadStatus').textContent = 'Fields extracted! Review and save below.';
+            document.getElementById('uploadStatus').style.color = 'var(--green)';
+
+            // Populate form fields
+            const fields = data.extracted || data;
+            ['business_name','address','phone','business_hours','services','pricing_insurance','emergency_info','about'].forEach(f => {
+                const el = document.getElementById('ci_' + f);
+                if (el && fields[f]) el.value = fields[f];
+            });
+
+            setTimeout(() => {
+                document.getElementById('uploadProgress').style.display = 'none';
+                document.getElementById('uploadStatus').style.color = '';
+            }, 4000);
+        } catch(e) {
+            document.getElementById('uploadStatus').textContent = 'Upload failed. Try again.';
+            document.getElementById('uploadStatus').style.color = 'var(--red)';
+        }
+    }
+
+    // ── Demo Calendar ──
+    function renderDemoCalendar(options) {
+        const container = document.getElementById('demoChatMessages');
+        const offDates = new Set(options.off_dates || []);
+        const today = new Date(); today.setHours(0,0,0,0);
+        const MAX_MONTHS = 4;
+        const WEEKDAYS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+        let currentOffset = 0;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'chat-calendar-wrap';
+        const cal = document.createElement('div');
+        cal.className = 'chat-calendar';
+
+        const nav = document.createElement('div');
+        nav.className = 'cal-nav';
+        const prevBtn = document.createElement('button');
+        prevBtn.className = 'cal-nav-btn';
+        prevBtn.innerHTML = '&#9664;';
+        const monthLabel = document.createElement('span');
+        monthLabel.className = 'cal-month-label';
+        const nextBtn = document.createElement('button');
+        nextBtn.className = 'cal-nav-btn';
+        nextBtn.innerHTML = '&#9654;';
+        nav.appendChild(prevBtn);
+        nav.appendChild(monthLabel);
+        nav.appendChild(nextBtn);
+        cal.appendChild(nav);
+
+        const wkRow = document.createElement('div');
+        wkRow.className = 'cal-weekdays';
+        WEEKDAYS.forEach(w => { const s = document.createElement('span'); s.textContent = w; wkRow.appendChild(s); });
+        cal.appendChild(wkRow);
+
+        const daysGrid = document.createElement('div');
+        daysGrid.className = 'cal-days';
+        cal.appendChild(daysGrid);
+
+        function renderMonth() {
+            const d = new Date(today.getFullYear(), today.getMonth() + currentOffset, 1);
+            monthLabel.textContent = d.toLocaleString('default', { month: 'long', year: 'numeric' });
+            prevBtn.disabled = currentOffset === 0;
+            nextBtn.disabled = currentOffset >= MAX_MONTHS - 1;
+            daysGrid.innerHTML = '';
+
+            const firstDay = d.getDay();
+            for (let i = 0; i < firstDay; i++) {
+                const empty = document.createElement('div');
+                empty.className = 'cal-day empty';
+                daysGrid.appendChild(empty);
+            }
+            const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+            for (let day = 1; day <= daysInMonth; day++) {
+                const btn = document.createElement('button');
+                btn.className = 'cal-day';
+                btn.textContent = day;
+                const thisDate = new Date(d.getFullYear(), d.getMonth(), day);
+                const iso = thisDate.getFullYear() + '-' + String(thisDate.getMonth()+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+
+                if (thisDate < today) { btn.classList.add('disabled'); }
+                else if (offDates.has(iso)) { btn.classList.add('off-day'); btn.title = 'Doctor off day'; }
+                else {
+                    btn.onclick = function() {
+                        daysGrid.querySelectorAll('.cal-day.selected').forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                        const display = thisDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                        setTimeout(() => { document.getElementById('demoInput').value = display; sendDemoMessage(); }, 250);
+                    };
+                }
+                if (thisDate.getTime() === today.getTime()) btn.classList.add('today');
+                daysGrid.appendChild(btn);
+            }
+        }
+
+        prevBtn.onclick = () => { if (currentOffset > 0) { currentOffset--; renderMonth(); } };
+        nextBtn.onclick = () => { if (currentOffset < MAX_MONTHS - 1) { currentOffset++; renderMonth(); } };
+        renderMonth();
+
+        wrap.appendChild(cal);
+        container.appendChild(wrap);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function renderDemoPicker(options) {
+        if (options.type === 'calendar') { renderDemoCalendar(options); return; }
+        const container = document.getElementById('demoChatMessages');
+        const type = options.type;
+        const items = options.items;
+        const isDoctor = type === 'doctors';
+        const isTime = type === 'timeslots';
+        const isDate = type === 'dates';
+        const isCancel = type === 'cancel_bookings';
+        const label = isDoctor ? 'Select Doctor' : isTime ? 'Select Time' : isDate ? 'Select Date' : isCancel ? 'Select Appointment' : 'Select Specialty';
+
+        const wrap = document.createElement('div');
+        wrap.className = 'chat-dropdown-wrap';
+        if (isTime) wrap.style.width = '280px';
+        if (isDate) wrap.style.width = '260px';
+
+        // Toggle button
+        const btn = document.createElement('button');
+        btn.className = 'chat-dropdown-btn';
+        btn.innerHTML = '<span>' + label + '</span><span class="arrow">&#x25BC;</span>';
+        wrap.appendChild(btn);
+
+        // Dropdown list
+        const list = document.createElement('div');
+        list.className = 'chat-dropdown-list';
+
+        items.forEach(function(item) {
+            const row = document.createElement('div');
+            row.className = 'chat-dd-item';
+
+            if (isDoctor) {
+                const initials = item.name.split(' ').map(function(w){ return w[0]; }).join('').substring(0,2).toUpperCase();
+                row.innerHTML = '<div class="chat-dd-avatar">' + initials + '</div>'
+                    + '<div class="chat-dd-info"><div class="chat-dd-name">Dr. ' + item.name + '</div>'
+                    + '<div class="chat-dd-sub">' + item.specialty + ' &bull; ' + item.availability + '</div></div>';
+            } else if (isTime) {
+                const icon = item.booked ? '&#x1F6AB;' : (item.hour < 12 ? '&#x2600;&#xFE0F;' : '&#x1F319;');
+                const bg = item.booked ? 'linear-gradient(135deg,#666,#888)' : (item.hour < 12 ? 'linear-gradient(135deg,#f59e0b,#f97316)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)');
+                const subText = item.booked ? 'Booked' : (item.hour < 12 ? 'Morning' : 'Afternoon');
+                row.innerHTML = '<div class="chat-dd-avatar" style="font-size:0.9rem;background:' + bg + '">' + icon + '</div>'
+                    + '<div class="chat-dd-info"><div class="chat-dd-name">' + item.name + '</div>'
+                    + '<div class="chat-dd-sub">' + subText + '</div></div>';
+                if (item.booked) row.classList.add('booked');
+            } else if (isDate) {
+                var display = item.display || item.name;
+                row.innerHTML = '<div class="chat-dd-avatar" style="font-size:0.9rem;background:linear-gradient(135deg,#22c55e,#16a34a)">&#x1F4C5;</div>'
+                    + '<div class="chat-dd-info"><div class="chat-dd-name">' + display + '</div></div>';
+            } else if (isCancel) {
+                row.innerHTML = '<div class="chat-dd-avatar" style="font-size:0.9rem;background:linear-gradient(135deg,#ef4444,#dc2626)">&#x2716;</div>'
+                    + '<div class="chat-dd-info"><div class="chat-dd-name">' + item.name + '</div></div>';
+            } else {
+                const initials = item.name.split(' ').map(function(w){ return w[0]; }).join('').substring(0,2).toUpperCase();
+                row.innerHTML = '<div class="chat-dd-avatar">' + initials + '</div>'
+                    + '<div class="chat-dd-info"><div class="chat-dd-name">' + item.name + '</div></div>';
+            }
+
+            row.onclick = function() {
+                list.querySelectorAll('.chat-dd-item').forEach(function(r){ r.classList.remove('selected'); });
+                row.classList.add('selected');
+                btn.querySelector('span').textContent = item.name;
+                btn.classList.add('picked');
+                list.classList.remove('open');
+                btn.classList.remove('open');
+                setTimeout(function() {
+                    document.getElementById('demoInput').value = isCancel ? String(item.index) : item.name;
+                    sendDemoMessage();
+                }, 300);
+            };
+            list.appendChild(row);
+        });
+
+        wrap.appendChild(list);
+
+        btn.onclick = function() {
+            if (btn.classList.contains('picked')) return;
+            btn.classList.toggle('open');
+            list.classList.toggle('open');
+        };
+
+        container.appendChild(wrap);
+        container.scrollTop = container.scrollHeight;
+
+        // Auto-open
+        if (items.length <= 8) {
+            btn.classList.add('open');
+            list.classList.add('open');
+        }
+    }
+
+    async function sendDemoMessage() {
+        const input = document.getElementById('demoInput');
+        const msg = input.value.trim();
+        if (!msg) return;
+        if (!isUnlimited && getDemoUsage() >= DEMO_DAILY_LIMIT) {
+            addDemoMessage("Daily limit reached. Upgrade your plan for more.", false);
+            return;
+        }
+        input.value = '';
+        addDemoMessage(msg, true);
+        setDemoUsage(getDemoUsage() + 1);
+        updateDemoUI();
+
+        const typing = document.createElement('div');
+        typing.style.cssText = 'background:rgba(0,212,255,0.08);border-radius:12px 12px 12px 4px;padding:0.75rem 1rem;max-width:80%;font-size:0.92rem;color:var(--gray)';
+        typing.textContent = 'Typing...';
+        typing.id = 'demoTyping';
+        document.getElementById('demoChatMessages').appendChild(typing);
+
+        try {
+            // Pass admin_id so chatbot answers from the right company info
+            // head_admin → own id, admin/doctor → admin_id (mirrors get_effective_admin_id)
+            const adminId = isHeadAdmin ? user.id : (user.admin_id || user.id);
+            const res = await fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: msg, session_id: demoSessionId, admin_id: adminId })
+            });
+            const data = await res.json();
+            const typingEl = document.getElementById('demoTyping');
+            if (typingEl) typingEl.remove();
+            addDemoMessage(data.reply || 'Sorry, something went wrong.', false);
+            if (data.options) renderDemoPicker(data.options);
+        } catch(e) {
+            const typingEl = document.getElementById('demoTyping');
+            if (typingEl) typingEl.remove();
+            addDemoMessage('Could not reach the server.', false);
+        }
+    }
+
+    // ── Boot ──
+    initUI();
+    updateDemoUI();
+    checkTokenExpiry();
+    verifySession();
+    loadData();
+    loadCompanyInfo();
+    loadDoctors();
+    loadRequests();
+    loadAdminRequests();
+    setInterval(loadData, 15000);
+    setInterval(checkTokenExpiry, 60000);
+    // Reload requests periodically for doctors
+    if (isDoctor) setInterval(loadRequests, 30000);
+    if (isAdmin) setInterval(loadAdminRequests, 30000);
+</script>
+
+</body>
+</html>

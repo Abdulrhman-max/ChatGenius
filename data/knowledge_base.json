@@ -1,0 +1,299 @@
+{
+  "company": {
+    "name": "ChatGenius AI",
+    "tagline": "Never Miss a Customer Again",
+    "description": "ChatGenius is an AI-powered chatbot platform built for small and medium businesses. It automatically answers customer questions, books appointments, and captures leads — 24/7, without human involvement.",
+    "founded": "2024",
+    "website": "https://chatgenius.ai",
+    "mission": "To help every small business provide instant, intelligent customer support without the cost of hiring a full team."
+  },
+  "pricing": {
+    "plans": [
+      {
+        "name": "Basic",
+        "price": "$49/month",
+        "annual_price": "$39/month (billed annually)",
+        "conversations": "500/month",
+        "chatbots": 1,
+        "features": [
+          "500 conversations per month",
+          "1 chatbot",
+          "Basic lead capture (name, email)",
+          "Email support (24-48 hour response)",
+          "Website chat widget",
+          "Basic analytics dashboard",
+          "ChatGenius branding on widget"
+        ],
+        "best_for": "Solo businesses, freelancers, and small shops just getting started with AI customer support"
+      },
+      {
+        "name": "Pro",
+        "price": "$149/month",
+        "annual_price": "$119/month (billed annually)",
+        "conversations": "5,000/month",
+        "chatbots": 3,
+        "features": [
+          "5,000 conversations per month",
+          "3 chatbots",
+          "Advanced lead capture (name, email, phone, custom fields)",
+          "Automated appointment booking",
+          "CRM integration (HubSpot, Salesforce, Zoho)",
+          "Calendar sync (Google Calendar, Calendly, Outlook)",
+          "Priority support (under 4 hours response)",
+          "Advanced analytics and reporting",
+          "Remove ChatGenius branding",
+          "Custom chatbot personality",
+          "Multi-language support (10 languages)",
+          "Conversation transcripts and exports"
+        ],
+        "best_for": "Growing businesses that need appointment booking, CRM integration, and higher volume"
+      },
+      {
+        "name": "Agency",
+        "price": "$299/month",
+        "annual_price": "$249/month (billed annually)",
+        "conversations": "Unlimited",
+        "chatbots": "Unlimited",
+        "features": [
+          "Unlimited conversations",
+          "Unlimited chatbots",
+          "Everything in Pro",
+          "White-label branding (your logo, your colors)",
+          "Full API access",
+          "Dedicated account manager",
+          "Custom integrations",
+          "Team management (up to 10 users)",
+          "Advanced security (SOC 2 compliant)",
+          "Custom AI training on your data",
+          "Webhook support",
+          "Priority onboarding call",
+          "Quarterly business review",
+          "SLA guarantee (99.9% uptime)"
+        ],
+        "best_for": "Agencies managing multiple clients, larger businesses, and enterprises needing full customization"
+      }
+    ],
+    "free_trial": {
+      "duration": "14 days",
+      "plan_access": "Full Pro features",
+      "credit_card_required": false,
+      "auto_renew": false,
+      "what_happens_after": "After 14 days, you can choose a paid plan or your account switches to a limited free tier with 50 conversations/month"
+    },
+    "refund_policy": "30-day money-back guarantee on all plans. No questions asked.",
+    "discounts": "20% off with annual billing. Non-profit organizations get 30% off any plan. Contact sales for custom enterprise pricing."
+  },
+  "features": {
+    "core": [
+      {
+        "name": "24/7 Instant AI Replies",
+        "description": "Your chatbot never sleeps. It responds to every website visitor instantly — day or night, weekday or weekend, holiday or not. Average response time is under 2 seconds.",
+        "benefit": "Never lose a lead because you couldn't respond fast enough. 78% of customers buy from the first business to respond."
+      },
+      {
+        "name": "Automated Appointment Booking",
+        "description": "Customers can browse available time slots and book appointments directly in the chat. The system syncs with your Google Calendar, Outlook, or Calendly in real-time, prevents double-bookings, and sends automatic confirmation and reminder emails.",
+        "benefit": "Eliminates back-and-forth scheduling emails. Businesses using our booking feature see a 35% increase in appointments."
+      },
+      {
+        "name": "Smart Lead Capture",
+        "description": "The AI naturally collects contact information during conversations — names, emails, phone numbers, and custom qualifying questions. It identifies buying signals and prioritizes hot leads. All data is automatically sent to your CRM.",
+        "benefit": "Capture 3x more leads compared to static contact forms. Leads are qualified and scored before reaching your sales team."
+      },
+      {
+        "name": "Easy Website Integration",
+        "description": "Add ChatGenius to any website by pasting a single line of JavaScript code. Works with WordPress, Shopify, Wix, Squarespace, Webflow, custom HTML sites, and any platform that supports custom code.",
+        "benefit": "Setup takes under 5 minutes. No developer needed. The widget automatically matches your website's design."
+      },
+      {
+        "name": "No Coding Required",
+        "description": "Everything is configured through our intuitive visual dashboard. Customize your chatbot's personality, upload your business knowledge base, set up conversation flows, and manage leads — all without writing a single line of code.",
+        "benefit": "Anyone on your team can set up and manage the chatbot, regardless of technical skill."
+      },
+      {
+        "name": "Works in Any Industry",
+        "description": "ChatGenius adapts to your specific business context. Whether you run a dental clinic, law firm, real estate agency, restaurant, e-commerce store, fitness studio, salon, auto repair shop, or consulting firm — the AI learns your business and speaks your customers' language.",
+        "benefit": "Pre-built templates for 20+ industries to get you started fast, with full customization for your unique needs."
+      }
+    ],
+    "advanced": [
+      {
+        "name": "Multi-Language Support",
+        "description": "Available on Pro and Agency plans. Supports English, Spanish, French, German, Portuguese, Italian, Dutch, Japanese, Korean, and Chinese. Auto-detects visitor language.",
+        "detail": "The chatbot automatically detects the visitor's language and responds in kind."
+      },
+      {
+        "name": "Analytics Dashboard",
+        "description": "Track conversation volume, lead capture rates, popular questions, customer satisfaction scores, peak hours, and conversion funnels. Export reports as CSV or PDF.",
+        "detail": "Real-time dashboard with daily, weekly, and monthly views."
+      },
+      {
+        "name": "Human Handoff",
+        "description": "When the AI can't answer a question or when a visitor requests a human, the conversation is seamlessly transferred to your team via email, Slack, or the ChatGenius dashboard.",
+        "detail": "You set the rules for when handoff occurs — e.g., after 2 failed attempts, for pricing negotiations, or when the visitor asks for a human."
+      },
+      {
+        "name": "CRM Integrations",
+        "description": "Native integrations with HubSpot, Salesforce, Zoho CRM, Pipedrive, and Freshsales. Also connects via Zapier to 5,000+ apps.",
+        "detail": "Leads are pushed to your CRM in real-time with full conversation history attached."
+      },
+      {
+        "name": "Custom AI Training",
+        "description": "Upload your FAQs, product catalogs, service descriptions, policies, and any business documents. The AI learns from your data to give accurate, brand-consistent answers.",
+        "detail": "Supports PDF, DOCX, TXT, CSV uploads. Agency plan includes assisted training by our team."
+      },
+      {
+        "name": "Conversation Flows",
+        "description": "Build guided conversation paths for common scenarios like qualifying leads, booking demos, collecting feedback, or processing simple support requests.",
+        "detail": "Visual flow builder with drag-and-drop interface. Combine AI responses with structured flows."
+      }
+    ]
+  },
+  "setup": {
+    "steps": [
+      "Sign up for a free account at chatgenius.ai — no credit card needed",
+      "Complete the quick setup wizard: enter your business name, industry, and basic info",
+      "Upload your business knowledge (FAQs, services, pricing) or use our AI to generate it from your website",
+      "Customize the chatbot appearance (colors, avatar, welcome message, position)",
+      "Copy the one-line embed code and paste it into your website",
+      "Test the chatbot on your site and make adjustments",
+      "Go live! Monitor conversations from your dashboard"
+    ],
+    "time_to_setup": "Under 5 minutes for basic setup. 15-30 minutes for full customization with knowledge base.",
+    "technical_requirements": "None. If you can copy-paste, you can set up ChatGenius.",
+    "supported_platforms": ["WordPress", "Shopify", "Wix", "Squarespace", "Webflow", "Ghost", "Joomla", "Drupal", "BigCommerce", "Magento", "Custom HTML/JavaScript sites", "React", "Vue", "Angular", "Next.js"]
+  },
+  "integrations": {
+    "crm": ["HubSpot", "Salesforce", "Zoho CRM", "Pipedrive", "Freshsales"],
+    "calendar": ["Google Calendar", "Calendly", "Microsoft Outlook", "Cal.com"],
+    "communication": ["Slack", "Microsoft Teams", "Email (SMTP)", "WhatsApp Business (coming soon)"],
+    "automation": ["Zapier", "Make (Integromat)", "n8n"],
+    "analytics": ["Google Analytics", "Mixpanel", "Segment"],
+    "ecommerce": ["Shopify", "WooCommerce", "BigCommerce"],
+    "website_builders": ["WordPress", "Wix", "Squarespace", "Webflow"]
+  },
+  "industries": {
+    "supported": [
+      {
+        "name": "Healthcare & Dental",
+        "use_cases": "Appointment scheduling, insurance questions, service information, new patient intake, post-visit follow-ups"
+      },
+      {
+        "name": "Legal Services",
+        "use_cases": "Case type qualification, consultation booking, practice area information, intake form collection, office hours and location"
+      },
+      {
+        "name": "Real Estate",
+        "use_cases": "Property inquiries, showing scheduling, buyer/seller qualification, neighborhood information, mortgage calculator referrals"
+      },
+      {
+        "name": "Restaurants & Food Service",
+        "use_cases": "Menu questions, reservation booking, hours and location, catering inquiries, dietary information, online ordering support"
+      },
+      {
+        "name": "E-commerce & Retail",
+        "use_cases": "Product recommendations, order tracking, return/exchange info, sizing guides, inventory questions, shipping information"
+      },
+      {
+        "name": "Fitness & Wellness",
+        "use_cases": "Class schedules, membership plans, trial booking, trainer information, facility details, pricing questions"
+      },
+      {
+        "name": "Beauty & Salons",
+        "use_cases": "Service menu, appointment booking, stylist availability, pricing, product recommendations, cancellation policy"
+      },
+      {
+        "name": "Automotive",
+        "use_cases": "Service scheduling, repair estimates, parts availability, warranty questions, vehicle information, hours and location"
+      },
+      {
+        "name": "Professional Services",
+        "use_cases": "Service descriptions, consultation booking, pricing estimates, portfolio/case studies, team expertise, project timelines"
+      },
+      {
+        "name": "Education & Tutoring",
+        "use_cases": "Course information, enrollment, scheduling, pricing, instructor profiles, trial lessons, curriculum details"
+      }
+    ]
+  },
+  "support": {
+    "channels": {
+      "basic": "Email support — 24-48 hour response time",
+      "pro": "Priority email and chat support — under 4 hour response time",
+      "agency": "Dedicated account manager, priority support, Slack channel, phone support during business hours"
+    },
+    "resources": [
+      "Knowledge base with 100+ articles at help.chatgenius.ai",
+      "Video tutorials and setup guides on YouTube",
+      "Weekly live webinars for new users",
+      "Community forum for tips and best practices",
+      "Developer documentation for API users"
+    ],
+    "onboarding": "All new Pro and Agency customers get a free 30-minute onboarding call to help configure their chatbot."
+  },
+  "security": {
+    "compliance": ["SOC 2 Type II (Agency plan)", "GDPR compliant", "CCPA compliant"],
+    "data": "All data is encrypted at rest (AES-256) and in transit (TLS 1.3). Hosted on AWS with 99.9% uptime SLA.",
+    "privacy": "We never sell customer data. Conversation data is owned by you and can be exported or deleted at any time.",
+    "data_retention": "Conversation data is retained for 12 months by default. Custom retention periods available on Agency plan."
+  },
+  "competitors": {
+    "vs_intercom": "Intercom starts at $74/month and is built for large teams. ChatGenius is purpose-built for SMBs at a fraction of the cost, with AI-first design rather than bolted-on AI.",
+    "vs_drift": "Drift focuses on enterprise B2B. ChatGenius serves all industries and business sizes with simpler setup and pricing.",
+    "vs_tidio": "Tidio offers basic chatbots with limited AI. ChatGenius uses advanced AI that truly understands context, handles complex questions, and learns from your specific business data.",
+    "vs_zendesk": "Zendesk is a full helpdesk suite that's overkill for most SMBs. ChatGenius is focused on the #1 thing small businesses need: converting website visitors into customers.",
+    "vs_basic_chatbots": "Unlike rule-based chatbots that follow rigid scripts, ChatGenius uses real AI that understands natural language, handles unexpected questions, maintains conversational context, and improves over time."
+  },
+  "faq": [
+    {
+      "q": "How is ChatGenius different from a regular chatbot?",
+      "a": "Regular chatbots follow rigid scripts and break when customers ask unexpected questions. ChatGenius uses real AI that understands natural language, maintains context across the conversation, and gives intelligent responses even to questions it hasn't seen before."
+    },
+    {
+      "q": "Do I need technical skills to set it up?",
+      "a": "Not at all. If you can copy and paste, you can set up ChatGenius. Our setup wizard guides you through everything in under 5 minutes. No coding, no developers, no IT team needed."
+    },
+    {
+      "q": "What happens if the AI can't answer a question?",
+      "a": "When the AI encounters a question it can't confidently answer, it gracefully hands off to your team via email, Slack, or our dashboard. You set the rules for when handoff occurs."
+    },
+    {
+      "q": "Can I customize how the chatbot looks and talks?",
+      "a": "Yes, completely. Customize the colors, avatar, position, welcome message, and conversation style to match your brand. On Pro and above, you can set the chatbot's personality and tone."
+    },
+    {
+      "q": "Is my data safe?",
+      "a": "Absolutely. All data is encrypted with AES-256 at rest and TLS 1.3 in transit. We're GDPR and CCPA compliant, and we never sell your data. You own all your conversation data."
+    },
+    {
+      "q": "Can I cancel anytime?",
+      "a": "Yes. There are no long-term contracts. Cancel anytime from your dashboard. We also offer a 30-day money-back guarantee if you're not satisfied."
+    },
+    {
+      "q": "How does the free trial work?",
+      "a": "Sign up with just your email — no credit card needed. You get full access to all Pro features for 14 days. After the trial, choose a paid plan or continue with our limited free tier (50 conversations/month)."
+    },
+    {
+      "q": "Can the chatbot handle multiple languages?",
+      "a": "Yes, on Pro and Agency plans. ChatGenius supports 10 languages including English, Spanish, French, German, Portuguese, Italian, Dutch, Japanese, Korean, and Chinese. It auto-detects the visitor's language."
+    },
+    {
+      "q": "How do I train the chatbot on my business information?",
+      "a": "Upload your FAQs, product info, service descriptions, and policies through our dashboard. You can upload PDFs, documents, or just type in your info. Our AI can also automatically scan your website to learn about your business."
+    },
+    {
+      "q": "What if I go over my conversation limit?",
+      "a": "We'll notify you when you reach 80% of your limit. If you exceed it, conversations continue but are billed at $0.05 per additional conversation. You can also upgrade your plan anytime."
+    }
+  ],
+  "stats": {
+    "businesses_using": "10,000+",
+    "conversations_handled": "5,000,000+",
+    "customer_satisfaction": "98%",
+    "average_response_time": "Under 2 seconds",
+    "lead_increase": "Average 40% more leads captured",
+    "appointment_increase": "Average 35% more appointments booked",
+    "setup_time": "Under 5 minutes",
+    "uptime": "99.9%"
+  }
+}

@@ -1,0 +1,14 @@
+flask
+flask-cors
+torch
+transformers
+datasets
+peft
+accelerate
+sentencepiece
+protobuf
+python-dotenv
+google-auth
+requests
+PyJWT
+cryptography
