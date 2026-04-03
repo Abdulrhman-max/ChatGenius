@@ -436,7 +436,7 @@
             <li class="head-admin-only" style="display:none"><a href="#" onclick="showPage('plan')"><span class="icon">&#9733;</span> My Plan</a></li>
             <li><a href="#" onclick="showPage('bookings')"><span class="icon">&#128197;</span> Bookings</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('leads')"><span class="icon">&#127919;</span> Leads</a></li>
-            <li class="admin-only"><a href="#" onclick="showPage('company')"><span class="icon">&#127970;</span> Company Info</a></li>
+            <li class="head-admin-only"><a href="#" onclick="showPage('company')"><span class="icon">&#127970;</span> Company Info</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('doctors')"><span class="icon">&#129657;</span> Doctors</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('manage')"><span class="icon">&#9881;</span> Manage</a></li>
             <li class="head-admin-only" style="display:none"><a href="#" onclick="showPage('admins')"><span class="icon">&#128101;</span> Admins</a></li>
@@ -1002,7 +1002,7 @@
             closeDoctorModal();
             loadDoctors();
             if (!id) {
-                showToast('Doctor added and linked to the company!', 'success', 5000);
+                showToast(result.message || 'Invitation sent! The doctor must accept before joining.', 'success', 5000);
             } else {
                 showToast('Doctor saved!', 'success');
             }

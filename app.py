@@ -23,6 +23,10 @@ import dental_knowledge_engine as dke
 import intent_classifier
 import message_interpreter
 import claude_specialist
+import grok_cleaner
+import sklearn_classifier
+import smart_router
+import restriction_filter
 
 app = Flask(__name__, static_folder="static")
 
@@ -1307,10 +1311,14 @@ def _ask_ai_during_booking(user_message, session, admin_id=1):
 def process_message(session_id, user_message, admin_id=1):
     session = get_session(session_id)
 
+    # Step 0: Grok AI cleaner — runs FIRST on every message
+    # Fixes spelling/grammar specifically for dental context (BrightSmile)
+    grok_cleaned = grok_cleaner.clean(user_message, history=session.get("history"))
+
     # Step 1: AI interpreter — understands what the user REALLY means
     # Fixes typos, grammar, and garbled input using Groq LLM
     # Pass conversation history so it can resolve "him", "that doctor", etc.
-    interpreted = message_interpreter.interpret(user_message, history=session.get("history"))
+    interpreted = message_interpreter.interpret(grok_cleaned, history=session.get("history"))
 
     # Step 2: Local spell-correct as additional cleanup
     corrected = correct_spelling(interpreted)
@@ -1444,6 +1452,18 @@ def process_message(session_id, user_message, admin_id=1):
     classified_raw, classified_conf = intent_classifier.classify(corrected)
     intent = detect_intent(corrected)
 
+    # Step 2b: Sklearn intent classifier — granular dental intent detection
+    sklearn_intent, sklearn_conf = sklearn_classifier.classify(corrected)
+    print(f"[router] sklearn: {sklearn_intent} ({sklearn_conf:.2f}) | classic: {classified_raw} ({classified_conf:.2f}) | flow: {intent}", flush=True)
+
+    # Step 3: Restriction filter — block non-dental messages (only for Q&A, not booking/cancel)
+    if intent == "qa" and classified_raw not in ("greeting", "farewell"):
+        is_blocked, blocked_response = restriction_filter.is_off_topic(
+            corrected, sklearn_intent=sklearn_intent, sklearn_conf=sklearn_conf
+        )
+        if is_blocked:
+            return _reply(blocked_response)
+
     # Low-confidence booking with doctor name mentioned → likely an availability follow-up
     # e.g. "I mean for doctor jhon only" after asking about availability
     if intent == "booking" and classified_conf < 0.8:
@@ -1493,22 +1513,13 @@ def process_message(session_id, user_message, admin_id=1):
 
     # ══════════════════════════════════════════════════════════════
     #  AI BRAIN — routes to the right AI for each type of question
-    #  Claude AI  → specialization/symptom cases (most accurate)
-    #  Groq       → everything else (availability, general Q&A)
+    #  Step 4: Smart router (sklearn intent → correct engine)
+    #  Fallback: Claude AI → Groq → OpenAI → offline
     # ══════════════════════════════════════════════════════════════
     company_info = db.get_company_info(admin_id)
     all_doctors = db.get_doctors(admin_id)
     active_doctors = [d for d in all_doctors if d.get("status") == "active"]
 
-    # ── Claude AI for specialization/symptom cases ──
-    if claude_specialist.is_configured() and claude_specialist.is_specialization_query(corrected):
-        claude_result = claude_specialist.analyze_symptoms(
-            corrected, doctors=active_doctors, history=session["history"]
-        )
-        if claude_result and claude_result.get("reply"):
-            return _reply(claude_result["reply"])
-
-    # ── Groq AI for everything else ──
     # Build doctor time slots so the AI knows exact availability
     doctor_slots = {}
     for doc in active_doctors:
@@ -1517,6 +1528,30 @@ def process_message(session_id, user_message, admin_id=1):
         if slots:
             doctor_slots[doc["name"]] = [s["time"] for s in slots]
 
+    # ── Smart router: sklearn intent → correct engine ──
+    if sklearn_intent and sklearn_conf > 0.4:
+        smart_result = smart_router.route(
+            sklearn_intent, sklearn_conf, corrected,
+            {
+                "company_info": company_info,
+                "active_doctors": active_doctors,
+                "doctor_slots": doctor_slots,
+                "history": session["history"],
+            }
+        )
+        if smart_result:
+            print(f"[router] Smart route: {sklearn_intent} -> response", flush=True)
+            return _reply(smart_result)
+
+    # ── Claude AI for specialization/symptom cases (fallback) ──
+    if claude_specialist.is_configured() and claude_specialist.is_specialization_query(corrected):
+        claude_result = claude_specialist.analyze_symptoms(
+            corrected, doctors=active_doctors, history=session["history"]
+        )
+        if claude_result and claude_result.get("reply"):
+            return _reply(claude_result["reply"])
+
+    # ── Groq AI for everything else (fallback) ──
     if message_interpreter.is_configured():
         ai_result = message_interpreter.think_and_respond(
             corrected, company_info, active_doctors,
@@ -1914,8 +1949,8 @@ def api_save_company_info():
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Not authenticated"}), 401
-    if not is_admin_role(user):
-        return jsonify({"error": "Only administrators can edit company info."}), 403
+    if user.get("role") != "head_admin":
+        return jsonify({"error": "Only the head administrator can edit company info."}), 403
     data = request.get_json()
     admin_id = get_effective_admin_id(user)
     db.save_company_info(admin_id, data)
@@ -1963,18 +1998,26 @@ def api_add_doctor():
     # Use company-level admin_id so all admins in the company see this doctor
     company_admin_id = get_effective_admin_id(user)
 
-    # Create doctor record — auto-active, auto-linked
+    # Create doctor record in pending state (not linked yet)
     specialty = data.get("specialty", "") or existing_user.get("specialty", "")
     doctor_id = db.add_doctor(company_admin_id, name, doctor_email,
                                specialty, data.get("bio", ""),
                                data.get("availability", "Mon-Fri"))
 
-    # Auto-link the doctor to the company (no invitation needed)
-    db.link_doctor_to_user(doctor_id, existing_user["id"])
-    # Set the doctor user's admin_id so they're part of this company
-    db.set_user_admin_id(existing_user["id"], company_admin_id)
+    # Create a doctor request — doctor must accept before being linked
+    company_info = db.get_company_info(company_admin_id)
+    business_name = company_info.get("business_name", "") if company_info else ""
+    if not business_name:
+        business_name = user.get("company", "")
+    req_id, err = db.create_doctor_request(
+        company_admin_id, user["name"], business_name, doctor_email, doctor_id
+    )
+    if err:
+        # Request already exists — remove the pending doctor record we just created
+        db.delete_doctor(doctor_id, company_admin_id)
+        return jsonify({"error": err}), 400
 
-    return jsonify({"ok": True, "id": doctor_id})
+    return jsonify({"ok": True, "id": doctor_id, "message": "Invitation sent. The doctor must accept before joining."})
 
 
 @app.route("/api/doctors/<int:doctor_id>", methods=["PUT"])
@@ -2100,6 +2143,8 @@ def api_upload_company_file():
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
+    if user.get("role") != "head_admin":
+        return jsonify({"error": "Only the head administrator can upload company files."}), 403
 
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded"}), 400

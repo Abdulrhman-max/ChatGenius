@@ -724,6 +724,7 @@ def respond_to_doctor_request(request_id, doctor_user_id, accept=True):
         # Link doctor record to user account
         doctor_record_id = req["doctor_record_id"]
         admin_id = req["admin_id"]
+        doctor_email = req["doctor_email"]
         # Get the doctor user's specialty and copy it to the doctor record
         doctor_user = conn.execute("SELECT specialty FROM users WHERE id = ?", (doctor_user_id,)).fetchone()
         user_specialty = doctor_user["specialty"] if doctor_user and doctor_user["specialty"] else None
@@ -736,6 +737,17 @@ def respond_to_doctor_request(request_id, doctor_user_id, accept=True):
         # Set the doctor user's admin_id and role
         conn.execute("UPDATE users SET admin_id = ?, role = 'doctor' WHERE id = ?",
                      (admin_id, doctor_user_id))
+
+        # Clean up: delete all OTHER pending requests for this doctor + their orphan doctor records
+        other_pending = conn.execute(
+            "SELECT id, doctor_record_id, admin_id FROM doctor_requests WHERE doctor_email = ? AND status = 'pending' AND id != ?",
+            (doctor_email, request_id)).fetchall()
+        for other in other_pending:
+            # Delete the orphaned pending doctor record
+            conn.execute("DELETE FROM doctors WHERE id = ? AND admin_id = ? AND status = 'pending'",
+                         (other["doctor_record_id"], other["admin_id"]))
+            # Mark the request as cancelled
+            conn.execute("UPDATE doctor_requests SET status = 'cancelled' WHERE id = ?", (other["id"],))
 
     conn.commit()
     conn.close()
@@ -795,6 +807,17 @@ def respond_to_admin_request(request_id, user_id, accept=True):
                  (new_status, user_id, request_id))
     if accept:
         head_admin_id = req["head_admin_id"]
+        # Migrate any doctors this admin already owns to the head admin's company
+        # Update doctor records: admin_id from admin's own id → head_admin_id
+        conn.execute("UPDATE doctors SET admin_id = ? WHERE admin_id = ?",
+                     (head_admin_id, user_id))
+        # Update doctor user accounts: admin_id → head_admin_id
+        conn.execute("UPDATE users SET admin_id = ? WHERE admin_id = ? AND role = 'doctor'",
+                     (head_admin_id, user_id))
+        # Update doctor_requests: admin_id → head_admin_id
+        conn.execute("UPDATE doctor_requests SET admin_id = ? WHERE admin_id = ?",
+                     (head_admin_id, user_id))
+        # Link the admin to the head admin's company
         conn.execute("UPDATE users SET admin_id = ?, role = 'admin' WHERE id = ?",
                      (head_admin_id, user_id))
     conn.commit()

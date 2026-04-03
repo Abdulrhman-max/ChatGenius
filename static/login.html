@@ -117,15 +117,54 @@
             <p class="auth-footer">Don't have an account? <a href="#" onclick="showSignup()">Sign up free</a></p>
         </div>
 
-        <!-- SIGNUP FORM -->
+        <!-- SIGNUP FORM — Step 1: Info -->
         <div id="signupForm" style="display:none">
             <h2>Create your account</h2>
-            <p class="subtitle">Choose your role to get started</p>
+            <p class="subtitle">Enter your details to get started</p>
 
             <div class="alert alert-error" id="signupError"></div>
             <div class="alert alert-success" id="signupSuccess"></div>
 
-            <!-- Role selector -->
+            <div class="social-btns">
+                <button class="social-btn google" onclick="googleSignIn()">
+                    <svg viewBox="0 0 24 24"><path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.27 0 3.198 2.698 1.24 6.65l4.026 3.115Z"/><path fill="#34A853" d="M16.04 18.013C14.95 18.71 13.56 19.09 12 19.09c-3.09 0-5.712-2.09-6.65-4.91L1.24 17.35C3.198 21.302 7.27 24 12 24c2.933 0 5.735-1.043 7.834-3l-3.793-2.987Z"/><path fill="#4A90D9" d="M19.834 21c2.195-2.048 3.62-5.096 3.62-9 0-.71-.109-1.473-.272-2.182H12v4.637h6.436c-.317 1.559-1.17 2.766-2.395 3.558L19.834 21Z"/><path fill="#FBBC05" d="M5.35 14.18A7.15 7.15 0 0 1 4.909 12c0-.758.13-1.49.357-2.18L1.24 6.65A11.95 11.95 0 0 0 0 12c0 1.936.464 3.77 1.24 5.35l4.11-3.17Z"/></svg>
+                    Sign up with Google
+                </button>
+                <button class="social-btn facebook" onclick="facebookSignIn()">
+                    <svg viewBox="0 0 24 24"><path fill="#1877F2" d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047v-2.66c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.971H15.83c-1.491 0-1.956.93-1.956 1.886v2.264h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073Z"/></svg>
+                    Sign up with Facebook
+                </button>
+            </div>
+
+            <div class="divider"><span>or</span></div>
+
+            <form onsubmit="goToRoleStep(event)">
+                <div class="form-group">
+                    <label>Full name</label>
+                    <input type="text" id="signupName" placeholder="John Smith" required>
+                </div>
+                <div class="form-group">
+                    <label>Email address</label>
+                    <input type="email" id="signupEmail" placeholder="you@company.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="signupPassword" placeholder="At least 8 characters" required minlength="8" oninput="checkPwStrength(this.value)">
+                    <div class="pw-strength"><div class="pw-strength-bar" id="pwBar"></div></div>
+                </div>
+                <button type="submit" class="submit-btn">Next</button>
+            </form>
+
+            <p class="auth-footer">Already have an account? <a href="#" onclick="showLogin()">Log in</a></p>
+        </div>
+
+        <!-- SIGNUP FORM — Step 2: Role Selection -->
+        <div id="roleForm" style="display:none">
+            <h2>How will you use ChatGenius?</h2>
+            <p class="subtitle">Select your role to continue</p>
+
+            <div class="alert alert-error" id="roleError"></div>
+
             <div class="role-selector" style="flex-wrap:wrap">
                 <div class="role-option selected" id="roleHeadAdmin" onclick="selectRole('head_admin')" style="flex:1 1 100%">
                     <div class="role-icon">&#128081;</div>
@@ -144,54 +183,27 @@
                 </div>
             </div>
 
-            <div class="social-btns">
-                <button class="social-btn google" onclick="googleSignIn()">
-                    <svg viewBox="0 0 24 24"><path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.27 0 3.198 2.698 1.24 6.65l4.026 3.115Z"/><path fill="#34A853" d="M16.04 18.013C14.95 18.71 13.56 19.09 12 19.09c-3.09 0-5.712-2.09-6.65-4.91L1.24 17.35C3.198 21.302 7.27 24 12 24c2.933 0 5.735-1.043 7.834-3l-3.793-2.987Z"/><path fill="#4A90D9" d="M19.834 21c2.195-2.048 3.62-5.096 3.62-9 0-.71-.109-1.473-.272-2.182H12v4.637h6.436c-.317 1.559-1.17 2.766-2.395 3.558L19.834 21Z"/><path fill="#FBBC05" d="M5.35 14.18A7.15 7.15 0 0 1 4.909 12c0-.758.13-1.49.357-2.18L1.24 6.65A11.95 11.95 0 0 0 0 12c0 1.936.464 3.77 1.24 5.35l4.11-3.17Z"/></svg>
-                    Sign up with Google
-                </button>
-                <button class="social-btn facebook" onclick="facebookSignIn()">
-                    <svg viewBox="0 0 24 24"><path fill="#1877F2" d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047v-2.66c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.971H15.83c-1.491 0-1.956.93-1.956 1.886v2.264h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073Z"/></svg>
-                    Sign up with Facebook
-                </button>
+            <div class="form-group" id="companyGroup" style="margin-top:0.5rem">
+                <label>Company name <span style="color:var(--gray);font-weight:400">(optional)</span></label>
+                <input type="text" id="signupCompany" placeholder="Your dental practice name">
+            </div>
+            <div class="form-group" id="specialtyGroup" style="display:none">
+                <label>Your Specialty</label>
+                <select id="signupSpecialty" class="form-input">
+                    <option value="">Select your specialty...</option>
+                    <option>General Dentist</option><option>Pediatric Dentist</option>
+                    <option>Orthodontist</option><option>Endodontist</option>
+                    <option>Periodontist</option><option>Oral &amp; Maxillofacial Surgeon</option>
+                    <option>Prosthodontist</option><option>Oral Pathologist</option>
+                    <option>Oral Radiologist</option><option>Dental Anesthesiologist</option>
+                    <option>Orofacial Pain Specialist</option><option>Dental Public Health Specialist</option>
+                    <option>Cosmetic Dentist</option><option>Family Dentist</option>
+                </select>
             </div>
 
-            <div class="divider"><span>or</span></div>
+            <button class="submit-btn" id="signupBtn" onclick="handleSignup()">Create Account</button>
 
-            <form onsubmit="handleSignup(event)">
-                <div class="form-group">
-                    <label>Full name</label>
-                    <input type="text" id="signupName" placeholder="John Smith" required>
-                </div>
-                <div class="form-group">
-                    <label>Email address</label>
-                    <input type="email" id="signupEmail" placeholder="you@company.com" required>
-                </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <input type="password" id="signupPassword" placeholder="At least 8 characters" required minlength="8" oninput="checkPwStrength(this.value)">
-                    <div class="pw-strength"><div class="pw-strength-bar" id="pwBar"></div></div>
-                </div>
-                <div class="form-group" id="companyGroup">
-                    <label>Company name <span style="color:var(--gray);font-weight:400">(optional)</span></label>
-                    <input type="text" id="signupCompany" placeholder="Your dental practice name">
-                </div>
-                <div class="form-group" id="specialtyGroup" style="display:none">
-                    <label>Your Specialty</label>
-                    <select id="signupSpecialty" class="form-input">
-                        <option value="">Select your specialty...</option>
-                        <option>General Dentist</option><option>Pediatric Dentist</option>
-                        <option>Orthodontist</option><option>Endodontist</option>
-                        <option>Periodontist</option><option>Oral &amp; Maxillofacial Surgeon</option>
-                        <option>Prosthodontist</option><option>Oral Pathologist</option>
-                        <option>Oral Radiologist</option><option>Dental Anesthesiologist</option>
-                        <option>Orofacial Pain Specialist</option><option>Dental Public Health Specialist</option>
-                        <option>Cosmetic Dentist</option><option>Family Dentist</option>
-                    </select>
-                </div>
-                <button type="submit" class="submit-btn" id="signupBtn">Create Account</button>
-            </form>
-
-            <p class="auth-footer">Already have an account? <a href="#" onclick="showLogin()">Log in</a></p>
+            <p class="auth-footer" style="margin-top:1rem"><a href="#" onclick="backToSignupStep1()">&larr; Back</a></p>
         </div>
 
         <!-- FORGOT PASSWORD -->
@@ -358,19 +370,48 @@
     function showLogin() {
         document.getElementById('loginForm').style.display = 'block';
         document.getElementById('signupForm').style.display = 'none';
+        document.getElementById('roleForm').style.display = 'none';
         document.getElementById('forgotForm').style.display = 'none';
         clearAlerts();
     }
     function showSignup() {
         document.getElementById('loginForm').style.display = 'none';
         document.getElementById('signupForm').style.display = 'block';
+        document.getElementById('roleForm').style.display = 'none';
         document.getElementById('forgotForm').style.display = 'none';
         clearAlerts();
     }
     function showForgot() {
         document.getElementById('loginForm').style.display = 'none';
         document.getElementById('signupForm').style.display = 'none';
+        document.getElementById('roleForm').style.display = 'none';
         document.getElementById('forgotForm').style.display = 'block';
+        clearAlerts();
+    }
+
+    // Step 1 → Step 2 transition
+    function goToRoleStep(e) {
+        e.preventDefault();
+        clearAlerts();
+        const name = document.getElementById('signupName').value.trim();
+        const email = document.getElementById('signupEmail').value.trim();
+        const password = document.getElementById('signupPassword').value;
+        if (!name || !email || !password) {
+            showAlert('signupError', 'Please fill in all fields.');
+            return;
+        }
+        if (password.length < 8) {
+            showAlert('signupError', 'Password must be at least 8 characters.');
+            return;
+        }
+        document.getElementById('signupForm').style.display = 'none';
+        document.getElementById('roleForm').style.display = 'block';
+    }
+
+    // Step 2 → Step 1 (back)
+    function backToSignupStep1() {
+        document.getElementById('roleForm').style.display = 'none';
+        document.getElementById('signupForm').style.display = 'block';
         clearAlerts();
     }
     function clearAlerts() {
@@ -387,8 +428,8 @@
     // Send social token to backend with role
     async function sendSocialToken(provider, token, name, email, avatarUrl) {
         document.querySelectorAll('.social-btn').forEach(b => b.disabled = true);
-        // From signup form, role is already confirmed; from login form, it's not
-        const isFromSignup = document.getElementById('signupForm').style.display !== 'none';
+        // Role is only confirmed if we're on the roleForm step (step 2 of signup)
+        const isFromSignup = document.getElementById('roleForm').style.display !== 'none';
         try {
             const res = await fetch('/auth/social-token', {
                 method: 'POST',
@@ -529,11 +570,15 @@
         bar.style.background = pct <= 40 ? '#ef4444' : pct <= 70 ? '#f5a623' : '#22c55e';
     }
 
-    async function handleSignup(e) {
-        e.preventDefault();
+    async function handleSignup() {
         clearAlerts();
         const btn = document.getElementById('signupBtn');
         btn.disabled = true; btn.textContent = 'Creating account...';
+        if (selectedRole === 'doctor' && !document.getElementById('signupSpecialty').value) {
+            showAlert('roleError', 'Please select your specialty.');
+            btn.disabled = false; btn.textContent = 'Create Account';
+            return;
+        }
         try {
             const res = await fetch('/auth/signup', {
                 method: 'POST',
@@ -549,14 +594,14 @@
             });
             const data = await res.json();
             if (data.error) {
-                showAlert('signupError', data.error);
+                showAlert('roleError', data.error);
             } else {
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
                 window.location.href = '/user-dashboard';
             }
         } catch (err) {
-            showAlert('signupError', 'Could not reach the server. Please try again.');
+            showAlert('roleError', 'Could not reach the server. Please try again.');
         }
         btn.disabled = false; btn.textContent = 'Create Account';
     }
