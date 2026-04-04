@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Appointment Confirmed</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: linear-gradient(145deg, #0b1628 0%, #162040 40%, #1a2550 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .card {
+            background: #fff;
+            border-radius: 20px;
+            max-width: 480px;
+            width: 100%;
+            overflow: hidden;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.4);
+            animation: slideUp 0.6s ease-out;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .gold-bar {
+            height: 4px;
+            background: linear-gradient(90deg, #c9a84c, #d4af37, #e8c547, #d4af37, #c9a84c);
+        }
+        .header {
+            background: linear-gradient(145deg, #0b1628, #162040);
+            padding: 48px 32px;
+            text-align: center;
+            position: relative;
+        }
+        .check-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #c9a84c, #e8c547);
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: scaleIn 0.4s ease-out 0.3s both;
+            box-shadow: 0 8px 32px rgba(201, 168, 76, 0.4);
+        }
+        @keyframes scaleIn {
+            from { transform: scale(0); }
+            to { transform: scale(1); }
+        }
+        .check-circle svg {
+            width: 40px;
+            height: 40px;
+            stroke: #1a1a2e;
+            stroke-width: 3;
+            fill: none;
+        }
+        .check-circle svg path {
+            stroke-dasharray: 50;
+            stroke-dashoffset: 50;
+            animation: drawCheck 0.4s ease-out 0.6s forwards;
+        }
+        @keyframes drawCheck {
+            to { stroke-dashoffset: 0; }
+        }
+        .header h1 {
+            color: #fff;
+            font-size: 26px;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+        .header h1 strong { font-weight: 700; }
+        .header .subtitle {
+            color: #c9a84c;
+            font-size: 13px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-top: 10px;
+        }
+        .body { padding: 36px 32px; }
+        .greeting {
+            font-size: 16px;
+            color: #333;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+        .greeting strong { color: #1a1a2e; }
+        .details-card {
+            background: linear-gradient(135deg, #fafaf5, #f5f3eb);
+            border: 1px solid #e8dfc5;
+            border-radius: 14px;
+            padding: 28px;
+            margin-bottom: 24px;
+        }
+        .detail-row {
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(201, 168, 76, 0.15);
+        }
+        .detail-row:last-child { border-bottom: none; }
+        .detail-label {
+            font-size: 11px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 4px;
+        }
+        .detail-value {
+            font-size: 17px;
+            color: #1a1a2e;
+            font-weight: 700;
+        }
+        .status-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #059669, #10b981);
+            color: #fff;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .tips {
+            background: #f8f9ff;
+            border-left: 4px solid #c9a84c;
+            border-radius: 0 10px 10px 0;
+            padding: 20px 24px;
+            margin-bottom: 24px;
+        }
+        .tips h3 {
+            font-size: 14px;
+            color: #1a1a2e;
+            margin-bottom: 10px;
+        }
+        .tips ul {
+            list-style: none;
+            padding: 0;
+        }
+        .tips ul li {
+            font-size: 13px;
+            color: #666;
+            padding: 4px 0;
+            padding-left: 20px;
+            position: relative;
+            line-height: 1.6;
+        }
+        .tips ul li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 11px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #c9a84c, #e8c547);
+        }
+        .footer {
+            text-align: center;
+            padding: 0 32px 36px;
+            border-top: 1px solid #eee;
+            padding-top: 24px;
+        }
+        .footer p {
+            font-size: 13px;
+            color: #999;
+            line-height: 1.6;
+        }
+        .footer .brand {
+            color: #c9a84c;
+            font-weight: 700;
+        }
+        .loading { text-align: center; padding: 60px 20px; }
+        .loading p { color: #999; font-size: 14px; }
+        .error-state { text-align: center; padding: 40px 32px; }
+        .error-state h2 { color: #e53e3e; font-size: 20px; margin-bottom: 8px; }
+        .error-state p { color: #666; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="gold-bar"></div>
+        <div id="content">
+            <div class="loading">
+                <p>Loading appointment details...</p>
+            </div>
+        </div>
+        <div class="gold-bar"></div>
+    </div>
+
+    <script>
+        const bookingId = window.location.pathname.split('/booking-confirmed/')[1];
+
+        if (bookingId) {
+            fetch(`/api/bookings/${bookingId}/details`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        showError(data.error);
+                        return;
+                    }
+                    showConfirmation(data);
+                })
+                .catch(() => showError('Could not load appointment details.'));
+        } else {
+            showError('Invalid booking link.');
+        }
+
+        function showConfirmation(b) {
+            let doctorRow = '';
+            if (b.doctor_name) {
+                doctorRow = `
+                    <div class="detail-row">
+                        <div class="detail-label">Doctor</div>
+                        <div class="detail-value">Dr. ${b.doctor_name}</div>
+                    </div>`;
+            }
+            let serviceRow = '';
+            if (b.service && b.service !== 'General Consultation') {
+                serviceRow = `
+                    <div class="detail-row">
+                        <div class="detail-label">Service</div>
+                        <div class="detail-value">${b.service}</div>
+                    </div>`;
+            }
+
+            document.getElementById('content').innerHTML = `
+                <div class="header">
+                    <div class="check-circle">
+                        <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                    <h1>Appointment <strong>Confirmed</strong></h1>
+                    <div class="subtitle">Thank you for choosing us</div>
+                </div>
+                <div class="body">
+                    <p class="greeting">
+                        Dear <strong>${b.customer_name}</strong>,<br>
+                        Your appointment has been successfully booked.
+                    </p>
+                    <div class="details-card">
+                        <div class="detail-row">
+                            <div class="detail-label">Status</div>
+                            <div><span class="status-badge">Confirmed</span></div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">Date</div>
+                            <div class="detail-value">${b.date}</div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">Time</div>
+                            <div class="detail-value">${b.time}</div>
+                        </div>
+                        ${doctorRow}
+                        ${serviceRow}
+                    </div>
+                    <div class="tips">
+                        <h3>Before Your Visit</h3>
+                        <ul>
+                            <li>Please arrive 5 minutes early</li>
+                            <li>Bring a valid ID and insurance card</li>
+                            <li>Complete your pre-visit form if you haven't already</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="footer">
+                    <p>Need to reschedule? Contact us directly.<br><span class="brand">${b.business_name || 'ChatGenius'}</span></p>
+                </div>
+            `;
+        }
+
+        function showError(msg) {
+            document.getElementById('content').innerHTML = `
+                <div class="header">
+                    <h1>Appointment</h1>
+                </div>
+                <div class="error-state">
+                    <h2>Not Found</h2>
+                    <p>${msg}</p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

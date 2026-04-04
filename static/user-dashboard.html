@@ -518,6 +518,22 @@
             <li class="doctor-only" style="display:none"><a href="#" onclick="showPage('requests')"><span class="icon">&#128233;</span> Requests <span class="notif-badge" id="requestBadge" style="display:none">0</span></a></li>
             <li class="invited-admin-only" style="display:none"><a href="#" onclick="showPage('admin-requests')"><span class="icon">&#128233;</span> Invitations <span class="notif-badge" id="adminRequestBadge" style="display:none">0</span></a></li>
             <li><a href="#" onclick="showPage('demo')"><span class="icon">&#128172;</span> Try Demo</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('waitlist')"><span class="icon">&#128203;</span> Waitlist</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('patients')"><span class="icon">&#128100;</span> Patients</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('schedule-blocks')"><span class="icon">&#128197;</span> Schedule & Holidays</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('promotions')"><span class="icon">&#127873;</span> Promotions</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('recall')"><span class="icon">&#128276;</span> Recall & Retention</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('followups')"><span class="icon">&#128221;</span> Follow-Ups</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('missed-calls')"><span class="icon">&#128222;</span> Missed Calls</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('gallery')"><span class="icon">&#128247;</span> Gallery</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('handoffs')"><span class="icon">&#128172;</span> Live Chat</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('ab-tests')"><span class="icon">&#128300;</span> A/B Tests</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('loyalty')"><span class="icon">&#11088;</span> Loyalty Program</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('referrals')"><span class="icon">&#128279;</span> Referrals</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('realtime')"><span class="icon">&#128226;</span> Live Dashboard</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('benchmarks')"><span class="icon">&#128200;</span> Benchmarking</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('gmb')"><span class="icon">&#127759;</span> Google Business</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('security')"><span class="icon">&#128274;</span> Security (2FA)</a></li>
         </ul>
         <div class="sidebar-user">
             <div class="sidebar-user-info" onclick="toggleProfile()" style="cursor:pointer;border-radius:10px;padding:0.4rem;margin:-0.4rem;transition:background .2s" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
@@ -853,6 +869,326 @@
             </div>
         </div>
 
+        <!-- Feature 1: Waitlist -->
+        <div id="page-waitlist" style="display:none">
+            <h2 class="page-title">Smart Waitlist</h2>
+            <div class="section">
+                <div style="display:flex;gap:1rem;margin-bottom:1rem;flex-wrap:wrap">
+                    <select id="waitlistDoctorFilter" class="form-input" style="width:200px" onchange="loadWaitlist()">
+                        <option value="">All Doctors</option>
+                    </select>
+                    <input type="date" id="waitlistDateFilter" class="form-input" style="width:180px" onchange="loadWaitlist()">
+                </div>
+                <div id="waitlistContainer"><span class="empty-msg">Loading...</span></div>
+            </div>
+        </div>
+
+        <!-- Feature 3: Recall & Retention -->
+        <div id="page-recall" style="display:none">
+            <h2 class="page-title">Recall & Retention</h2>
+            <div class="section">
+                <h3 style="font-size:0.95rem;margin-bottom:0.8rem">Recall Rules</h3>
+                <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap">
+                    <input type="text" id="recallTreatment" class="form-input" placeholder="Treatment type" style="width:160px">
+                    <input type="number" id="recallDays" class="form-input" placeholder="Days" style="width:80px" value="180">
+                    <input type="text" id="recallTemplate" class="form-input" placeholder="Message template" style="flex:1;min-width:200px">
+                    <button class="manage-save-btn" onclick="addRecallRule()">+ Add Rule</button>
+                </div>
+                <div id="recallRulesList"></div>
+            </div>
+            <div class="section" style="margin-top:1rem">
+                <h3 style="font-size:0.95rem;margin-bottom:0.8rem">Campaign Stats</h3>
+                <div id="recallStats"></div>
+            </div>
+        </div>
+
+        <!-- Feature 4: Missed Calls -->
+        <div id="page-missed-calls" style="display:none">
+            <h2 class="page-title">Missed Calls</h2>
+            <div class="section">
+                <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem">
+                    <label style="font-size:0.85rem;color:var(--gray)">Auto-reply on missed calls:</label>
+                    <label class="manage-toggle"><input type="checkbox" id="missedCallToggle" onchange="toggleMissedCalls()"><span class="toggle-slider"></span></label>
+                </div>
+                <div id="missedCallsList"></div>
+            </div>
+        </div>
+
+        <!-- Feature 5: Treatment Follow-Ups -->
+        <div id="page-followups" style="display:none">
+            <h2 class="page-title">Treatment Follow-Ups</h2>
+            <div class="section">
+                <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap">
+                    <input type="text" id="fuPatient" class="form-input" placeholder="Patient name" style="width:150px">
+                    <input type="text" id="fuTreatment" class="form-input" placeholder="Treatment" style="width:150px">
+                    <input type="email" id="fuEmail" class="form-input" placeholder="Email" style="width:180px">
+                    <input type="text" id="fuPhone" class="form-input" placeholder="Phone" style="width:140px">
+                    <button class="manage-save-btn" onclick="createFollowup()">+ Create Follow-Up</button>
+                </div>
+                <div style="margin-bottom:0.5rem">
+                    <select id="fuStatusFilter" class="form-input" style="width:150px" onchange="loadFollowups()">
+                        <option value="">All</option>
+                        <option value="pending">Pending</option>
+                        <option value="sent">Sent</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <div id="followupsList"></div>
+            </div>
+        </div>
+
+        <!-- Feature 7: Gallery -->
+        <div id="page-gallery" style="display:none">
+            <h2 class="page-title">Before & After Gallery</h2>
+            <div class="section">
+                <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;align-items:end">
+                    <div>
+                        <div class="time-label">Treatment Type</div>
+                        <select id="galleryTreatment" class="form-input" style="width:180px">
+                            <option value="whitening">Whitening</option>
+                            <option value="veneers">Veneers</option>
+                            <option value="braces">Braces</option>
+                            <option value="implants">Implants</option>
+                            <option value="general">General</option>
+                        </select>
+                    </div>
+                    <div>
+                        <div class="time-label">Type</div>
+                        <select id="galleryImageType" class="form-input" style="width:120px">
+                            <option value="before">Before</option>
+                            <option value="after">After</option>
+                        </select>
+                    </div>
+                    <div>
+                        <div class="time-label">Caption</div>
+                        <input type="text" id="galleryCaption" class="form-input" placeholder="Optional caption" style="width:160px">
+                    </div>
+                    <div>
+                        <div class="time-label">Image</div>
+                        <input type="file" id="galleryFile" accept=".jpg,.jpeg,.png" style="font-size:0.8rem">
+                    </div>
+                    <button class="manage-save-btn" onclick="uploadGalleryImage()">Upload</button>
+                </div>
+                <div id="galleryGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.8rem"></div>
+            </div>
+        </div>
+
+        <!-- Feature 10: Live Chat Handoffs -->
+        <div id="page-handoffs" style="display:none">
+            <h2 class="page-title">Live Chat Queue</h2>
+            <div class="section">
+                <div id="handoffQueue"><span class="empty-msg">No conversations waiting for human assistance.</span></div>
+            </div>
+        </div>
+
+        <!-- Feature 11: Schedule Blocks -->
+        <div id="page-schedule-blocks" style="display:none">
+            <h2 class="page-title">Schedule & Holidays</h2>
+            <div class="section">
+                <h3 style="font-size:0.95rem;margin-bottom:0.8rem">Add Block</h3>
+                <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;align-items:end">
+                    <div><div class="time-label">Type</div>
+                        <select id="blockType" class="form-input" style="width:150px" onchange="toggleBlockFields()">
+                            <option value="clinic">Clinic Holiday</option>
+                            <option value="doctor">Doctor Block</option>
+                            <option value="recurring">Recurring Block</option>
+                        </select>
+                    </div>
+                    <div id="blockDoctorWrap" style="display:none"><div class="time-label">Doctor</div>
+                        <select id="blockDoctor" class="form-input" style="width:160px"></select>
+                    </div>
+                    <div id="blockDateWrap"><div class="time-label">Date</div>
+                        <input type="date" id="blockDate" class="form-input" style="width:160px">
+                    </div>
+                    <div id="blockDayWrap" style="display:none"><div class="time-label">Day</div>
+                        <select id="blockDay" class="form-input" style="width:130px">
+                            <option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
+                        </select>
+                    </div>
+                    <div><div class="time-label">Start (optional)</div>
+                        <input type="time" id="blockStart" class="form-input" style="width:120px">
+                    </div>
+                    <div><div class="time-label">End (optional)</div>
+                        <input type="time" id="blockEnd" class="form-input" style="width:120px">
+                    </div>
+                    <div><div class="time-label">Label</div>
+                        <input type="text" id="blockLabel" class="form-input" placeholder="e.g. Staff Training" style="width:150px">
+                    </div>
+                    <button class="manage-save-btn" onclick="addScheduleBlock()">+ Add</button>
+                </div>
+                <div id="blocksList"></div>
+            </div>
+        </div>
+
+        <!-- Feature 12: Promotions -->
+        <div id="page-promotions" style="display:none">
+            <h2 class="page-title">Promotions & Discounts</h2>
+            <div class="section">
+                <h3 style="font-size:0.95rem;margin-bottom:0.8rem">Create Discount Code</h3>
+                <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;align-items:end">
+                    <div><div class="time-label">Code</div><input type="text" id="promoCode" class="form-input" style="width:120px" placeholder="e.g. SAVE20"></div>
+                    <div><div class="time-label">Type</div><select id="promoType" class="form-input" style="width:130px"><option value="percentage">Percentage</option><option value="fixed">Fixed Amount</option></select></div>
+                    <div><div class="time-label">Value</div><input type="number" id="promoValue" class="form-input" style="width:80px" placeholder="20"></div>
+                    <div><div class="time-label">Expiry</div><input type="date" id="promoExpiry" class="form-input" style="width:150px"></div>
+                    <div><div class="time-label">Max Uses</div><input type="number" id="promoMaxUses" class="form-input" style="width:80px" placeholder="0=unlimited" value="0"></div>
+                    <button class="manage-save-btn" onclick="createPromotion()">+ Create</button>
+                </div>
+                <div id="promotionsList"></div>
+            </div>
+            <div class="section" style="margin-top:1rem">
+                <h3 style="font-size:0.95rem;margin-bottom:0.8rem">Promotion Analytics</h3>
+                <div id="promoStats"></div>
+            </div>
+        </div>
+
+        <!-- Feature 13: Security / 2FA -->
+        <div id="page-security" style="display:none">
+            <h2 class="page-title">Security Settings</h2>
+            <div class="section">
+                <h3 style="font-size:0.95rem;margin-bottom:0.8rem">Two-Factor Authentication</h3>
+                <p style="font-size:0.85rem;color:var(--gray);margin-bottom:1rem">Add an extra layer of security to your account. When enabled, you'll need to enter a verification code sent to your email each time you log in.</p>
+                <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem">
+                    <span style="font-size:0.9rem;font-weight:600" id="twoFaStatus">2FA: Disabled</span>
+                    <button class="manage-save-btn" id="twoFaBtn" onclick="toggle2FA()">Enable 2FA</button>
+                </div>
+                <div id="twoFaSetup" style="display:none;margin-top:1rem">
+                    <div class="time-label">Verification Method</div>
+                    <select id="twoFaMethod" class="form-input" style="width:150px;margin-bottom:0.5rem"><option value="email">Email</option><option value="sms">SMS</option></select>
+                    <div style="margin-top:0.5rem"><div class="time-label">Enter Code</div>
+                        <div style="display:flex;gap:0.5rem"><input type="text" id="twoFaOtp" class="form-input" style="width:120px" placeholder="6-digit code" maxlength="6"><button class="manage-save-btn" onclick="verify2FA()">Verify</button></div>
+                    </div>
+                </div>
+                <div id="enforce2FaSection" style="display:none;margin-top:1.5rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.1)">
+                    <h3 style="font-size:0.95rem;margin-bottom:0.5rem">Enforce 2FA for All Staff</h3>
+                    <p style="font-size:0.82rem;color:var(--gray);margin-bottom:0.5rem">Require all admins and doctors in your clinic to use 2FA.</p>
+                    <button class="manage-save-btn" onclick="enforce2FA()">Enforce 2FA for All</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feature 14: Referrals -->
+        <div id="page-referrals" style="display:none">
+            <h2 class="page-title">Referral Program</h2>
+            <div class="section">
+                <div style="display:flex;gap:1.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
+                    <div style="background:rgba(0,245,212,0.08);padding:1rem;border-radius:10px;flex:1;min-width:140px;text-align:center">
+                        <div style="font-size:1.5rem;font-weight:800;color:var(--cyan)" id="refSignups">0</div>
+                        <div style="font-size:0.78rem;color:var(--gray)">Signups</div>
+                    </div>
+                    <div style="background:rgba(0,245,212,0.08);padding:1rem;border-radius:10px;flex:1;min-width:140px;text-align:center">
+                        <div style="font-size:1.5rem;font-weight:800;color:var(--cyan)" id="refConversions">0</div>
+                        <div style="font-size:0.78rem;color:var(--gray)">Conversions</div>
+                    </div>
+                    <div style="background:rgba(0,245,212,0.08);padding:1rem;border-radius:10px;flex:1;min-width:140px;text-align:center">
+                        <div style="font-size:1.5rem;font-weight:800;color:var(--cyan)" id="refRewards">$0</div>
+                        <div style="font-size:0.78rem;color:var(--gray)">Total Rewards</div>
+                    </div>
+                </div>
+                <div class="time-label">Your Referral Link</div>
+                <div style="display:flex;gap:0.5rem;margin-bottom:1rem">
+                    <input type="text" class="form-input" id="refLink" readonly style="flex:1">
+                    <button class="manage-save-btn" onclick="navigator.clipboard.writeText(document.getElementById('refLink').value);showToast('Link copied!','success')">Copy</button>
+                </div>
+                <div id="referralsList"></div>
+            </div>
+        </div>
+
+        <!-- Feature 15: Patients -->
+        <div id="page-patients" style="display:none">
+            <h2 class="page-title">Patient Profiles</h2>
+            <div class="section">
+                <div style="margin-bottom:1rem">
+                    <input type="text" class="form-input" id="patientSearch" placeholder="Search by name, email, or phone..." oninput="loadPatients()" style="max-width:400px">
+                </div>
+                <div id="patientsList"></div>
+            </div>
+            <div id="patientDetail" class="section" style="display:none;margin-top:1rem"></div>
+        </div>
+
+        <!-- Feature 16: Real-Time Dashboard -->
+        <div id="page-realtime" style="display:none">
+            <h2 class="page-title">Live Dashboard <span id="rtTimestamp" style="font-size:0.75rem;color:var(--gray);font-weight:400"></span></h2>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.8rem;margin-bottom:1rem">
+                <div class="stat-card"><div class="stat-number" id="rtTodayCount">0</div><div class="stat-label">Today's Appts</div></div>
+                <div class="stat-card"><div class="stat-number" id="rtRecentCount">0</div><div class="stat-label">Booked (1hr)</div></div>
+                <div class="stat-card"><div class="stat-number" id="rtActiveChats">0</div><div class="stat-label">Active Chats</div></div>
+                <div class="stat-card"><div class="stat-number" id="rtHandoffs">0</div><div class="stat-label">Waiting Handoff</div></div>
+                <div class="stat-card"><div class="stat-number" id="rtNoshows" style="color:var(--red)">0</div><div class="stat-label">No-Shows</div></div>
+            </div>
+            <div class="section">
+                <h3 style="font-size:0.95rem;margin-bottom:0.8rem">Today's Schedule</h3>
+                <div id="rtSchedule"></div>
+            </div>
+        </div>
+
+        <!-- Feature 17: A/B Tests -->
+        <div id="page-ab-tests" style="display:none">
+            <h2 class="page-title">A/B Testing</h2>
+            <div class="section">
+                <h3 style="font-size:0.95rem;margin-bottom:0.8rem">Create New Test</h3>
+                <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;align-items:end">
+                    <div><div class="time-label">Name</div><input type="text" id="abName" class="form-input" style="width:140px" placeholder="Test name"></div>
+                    <div><div class="time-label">Type</div><select id="abType" class="form-input" style="width:150px"><option value="opening_message">Opening Message</option><option value="followup_timing">Follow-up Timing</option><option value="cta_label">CTA Label</option></select></div>
+                    <div><div class="time-label">Variant A</div><input type="text" id="abVarA" class="form-input" style="width:200px" placeholder="Variant A text"></div>
+                    <div><div class="time-label">Variant B</div><input type="text" id="abVarB" class="form-input" style="width:200px" placeholder="Variant B text"></div>
+                    <button class="manage-save-btn" onclick="createAbTest()">+ Create</button>
+                </div>
+                <div id="abTestsList"></div>
+            </div>
+        </div>
+
+        <!-- Feature 18: Loyalty Program -->
+        <div id="page-loyalty" style="display:none">
+            <h2 class="page-title">Loyalty Program</h2>
+            <div class="section">
+                <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem">
+                    <span style="font-size:0.9rem;font-weight:600">Program Status:</span>
+                    <label class="manage-toggle"><input type="checkbox" id="loyaltyToggle" onchange="saveLoyaltyConfig()"><span class="toggle-slider"></span></label>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0.8rem;margin-bottom:1rem">
+                    <div><div class="time-label">Points per Appointment</div><input type="number" id="loyPtsAppt" class="form-input" value="100"></div>
+                    <div><div class="time-label">Points per Referral</div><input type="number" id="loyPtsRef" class="form-input" value="200"></div>
+                    <div><div class="time-label">Points per Review</div><input type="number" id="loyPtsReview" class="form-input" value="50"></div>
+                    <div><div class="time-label">Points per Form</div><input type="number" id="loyPtsForm" class="form-input" value="25"></div>
+                    <div><div class="time-label">Point Value ($)</div><input type="number" id="loyRedemption" class="form-input" value="0.01" step="0.01"></div>
+                </div>
+                <button class="manage-save-btn" onclick="saveLoyaltyConfig()">Save Configuration</button>
+            </div>
+            <div class="section" style="margin-top:1rem">
+                <h3 style="font-size:0.95rem;margin-bottom:0.8rem">Stats</h3>
+                <div id="loyaltyStats"></div>
+            </div>
+        </div>
+
+        <!-- Feature 19: Google My Business -->
+        <div id="page-gmb" style="display:none">
+            <h2 class="page-title">Google Business Profile</h2>
+            <div class="section">
+                <div id="gmbStatus"></div>
+                <div id="gmbConnected" style="display:none">
+                    <div style="display:flex;gap:1.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
+                        <div style="text-align:center"><div style="font-size:2rem;font-weight:800;color:var(--cyan)" id="gmbRating">-</div><div style="font-size:0.78rem;color:var(--gray)">Rating</div></div>
+                        <div style="text-align:center"><div style="font-size:2rem;font-weight:800;color:var(--cyan)" id="gmbReviewCount">0</div><div style="font-size:0.78rem;color:var(--gray)">Reviews</div></div>
+                    </div>
+                    <h3 style="font-size:0.9rem;margin-bottom:0.5rem">Post Update to GMB</h3>
+                    <textarea id="gmbPost" class="form-input" rows="3" placeholder="Write a post or offer..." style="margin-bottom:0.5rem"></textarea>
+                    <button class="manage-save-btn" onclick="postToGmb()">Publish Post</button>
+                </div>
+                <div id="gmbSetup">
+                    <p style="font-size:0.85rem;color:var(--gray);margin-bottom:1rem">Connect your Google Business Profile to manage reviews and post updates directly from this dashboard.</p>
+                    <button class="manage-save-btn" onclick="connectGmb()">Connect Google Business</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feature 20: Benchmarking -->
+        <div id="page-benchmarks" style="display:none">
+            <h2 class="page-title">Competitor Benchmarking</h2>
+            <div class="section" id="benchmarkContent">
+                <span class="empty-msg">Loading benchmarks...</span>
+            </div>
+        </div>
+
     </main>
 </div>
 
@@ -1024,6 +1360,22 @@
         if (page === 'admins') loadAdminManagement();
         if (page === 'admin-requests') loadAdminRequests();
         if (page === 'analytics') loadAnalytics();
+        if (page === 'waitlist') loadWaitlist();
+        if (page === 'patients') loadPatients();
+        if (page === 'schedule-blocks') loadScheduleBlocks();
+        if (page === 'promotions') loadPromotions();
+        if (page === 'recall') loadRecall();
+        if (page === 'followups') loadFollowups();
+        if (page === 'missed-calls') loadMissedCalls();
+        if (page === 'gallery') loadGallery();
+        if (page === 'handoffs') loadHandoffs();
+        if (page === 'ab-tests') loadAbTests();
+        if (page === 'loyalty') loadLoyalty();
+        if (page === 'referrals') loadReferrals();
+        if (page === 'realtime') startRealtimeDashboard();
+        if (page === 'benchmarks') loadBenchmarks();
+        if (page === 'gmb') loadGmb();
+        if (page === 'security') loadSecurity();
     }
 
     async function loadData() {
@@ -2895,6 +3247,379 @@
     // Reload requests periodically for doctors
     if (isDoctor) setInterval(loadRequests, 30000);
     if (isAdmin) setInterval(loadAdminRequests, 30000);
+
+    // ═══════ Feature 1: Waitlist ═══════
+    async function loadWaitlist() {
+        const doctorId = document.getElementById('waitlistDoctorFilter').value;
+        const date = document.getElementById('waitlistDateFilter').value;
+        let url = '/api/waitlist?';
+        if (doctorId) url += `doctor_id=${doctorId}&`;
+        if (date) url += `date=${date}&`;
+        try {
+            const res = await fetch(url, {headers});
+            const data = await res.json();
+            const c = document.getElementById('waitlistContainer');
+            if (!data.length) { c.innerHTML = '<span class="empty-msg">No waitlist entries.</span>'; return; }
+            c.innerHTML = '<table style="width:100%;font-size:0.82rem;border-collapse:collapse"><thead><tr style="text-align:left;color:var(--gray);border-bottom:1px solid rgba(255,255,255,0.1)"><th style="padding:0.4rem">Patient</th><th>Date</th><th>Slot</th><th>Position</th><th>Status</th><th>Deadline</th></tr></thead><tbody>' +
+                data.map(w => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:0.4rem">${w.patient_name}</td><td>${w.date}</td><td>${w.time_slot}</td><td>#${w.position}</td><td><span class="badge ${w.status==='confirmed'?'badge-green':w.status==='notified'?'badge-yellow':'badge-gray'}">${w.status}</span></td><td>${w.confirm_deadline||'-'}</td></tr>`).join('') + '</tbody></table>';
+        } catch(e) { console.error(e); }
+    }
+
+    // ═══════ Feature 3: Recall ═══════
+    async function loadRecall() {
+        try {
+            const [rulesRes, campRes] = await Promise.all([fetch('/api/recall-rules',{headers}), fetch('/api/recall-campaigns',{headers})]);
+            const rules = await rulesRes.json();
+            const camp = await campRes.json();
+            document.getElementById('recallRulesList').innerHTML = rules.length ? rules.map(r =>
+                `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;border-bottom:1px solid rgba(255,255,255,0.05)"><div><strong>${r.treatment_type}</strong> — recall after ${r.recall_days} days</div><button onclick="deleteRecallRule(${r.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.8rem">Delete</button></div>`
+            ).join('') : '<span class="empty-msg">No recall rules configured.</span>';
+            const s = camp.stats || {};
+            document.getElementById('recallStats').innerHTML = `<div style="display:flex;gap:1rem;flex-wrap:wrap"><div>Sent: <strong>${s.sent||0}</strong></div><div>Opened: <strong>${s.opened||0}</strong></div><div>Booked: <strong>${s.booked||0}</strong></div></div>`;
+        } catch(e) { console.error(e); }
+    }
+
+    async function addRecallRule() {
+        const t = document.getElementById('recallTreatment').value;
+        if (!t) { showToast('Enter treatment type','warning'); return; }
+        await fetch('/api/recall-rules', {method:'POST',headers,body:JSON.stringify({treatment_type:t,recall_days:parseInt(document.getElementById('recallDays').value)||180,message_template:document.getElementById('recallTemplate').value})});
+        document.getElementById('recallTreatment').value = '';
+        loadRecall();
+    }
+
+    async function deleteRecallRule(id) { await fetch(`/api/recall-rules/${id}`,{method:'DELETE',headers}); loadRecall(); }
+
+    // ═══════ Feature 4: Missed Calls ═══════
+    async function loadMissedCalls() {
+        try {
+            const res = await fetch('/api/missed-calls', {headers});
+            const data = await res.json();
+            const c = document.getElementById('missedCallsList');
+            if (!data.length) { c.innerHTML = '<span class="empty-msg">No missed calls recorded.</span>'; return; }
+            c.innerHTML = '<table style="width:100%;font-size:0.82rem;border-collapse:collapse"><thead><tr style="text-align:left;color:var(--gray);border-bottom:1px solid rgba(255,255,255,0.1)"><th style="padding:0.4rem">Caller</th><th>Time</th><th>Reply Sent</th><th>Booked</th></tr></thead><tbody>' +
+                data.map(m => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:0.4rem">${m.caller_number}</td><td>${m.call_time}</td><td>${m.reply_sent?'Yes':'No'}</td><td>${m.subsequently_booked?'Yes':'No'}</td></tr>`).join('') + '</tbody></table>';
+        } catch(e) { console.error(e); }
+    }
+
+    async function toggleMissedCalls() {
+        const enabled = document.getElementById('missedCallToggle').checked;
+        await fetch('/api/settings/missed-calls', {method:'POST',headers,body:JSON.stringify({enabled})});
+        showToast(enabled?'Missed call auto-reply enabled':'Disabled','success');
+    }
+
+    // ═══════ Feature 5: Follow-Ups ═══════
+    async function loadFollowups() {
+        const status = document.getElementById('fuStatusFilter').value;
+        const res = await fetch(`/api/treatment-followups?${status?'status='+status:''}`, {headers});
+        const data = await res.json();
+        const c = document.getElementById('followupsList');
+        if (!data.length) { c.innerHTML = '<span class="empty-msg">No follow-ups.</span>'; return; }
+        c.innerHTML = data.map(f => `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.82rem"><div><strong>${f.patient_name}</strong> — ${f.treatment_name} (Day ${f.followup_day})</div><div style="display:flex;gap:0.5rem;align-items:center"><span class="badge ${f.status==='pending'?'badge-yellow':f.status==='sent'?'badge-green':'badge-gray'}">${f.status}</span>${f.status==='pending'?`<button onclick="cancelFollowup(${f.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.75rem">Cancel</button>`:''}</div></div>`).join('');
+    }
+
+    async function createFollowup() {
+        const name = document.getElementById('fuPatient').value;
+        const treatment = document.getElementById('fuTreatment').value;
+        if (!name || !treatment) { showToast('Patient name and treatment required','warning'); return; }
+        await fetch('/api/treatment-followups', {method:'POST',headers,body:JSON.stringify({patient_name:name,treatment_name:treatment,patient_email:document.getElementById('fuEmail').value,patient_phone:document.getElementById('fuPhone').value})});
+        showToast('Follow-up sequence created','success');
+        loadFollowups();
+    }
+
+    async function cancelFollowup(id) { await fetch(`/api/treatment-followups/${id}/cancel`,{method:'POST',headers}); loadFollowups(); }
+
+    // ═══════ Feature 7: Gallery ═══════
+    async function loadGallery() {
+        const res = await fetch('/api/gallery', {headers});
+        const data = await res.json();
+        const c = document.getElementById('galleryGrid');
+        if (!data.length) { c.innerHTML = '<span class="empty-msg">No gallery images yet.</span>'; return; }
+        c.innerHTML = data.map(img => `<div style="position:relative;border-radius:8px;overflow:hidden;background:rgba(255,255,255,0.05)"><img src="${img.image_url}" style="width:100%;height:120px;object-fit:cover"><div style="padding:0.3rem 0.5rem;font-size:0.72rem"><span class="badge ${img.image_type==='before'?'badge-yellow':'badge-green'}">${img.image_type}</span> ${img.treatment_type}${img.caption?' — '+img.caption:''}</div><button onclick="deleteGalleryImage(${img.id})" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.6);border:none;color:#fff;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:0.7rem">x</button></div>`).join('');
+    }
+
+    async function uploadGalleryImage() {
+        const file = document.getElementById('galleryFile').files[0];
+        if (!file) { showToast('Select an image','warning'); return; }
+        const fd = new FormData();
+        fd.append('image', file);
+        fd.append('treatment_type', document.getElementById('galleryTreatment').value);
+        fd.append('image_type', document.getElementById('galleryImageType').value);
+        fd.append('caption', document.getElementById('galleryCaption').value);
+        const res = await fetch('/api/gallery', {method:'POST',headers:{'Authorization':headers.Authorization},body:fd});
+        const r = await res.json();
+        if (r.ok) { showToast('Image uploaded','success'); loadGallery(); } else { showToast(r.error||'Failed','error'); }
+    }
+
+    async function deleteGalleryImage(id) { await fetch(`/api/gallery/${id}`,{method:'DELETE',headers}); loadGallery(); }
+
+    // ═══════ Feature 10: Live Chat Handoffs ═══════
+    async function loadHandoffs() {
+        const res = await fetch('/api/handoffs', {headers});
+        const data = await res.json();
+        const c = document.getElementById('handoffQueue');
+        if (!data.length) { c.innerHTML = '<span class="empty-msg">No conversations waiting for human assistance.</span>'; return; }
+        c.innerHTML = data.map(h => `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.7rem;border:1px solid rgba(255,255,255,0.08);border-radius:8px;margin-bottom:0.5rem"><div><strong>${h.patient_name||'Anonymous'}</strong><div style="font-size:0.78rem;color:var(--gray)">${h.reason||'Low AI confidence'} | ${h.created_at}</div></div><div style="display:flex;gap:0.4rem">${h.status==='queued'?`<button class="manage-save-btn" style="font-size:0.75rem;padding:0.3rem 0.7rem" onclick="assignHandoff(${h.id})">Take Over</button>`:''}<button class="manage-save-btn" style="font-size:0.75rem;padding:0.3rem 0.7rem;background:var(--green)" onclick="resolveHandoff(${h.id})">Resolve</button></div></div>`).join('');
+    }
+
+    async function assignHandoff(id) { await fetch(`/api/handoffs/${id}/assign`,{method:'POST',headers}); loadHandoffs(); showToast('Conversation assigned to you','success'); }
+    async function resolveHandoff(id) { await fetch(`/api/handoffs/${id}/resolve`,{method:'POST',headers,body:JSON.stringify({notes:'Resolved from dashboard'})}); loadHandoffs(); showToast('Handoff resolved','success'); }
+
+    // ═══════ Feature 11: Schedule Blocks ═══════
+    async function loadScheduleBlocks() {
+        const res = await fetch('/api/schedule-blocks', {headers});
+        const data = await res.json();
+        const c = document.getElementById('blocksList');
+        if (!data.length) { c.innerHTML = '<span class="empty-msg">No schedule blocks.</span>'; return; }
+        c.innerHTML = '<table style="width:100%;font-size:0.82rem;border-collapse:collapse"><thead><tr style="text-align:left;color:var(--gray);border-bottom:1px solid rgba(255,255,255,0.1)"><th style="padding:0.4rem">Label</th><th>Type</th><th>Date/Day</th><th>Time</th><th></th></tr></thead><tbody>' +
+            data.map(b => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:0.4rem">${b.label}</td><td>${b.is_recurring?'Recurring':b.block_type}</td><td>${b.is_recurring?b.recurrence_day:b.block_date}</td><td>${b.start_time?b.start_time+' - '+b.end_time:'Full Day'}</td><td><button onclick="deleteBlock(${b.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.75rem">Delete</button></td></tr>`).join('') + '</tbody></table>';
+    }
+
+    function toggleBlockFields() {
+        const t = document.getElementById('blockType').value;
+        document.getElementById('blockDoctorWrap').style.display = t==='doctor'?'':'none';
+        document.getElementById('blockDateWrap').style.display = t!=='recurring'?'':'none';
+        document.getElementById('blockDayWrap').style.display = t==='recurring'?'':'none';
+    }
+
+    async function addScheduleBlock() {
+        const t = document.getElementById('blockType').value;
+        const body = {block_type:t,label:document.getElementById('blockLabel').value||'Blocked'};
+        if (t==='doctor') body.doctor_id = parseInt(document.getElementById('blockDoctor').value)||0;
+        if (t==='recurring') { body.is_recurring = true; body.recurrence_day = document.getElementById('blockDay').value; }
+        else body.block_date = document.getElementById('blockDate').value;
+        body.start_time = document.getElementById('blockStart').value;
+        body.end_time = document.getElementById('blockEnd').value;
+        await fetch('/api/schedule-blocks', {method:'POST',headers,body:JSON.stringify(body)});
+        showToast('Block added','success');
+        loadScheduleBlocks();
+    }
+
+    async function deleteBlock(id) { await fetch(`/api/schedule-blocks/${id}`,{method:'DELETE',headers}); loadScheduleBlocks(); }
+
+    // ═══════ Feature 12: Promotions ═══════
+    async function loadPromotions() {
+        const res = await fetch('/api/promotions', {headers});
+        const data = await res.json();
+        const promos = data.promotions || [];
+        const stats = data.stats || [];
+        const c = document.getElementById('promotionsList');
+        if (!promos.length) { c.innerHTML = '<span class="empty-msg">No promotions created.</span>'; }
+        else c.innerHTML = promos.map(p => `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.82rem"><div><code style="background:rgba(0,245,212,0.15);padding:0.1rem 0.4rem;border-radius:4px;color:var(--cyan)">${p.code}</code> — ${p.discount_type==='percentage'?p.discount_value+'%':'$'+p.discount_value} off ${p.applicable_treatments==='all'?'all treatments':p.applicable_treatments}${p.expiry_date?' | Expires: '+p.expiry_date:''}${p.max_uses?' | Max: '+p.max_uses+' uses':''} | Used: ${p.current_uses}x</div><button onclick="deletePromotion(${p.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.75rem">${p.is_active?'Deactivate':'Inactive'}</button></div>`).join('');
+        document.getElementById('promoStats').innerHTML = stats.map(s => `<div style="font-size:0.82rem;padding:0.3rem 0"><code>${s.code}</code>: ${s.total_uses||0} uses, $${(s.total_revenue||0).toFixed(0)} revenue influenced</div>`).join('') || '<span class="empty-msg">No usage data yet.</span>';
+    }
+
+    async function createPromotion() {
+        const code = document.getElementById('promoCode').value;
+        if (!code) { showToast('Enter a code','warning'); return; }
+        await fetch('/api/promotions', {method:'POST',headers,body:JSON.stringify({code,discount_type:document.getElementById('promoType').value,discount_value:parseFloat(document.getElementById('promoValue').value)||0,expiry_date:document.getElementById('promoExpiry').value,max_uses:parseInt(document.getElementById('promoMaxUses').value)||0})});
+        showToast('Promotion created','success'); document.getElementById('promoCode').value = '';
+        loadPromotions();
+    }
+
+    async function deletePromotion(id) { await fetch(`/api/promotions/${id}`,{method:'DELETE',headers}); loadPromotions(); }
+
+    // ═══════ Feature 13: Security ═══════
+    async function loadSecurity() {
+        const res = await fetch('/auth/me', {headers});
+        const data = await res.json();
+        const user = data.user || data;
+        const enabled = user.two_fa_enabled;
+        document.getElementById('twoFaStatus').textContent = '2FA: ' + (enabled ? 'Enabled' : 'Disabled');
+        document.getElementById('twoFaBtn').textContent = enabled ? 'Disable 2FA' : 'Enable 2FA';
+        if (user.role === 'head_admin') document.getElementById('enforce2FaSection').style.display = '';
+    }
+
+    async function toggle2FA() {
+        const res = await fetch('/auth/me', {headers});
+        const data = await res.json();
+        const u = data.user || data;
+        if (u.two_fa_enabled) {
+            await fetch('/api/2fa/disable', {method:'POST',headers});
+            showToast('2FA disabled','success'); loadSecurity();
+        } else {
+            await fetch('/api/2fa/setup', {method:'POST',headers,body:JSON.stringify({method:document.getElementById('twoFaMethod').value})});
+            document.getElementById('twoFaSetup').style.display = '';
+            await fetch('/api/2fa/send-otp', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:u.email})});
+            showToast('Verification code sent to your email','success');
+        }
+    }
+
+    async function verify2FA() {
+        const otp = document.getElementById('twoFaOtp').value;
+        const res = await fetch('/api/2fa/enable', {method:'POST',headers,body:JSON.stringify({otp})});
+        const r = await res.json();
+        if (r.ok) { showToast('2FA enabled!','success'); document.getElementById('twoFaSetup').style.display = 'none'; loadSecurity(); }
+        else showToast(r.error||'Invalid code','error');
+    }
+
+    async function enforce2FA() {
+        await fetch('/api/2fa/enforce', {method:'POST',headers,body:JSON.stringify({enforce:true})});
+        showToast('2FA enforced for all staff','success');
+    }
+
+    // ═══════ Feature 14: Referrals ═══════
+    async function loadReferrals() {
+        const res = await fetch('/api/referral', {headers});
+        const data = await res.json();
+        document.getElementById('refLink').value = data.referral_link || '';
+        document.getElementById('refSignups').textContent = data.signups || 0;
+        document.getElementById('refConversions').textContent = data.conversions || 0;
+        document.getElementById('refRewards').textContent = '$' + (data.total_rewards || 0);
+        const list = data.referrals || [];
+        document.getElementById('referralsList').innerHTML = list.length ? list.map(r => `<div style="font-size:0.82rem;padding:0.3rem 0;border-bottom:1px solid rgba(255,255,255,0.05)">${r.referred_email} — <span class="badge ${r.status==='converted'?'badge-green':'badge-yellow'}">${r.status}</span>${r.converted_at?' | Converted: '+r.converted_at:''}</div>`).join('') : '<span class="empty-msg">No referrals yet. Share your link!</span>';
+    }
+
+    // ═══════ Feature 15: Patients ═══════
+    async function loadPatients() {
+        const search = document.getElementById('patientSearch').value;
+        const res = await fetch(`/api/patients?search=${encodeURIComponent(search)}`, {headers});
+        const data = await res.json();
+        const c = document.getElementById('patientsList');
+        if (!data.length) { c.innerHTML = '<span class="empty-msg">No patients found.</span>'; return; }
+        c.innerHTML = data.map(p => `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer" onclick="loadPatientDetail(${p.id})"><div><strong>${p.name||'Unknown'}</strong><div style="font-size:0.78rem;color:var(--gray)">${p.email||''} ${p.phone||''}</div></div><div style="display:flex;gap:0.8rem;font-size:0.8rem;color:var(--gray)">${p.loyalty_points?'<span style="color:var(--cyan)">'+p.loyalty_points+' pts</span>':''}${p.last_visit_date?'Last: '+p.last_visit_date:''}</div></div>`).join('');
+    }
+
+    async function loadPatientDetail(pid) {
+        const res = await fetch(`/api/patients/${pid}`, {headers});
+        const p = await res.json();
+        const h = p.history || {};
+        const d = document.getElementById('patientDetail');
+        d.style.display = '';
+        d.innerHTML = `<h3 style="margin-bottom:0.8rem">${p.name||'Patient'} <span style="font-size:0.8rem;color:var(--gray);font-weight:400">${p.email||''} | ${p.phone||''}</span></h3>
+            <div style="display:flex;gap:1rem;margin-bottom:1rem;flex-wrap:wrap"><div>Language: ${p.language||'en'}</div><div>Points: <strong style="color:var(--cyan)">${p.loyalty_points||0}</strong></div><div>Last Visit: ${p.last_visit_date||'Never'}</div></div>
+            <h4 style="font-size:0.85rem;margin-bottom:0.4rem">Appointments (${(h.bookings||[]).length})</h4>
+            ${(h.bookings||[]).map(b => `<div style="font-size:0.8rem;padding:0.25rem 0">${b.date} ${b.time} — Dr. ${b.doctor_name||'N/A'} — <span class="badge ${b.status==='completed'?'badge-green':b.status==='cancelled'?'badge-gray':'badge-yellow'}">${b.status}</span></div>`).join('') || '<span class="empty-msg">No appointments.</span>'}
+            <h4 style="font-size:0.85rem;margin:0.8rem 0 0.4rem">Notes</h4>
+            ${(h.notes||[]).map(n => `<div style="font-size:0.8rem;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.05)">${n.note} <span style="color:var(--gray);font-size:0.72rem">${n.created_at}</span></div>`).join('') || '<span class="empty-msg">No notes.</span>'}
+            <div style="margin-top:0.8rem;display:flex;gap:0.5rem"><input type="text" class="form-input" id="noteInput_${pid}" placeholder="Add a note..." style="flex:1"><button class="manage-save-btn" onclick="addPatientNote(${pid})">Add Note</button></div>`;
+    }
+
+    async function addPatientNote(pid) {
+        const note = document.getElementById('noteInput_'+pid).value;
+        if (!note) return;
+        await fetch(`/api/patients/${pid}/notes`, {method:'POST',headers,body:JSON.stringify({note})});
+        loadPatientDetail(pid);
+    }
+
+    // ═══════ Feature 16: Real-Time Dashboard ═══════
+    let rtEventSource = null;
+    function startRealtimeDashboard() {
+        fetch('/api/realtime/snapshot', {headers}).then(r=>r.json()).then(updateRealtimeUI).catch(()=>{});
+        if (rtEventSource) rtEventSource.close();
+        const t = localStorage.getItem('token');
+        rtEventSource = new EventSource(`/api/realtime/stream?token=${t}`);
+        rtEventSource.onmessage = (e) => { try { updateRealtimeUI(JSON.parse(e.data)); } catch(err) {} };
+    }
+
+    function updateRealtimeUI(data) {
+        document.getElementById('rtTimestamp').textContent = data.timestamp ? 'Updated: ' + data.timestamp : '';
+        document.getElementById('rtTodayCount').textContent = (data.today_appointments||[]).length;
+        document.getElementById('rtRecentCount').textContent = (data.recent_bookings||[]).length;
+        document.getElementById('rtActiveChats').textContent = (data.active_chats||[]).length;
+        document.getElementById('rtHandoffs').textContent = (data.handoff_queue||[]).length;
+        document.getElementById('rtNoshows').textContent = data.noshow_count||0;
+        const sched = document.getElementById('rtSchedule');
+        const appts = data.today_appointments || [];
+        if (!appts.length) { sched.innerHTML = '<span class="empty-msg">No appointments today.</span>'; return; }
+        sched.innerHTML = appts.map(a => {
+            let statusClass = 'badge-yellow';
+            if (a.status==='completed') statusClass = 'badge-green';
+            else if (a.status==='no_show') statusClass = 'badge-red';
+            else if (a.checked_in) statusClass = 'badge-green';
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.82rem"><div><strong>${a.time}</strong> — ${a.customer_name} ${a.doctor_name?'with Dr. '+a.doctor_name:''}</div><div style="display:flex;gap:0.4rem;align-items:center"><span class="badge ${statusClass}">${a.checked_in?'Checked In':a.status}</span>${a.status==='confirmed'&&!a.checked_in?`<button class="manage-save-btn" style="font-size:0.7rem;padding:0.2rem 0.5rem" onclick="checkinBooking(${a.id})">Check In</button>`:''}</div></div>`;
+        }).join('');
+    }
+
+    async function checkinBooking(id) { await fetch(`/api/bookings/${id}/checkin`,{method:'POST',headers}); startRealtimeDashboard(); showToast('Patient checked in','success'); }
+
+    // ═══════ Feature 17: A/B Tests ═══════
+    async function loadAbTests() {
+        const res = await fetch('/api/ab-tests', {headers});
+        const data = await res.json();
+        const c = document.getElementById('abTestsList');
+        if (!data.length) { c.innerHTML = '<span class="empty-msg">No A/B tests created.</span>'; return; }
+        c.innerHTML = data.map(t => {
+            const aRate = t.variant_a_conversations ? ((t.variant_a_bookings/t.variant_a_conversations)*100).toFixed(1) : '0.0';
+            const bRate = t.variant_b_conversations ? ((t.variant_b_bookings/t.variant_b_conversations)*100).toFixed(1) : '0.0';
+            const totalConvos = t.variant_a_conversations + t.variant_b_conversations;
+            const sigReached = totalConvos >= 200;
+            return `<div style="padding:0.8rem;border:1px solid rgba(255,255,255,0.08);border-radius:8px;margin-bottom:0.5rem"><div style="display:flex;justify-content:space-between;margin-bottom:0.5rem"><strong>${t.test_name}</strong> <span class="badge ${t.status==='running'?'badge-green':'badge-gray'}">${t.status}${t.winner?' — Winner: '+t.winner.toUpperCase():''}</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.82rem"><div style="padding:0.4rem;background:rgba(255,255,255,0.03);border-radius:6px"><div style="font-weight:600;color:var(--cyan)">Variant A</div><div>${t.variant_a_conversations} convos | ${t.variant_a_bookings} bookings | ${aRate}% conv.</div></div><div style="padding:0.4rem;background:rgba(255,255,255,0.03);border-radius:6px"><div style="font-weight:600;color:var(--accent)">Variant B</div><div>${t.variant_b_conversations} convos | ${t.variant_b_bookings} bookings | ${bRate}% conv.</div></div></div>${t.status==='running'&&sigReached?`<button class="manage-save-btn" style="margin-top:0.5rem;font-size:0.75rem" onclick="endAbTest(${t.id},'${parseFloat(aRate)>=parseFloat(bRate)?'a':'b'}')">Apply Winner (${parseFloat(aRate)>=parseFloat(bRate)?'A':'B'})</button>`:''}</div>`;
+        }).join('');
+    }
+
+    async function createAbTest() {
+        const name = document.getElementById('abName').value;
+        if (!name) { showToast('Enter test name','warning'); return; }
+        await fetch('/api/ab-tests', {method:'POST',headers,body:JSON.stringify({test_name:name,test_type:document.getElementById('abType').value,variant_a:document.getElementById('abVarA').value,variant_b:document.getElementById('abVarB').value})});
+        showToast('A/B test created','success'); document.getElementById('abName').value = '';
+        loadAbTests();
+    }
+
+    async function endAbTest(id, winner) { await fetch(`/api/ab-tests/${id}/end`,{method:'POST',headers,body:JSON.stringify({winner})}); loadAbTests(); }
+
+    // ═══════ Feature 18: Loyalty ═══════
+    async function loadLoyalty() {
+        const [configRes, statsRes] = await Promise.all([fetch('/api/loyalty/config',{headers}), fetch('/api/loyalty/stats',{headers})]);
+        const config = await configRes.json();
+        const stats = await statsRes.json();
+        document.getElementById('loyaltyToggle').checked = !!config.is_active;
+        document.getElementById('loyPtsAppt').value = config.points_per_appointment || 100;
+        document.getElementById('loyPtsRef').value = config.points_per_referral || 200;
+        document.getElementById('loyPtsReview').value = config.points_per_review || 50;
+        document.getElementById('loyPtsForm').value = config.points_per_form || 25;
+        document.getElementById('loyRedemption').value = config.redemption_value || 0.01;
+        document.getElementById('loyaltyStats').innerHTML = `<div style="display:flex;gap:1.5rem;flex-wrap:wrap;font-size:0.85rem"><div>Members: <strong>${stats.total_members||0}</strong></div><div>Issued this month: <strong>${stats.issued_this_month||0} pts</strong></div><div>Redeemed this month: <strong>${stats.redeemed_this_month||0} pts</strong></div></div>${(stats.top_patients||[]).length?'<div style="margin-top:0.5rem;font-size:0.82rem"><strong>Top Patients:</strong> '+stats.top_patients.map(p=>p.name+' ('+p.loyalty_points+' pts)').join(', ')+'</div>':''}`;
+    }
+
+    async function saveLoyaltyConfig() {
+        await fetch('/api/loyalty/config', {method:'POST',headers,body:JSON.stringify({is_active:document.getElementById('loyaltyToggle').checked?1:0,points_per_appointment:parseInt(document.getElementById('loyPtsAppt').value),points_per_referral:parseInt(document.getElementById('loyPtsRef').value),points_per_review:parseInt(document.getElementById('loyPtsReview').value),points_per_form:parseInt(document.getElementById('loyPtsForm').value),redemption_value:parseFloat(document.getElementById('loyRedemption').value)})});
+        showToast('Loyalty config saved','success');
+    }
+
+    // ═══════ Feature 19: GMB ═══════
+    async function loadGmb() {
+        const res = await fetch('/api/gmb/connection', {headers});
+        const data = await res.json();
+        if (data.access_token) {
+            document.getElementById('gmbSetup').style.display = 'none';
+            document.getElementById('gmbConnected').style.display = '';
+            document.getElementById('gmbRating').textContent = data.rating || '-';
+            document.getElementById('gmbReviewCount').textContent = data.review_count || 0;
+        }
+    }
+
+    async function connectGmb() { showToast('Google Business Profile connection requires OAuth setup. Contact support for integration.','info',5000); }
+    async function postToGmb() {
+        const text = document.getElementById('gmbPost').value;
+        if (!text) { showToast('Enter post content','warning'); return; }
+        await fetch('/api/gmb/post', {method:'POST',headers,body:JSON.stringify({content:text})});
+        showToast('Post published','success'); document.getElementById('gmbPost').value = '';
+    }
+
+    // ═══════ Feature 20: Benchmarks ═══════
+    async function loadBenchmarks() {
+        const res = await fetch('/api/benchmarks', {headers});
+        const data = await res.json();
+        const c = document.getElementById('benchmarkContent');
+        if (!data.available) { c.innerHTML = `<span class="empty-msg">${data.reason||'Not enough data yet.'} (${data.total_clinics||0}/5 clinics)</span>`; return; }
+        const my = data.my_metrics || {};
+        const avg = data.platform_avg || {};
+        const top = data.top_10_pct || {};
+        const metrics = [
+            {name:'Conversion Rate', mine:my.conversion_rate, average:avg.avg_conv, best:top.top_conv, unit:'%', higher:true},
+            {name:'No-Show Rate', mine:my.noshow_rate, average:avg.avg_noshow, best:top.top_noshow, unit:'%', higher:false},
+            {name:'Monthly Bookings', mine:my.monthly_bookings, average:avg.avg_bookings, best:top.top_bookings, unit:'', higher:true},
+            {name:'Review Score', mine:my.review_score, average:avg.avg_review, best:top.top_review, unit:'/5', higher:true},
+        ];
+        c.innerHTML = `<p style="font-size:0.82rem;color:var(--gray);margin-bottom:1rem">Comparing your clinic against ${data.total_clinics} clinics on the platform (anonymized)</p>` +
+            metrics.map(m => {
+                const val = (m.mine||0).toFixed(1);
+                const avgVal = (m.average||0).toFixed(1);
+                const topVal = (m.best||0).toFixed(1);
+                const pct = m.average ? Math.min(100, (m.mine / m.average) * 50) : 50;
+                return `<div style="margin-bottom:1rem"><div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:0.3rem"><span>${m.name}</span><span>You: <strong style="color:var(--cyan)">${val}${m.unit}</strong> | Avg: ${avgVal}${m.unit} | Top 10%: ${topVal}${m.unit}</span></div><div style="height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--gradient);border-radius:4px"></div></div></div>`;
+            }).join('');
+    }
 </script>
 
 </body>

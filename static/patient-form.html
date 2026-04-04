@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pre-Visit Medical Form</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: #0b1628;
+            color: #1a1a2e;
+            min-height: 100vh;
+            padding: 0;
+        }
+
+        /* ── Loading State ── */
+        .state-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: #fff;
+        }
+        .spinner {
+            width: 48px; height: 48px;
+            border: 3px solid rgba(201,168,76,0.2);
+            border-top-color: #c9a84c;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .state-loading p { color: #8899b3; font-size: 15px; letter-spacing: 0.5px; }
+
+        /* ── Error / Already Submitted States ── */
+        .state-message {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+            padding: 2rem;
+            color: #fff;
+        }
+        .state-icon {
+            width: 80px; height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            margin-bottom: 24px;
+        }
+        .state-icon.success {
+            background: linear-gradient(135deg, #c9a84c, #e8c547);
+            color: #1a1a2e;
+        }
+        .state-icon.error {
+            background: linear-gradient(135deg, #e53e3e, #fc8181);
+            color: #fff;
+        }
+        .state-icon.check {
+            background: linear-gradient(135deg, #059669, #34d399);
+            color: #fff;
+            animation: scaleIn 0.5s ease;
+        }
+        @keyframes scaleIn {
+            0% { transform: scale(0); opacity: 0; }
+            60% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .state-message h2 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #fff;
+        }
+        .state-message p {
+            font-size: 15px;
+            color: #8899b3;
+            line-height: 1.6;
+            max-width: 400px;
+        }
+
+        /* ── Form Container ── */
+        .form-wrapper {
+            max-width: 640px;
+            margin: 0 auto;
+            padding: 0 0 40px;
+        }
+
+        /* ── Gold Bar + Header ── */
+        .gold-bar {
+            height: 4px;
+            background: linear-gradient(90deg, #c9a84c, #d4af37, #e8c547, #d4af37, #c9a84c);
+        }
+        .form-header {
+            background: linear-gradient(145deg, #0b1628 0%, #162040 50%, #1a2550 100%);
+            padding: 40px 24px 32px;
+            text-align: center;
+        }
+        .form-header h1 {
+            color: #fff;
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        .form-header h1 strong {
+            font-weight: 700;
+        }
+        .form-header .subtitle {
+            color: #c9a84c;
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* ── Appointment Info Banner ── */
+        .appt-info {
+            background: linear-gradient(135deg, #fafaf5, #f5f3eb);
+            border: 1px solid #e8dfc5;
+            border-radius: 12px;
+            margin: -16px 16px 0;
+            padding: 20px;
+            position: relative;
+            z-index: 2;
+            display: none;
+        }
+        .appt-info .info-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .appt-info .info-item {
+            flex: 1;
+            text-align: center;
+        }
+        .appt-info .info-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #999;
+            margin-bottom: 4px;
+        }
+        .appt-info .info-value {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a1a2e;
+        }
+
+        /* ── Form Card ── */
+        .form-card {
+            background: #fff;
+            margin: 16px 16px 0;
+            border-radius: 12px;
+            padding: 24px 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+        .section-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #c9a84c, #e8c547);
+            color: #1a1a2e;
+            font-size: 13px;
+            font-weight: 800;
+            margin-right: 10px;
+        }
+        .section-title {
+            display: flex;
+            align-items: center;
+            font-size: 16px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 20px;
+        }
+        .section-title .optional-badge {
+            margin-left: auto;
+            font-size: 11px;
+            font-weight: 600;
+            color: #999;
+            background: #f5f5f5;
+            padding: 3px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ── Form Fields ── */
+        .form-group { margin-bottom: 16px; }
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #444;
+            margin-bottom: 6px;
+        }
+        .form-label .req { color: #e53e3e; margin-left: 2px; }
+        .form-input, .form-textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid #e2e2e2;
+            border-radius: 10px;
+            font-size: 15px;
+            font-family: inherit;
+            background: #fafafa;
+            color: #1a1a2e;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .form-input:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #c9a84c;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(201,168,76,0.15);
+        }
+        .form-textarea {
+            resize: vertical;
+            min-height: 90px;
+        }
+
+        /* ── Radio Buttons ── */
+        .radio-group {
+            display: flex;
+            gap: 10px;
+        }
+        .radio-option {
+            flex: 1;
+            position: relative;
+        }
+        .radio-option input {
+            position: absolute;
+            opacity: 0;
+            width: 0; height: 0;
+        }
+        .radio-option label {
+            display: block;
+            text-align: center;
+            padding: 10px 8px;
+            border: 1.5px solid #e2e2e2;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #fafafa;
+        }
+        .radio-option input:checked + label {
+            border-color: #c9a84c;
+            background: linear-gradient(135deg, #fafaf5, #f5f3eb);
+            color: #1a1a2e;
+            box-shadow: 0 0 0 3px rgba(201,168,76,0.15);
+        }
+
+        /* ── Checkboxes ── */
+        .checkbox-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border: 1.5px solid #f0f0f0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #fafafa;
+        }
+        .checkbox-item:hover {
+            border-color: #ddd;
+        }
+        .checkbox-item.checked {
+            border-color: #c9a84c;
+            background: linear-gradient(135deg, #fafaf5, #f5f3eb);
+        }
+        .checkbox-item input {
+            width: 18px; height: 18px;
+            accent-color: #c9a84c;
+            flex-shrink: 0;
+        }
+        .checkbox-item span {
+            font-size: 13px;
+            font-weight: 500;
+            color: #444;
+        }
+        .other-text-wrapper {
+            margin-top: 10px;
+            display: none;
+        }
+        .other-text-wrapper.visible {
+            display: block;
+        }
+
+        /* ── Signature Pad ── */
+        .signature-container {
+            border: 2px dashed #d4d4d4;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #fff;
+            position: relative;
+        }
+        .signature-container.has-signature {
+            border-style: solid;
+            border-color: #c9a84c;
+        }
+        .sig-canvas {
+            width: 100%;
+            height: 150px;
+            display: block;
+            cursor: crosshair;
+            touch-action: none;
+        }
+        .sig-placeholder {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ccc;
+            font-size: 14px;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .signature-container.has-signature .sig-placeholder {
+            opacity: 0;
+        }
+        .sig-clear-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+            padding: 6px 14px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            background: #fff;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .sig-clear-btn:hover {
+            border-color: #c9a84c;
+            color: #c9a84c;
+        }
+        .consent-text {
+            font-size: 12px;
+            color: #888;
+            line-height: 1.5;
+            margin-top: 12px;
+        }
+
+        /* ── Submit Button ── */
+        .submit-wrapper {
+            margin: 24px 16px 0;
+        }
+        .submit-btn {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, #c9a84c, #d4af37, #e8c547);
+            color: #1a1a2e;
+            box-shadow: 0 8px 24px rgba(201,168,76,0.3);
+            transition: all 0.3s;
+        }
+        .submit-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(201,168,76,0.4);
+        }
+        .submit-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .submit-btn .btn-spinner {
+            display: inline-block;
+            width: 18px; height: 18px;
+            border: 2px solid rgba(26,26,46,0.2);
+            border-top-color: #1a1a2e;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        /* ── Bottom Gold Bar ── */
+        .gold-bar-bottom {
+            height: 4px;
+            background: linear-gradient(90deg, #c9a84c, #d4af37, #e8c547, #d4af37, #c9a84c);
+            margin-top: 32px;
+        }
+
+        /* ── Footer ── */
+        .form-footer {
+            text-align: center;
+            padding: 20px 16px 40px;
+            color: #556;
+            font-size: 12px;
+        }
+        .form-footer a { color: #c9a84c; text-decoration: none; }
+
+        /* ── Toast Notifications ── */
+        .toast {
+            position: fixed;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            padding: 12px 24px;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 9999;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            max-width: 90%;
+            text-align: center;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast-error { background: #e53e3e; }
+        .toast-success { background: #059669; }
+
+        /* ── Animated Checkmark for Success State ── */
+        .animated-check {
+            width: 80px; height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #059669, #34d399);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            animation: scaleIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .animated-check svg {
+            width: 40px; height: 40px;
+            stroke: #fff;
+            stroke-width: 3;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        .animated-check svg path {
+            stroke-dasharray: 60;
+            stroke-dashoffset: 60;
+            animation: drawCheck 0.6s 0.3s ease forwards;
+        }
+        @keyframes drawCheck {
+            to { stroke-dashoffset: 0; }
+        }
+
+        /* ── Responsive ── */
+        @media (min-width: 640px) {
+            body { padding: 24px; }
+            .form-wrapper {
+                border-radius: 16px;
+                overflow: hidden;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            }
+            .form-card { margin: 16px 24px 0; }
+            .appt-info { margin: -16px 24px 0; }
+            .submit-wrapper { margin: 24px 24px 0; }
+        }
+
+        /* ── Hidden by default ── */
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- Loading State -->
+    <div id="stateLoading" class="state-loading">
+        <div class="spinner"></div>
+        <p>Loading your form...</p>
+    </div>
+
+    <!-- Invalid Token State -->
+    <div id="stateInvalid" class="state-message hidden">
+        <div class="state-icon error">&#10007;</div>
+        <h2>Invalid Link</h2>
+        <p>This link is invalid or has expired. Please contact the clinic if you need a new form link.</p>
+    </div>
+
+    <!-- Already Submitted State -->
+    <div id="stateAlreadySubmitted" class="state-message hidden">
+        <div class="state-icon check">&#10003;</div>
+        <h2>Form Already Submitted</h2>
+        <p>Your pre-visit form has already been submitted. Thank you! We look forward to seeing you at your appointment.</p>
+    </div>
+
+    <!-- Success State -->
+    <div id="stateSuccess" class="state-message hidden">
+        <div class="animated-check">
+            <svg viewBox="0 0 40 40">
+                <path d="M10 20 L17 27 L30 13" />
+            </svg>
+        </div>
+        <h2>Thank You!</h2>
+        <p>Your pre-visit form has been submitted successfully. We look forward to seeing you at your appointment.</p>
+    </div>
+
+    <!-- Form State -->
+    <div id="stateForm" class="form-wrapper hidden">
+        <div class="gold-bar"></div>
+        <div class="form-header">
+            <h1>Pre-Visit <strong>Medical Form</strong></h1>
+            <div class="subtitle">Please complete before your appointment</div>
+        </div>
+
+        <!-- Appointment Info -->
+        <div class="appt-info" id="apptInfo">
+            <div class="info-row">
+                <div class="info-item">
+                    <div class="info-label">Date</div>
+                    <div class="info-value" id="apptDate">--</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Time</div>
+                    <div class="info-value" id="apptTime">--</div>
+                </div>
+                <div class="info-item" id="apptDoctorWrap" style="display:none">
+                    <div class="info-label">Doctor</div>
+                    <div class="info-value" id="apptDoctor">--</div>
+                </div>
+            </div>
+        </div>
+
+        <form id="patientForm" autocomplete="off">
+
+            <!-- Section 1: Personal Info -->
+            <div class="form-card">
+                <div class="section-title">
+                    <span class="section-number">1</span>
+                    Personal Information
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Full Name<span class="req">*</span></label>
+                    <input type="text" class="form-input" id="fullName" required placeholder="Enter your full name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Date of Birth<span class="req">*</span></label>
+                    <input type="date" class="form-input" id="dateOfBirth" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Gender</label>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" name="gender" id="genderMale" value="male">
+                            <label for="genderMale">Male</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" name="gender" id="genderFemale" value="female">
+                            <label for="genderFemale">Female</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" name="gender" id="genderOther" value="other">
+                            <label for="genderOther">Other</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 2: Medical History -->
+            <div class="form-card">
+                <div class="section-title">
+                    <span class="section-number">2</span>
+                    Medical History
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Do you have any of the following conditions?</label>
+                    <div class="checkbox-grid" id="medicalCheckboxes">
+                        <label class="checkbox-item" onclick="toggleCheckbox(this)">
+                            <input type="checkbox" value="diabetes"> <span>Diabetes</span>
+                        </label>
+                        <label class="checkbox-item" onclick="toggleCheckbox(this)">
+                            <input type="checkbox" value="hypertension"> <span>Hypertension</span>
+                        </label>
+                        <label class="checkbox-item" onclick="toggleCheckbox(this)">
+                            <input type="checkbox" value="heart_disease"> <span>Heart Disease</span>
+                        </label>
+                        <label class="checkbox-item" onclick="toggleCheckbox(this)">
+                            <input type="checkbox" value="blood_thinners"> <span>Blood Thinners</span>
+                        </label>
+                        <label class="checkbox-item" onclick="toggleCheckbox(this)">
+                            <input type="checkbox" value="allergies"> <span>Allergies</span>
+                        </label>
+                        <label class="checkbox-item" onclick="toggleCheckbox(this)">
+                            <input type="checkbox" value="pregnancy"> <span>Pregnancy</span>
+                        </label>
+                        <label class="checkbox-item" onclick="toggleCheckbox(this)">
+                            <input type="checkbox" value="asthma"> <span>Asthma</span>
+                        </label>
+                        <label class="checkbox-item" onclick="toggleCheckbox(this)" id="otherCheckboxItem">
+                            <input type="checkbox" value="other" id="otherCheckbox"> <span>Other</span>
+                        </label>
+                    </div>
+                    <div class="other-text-wrapper" id="otherTextWrapper">
+                        <input type="text" class="form-input" id="otherMedicalText" placeholder="Please specify other conditions...">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 3: Current Medications -->
+            <div class="form-card">
+                <div class="section-title">
+                    <span class="section-number">3</span>
+                    Current Medications
+                </div>
+                <div class="form-group">
+                    <label class="form-label">List any medications you are currently taking</label>
+                    <textarea class="form-textarea" id="medications" placeholder="e.g. Metformin 500mg, Aspirin 81mg daily..."></textarea>
+                </div>
+            </div>
+
+            <!-- Section 4: Known Allergies -->
+            <div class="form-card">
+                <div class="section-title">
+                    <span class="section-number">4</span>
+                    Known Allergies
+                </div>
+                <div class="form-group">
+                    <label class="form-label">List any known allergies (medications, latex, anesthesia, etc.)</label>
+                    <textarea class="form-textarea" id="allergiesField" placeholder="e.g. Penicillin, latex, local anesthesia..." rows="3"></textarea>
+                </div>
+            </div>
+
+            <!-- Section 5: Insurance (Optional) -->
+            <div class="form-card">
+                <div class="section-title">
+                    <span class="section-number">5</span>
+                    Insurance Information
+                    <span class="optional-badge">Optional</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Insurance Provider</label>
+                    <input type="text" class="form-input" id="insuranceProvider" placeholder="e.g. Bupa, Aetna, Delta Dental...">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Policy Number</label>
+                    <input type="text" class="form-input" id="insurancePolicy" placeholder="Your policy or member ID number">
+                </div>
+            </div>
+
+            <!-- Section 6: Digital Signature -->
+            <div class="form-card">
+                <div class="section-title">
+                    <span class="section-number">6</span>
+                    Digital Signature<span class="req" style="margin-left:4px">*</span>
+                </div>
+                <div class="signature-container" id="sigContainer">
+                    <canvas class="sig-canvas" id="signaturePad"></canvas>
+                    <div class="sig-placeholder">Sign here with your finger or mouse</div>
+                </div>
+                <button type="button" class="sig-clear-btn" onclick="clearSignature()">
+                    &#8634; Clear Signature
+                </button>
+                <p class="consent-text">
+                    By signing, you confirm that the information provided above is accurate to the best of your knowledge.
+                    You consent to receiving dental examination and treatment as recommended by the dental professionals at this clinic.
+                </p>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="submit-wrapper">
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    Submit Form
+                </button>
+            </div>
+        </form>
+
+        <div class="gold-bar-bottom"></div>
+        <div class="form-footer">
+            Your information is kept secure and confidential.<br>
+            Powered by <a href="#">ChatGenius AI</a>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        // ── Extract token from URL ──
+        const pathParts = window.location.pathname.split('/form/');
+        const token = pathParts[1] || '';
+
+        // ── DOM References ──
+        const stateLoading = document.getElementById('stateLoading');
+        const stateInvalid = document.getElementById('stateInvalid');
+        const stateAlreadySubmitted = document.getElementById('stateAlreadySubmitted');
+        const stateSuccess = document.getElementById('stateSuccess');
+        const stateForm = document.getElementById('stateForm');
+
+        // ── Show a specific state, hide others ──
+        function showState(state) {
+            [stateLoading, stateInvalid, stateAlreadySubmitted, stateSuccess, stateForm].forEach(function(el) {
+                el.classList.add('hidden');
+            });
+            state.classList.remove('hidden');
+        }
+
+        // ── Load form data ──
+        if (!token) {
+            showState(stateInvalid);
+            return;
+        }
+
+        fetch('/api/forms/' + token)
+            .then(function(r) {
+                if (r.status === 404) {
+                    showState(stateInvalid);
+                    throw new Error('invalid');
+                }
+                return r.json();
+            })
+            .then(function(data) {
+                if (data.error) {
+                    showState(stateInvalid);
+                    return;
+                }
+                if (data.already_submitted) {
+                    showState(stateAlreadySubmitted);
+                    return;
+                }
+
+                // Show form
+                showState(stateForm);
+
+                // Pre-fill name
+                if (data.full_name) {
+                    document.getElementById('fullName').value = data.full_name;
+                }
+
+                // Show appointment info
+                if (data.date || data.time) {
+                    var apptInfo = document.getElementById('apptInfo');
+                    apptInfo.style.display = 'block';
+                    if (data.date) document.getElementById('apptDate').textContent = data.date;
+                    if (data.time) document.getElementById('apptTime').textContent = data.time;
+                    if (data.doctor_name) {
+                        document.getElementById('apptDoctorWrap').style.display = 'block';
+                        document.getElementById('apptDoctor').textContent = 'Dr. ' + data.doctor_name;
+                    }
+                }
+            })
+            .catch(function(err) {
+                if (err.message !== 'invalid') {
+                    showState(stateInvalid);
+                }
+            });
+
+        // ── Checkbox toggle styling ──
+        window.toggleCheckbox = function(el) {
+            setTimeout(function() {
+                var cb = el.querySelector('input[type="checkbox"]');
+                if (cb.checked) {
+                    el.classList.add('checked');
+                } else {
+                    el.classList.remove('checked');
+                }
+                // Show/hide "Other" text field
+                if (cb.id === 'otherCheckbox') {
+                    var wrapper = document.getElementById('otherTextWrapper');
+                    if (cb.checked) {
+                        wrapper.classList.add('visible');
+                        document.getElementById('otherMedicalText').focus();
+                    } else {
+                        wrapper.classList.remove('visible');
+                    }
+                }
+            }, 10);
+        };
+
+        // ══════════════════════════════════════════════
+        //  Signature Pad
+        // ══════════════════════════════════════════════
+        var canvas = document.getElementById('signaturePad');
+        var ctx = canvas.getContext('2d');
+        var isDrawing = false;
+        var hasDrawn = false;
+        var sigContainer = document.getElementById('sigContainer');
+
+        function resizeCanvas() {
+            var rect = canvas.getBoundingClientRect();
+            var dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            ctx.strokeStyle = '#1a1a2e';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
+
+        // Resize on load and on window resize
+        resizeCanvas();
+        window.addEventListener('resize', function() {
+            if (!hasDrawn) resizeCanvas();
+        });
+
+        function getPos(e) {
+            var rect = canvas.getBoundingClientRect();
+            if (e.touches && e.touches.length > 0) {
+                return {
+                    x: e.touches[0].clientX - rect.left,
+                    y: e.touches[0].clientY - rect.top
+                };
+            }
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+
+        function startDraw(e) {
+            isDrawing = true;
+            hasDrawn = true;
+            sigContainer.classList.add('has-signature');
+            var pos = getPos(e);
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            var pos = getPos(e);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+        }
+
+        function stopDraw() {
+            isDrawing = false;
+        }
+
+        // Mouse events
+        canvas.addEventListener('mousedown', startDraw);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDraw);
+        canvas.addEventListener('mouseleave', stopDraw);
+
+        // Touch events
+        function startDrawTouch(e) {
+            e.preventDefault();
+            startDraw(e);
+        }
+        function drawTouch(e) {
+            e.preventDefault();
+            draw(e);
+        }
+
+        canvas.addEventListener('touchstart', startDrawTouch, { passive: false });
+        canvas.addEventListener('touchmove', drawTouch, { passive: false });
+        canvas.addEventListener('touchend', stopDraw);
+
+        // Get signature as base64
+        function getSignatureData() {
+            return canvas.toDataURL('image/png');
+        }
+
+        function isCanvasBlank() {
+            return !hasDrawn;
+        }
+
+        window.clearSignature = function() {
+            var rect = canvas.getBoundingClientRect();
+            var dpr = window.devicePixelRatio || 1;
+            ctx.clearRect(0, 0, rect.width * dpr, rect.height * dpr);
+            hasDrawn = false;
+            sigContainer.classList.remove('has-signature');
+        };
+
+        // ══════════════════════════════════════════════
+        //  Form Submission
+        // ══════════════════════════════════════════════
+        var form = document.getElementById('patientForm');
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            // Validate signature
+            if (isCanvasBlank()) {
+                showToast('Please provide your digital signature', 'error');
+                document.getElementById('sigContainer').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+
+            // Validate required fields
+            var fullName = document.getElementById('fullName').value.trim();
+            var dob = document.getElementById('dateOfBirth').value;
+            if (!fullName) {
+                showToast('Please enter your full name', 'error');
+                return;
+            }
+            if (!dob) {
+                showToast('Please enter your date of birth', 'error');
+                return;
+            }
+
+            // Collect medical history
+            var medicalChecked = [];
+            var checkboxes = document.querySelectorAll('#medicalCheckboxes input[type="checkbox"]:checked');
+            checkboxes.forEach(function(cb) {
+                medicalChecked.push(cb.value);
+            });
+            var otherText = '';
+            if (document.getElementById('otherCheckbox').checked) {
+                otherText = document.getElementById('otherMedicalText').value.trim();
+            }
+
+            // Build medical history object
+            var medicalHistory = JSON.stringify({
+                conditions: medicalChecked,
+                other_text: otherText
+            });
+
+            // Get gender
+            var genderEl = document.querySelector('input[name="gender"]:checked');
+            var gender = genderEl ? genderEl.value : '';
+
+            var submitData = {
+                full_name: fullName,
+                date_of_birth: dob,
+                gender: gender,
+                medical_history: medicalHistory,
+                medications: document.getElementById('medications').value.trim(),
+                allergies: document.getElementById('allergiesField').value.trim(),
+                insurance_provider: document.getElementById('insuranceProvider').value.trim(),
+                insurance_policy: document.getElementById('insurancePolicy').value.trim(),
+                signature_data: getSignatureData()
+            };
+
+            // Disable button
+            var btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="btn-spinner"></span> Submitting...';
+
+            fetch('/api/forms/' + token, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(submitData)
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(result) {
+                if (result.success) {
+                    showState(stateSuccess);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                    showToast(result.error || 'Failed to submit form. Please try again.', 'error');
+                    btn.disabled = false;
+                    btn.textContent = 'Submit Form';
+                }
+            })
+            .catch(function() {
+                showToast('Network error. Please check your connection and try again.', 'error');
+                btn.disabled = false;
+                btn.textContent = 'Submit Form';
+            });
+        });
+
+        // ── Toast Notification ──
+        function showToast(msg, type) {
+            // Remove existing toasts
+            var existing = document.querySelectorAll('.toast');
+            existing.forEach(function(t) { t.remove(); });
+
+            var toast = document.createElement('div');
+            toast.className = 'toast toast-' + type;
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+
+            // Trigger animation
+            requestAnimationFrame(function() {
+                toast.classList.add('show');
+            });
+
+            setTimeout(function() {
+                toast.classList.remove('show');
+                setTimeout(function() { toast.remove(); }, 400);
+            }, 3500);
+        }
+
+    })();
+    </script>
+</body>
+</html>

@@ -318,8 +318,9 @@
         .chat-dd-info { flex: 1; min-width: 0; }
         .chat-dd-name { font-weight: 600; font-size: 0.82rem; color: #fff; }
         .chat-dd-sub { font-size: 0.7rem; color: rgba(255,255,255,0.4); }
-        .chat-dd-item.booked { opacity: 0.35; pointer-events: none; text-decoration: line-through; }
-        .chat-dd-item.booked .chat-dd-sub { color: var(--red, #ef4444); }
+        .chat-dd-item.booked { opacity: 0.7; cursor: pointer; }
+        .chat-dd-item.booked .chat-dd-name { text-decoration: line-through; color: #999; }
+        .chat-dd-item.booked .chat-dd-sub { color: #c9a84c; font-weight: 600; }
 
         /* ── Calendar Widget ── */
         .chat-calendar-wrap {
@@ -806,7 +807,9 @@
                 const thisDate = new Date(d.getFullYear(), d.getMonth(), day);
                 const iso = thisDate.getFullYear() + '-' + String(thisDate.getMonth()+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
 
+                const dayOfWeek = thisDate.getDay(); // 0=Sun, 6=Sat
                 if (thisDate < today) { btn.classList.add('disabled'); }
+                else if (dayOfWeek === 0 || dayOfWeek === 6) { btn.classList.add('disabled'); btn.title = 'Closed on weekends'; btn.style.color = '#ccc'; }
                 else if (offDates.has(iso)) { btn.classList.add('off-day'); btn.title = 'Doctor off day'; }
                 else {
                     btn.onclick = function() {
@@ -832,6 +835,37 @@
     function renderOptions(options) {
         if (!options || !options.type) return;
         if (options.type === 'calendar') { renderCalendar(options); return; }
+        // Feature 8: Doctor comparison cards
+        if (options.type === 'doctor_comparison') {
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'display:grid;grid-template-columns:1fr;gap:0.5rem;margin:0.5rem 0;max-width:340px';
+            (options.items || []).forEach(doc => {
+                const card = document.createElement('div');
+                card.style.cssText = 'background:rgba(0,245,212,0.06);border:1px solid rgba(0,245,212,0.15);border-radius:10px;padding:0.6rem;cursor:pointer;transition:all 0.2s';
+                card.innerHTML = `<div style="font-weight:700;font-size:0.85rem;color:#00f5d4">Dr. ${doc.name}</div><div style="font-size:0.75rem;color:#aaa;margin:0.2rem 0">${doc.specialty} &bull; ${doc.experience} &bull; ${doc.languages||'English'}</div><div style="font-size:0.75rem;color:#7c3aed">Next: ${doc.next_available}</div>`;
+                card.onmouseenter = () => card.style.borderColor = '#00f5d4';
+                card.onmouseleave = () => card.style.borderColor = 'rgba(0,245,212,0.15)';
+                card.onclick = () => { document.getElementById('chatInput').value = `Book with Dr. ${doc.name}`; handleSend(); };
+                wrap.appendChild(card);
+            });
+            document.getElementById('chatMessages').appendChild(wrap);
+            document.getElementById('chatMessages').scrollTop = 999999;
+            return;
+        }
+        // Feature 7: Gallery carousel
+        if (options.type === 'gallery') {
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'display:flex;gap:0.4rem;overflow-x:auto;padding:0.4rem 0;margin:0.5rem 0;max-width:340px';
+            (options.items || []).forEach(img => {
+                const el = document.createElement('div');
+                el.style.cssText = 'min-width:120px;border-radius:8px;overflow:hidden;flex-shrink:0';
+                el.innerHTML = `<img src="${img.url}" style="width:120px;height:90px;object-fit:cover"><div style="font-size:0.65rem;padding:0.2rem;color:#aaa;text-align:center">${img.type||''} ${img.caption||''}</div>`;
+                wrap.appendChild(el);
+            });
+            document.getElementById('chatMessages').appendChild(wrap);
+            document.getElementById('chatMessages').scrollTop = 999999;
+            return;
+        }
         const type = options.type;
         const items = options.items || [];
         const isDoctor = type === 'doctors';
@@ -861,9 +895,9 @@
                 const initials = item.name.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
                 row.innerHTML = `<div class="chat-dd-avatar">${initials}</div><div class="chat-dd-info"><div class="chat-dd-name">Dr. ${item.name}</div><div class="chat-dd-sub">${item.specialty} &bull; ${item.availability}</div></div>`;
             } else if (isTime) {
-                const icon = item.booked ? '&#x1F6AB;' : (item.hour < 12 ? '&#x2600;&#xFE0F;' : '&#x1F319;');
-                const bg = item.booked ? 'linear-gradient(135deg,#666,#888)' : (item.hour < 12 ? 'linear-gradient(135deg,#f59e0b,#f97316)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)');
-                const subText = item.booked ? 'Booked' : (item.hour < 12 ? 'Morning' : 'Afternoon');
+                const icon = item.booked ? '&#x23F3;' : (item.hour < 12 ? '&#x2600;&#xFE0F;' : '&#x1F319;');
+                const bg = item.booked ? 'linear-gradient(135deg,#c9a84c,#d4af37)' : (item.hour < 12 ? 'linear-gradient(135deg,#f59e0b,#f97316)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)');
+                const subText = item.booked ? 'Booked \u2014 Tap to join waitlist' : (item.hour < 12 ? 'Morning' : 'Afternoon');
                 row.innerHTML = `<div class="chat-dd-avatar" style="font-size:0.9rem;background:${bg}">${icon}</div><div class="chat-dd-info"><div class="chat-dd-name">${item.name}</div><div class="chat-dd-sub">${subText}</div></div>`;
                 if (item.booked) row.classList.add('booked');
             } else if (isDate) {

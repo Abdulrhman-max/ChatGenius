@@ -15,3 +15,7 @@ cryptography
 google-generativeai
 httpx
 PyPDF2
+langdetect
+APScheduler
+SQLAlchemy
+Pillow

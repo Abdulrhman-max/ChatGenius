@@ -27,6 +27,26 @@ import grok_cleaner
 import sklearn_classifier
 import smart_router
 import restriction_filter
+import background_tasks
+
+# ── New engine modules ──
+import translations as tr
+import emergency_handler
+import handoff_engine
+import doctor_comparison
+import recall_engine
+import treatment_followup_engine
+import missed_call_engine
+import gallery_engine
+import promotions_engine as promo
+import loyalty_engine as loyalty
+import ab_testing
+import two_factor_auth as tfa
+import referral_engine
+import patient_profile_engine as patient_profile
+import realtime_engine as realtime
+import benchmarking_engine as benchmarks
+import gmb_engine as gmb
 
 app = Flask(__name__, static_folder="static")
 
@@ -646,6 +666,21 @@ def _generate_upcoming_dates(num_days=7):
     return dates
 
 
+def _get_off_dates_with_blocks(doctor_id, admin_id=None):
+    """Return combined off_dates (doctor off days + schedule block dates) for calendar greying.
+    Covers current month and next 3 months."""
+    off_dates = list(db.get_doctor_off_dates(doctor_id)) if doctor_id else []
+    if admin_id and doctor_id:
+        from datetime import datetime as _dt_h
+        now = _dt_h.now()
+        for month_offset in range(4):
+            y = now.year + (now.month + month_offset - 1) // 12
+            m = (now.month + month_offset - 1) % 12 + 1
+            blocked = db.get_blocked_dates_for_calendar(admin_id, doctor_id, y, m)
+            off_dates.extend(blocked)
+    return list(set(off_dates))
+
+
 def _generate_doctor_slots(doctor, breaks=None, selected_date=None):
     """Generate appointment time slots from a doctor's schedule.
     Supports both fixed (same hours daily) and flexible (per-day hours) schedules.
@@ -713,6 +748,43 @@ def _generate_doctor_slots(doctor, breaks=None, selected_date=None):
             if bs is not None and be is not None:
                 break_ranges.append((bs, be))
 
+    # ── Feature 11: Load schedule blocks for this doctor/date (rebuilt) ──
+    block_ranges = []
+    if selected_date:
+        try:
+            admin_id = doctor.get("admin_id", 0)
+            doctor_id = doctor.get("id")
+            # Check full-day block first (no time_str = checks full-day blocks only)
+            if db.is_slot_blocked(admin_id, doctor_id, selected_date, None):
+                return []  # Entire day is blocked (holiday / full-day block)
+            # Load all blocks to extract time ranges for partial-day blocks
+            blocks = db.get_schedule_blocks(admin_id, doctor_id=doctor_id)
+            from datetime import datetime as _dt2
+            date_obj = _dt2.strptime(selected_date, "%Y-%m-%d")
+            for blk in blocks:
+                btype = blk.get("block_type", "single_date")
+                blk_start_time = blk.get("start_time", "")
+                blk_end_time = blk.get("end_time", "")
+                if not blk_start_time or not blk_end_time:
+                    continue  # Full-day blocks already handled above
+                # Check if this block's date pattern matches selected_date
+                matches = False
+                if btype == "single_date":
+                    matches = (blk.get("start_date") == selected_date)
+                elif btype == "date_range":
+                    sd = blk.get("start_date", "")
+                    ed = blk.get("end_date", sd)
+                    matches = (sd <= selected_date <= ed)
+                elif btype == "recurring":
+                    matches = db._date_matches_recurring(date_obj, blk)
+                if matches:
+                    bs = parse_12h(blk_start_time)
+                    be = parse_12h(blk_end_time)
+                    if bs is not None and be is not None:
+                        block_ranges.append((bs, be))
+        except Exception:
+            pass
+
     slots = []
     current = start_min
     while current + length <= end_min:
@@ -729,6 +801,15 @@ def _generate_doctor_slots(doctor, breaks=None, selected_date=None):
                 break
         if overlaps_break:
             continue
+        # Check if this slot overlaps any schedule block (Feature 11)
+        overlaps_block = False
+        for bs, be in block_ranges:
+            if current < be and slot_end > bs:
+                overlaps_block = True
+                current = be
+                break
+        if overlaps_block:
+            continue
         start_str = mins_to_12h(current)
         end_str = mins_to_12h(slot_end)
         time_str = f"{start_str} - {end_str}"
@@ -740,12 +821,23 @@ def _generate_doctor_slots(doctor, breaks=None, selected_date=None):
 
 def _extract_time(text, available_slots=None):
     """Extract a time from natural text, with fuzzy matching against available slots."""
-    lower = text.lower().strip()
+    # Normalize whitespace and dashes
+    lower = re.sub(r'\s+', ' ', text.strip()).lower()
+    lower = lower.replace('–', '-').replace('—', '-')
 
     # Exact match against available slots (e.g. from dropdown selection like "09:00 AM - 10:00 AM")
     if available_slots:
         for s in available_slots:
-            if s["time"].lower() == lower:
+            slot_lower = re.sub(r'\s+', ' ', s["time"]).lower().replace('–', '-').replace('—', '-')
+            if slot_lower == lower:
+                return s["time"]
+        # Partial match: user sends "11:00 AM" and slot is "11:00 AM - 11:30 AM"
+        for s in available_slots:
+            if " - " in s["time"]:
+                start_part = s["time"].split(" - ")[0].strip().lower()
+                if start_part == lower:
+                    return s["time"]
+            if lower in s["time"].lower():
                 return s["time"]
 
     # Handle ordinal references: "the first one", "the second", "3rd slot"
@@ -941,7 +1033,7 @@ def _init_fast_booking(session, extracted, doctors, admin_id):
         result, error = cal.get_available_slots(extracted["date_raw"])
         if not error:
             date_iso = result["date"].isoformat()
-            off_dates = db.get_doctor_off_dates(extracted["doctor"]["id"])
+            off_dates = _get_off_dates_with_blocks(extracted["doctor"]["id"], admin_id)
             if date_iso not in off_dates:
                 data["date_str"] = extracted["date_raw"]
                 data["date_display"] = result["date_display"]
@@ -1020,8 +1112,8 @@ def _init_fast_booking(session, extracted, doctors, admin_id):
 
     if not date_validated:
         session["step"] = "get_date"
-        off_dates = db.get_doctor_off_dates(data["doctor_id"])
-        ui = {"type": "calendar", "doctor_id": data["doctor_id"], "off_dates": list(off_dates)}
+        off_dates = _get_off_dates_with_blocks(data["doctor_id"], admin_id)
+        ui = {"type": "calendar", "doctor_id": data["doctor_id"], "off_dates": off_dates}
         conf_text = f"Got it! Booking with {confirmations[0]}. When would you like to come in?"
         return conf_text, ui
 
@@ -1039,6 +1131,8 @@ def _init_fast_booking(session, extracted, doctors, admin_id):
 
         available_slots = [s for s in slots if not _is_booked_slot(s["time"], booked_times)]
         data["available_slots"] = available_slots
+        data["all_slots"] = slots
+        data["booked_slot_names"] = [s["time"] for s in slots if _is_booked_slot(s["time"], booked_times)]
 
         # Try to match the pending time against available slots
         matched_time = _match_time_to_slot(data["_pending_time"], available_slots)
@@ -1072,6 +1166,8 @@ def _init_fast_booking(session, extracted, doctors, admin_id):
         booked_times = db.get_booked_times(data["doctor_id"], data["date_iso"])
         available_slots = [s for s in slots if not _is_booked_slot(s["time"], booked_times)]
         data["available_slots"] = available_slots
+        data["all_slots"] = slots
+        data["booked_slot_names"] = [s["time"] for s in slots if _is_booked_slot(s["time"], booked_times)]
 
         session["step"] = "get_time"
         dropdown_items = []
@@ -1177,8 +1273,8 @@ def handle_booking(session, user_message, corrected_message=None):
             if step in ("get_time",):
                 session["step"] = "get_date"
                 doctor_id = data.get("doctor_id")
-                off_dates = db.get_doctor_off_dates(doctor_id) if doctor_id else []
-                session["_ui_options"] = {"type": "calendar", "doctor_id": doctor_id, "off_dates": list(off_dates)}
+                off_dates = _get_off_dates_with_blocks(doctor_id, data.get("_admin_id", 0))
+                session["_ui_options"] = {"type": "calendar", "doctor_id": doctor_id, "off_dates": off_dates}
                 return "No problem! Pick a different date:"
 
     # Step 1: Ask for name
@@ -1255,8 +1351,18 @@ def handle_booking(session, user_message, corrected_message=None):
                             break
 
         if not chosen_cat:
-            # No match — return None so process_message routes to AI
-            return None
+            # Maybe user typed a doctor name instead of a category — try matching
+            for d in all_doctors:
+                if d["name"].lower() in lower or lower in d["name"].lower():
+                    data["doctor_name"] = d["name"]
+                    data["doctor_id"] = d["id"]
+                    session["step"] = "get_date"
+                    off_dates = _get_off_dates_with_blocks(d["id"], data.get("_admin_id", 0))
+                    session["_ui_options"] = {"type": "calendar", "doctor_id": d["id"], "off_dates": off_dates}
+                    return f"Great choice! You'll be seeing **Dr. {d['name']}**.\n\nWhen would you like to come in?"
+            # No match at all — re-show categories
+            session["_ui_options"] = {"type": "categories", "items": [{"name": c} for c in categories]}
+            return "I didn't recognize that specialty. Please pick one from the list:"
 
         # Filter doctors by chosen category (support comma-separated multi-specialty)
         doctors = [d for d in all_doctors if chosen_cat in [s.strip() for s in (d.get("specialty") or "").split(",")]]
@@ -1275,37 +1381,48 @@ def handle_booking(session, user_message, corrected_message=None):
     if step == "get_doctor":
         doctors = data.get("_doctors", [])
         chosen = None
+        raw_lower = user_message.lower().strip()
+
+        # Try exact match against raw input first (dropdown sends exact name)
+        for d in doctors:
+            if d["name"].lower() == raw_lower or d["name"].lower() == lower:
+                chosen = d
+                break
 
         # Try number selection
-        num_match = re.search(r'(\d+)', lower)
-        if num_match:
-            idx = int(num_match.group(1)) - 1
-            if 0 <= idx < len(doctors):
-                chosen = doctors[idx]
+        if not chosen:
+            num_match = re.search(r'(\d+)', lower)
+            if num_match:
+                idx = int(num_match.group(1)) - 1
+                if 0 <= idx < len(doctors):
+                    chosen = doctors[idx]
 
-        # Try name matching
+        # Try name matching against both raw and corrected
         if not chosen:
             for d in doctors:
-                if d["name"].lower() in lower or lower in d["name"].lower():
+                dname = d["name"].lower()
+                if dname in raw_lower or raw_lower in dname or dname in lower or lower in dname:
                     chosen = d
                     break
             # Fuzzy: check if any word matches
             if not chosen:
                 for d in doctors:
-                    for word in lower.split():
+                    for word in raw_lower.split() + lower.split():
                         if len(word) >= 3 and word in d["name"].lower():
                             chosen = d
                             break
 
         if not chosen:
-            # No match — return None so process_message routes to AI
-            return None
+            # Re-show the doctors dropdown instead of returning None
+            doctor_items = [{"label": f"Dr. {d['name']}", "sublabel": d.get("specialty", "")} for d in doctors]
+            session["_ui_options"] = {"type": "doctors", "items": doctor_items}
+            return "I didn't recognize that doctor. Please pick one from the list:"
 
         data["doctor_name"] = chosen["name"]
         data["doctor_id"] = chosen["id"]
         session["step"] = "get_date"
-        off_dates = db.get_doctor_off_dates(chosen["id"])
-        session["_ui_options"] = {"type": "calendar", "doctor_id": chosen["id"], "off_dates": list(off_dates)}
+        off_dates = _get_off_dates_with_blocks(chosen["id"], data.get("_admin_id", 0))
+        session["_ui_options"] = {"type": "calendar", "doctor_id": chosen["id"], "off_dates": off_dates}
         return f"Great choice! You'll be seeing **Dr. {chosen['name']}**.\n\nWhen would you like to come in?"
 
     # Step 3: Got date, show time slot dropdown
@@ -1316,14 +1433,14 @@ def handle_booking(session, user_message, corrected_message=None):
             date_like = bool(re.search(
                 r'(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|'
                 r'next\s+week|january|february|march|april|may|june|july|august|september|'
-                r'october|november|december|\d{1,2}[/\-]\d{1,2}|\d{1,2}(?:st|nd|rd|th))',
+                r'october|november|december|\d{1,2}[/\-]\d{1,2}|\d{4}-\d{2}-\d{2}|\d{1,2}(?:st|nd|rd|th))',
                 lower
             ))
             if date_like:
                 doctor_id = data.get("doctor_id")
-                off_dates = db.get_doctor_off_dates(doctor_id) if doctor_id else []
-                session["_ui_options"] = {"type": "calendar", "doctor_id": doctor_id, "off_dates": list(off_dates)}
-                return f"I had trouble understanding that date. Please pick a day:"
+                off_dates = _get_off_dates_with_blocks(doctor_id, data.get("_admin_id", 0))
+                session["_ui_options"] = {"type": "calendar", "doctor_id": doctor_id, "off_dates": off_dates}
+                return error + "\n\nPlease pick another day:"
             # Not a date — return None to route to AI
             return None
 
@@ -1331,17 +1448,18 @@ def handle_booking(session, user_message, corrected_message=None):
         data["date_display"] = result["date_display"]
         data["date_iso"] = result["date"].isoformat()
 
-        # Check if this date is a doctor's off day
+        # Check if this date is a doctor's off day or blocked by schedule
         doctor_id = data.get("doctor_id")
+        admin_id = data.get("_admin_id", 0)
         if doctor_id:
-            off_dates = db.get_doctor_off_dates(doctor_id)
+            off_dates = _get_off_dates_with_blocks(doctor_id, admin_id)
             if data["date_iso"] in off_dates:
                 doctor = db.get_doctor_by_id(doctor_id)
                 doc_name = doctor["name"] if doctor else "The doctor"
                 session["_ui_options"] = {
                     "type": "calendar",
                     "doctor_id": doctor_id,
-                    "off_dates": list(off_dates),
+                    "off_dates": off_dates,
                 }
                 return f"Sorry, Dr. **{doc_name}** is not available on **{data['date_display']}**. Please pick another date:"
 
@@ -1370,6 +1488,8 @@ def handle_booking(session, user_message, corrected_message=None):
                 available_slots.append(s)
 
         data["available_slots"] = available_slots
+        data["booked_slot_names"] = booked_slot_names
+        data["all_slots"] = slots
 
         # Build dropdown — available slots are selectable, booked ones shown as read-only
         dropdown_items = []
@@ -1383,16 +1503,136 @@ def handle_booking(session, user_message, corrected_message=None):
         session["step"] = "get_time"
         return f"Here are the available times on **{data['date_display']}** for **Dr. {data.get('doctor_name', '')}**:"
 
-    # Step 4: Got time, ask for email
+    # Step 4: Got time, ask for email — or offer waitlist if slot is booked
     if step == "get_time":
-        time_str = _extract_time(user_message, data.get("available_slots", []))
-        if not time_str:
-            # No time match — return None so process_message routes to AI
-            return None
+        all_slots = data.get("all_slots", [])
+        available_slots = data.get("available_slots", [])
+        booked_names = data.get("booked_slot_names", [])
 
-        data["chosen_time"] = time_str
-        session["step"] = "get_email"
-        return f"**{time_str}** on **{data['date_display']}** — great choice!\n\nWhat's your email address? (We'll send you a confirmation)"
+        # First try exact match against all slots (dropdown sends exact slot name)
+        time_str_all = _extract_time(user_message, all_slots)
+
+        if time_str_all:
+            # Check if this slot is booked -> offer waitlist
+            if time_str_all in booked_names:
+                data["waitlist_time"] = time_str_all
+                session["step"] = "waitlist_offer"
+                return (f"Unfortunately **{time_str_all}** on **{data['date_display']}** is fully booked.\n\n"
+                        f"Would you like to **join the waitlist**? We'll notify you instantly if a spot opens up — "
+                        f"you'll get priority before it becomes available to anyone else.\n\n"
+                        f"**Yes** — add me to the waitlist\n**No** — show me other times")
+            # It's an available slot
+            avail_names = [s["time"] for s in available_slots]
+            if time_str_all in avail_names:
+                data["chosen_time"] = time_str_all
+                session["step"] = "get_email"
+                return f"**{time_str_all}** on **{data['date_display']}** — great choice!\n\nWhat's your email address? (We'll send you a confirmation)"
+
+        # Fallback: try matching against available slots only
+        time_str = _extract_time(user_message, available_slots)
+        if time_str:
+            # Safety check: make sure regex didn't match a booked slot's start time
+            for bname in booked_names:
+                if time_str.lower() in bname.lower() or bname.lower().startswith(time_str.lower()):
+                    data["waitlist_time"] = bname
+                    session["step"] = "waitlist_offer"
+                    return (f"Unfortunately **{bname}** on **{data['date_display']}** is fully booked.\n\n"
+                            f"Would you like to **join the waitlist**? We'll notify you instantly if a spot opens up — "
+                            f"you'll get priority before it becomes available to anyone else.\n\n"
+                            f"**Yes** — add me to the waitlist\n**No** — show me other times")
+            data["chosen_time"] = time_str
+            session["step"] = "get_email"
+            return f"**{time_str}** on **{data['date_display']}** — great choice!\n\nWhat's your email address? (We'll send you a confirmation)"
+
+        # No time match at all
+        return None
+
+    # Step 4b: Waitlist offer response
+    if step == "waitlist_offer":
+        if lower in ("yes", "yeah", "yep", "yea", "sure", "ok", "okay", "y", "yes please", "add me", "waitlist"):
+            session["step"] = "waitlist_get_name"
+            return "I'll add you to the waitlist! First, what's your **full name**?"
+        elif lower in ("no", "nah", "nope", "n", "no thanks", "other times", "show me"):
+            session["step"] = "get_time"
+            avail = data.get("available_slots", [])
+            if avail:
+                times_list = ", ".join([s["time"] for s in avail[:6]])
+                return f"No problem! Here are the available times: {times_list}\n\nPick one that works for you."
+            return "Unfortunately there are no other slots available on this date. Would you like to try a different day?"
+        return "Please say **yes** to join the waitlist or **no** to see other available times."
+
+    # Step 4c: Waitlist — get name
+    if step == "waitlist_get_name":
+        data["waitlist_name"] = user_message.strip().title()
+        session["step"] = "waitlist_get_email"
+        return f"Thanks, {data['waitlist_name']}! What's your **email address**? (We'll send you a notification when a spot opens)"
+
+    # Step 4d: Waitlist — get email
+    if step == "waitlist_get_email":
+        extracted_email = _extract_email(user_message)
+        if extracted_email:
+            data["waitlist_email"] = extracted_email
+            session["step"] = "waitlist_get_phone"
+            return "Got it! And your **phone number**?"
+        if any(w in lower for w in ["skip", "no email", "none", "na"]):
+            data["waitlist_email"] = ""
+            session["step"] = "waitlist_get_phone"
+            return "No worries! What's your **phone number** then?"
+        return "I couldn't find a valid email. Could you type it out? Example: john@example.com\n\nOr say **skip**."
+
+    # Step 4e: Waitlist — get phone and add to waitlist
+    if step == "waitlist_get_phone":
+        extracted_phone = _extract_phone(user_message)
+        if not extracted_phone:
+            return "I couldn't find a valid phone number. Could you try again? Example: (555) 123-4567"
+
+        # Add to waitlist
+        try:
+            wid = db.add_to_waitlist(
+                admin_id=data.get("_admin_id", 0),
+                doctor_id=data.get("doctor_id", 0),
+                date=data.get("date_iso", data.get("date_str", "")),
+                time_slot=data["waitlist_time"],
+                patient_name=data["waitlist_name"],
+                patient_email=data.get("waitlist_email", ""),
+                patient_phone=extracted_phone,
+                session_id=data.get("_session_id", "")
+            )
+            # Get their position
+            position = 1
+            try:
+                wl = db.get_waitlist(data.get("_admin_id", 0), doctor_id=data.get("doctor_id", 0),
+                                     date=data.get("date_iso", ""), time_slot=data["waitlist_time"])
+                for i, entry in enumerate(wl):
+                    if entry.get("id") == wid:
+                        position = i + 1
+                        break
+            except Exception:
+                pass
+
+            doctor_name = data.get("doctor_name", "")
+            doctor_info = f" with **Dr. {doctor_name}**" if doctor_name else ""
+
+            session["flow"] = None
+            session["step"] = None
+            session["data"] = {}
+
+            pos_label = {1: "1st", 2: "2nd", 3: "3rd"}.get(position, f"{position}th")
+            return (
+                f"You're on the waitlist! Here's your spot:\n\n"
+                f"**Position:** {pos_label} in line\n"
+                f"**Slot:** {data['waitlist_time']} on {data['date_display']}{doctor_info}\n"
+                f"**Name:** {data['waitlist_name']}\n\n"
+                f"If a spot opens up, you'll be notified immediately"
+                f"{' at **' + data.get('waitlist_email', '') + '**' if data.get('waitlist_email') else ''}"
+                f" and given a time window to confirm before it goes to the next person.\n\n"
+                f"Is there anything else I can help you with?"
+            )
+        except Exception as e:
+            session["flow"] = None
+            session["step"] = None
+            session["data"] = {}
+            return "Sorry, something went wrong adding you to the waitlist. Please try again later."
 
     # Step 5: Got email, ask for phone
     if step == "get_email":
@@ -1407,6 +1647,52 @@ def handle_booking(session, user_message, corrected_message=None):
             return "No worries! What's your phone number instead?"
         return "I couldn't find a valid email in that. Could you type it out? Example: john@example.com\n\nOr say **skip** if you'd rather not provide one."
 
+    # Step 6a: Discount code step (Feature 12)
+    if step == "ask_discount":
+        code = user_message.strip()
+        if code.lower() in ('no', 'skip', 'none', 'لا', 'n/a', 'na'):
+            # Check if loyalty should be offered
+            patient_id = data.get("_patient_id") or session.get("patient_id")
+            if patient_id:
+                try:
+                    balance = loyalty.get_balance_value(patient_id, data.get("_admin_id", 1))
+                    if balance and balance.get("points", 0) > 0:
+                        data["_loyalty_balance"] = balance
+                        session["step"] = "ask_loyalty"
+                        lang = session.get("language", "en")
+                        return f"You have **{balance['points']}** loyalty points (worth **${balance.get('sar_value', 0):.2f}**). Would you like to use them for a discount? (yes/no)"
+                except Exception:
+                    pass
+            session["step"] = "finalize_booking"
+            return handle_booking(session, user_message, corrected_message)
+        else:
+            try:
+                result = promo.validate_discount_code(data.get("_admin_id", 1), code)
+                if result.get("valid"):
+                    data["discount_code_id"] = result.get("code_id")
+                    data["discount_info"] = result
+                    session["step"] = "finalize_booking"
+                    return f"Discount code **{code}** applied! {result.get('description', '')}\n\nProceeding to finalize your booking..."
+                else:
+                    return result.get("error", "Invalid discount code. Please try again or say **skip**.")
+            except Exception:
+                session["step"] = "finalize_booking"
+                return handle_booking(session, user_message, corrected_message)
+
+    # Step 6b: Loyalty redemption step (Feature 18)
+    if step == "ask_loyalty":
+        if lower in ("yes", "yeah", "yep", "yea", "sure", "ok", "okay", "y"):
+            patient_id = data.get("_patient_id") or session.get("patient_id")
+            balance = data.get("_loyalty_balance", {})
+            if patient_id and balance.get("points", 0) > 0:
+                try:
+                    data["loyalty_points_used"] = balance["points"]
+                    data["loyalty_discount"] = balance.get("sar_value", 0)
+                except Exception:
+                    pass
+        session["step"] = "finalize_booking"
+        return handle_booking(session, user_message, corrected_message)
+
     # Step 6: Got phone, finalize booking
     if step == "get_phone":
         extracted_phone = _extract_phone(user_message)
@@ -1414,6 +1700,16 @@ def handle_booking(session, user_message, corrected_message=None):
             return "I couldn't find a valid phone number. Could you try again? Example: (555) 123-4567 or 5551234567"
 
         data["phone"] = extracted_phone
+
+        # Offer discount code before finalizing (Feature 12)
+        try:
+            promos_available = promo.has_active_promotions(data.get("_admin_id", 1))
+            if promos_available:
+                session["step"] = "ask_discount"
+                return "Do you have a **discount code**? Enter it now, or say **skip** if you don't have one."
+        except Exception:
+            pass
+
         time_str = data.get("chosen_time", "")
 
         booking_result, error = cal.book_appointment(
@@ -1443,16 +1739,89 @@ def handle_booking(session, user_message, corrected_message=None):
             except Exception:
                 pass
 
+        # ── Feature 15: Create/update patient profile ──
+        try:
+            patient = db.get_or_create_patient(
+                data.get("_admin_id", 0),
+                name=data["name"], email=data.get("email", ""), phone=data["phone"])
+            if patient:
+                # Link booking to patient
+                conn = db.get_db()
+                last_booking = conn.execute("SELECT id FROM bookings WHERE customer_name=? AND date=? ORDER BY id DESC LIMIT 1",
+                    (data["name"], booking_result["date"])).fetchone()
+                if last_booking:
+                    conn.execute("UPDATE bookings SET patient_id=? WHERE id=?", (patient["id"], last_booking["id"]))
+                    conn.commit()
+                    # ── Feature 2: Create pre-visit form ──
+                    form_token = db.create_previsit_form(last_booking["id"], data.get("_admin_id", 0), patient_name=data["name"])
+                conn.close()
+        except Exception:
+            form_token = None
+
+        # ── Feature 17: A/B test — track booking conversion (engine + legacy) ──
+        try:
+            ab_testing.record_conversion(admin_id, 'opening_message', session_id)
+        except Exception:
+            pass
+        if session.get("_ab_test_id"):
+            try:
+                db.increment_ab_test(session["_ab_test_id"], session.get("_ab_variant", "a"), booked=True)
+            except Exception:
+                pass
+
+        # ── Feature 16: Emit real-time new booking event ──
+        try:
+            booking_data_rt = {
+                "customer_name": data["name"],
+                "doctor_name": data.get("doctor_name", ""),
+                "date": booking_result["date"],
+                "time": booking_result["time"],
+            }
+            realtime.emit_new_booking(admin_id, booking_data_rt)
+        except Exception:
+            pass
+
+        # Get booking ID for email links
+        booking_id = None
+        try:
+            conn = db.get_db()
+            bid_row = conn.execute("SELECT id FROM bookings WHERE customer_name=? AND date=? ORDER BY id DESC LIMIT 1",
+                (data["name"], booking_result["date"])).fetchone()
+            if bid_row:
+                booking_id = bid_row["id"]
+            conn.close()
+        except Exception:
+            pass
+
         # Send confirmation emails
         if data.get("email"):
+            try:
+                base_url = request.host_url.rstrip("/")
+                confirm_url = f"{base_url}/booking-confirmed/{booking_id}" if booking_id else ""
+            except Exception:
+                confirm_url = ""
             email.send_booking_confirmation_customer(
                 data["name"], data["email"],
-                booking_result["date_display"], booking_result["time"]
+                booking_result["date_display"], booking_result["time"],
+                doctor_name=data.get("doctor_name", ""),
+                confirm_url=confirm_url
             )
-        email.send_booking_notification_owner(
-            data["name"], data.get("email", ""), data["phone"],
-            booking_result["date_display"], booking_result["time"]
-        )
+            # Send pre-visit form email
+            if form_token:
+                try:
+                    form_url = f"{base_url}/form/{form_token}"
+                    email.send_previsit_form(
+                        data["email"], data["name"], form_url,
+                        booking_result["date_display"], booking_result["time"],
+                        doctor_name=data.get("doctor_name", "")
+                    )
+                except Exception:
+                    pass
+        # Owner notification disabled — only send to the customer's email
+        # email.send_booking_notification_owner(
+        #     data["name"], data.get("email", ""), data["phone"],
+        #     booking_result["date_display"], booking_result["time"]
+        # )
 
         # Reset session
         session["flow"] = None
@@ -1471,6 +1840,12 @@ def handle_booking(session, user_message, corrected_message=None):
         )
         if data.get("email"):
             confirmation += f"\nA confirmation email has been sent to **{data['email']}**."
+        # ── Feature 2: Include pre-visit form link ──
+        try:
+            if form_token:
+                confirmation += f"\n\n📋 **Please complete your pre-visit form:** [Click here](/form/{form_token})"
+        except Exception:
+            pass
         confirmation += "\n\nIs there anything else I can help you with?"
         return confirmation
 
@@ -1578,8 +1953,22 @@ def handle_cancel_appointment(session, user_message, admin_id):
             booking = data.get("_booking_to_cancel")
             if booking:
                 db.cancel_booking(booking["id"])
+                # Trigger waitlist cascade — notify next waiting patient
+                if booking.get("doctor_id") and booking.get("date") and booking.get("time"):
+                    try:
+                        import background_tasks
+                        background_tasks.trigger_waitlist_processing(
+                            booking.get("admin_id", 0), booking["doctor_id"],
+                            booking["date"], booking["time"])
+                    except Exception:
+                        pass
                 doctor_info = f" with Dr. {booking['doctor_name']}" if booking.get("doctor_name") else ""
                 date_display = data.get("_cancel_date_display", booking["date"])
+                # ── Feature 16: Emit real-time cancellation event ──
+                try:
+                    realtime.emit_booking_cancelled(admin_id, booking["id"], booking["customer_name"])
+                except Exception:
+                    pass
                 session["flow"] = None
                 session["step"] = None
                 session["data"] = {}
@@ -1629,10 +2018,10 @@ def handle_lead_capture(session, user_message):
             # Save to database
             db.save_lead(name=data["name"], phone=data["phone"])
 
-            # Notify business owner
-            email.send_booking_notification_owner(
-                data["name"], "", data["phone"], "N/A", "N/A"
-            )
+            # Owner notification disabled — only send to the customer's email
+            # email.send_booking_notification_owner(
+            #     data["name"], "", data["phone"], "N/A", "N/A"
+            # )
 
             # Reset session
             session["flow"] = None
@@ -1695,6 +2084,237 @@ def _ask_ai_during_booking(user_message, session, admin_id=1):
 
 def process_message(session_id, user_message, admin_id=1):
     session = get_session(session_id)
+    session["admin_id"] = admin_id
+    session["last_message_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # ── Feature 6: Detect language on first message (engine) ──
+    if not session.get("language_detected"):
+        try:
+            lang = tr.detect_language(user_message)
+            session["language"] = lang
+            session["language_detected"] = True
+            if lang not in tr.SUPPORTED_LANGUAGES:
+                session["language"] = "en"
+        except Exception:
+            session["language"] = detect_language(user_message)
+            session["language_detected"] = True
+
+    # ── Feature 16: Emit chat activity in real-time ──
+    try:
+        name = session.get("_greeting_name", session.get("data", {}).get("name", "Visitor"))
+        realtime.emit_chat_activity(admin_id, session_id, name, user_message[:100])
+    except Exception:
+        pass
+
+    # ── Feature 15: Recognize returning patient (engine) ──
+    if not session.get("_patient_recognized"):
+        session["_patient_recognized"] = True
+        phone_match = re.search(r'[\+]?[\d\s\-\(\)]{7,15}', user_message)
+        email_match = re.search(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', user_message)
+        if phone_match or email_match:
+            try:
+                existing_patient = patient_profile.recognize_patient(admin_id,
+                    phone=phone_match.group().strip() if phone_match else "",
+                    email=email_match.group() if email_match else "")
+                if existing_patient:
+                    session["_patient"] = existing_patient
+                    session["_greeting_name"] = existing_patient.get("name", "")
+                    session["patient_id"] = existing_patient.get("id")
+            except Exception:
+                # Fallback to db
+                patient = db.get_or_create_patient(admin_id,
+                    email=email_match.group() if email_match else "",
+                    phone=phone_match.group().strip() if phone_match else "")
+                if patient and patient.get("name"):
+                    session["_patient"] = patient
+                    session["_greeting_name"] = patient["name"]
+
+    # ── Feature 17: A/B test — track conversation start (engine) ──
+    if len(session.get("history", [])) == 0:
+        try:
+            ab_message = ab_testing.get_active_message(admin_id, 'opening_message', session_id)
+            if ab_message:
+                session["_ab_opening_message"] = ab_message
+        except Exception:
+            pass
+        # Legacy fallback
+        ab_test = db.get_active_ab_test(admin_id, "opening_message")
+        if ab_test:
+            import random
+            variant = "a" if random.random() < 0.5 else "b"
+            session["_ab_variant"] = variant
+            session["_ab_test_id"] = ab_test["id"]
+            db.increment_ab_test(ab_test["id"], variant)
+
+    # ── Feature 9: Emergency detection via engine (enhanced) ──
+    msg_lower_raw = user_message.lower()
+    try:
+        is_emerg, matched = emergency_handler.is_emergency(user_message)
+        if is_emerg and session.get("flow") != "booking":
+            lang = session.get("language", "en")
+            result = emergency_handler.handle_emergency(user_message, admin_id, session.get("data", {}), lang)
+            if result:
+                if result.get("ui_options"):
+                    session["_ui_options"] = result["ui_options"]
+                try:
+                    realtime.emit_emergency_alert(admin_id, result.get("alert", {}))
+                except Exception:
+                    pass
+                session["history"].append({"role": "user", "content": user_message})
+                session["history"].append({"role": "assistant", "content": result["response"]})
+                return result["response"]
+    except Exception:
+        pass  # Fall through to legacy emergency handling
+
+    # ── Feature 9 (legacy): Emergency fast-track detection ──
+    is_emergency = any(kw in msg_lower_raw for kw in EMERGENCY_KEYWORDS)
+    if is_emergency and session.get("flow") != "booking":
+        first_aid = get_first_aid(user_message)
+        # Find earliest available slot within 3 hours
+        doctors = db.get_doctors(admin_id)
+        active_docs = [d for d in doctors if d.get("status") == "active" and d.get("is_active", 1)]
+        emergency_slots = []
+        now = datetime.now()
+        for doc in active_docs:
+            breaks = db.get_doctor_breaks(doc["id"])
+            slots = _generate_doctor_slots(doc, breaks, selected_date=now.strftime("%Y-%m-%d"))
+            for s in slots:
+                try:
+                    slot_time = s["time"].split(" - ")[0].strip()
+                    slot_dt = datetime.strptime(f"{now.strftime('%Y-%m-%d')} {slot_time}", "%Y-%m-%d %I:%M %p")
+                    if now <= slot_dt <= now + timedelta(hours=3):
+                        booked = db.get_booked_times(doc["id"], now.strftime("%Y-%m-%d"))
+                        if s["time"] not in booked and slot_time not in booked:
+                            emergency_slots.append({"doctor": doc["name"], "doctor_id": doc["id"], "time": s["time"], "slot_dt": slot_dt})
+                except Exception:
+                    pass
+        emergency_slots.sort(key=lambda x: x["slot_dt"])
+        reply_parts = [f"🚨 **Emergency detected.** Here's immediate first-aid advice:\n\n{first_aid}"]
+        if emergency_slots:
+            slot = emergency_slots[0]
+            reply_parts.append(f"\n\n**Earliest available slot:** {slot['time']} with Dr. {slot['doctor']} (TODAY)")
+            reply_parts.append("\nWould you like me to book this emergency slot right away? Just say **yes**.")
+            session["_emergency_slot"] = slot
+        else:
+            reply_parts.append("\n\nNo immediate slots available. Please call the clinic directly for emergency assistance.")
+        reply_parts.append("\n\n📞 **Call us now** for immediate help.")
+        session["history"].append({"role": "user", "content": user_message})
+        response = "".join(reply_parts)
+        session["history"].append({"role": "assistant", "content": response})
+        return response
+
+    # ── Feature 9: Handle "yes" to emergency booking ──
+    if session.get("_emergency_slot") and msg_lower_raw in ("yes", "yeah", "yes please", "ok", "okay", "book it"):
+        slot = session.pop("_emergency_slot")
+        session["flow"] = "booking"
+        session["step"] = "get_email"
+        session["data"] = {
+            "_admin_id": admin_id, "_session_id": session_id,
+            "doctor_id": slot["doctor_id"], "doctor_name": slot["doctor"],
+            "date_iso": datetime.now().strftime("%Y-%m-%d"),
+            "date_display": "Today", "time": slot["time"],
+            "service": "Emergency Consultation"
+        }
+        session["history"].append({"role": "user", "content": user_message})
+        response = f"🚨 **Emergency slot locked:** {slot['time']} with Dr. {slot['doctor']} today.\n\nPlease provide your **email address** to confirm:"
+        session["history"].append({"role": "assistant", "content": response})
+        return response
+
+    # ── Feature 10: Check if conversation is handed off to human (engine) ──
+    try:
+        handoff = handoff_engine.get_handoff_for_session(session_id)
+        if handoff and handoff["status"] == "assigned":
+            handoff_engine.send_handoff_message(handoff["id"], "patient", session.get("_greeting_name", "Patient"), user_message)
+            session["history"].append({"role": "user", "content": user_message})
+            return None  # Message handled by handoff system
+    except Exception:
+        pass
+    # Fallback: check via db
+    handoff = db.get_handoff_by_session(session_id)
+    if handoff and handoff["status"] in ("queued", "assigned"):
+        session["history"].append({"role": "user", "content": user_message})
+        if handoff["status"] == "queued":
+            return "Your conversation has been transferred to our staff. A team member will be with you shortly. Please hold on."
+        return "Message received. Our staff member is reviewing your message."
+
+    # ── Feature 8: Doctor comparison request (engine) ──
+    if session.get("flow") != "booking":
+        try:
+            if doctor_comparison.should_show_comparison(user_message):
+                result = doctor_comparison.get_chatbot_comparison_response(admin_id, session.get("language", "en"))
+                if result:
+                    if result.get("ui_options"):
+                        session["_ui_options"] = result["ui_options"]
+                    session["history"].append({"role": "user", "content": user_message})
+                    session["history"].append({"role": "assistant", "content": result["response"]})
+                    return result["response"]
+        except Exception:
+            pass
+        # Fallback: legacy inline comparison
+        if re.search(r'\b(compare|comparison|which doctor|help me choose|not sure which)\b', msg_lower_raw):
+            doctors = db.get_doctors(admin_id)
+            active_docs = [d for d in doctors if d.get("status") == "active" and d.get("is_active", 1)]
+            if active_docs:
+                comparison = []
+                for d in active_docs[:6]:
+                    breaks = db.get_doctor_breaks(d["id"])
+                    slots = _generate_doctor_slots(d, breaks)
+                    avail_slots = [s for s in slots if not s.get("booked")]
+                    next_slot = avail_slots[0]["time"] if avail_slots else "No slots today"
+                    comparison.append({
+                        "name": d["name"], "specialty": d.get("specialty", "General"),
+                        "experience": f"{d.get('years_of_experience', 0)} years",
+                        "languages": d.get("languages", ""), "next_available": next_slot
+                    })
+                session["_ui_options"] = {"type": "doctor_comparison", "items": comparison}
+                session["history"].append({"role": "user", "content": user_message})
+                response = "Here's a comparison of our available doctors. Tap any doctor to book with them:"
+                session["history"].append({"role": "assistant", "content": response})
+                return response
+
+    # ── Feature 7: Gallery request for cosmetic treatments (engine) ──
+    try:
+        gallery_result = gallery_engine.get_chatbot_gallery(admin_id, user_message)
+        if gallery_result:
+            session["_ui_options"] = {"type": "gallery_carousel", "images": gallery_result["images"], "treatment": gallery_result["treatment_type"]}
+            lang = session.get("language", "en")
+            session["history"].append({"role": "user", "content": user_message})
+            if lang == 'ar':
+                response = f"إليك بعض النتائج الحقيقية من مرضانا في {gallery_result['treatment_type']}:"
+            else:
+                response = f"Here are some real results from our patients for {gallery_result['treatment_type']}:"
+            session["history"].append({"role": "assistant", "content": response})
+            return response
+    except Exception:
+        pass
+    # Fallback: legacy inline gallery check
+    cosmetic_keywords = {"whitening": "whitening", "veneers": "veneers", "veneer": "veneers",
+        "braces": "braces", "implant": "implants", "implants": "implants",
+        "before and after": None, "before after": None, "results": None, "gallery": None}
+    for kw, treatment in cosmetic_keywords.items():
+        if kw in msg_lower_raw:
+            gallery_treatment = treatment or "general"
+            images = db.get_gallery(admin_id, treatment_type=gallery_treatment)
+            if not images and not treatment:
+                images = db.get_gallery(admin_id)
+            if images:
+                session["_ui_options"] = {"type": "gallery", "items": [{"url": img["image_url"], "caption": img.get("caption", ""), "type": img.get("image_type", "")} for img in images]}
+            break
+
+    # ── Feature 18: Loyalty balance check in chat ──
+    try:
+        loyalty_keywords = ['points', 'loyalty', 'نقاط', 'مكافآت', 'how many points']
+        if any(kw in msg_lower_raw for kw in loyalty_keywords):
+            patient_id = session.get("patient_id") or (session.get("_patient", {}) or {}).get("id")
+            if patient_id:
+                balance = loyalty.get_balance_value(patient_id, admin_id)
+                lang = session.get("language", "en")
+                session["history"].append({"role": "user", "content": user_message})
+                response = tr.t('loyalty_balance', lang, points=balance["points"], value=balance["sar_value"])
+                session["history"].append({"role": "assistant", "content": response})
+                return response
+    except Exception:
+        pass
 
     # Step 0: Grok AI cleaner — runs FIRST on every message
     # Fixes spelling/grammar specifically for dental context (BrightSmile)
@@ -1750,6 +2370,28 @@ def process_message(session_id, user_message, admin_id=1):
             return _reply("No problem! I've cancelled that. How else can I help you? You can ask me about our features, pricing, or book an appointment.")
         return _reply("No worries! Is there anything else I can help you with?")
 
+    # ── Feature 10: Early check for human handoff request (engine) ──
+    human_phrases = ("speak to a human", "talk to someone", "real person", "human agent",
+                     "live chat", "speak to staff", "talk to a person", "speak to someone",
+                     "customer service", "i need help from a person", "talk to a real person")
+    if any(phrase in raw_lower for phrase in human_phrases):
+        try:
+            handoff_engine.create_handoff(admin_id, session_id,
+                patient_name=session.get("_greeting_name", ""),
+                reason="Patient requested human assistance", ai_confidence=0)
+            realtime.emit_handoff_request(admin_id, {"patient_name": session.get("_greeting_name", ""), "reason": "Patient requested human assistance"})
+        except Exception:
+            db.create_handoff(admin_id, session_id, patient_name=session.get("_greeting_name", ""),
+                             reason="Patient requested human assistance", ai_confidence=0)
+        session["history"].append({"role": "user", "content": user_message})
+        lang = session.get("language", "en")
+        try:
+            response = tr.t('handoff_connecting', lang)
+        except Exception:
+            response = "I'm connecting you with a staff member now. A team member will be with you shortly. Please hold on — they'll see your full conversation history."
+        session["history"].append({"role": "assistant", "content": response})
+        return response
+
     # Detect if user wants to cancel an EXISTING appointment (only when NOT in a booking flow)
     wants_cancel_appointment = bool(re.search(
         r"(cancel|delete|remove)\s+(my\s+)?(appointment|booking|reservation)",
@@ -1789,8 +2431,8 @@ def process_message(session_id, user_message, admin_id=1):
                 return _reply("Let's continue! Which doctor would you like to see?")
             elif step == "get_date":
                 doctor_id = data.get("doctor_id")
-                off_dates = db.get_doctor_off_dates(doctor_id) if doctor_id else []
-                session["_ui_options"] = {"type": "calendar", "doctor_id": doctor_id, "off_dates": list(off_dates)}
+                off_dates = _get_off_dates_with_blocks(doctor_id, data.get("_admin_id", 0))
+                session["_ui_options"] = {"type": "calendar", "doctor_id": doctor_id, "off_dates": off_dates}
                 return _reply("Let's continue! When would you like to come in?")
             elif step == "get_time":
                 # Regenerate time slots for the chosen doctor/date
@@ -1805,6 +2447,9 @@ def process_message(session_id, user_message, admin_id=1):
                 booked_times = []
                 if doctor_id and date_iso:
                     booked_times = db.get_booked_times(doctor_id, date_iso)
+                data["available_slots"] = [s for s in slots if not _is_booked_slot(s["time"], booked_times)]
+                data["all_slots"] = slots
+                data["booked_slot_names"] = [s["time"] for s in slots if _is_booked_slot(s["time"], booked_times)]
                 dropdown_items = []
                 for s in slots:
                     item = {"name": s["time"], "hour": s["hour"], "minute": s.get("minute", 0)}
@@ -1838,7 +2483,35 @@ def process_message(session_id, user_message, admin_id=1):
             return _reply(booking_result)
 
         # handle_booking returned None — user typed something that doesn't match
-        # the current dropdown/step. Pause booking and route to AI.
+        # the current dropdown/step.
+        step = session.get("step")
+        data = session.get("data", {})
+
+        # If in get_time step, re-show the time dropdown instead of pausing
+        if step == "get_time":
+            doctor_id = data.get("doctor_id")
+            date_iso = data.get("date_iso")
+            if doctor_id and date_iso:
+                doctor = db.get_doctor_by_id(doctor_id)
+                slots = []
+                if doctor and doctor.get("start_time") and doctor["start_time"] != "00:00 AM":
+                    doctor_breaks = db.get_doctor_breaks(doctor_id)
+                    slots = _generate_doctor_slots(doctor, breaks=doctor_breaks, selected_date=date_iso)
+                booked_times = db.get_booked_times(doctor_id, date_iso)
+                data["available_slots"] = [s for s in slots if not _is_booked_slot(s["time"], booked_times)]
+                data["all_slots"] = slots
+                data["booked_slot_names"] = [s["time"] for s in slots if _is_booked_slot(s["time"], booked_times)]
+                dropdown_items = []
+                for s in slots:
+                    item = {"name": s["time"], "hour": s["hour"], "minute": s.get("minute", 0)}
+                    if _is_booked_slot(s["time"], booked_times):
+                        item["booked"] = True
+                    dropdown_items.append(item)
+                if dropdown_items:
+                    session["_ui_options"] = {"type": "timeslots", "items": dropdown_items}
+                return _reply(f"Please pick a time slot from the list below for **{data.get('date_display', 'your chosen date')}**:")
+
+        # For other steps, pause booking and route to AI
         session["_paused"] = True
         ai_answer = _ask_ai_during_booking(user_message, session, admin_id)
         if ai_answer:
@@ -2011,6 +2684,47 @@ def process_message(session_id, user_message, admin_id=1):
     symptom_specialty = find_symptom_specialty(corrected)
     if symptom_specialty:
         return _reply(_build_symptom_response(symptom_specialty, admin_id))
+
+    # ── Feature 10: Check if user wants human handoff ──
+    human_phrases = ("speak to a human", "talk to someone", "real person", "human agent",
+                     "live chat", "speak to staff", "talk to a person", "speak to someone",
+                     "customer service", "i need help from a person")
+    if any(phrase in msg_lower_raw for phrase in human_phrases):
+        db.create_handoff(admin_id, session_id, patient_name=session.get("_greeting_name", ""),
+                         reason="Patient requested human assistance", ai_confidence=sklearn_conf)
+        return _reply("I'm connecting you with a staff member now. A team member will be with you shortly. Please hold on — they'll see your full conversation history.")
+
+    # ── Feature 10: Auto-handoff on very low confidence (engine) ──
+    try:
+        confidence_score = max(sklearn_conf, classified_conf)
+        should_hand, reason = handoff_engine.should_handoff(user_message, confidence_score, admin_id)
+        if should_hand:
+            patient_name = session.get("_greeting_name", "Patient")
+            handoff_engine.create_handoff(admin_id, session_id, patient_name, reason, ai_confidence=confidence_score)
+            try:
+                realtime.emit_handoff_request(admin_id, {"patient_name": patient_name, "reason": reason})
+            except Exception:
+                pass
+            lang = session.get("language", "en")
+            try:
+                response = tr.t('handoff_connecting', lang)
+            except Exception:
+                response = "I'm connecting you with a staff member now. Please hold on."
+            return _reply(response)
+    except Exception:
+        pass
+    # Fallback: legacy auto-handoff
+    if sklearn_conf < 0.15 and classified_conf < 0.3:
+        try:
+            company = db.get_company_info(admin_id)
+            threshold = 0.3
+            if company and company.get("handoff_threshold"):
+                threshold = float(company["handoff_threshold"])
+            if sklearn_conf < threshold and classified_conf < threshold:
+                db.create_handoff(admin_id, session_id, patient_name=session.get("_greeting_name", ""),
+                                 reason="Low AI confidence", ai_confidence=sklearn_conf)
+        except Exception:
+            pass
 
     return _reply(
         "I'm here to help with your dental needs! I can:\n\n"
@@ -2865,8 +3579,10 @@ def api_delete_off_day(doctor_id, off_day_id):
 
 @app.route("/api/doctors/<int:doctor_id>/off-dates", methods=["GET"])
 def api_get_off_dates(doctor_id):
-    """Public endpoint — returns just the ISO date strings for a doctor."""
-    off_dates = list(db.get_doctor_off_dates(doctor_id))
+    """Public endpoint — returns just the ISO date strings for a doctor (includes schedule blocks)."""
+    doctor = db.get_doctor_by_id(doctor_id)
+    admin_id = doctor.get("admin_id", 0) if doctor else 0
+    off_dates = _get_off_dates_with_blocks(doctor_id, admin_id)
     return jsonify(off_dates)
 
 
@@ -3183,16 +3899,1493 @@ def api_public_doctors():
                      "availability": d["availability"]} for d in doctors if d.get("status") == "active"])
 
 
+# ══════════════════════════════════════════════════════════════════
+#  Feature 1 — Smart Waitlist System
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/waitlist", methods=["POST"])
+def api_add_to_waitlist():
+    """Add a patient to the waitlist for a specific slot."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    data = request.get_json()
+    admin_id = data.get("admin_id", 1)
+    wid = db.add_to_waitlist(
+        admin_id=admin_id,
+        doctor_id=data["doctor_id"],
+        date=data["date"],
+        time_slot=data["time_slot"],
+        patient_name=data.get("patient_name", ""),
+        patient_email=data.get("patient_email", ""),
+        patient_phone=data.get("patient_phone", ""),
+        session_id=data.get("session_id", "")
+    )
+    count = db.get_waitlist_count(admin_id, data["doctor_id"], data["date"], data["time_slot"])
+    return jsonify({
+        "ok": True,
+        "waitlist_id": wid,
+        "position": count,
+        "message": "You've been added to the waitlist. We'll notify you immediately if a spot opens up."
+    })
+
+
+@app.route("/api/waitlist", methods=["GET"])
+def api_get_waitlist():
+    """Get waitlist entries (filtered by doctor/date)."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    doctor_id = request.args.get("doctor_id", type=int)
+    date = request.args.get("date")
+    entries = db.get_waitlist(admin_id, doctor_id=doctor_id, date=date)
+    return jsonify(entries)
+
+
+@app.route("/api/waitlist/dashboard", methods=["GET"])
+def api_waitlist_dashboard():
+    """Get all waitlist data for admin dashboard with countdown timers."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    entries = db.get_waitlist_for_admin(admin_id)
+    return jsonify(entries)
+
+
+@app.route("/api/waitlist/<int:wid>/confirm", methods=["POST", "GET"])
+def api_confirm_waitlist(wid):
+    """Confirm a waitlist spot -- creates the actual booking.
+    Supports both POST (API) and GET (email link click)."""
+    entry = db.get_waitlist_entry(wid)
+    if not entry:
+        return jsonify({"error": "Waitlist entry not found"}), 404
+
+    if entry["status"] == "confirmed":
+        return jsonify({"ok": True, "message": "This slot has already been confirmed."})
+
+    if entry["status"] != "notified":
+        return jsonify({"error": "This slot is no longer available for confirmation. It may have expired."}), 400
+
+    # Check deadline
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if entry["confirm_deadline"] and now > entry["confirm_deadline"]:
+        # Mark as expired and cascade to next patient
+        db.expire_waitlist_patient(wid)
+        background_tasks.trigger_waitlist_processing(
+            entry["admin_id"], entry["doctor_id"], entry["date"], entry["time_slot"])
+        return jsonify({"error": "Sorry, the confirmation deadline has passed. The slot has been offered to the next person."}), 400
+
+    # Mark as confirmed
+    db.confirm_waitlist_patient(wid)
+
+    # Get doctor name for booking
+    doctor = db.get_doctor_by_id(entry["doctor_id"])
+    doctor_name = doctor["name"] if doctor else ""
+
+    # Create the actual booking
+    booking_id = db.add_booking(
+        customer_name=entry["patient_name"],
+        customer_email=entry.get("patient_email", ""),
+        customer_phone=entry.get("patient_phone", ""),
+        date=entry["date"],
+        time=entry["time_slot"],
+        doctor_id=entry["doctor_id"],
+        doctor_name=doctor_name,
+        admin_id=entry["admin_id"]
+    )
+
+    # Send confirmation email
+    if entry.get("patient_email"):
+        try:
+            import email_service as email_svc
+            try:
+                dt = datetime.strptime(entry["date"], "%Y-%m-%d")
+                date_display = dt.strftime("%A, %B %d, %Y")
+            except ValueError:
+                date_display = entry["date"]
+            email_svc.send_booking_confirmation_customer(
+                entry["patient_name"],
+                entry["patient_email"],
+                date_display,
+                entry["time_slot"],
+                doctor_name=doctor_name,
+                confirm_url=""
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger("waitlist").error(f"Waitlist confirm email error: {e}")
+
+    return jsonify({
+        "ok": True,
+        "message": "Slot confirmed! Your appointment has been booked.",
+        "booking_id": booking_id
+    })
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Feature 2 — Digital Patient Forms (Pre-Visit)
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/form/<token>")
+def patient_form_page(token):
+    """Serve the patient-form.html page (form handles all states via JS)."""
+    return send_from_directory("static", "patient-form.html")
+
+@app.route("/api/forms/<token>", methods=["GET"])
+def api_get_form(token):
+    """Return form data: booking details, patient name, and whether already submitted."""
+    form = db.get_form_by_token(token)
+    if not form:
+        return jsonify({"error": "Invalid or expired link"}), 404
+    if form.get("submitted_at"):
+        return jsonify({"already_submitted": True})
+    # Get booking details
+    booking = db.get_booking_by_id(form["booking_id"]) if form.get("booking_id") else None
+    return jsonify({
+        "already_submitted": False,
+        "full_name": form.get("full_name", ""),
+        "date": booking["date"] if booking else "",
+        "time": booking["time"] if booking else "",
+        "doctor_name": booking.get("doctor_name", "") if booking else ""
+    })
+
+@app.route("/api/forms/<token>", methods=["POST"])
+def api_submit_form(token):
+    """Submit the form. Save all data + signature. Sync to patient profile."""
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+
+    success = db.submit_previsit_form(token, data)
+    if not success:
+        return jsonify({"error": "Form already submitted or invalid token"}), 400
+
+    # Sync to patient profile
+    form = db.get_form_by_token(token)
+    if form and form.get("booking_id"):
+        booking = db.get_booking_by_id(form["booking_id"])
+        if booking and booking.get("patient_id"):
+            db.sync_form_to_patient(data, booking["patient_id"])
+
+    # Award loyalty points for form completion
+    if form and form.get("admin_id"):
+        booking = db.get_booking_by_id(form["booking_id"]) if form.get("booking_id") else None
+        if booking:
+            try:
+                patient = db.get_or_create_patient(form["admin_id"],
+                    name=booking.get("customer_name", ""), email=booking.get("customer_email", ""), phone=booking.get("customer_phone", ""))
+                if patient:
+                    config = db.get_loyalty_config(form["admin_id"])
+                    if config and config.get("is_active"):
+                        db.add_loyalty_points(patient["id"], form["admin_id"], config.get("points_per_form", 25), "form_completed", "Pre-visit form completed")
+            except Exception:
+                pass
+
+    return jsonify({"success": True})
+
+@app.route("/api/bookings/<int:booking_id>/form", methods=["GET"])
+def api_get_booking_form(booking_id):
+    """Get form data for dashboard view of a booking."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    form = db.get_form_for_booking(booking_id)
+    if not form:
+        return jsonify({"error": "No form found"}), 404
+    return jsonify(dict(form))
+
+
+# ── Booking Confirmation Page (public, accessed via email link) ──
+
+@app.route("/booking-confirmed/<int:booking_id>")
+def booking_confirmed_page(booking_id):
+    return send_from_directory("static", "booking-confirmed.html")
+
+@app.route("/api/bookings/<int:booking_id>/details", methods=["GET"])
+def api_booking_details_public(booking_id):
+    """Public endpoint for booking confirmation page (limited info)."""
+    conn = db.get_db()
+    booking = conn.execute("SELECT customer_name, date, time, doctor_name, service, status, admin_id FROM bookings WHERE id=?", (booking_id,)).fetchone()
+    if not booking:
+        conn.close()
+        return jsonify({"error": "Booking not found"}), 404
+    booking = dict(booking)
+    # Get business name
+    biz = conn.execute("SELECT business_name FROM company_info WHERE user_id=?", (booking["admin_id"],)).fetchone()
+    conn.close()
+    return jsonify({
+        "customer_name": booking["customer_name"],
+        "date": booking["date"],
+        "time": booking["time"],
+        "doctor_name": booking.get("doctor_name", ""),
+        "service": booking.get("service", ""),
+        "status": booking["status"],
+        "business_name": biz["business_name"] if biz else ""
+    })
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Feature 3 — Recall & Retention Automation
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/recall-rules", methods=["GET"])
+def api_get_recall_rules():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    try:
+        rules = recall_engine.get_recall_rules(admin_id)
+        return jsonify(rules)
+    except Exception:
+        return jsonify(db.get_recall_rules(admin_id))
+
+@app.route("/api/recall-rules", methods=["POST"])
+def api_add_recall_rule():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    admin_id = get_effective_admin_id(user)
+    try:
+        recall_engine.add_recall_rule(admin_id, data["treatment_type"], data.get("recall_days", 180), data.get("message_template", ""))
+    except Exception:
+        db.add_recall_rule(admin_id, data["treatment_type"], data.get("recall_days", 180), data.get("message_template", ""))
+    return jsonify({"ok": True})
+
+@app.route("/api/recall-rules/<int:rule_id>", methods=["PUT"])
+def api_update_recall_rule(rule_id):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    admin_id = get_effective_admin_id(user)
+    db.update_recall_rule(rule_id, admin_id, **data)
+    return jsonify({"ok": True})
+
+@app.route("/api/recall-rules/<int:rule_id>", methods=["DELETE"])
+def api_delete_recall_rule(rule_id):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    db.delete_recall_rule(rule_id, admin_id)
+    return jsonify({"ok": True})
+
+@app.route("/api/recall-campaigns", methods=["GET"])
+def api_get_recall_campaigns():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    return jsonify({"campaigns": db.get_recall_campaigns(admin_id), "stats": db.get_recall_stats(admin_id)})
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Feature 4 — Missed Call Auto-Reply
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/missed-calls/webhook", methods=["POST"])
+def api_missed_call_webhook():
+    """Webhook endpoint for Twilio/phone system to report missed calls."""
+    data = request.get_json() or request.form.to_dict()
+    admin_id = data.get("admin_id", 1)
+    caller = data.get("From") or data.get("caller_number", "")
+    if not caller:
+        return jsonify({"error": "No caller number"}), 400
+    try:
+        result = missed_call_engine.handle_missed_call(admin_id, caller)
+        return jsonify(result)
+    except Exception:
+        # Fallback to legacy
+        call_id = db.log_missed_call(admin_id, caller)
+        db.update_missed_call(call_id, reply_sent=1, reply_method="sms_whatsapp")
+        return jsonify({"ok": True, "call_id": call_id})
+
+@app.route("/api/missed-calls", methods=["GET"])
+def api_get_missed_calls():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    return jsonify(db.get_missed_calls(admin_id))
+
+@app.route("/api/settings/missed-calls", methods=["POST"])
+def api_toggle_missed_calls():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    admin_id = get_effective_admin_id(user)
+    conn = db.get_db()
+    conn.execute("UPDATE company_info SET missed_call_enabled=?, clinic_phone=? WHERE user_id=?",
+                 (1 if data.get("enabled") else 0, data.get("clinic_phone", ""), admin_id))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Feature 5 — Treatment Plan Follow-Up
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/treatment-followups", methods=["POST"])
+def api_create_followup():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    admin_id = get_effective_admin_id(user)
+    try:
+        result = treatment_followup_engine.create_followup(
+            admin_id=admin_id,
+            doctor_id=data.get("doctor_id", 0),
+            patient_name=data["patient_name"],
+            treatment_name=data["treatment_name"],
+            patient_email=data.get("patient_email", ""),
+            patient_phone=data.get("patient_phone", "")
+        )
+        return jsonify(result if result else {"ok": True, "message": "Follow-up sequence created (2, 5, 10 days)."})
+    except Exception:
+        db.create_treatment_followup(
+            admin_id=admin_id,
+            doctor_id=data.get("doctor_id", 0),
+            patient_name=data["patient_name"],
+            treatment_name=data["treatment_name"],
+            patient_email=data.get("patient_email", ""),
+            patient_phone=data.get("patient_phone", "")
+        )
+        return jsonify({"ok": True, "message": "Follow-up sequence created (2, 5, 10 days)."})
+
+@app.route("/api/treatment-followups", methods=["GET"])
+def api_get_followups():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    status = request.args.get("status")
+    return jsonify(db.get_treatment_followups(admin_id, status=status))
+
+@app.route("/api/treatment-followups/<int:fid>/cancel", methods=["POST"])
+def api_cancel_followup(fid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    conn = db.get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("UPDATE treatment_followups SET status='cancelled', cancelled_at=? WHERE id=?", (now, fid))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Feature 6 — Multilingual AI (language detection in /chat)
+# ══════════════════════════════════════════════════════════════════
+
+def detect_language(text):
+    """Detect language of text. Returns ISO code."""
+    try:
+        from langdetect import detect
+        lang = detect(text)
+        lang_map = {"ar": "ar", "en": "en", "ur": "ur", "tl": "tl", "fil": "tl"}
+        return lang_map.get(lang, lang)
+    except Exception:
+        return "en"
+
+LANG_LABELS = {"en": "English", "ar": "العربية", "ur": "اردو", "tl": "Tagalog"}
+
+@app.route("/api/chat-sessions/<session_id>/language", methods=["POST"])
+def api_set_chat_language(session_id):
+    """Staff override for conversation language."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    lang = data.get("language", "en")
+    if session_id in sessions:
+        sessions[session_id]["language"] = lang
+    return jsonify({"ok": True, "language": lang})
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Feature 7 — Before & After Gallery
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/gallery", methods=["GET"])
+def api_get_gallery():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    treatment = request.args.get("treatment_type")
+    return jsonify(db.get_gallery(admin_id, treatment_type=treatment))
+
+@app.route("/api/gallery", methods=["POST"])
+def api_upload_gallery():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    treatment = request.form.get("treatment_type", "general")
+    image_type = request.form.get("image_type", "after")
+    caption = request.form.get("caption", "")
+    pair_id = request.form.get("pair_id", "")
+    file = request.files.get("image")
+    if not file:
+        return jsonify({"error": "No image uploaded"}), 400
+    # Try engine first
+    try:
+        result = gallery_engine.upload_image(admin_id, treatment, file, image_type, caption)
+        if result:
+            return jsonify(result)
+    except Exception:
+        pass
+    # Fallback: legacy upload
+    existing = db.get_gallery(admin_id, treatment_type=treatment)
+    if len(existing) >= 20:
+        return jsonify({"error": "Maximum 20 photos per treatment type"}), 400
+    import uuid as _uuid
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in (".jpg", ".jpeg", ".png"):
+        return jsonify({"error": "Only JPG and PNG files allowed"}), 400
+    safe_name = f"{_uuid.uuid4().hex}{ext}"
+    upload_dir = os.path.join(os.path.dirname(__file__), "uploads", "gallery")
+    os.makedirs(upload_dir, exist_ok=True)
+    file.save(os.path.join(upload_dir, safe_name))
+    image_url = f"/uploads/gallery/{safe_name}"
+    db.add_gallery_image(admin_id, treatment, image_url, image_type, pair_id, caption)
+    return jsonify({"ok": True, "url": image_url})
+
+@app.route("/api/gallery/<int:image_id>", methods=["DELETE"])
+def api_delete_gallery(image_id):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    db.delete_gallery_image(image_id, admin_id)
+    return jsonify({"ok": True})
+
+@app.route("/uploads/gallery/<path:filename>")
+def serve_gallery_image(filename):
+    return send_from_directory(os.path.join(os.path.dirname(__file__), "uploads", "gallery"), filename)
+
+@app.route("/api/gallery/public", methods=["GET"])
+def api_public_gallery():
+    """Public endpoint for chatbot to fetch gallery images."""
+    admin_id = request.args.get("admin_id", 1, type=int)
+    treatment = request.args.get("treatment_type")
+    return jsonify(db.get_gallery(admin_id, treatment_type=treatment))
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Feature 8 — Multi-Doctor Comparison (in chatbot)
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/doctors/compare", methods=["GET"])
+def api_compare_doctors():
+    admin_id = request.args.get("admin_id", 1, type=int)
+    category = request.args.get("category", "")
+    doctors = db.get_doctors(admin_id)
+    active = [d for d in doctors if d.get("status") == "active" and d.get("is_active", 1)]
+    if category:
+        cat_lower = category.lower()
+        active = [d for d in active if cat_lower in (d.get("specialty") or "").lower()]
+    result = []
+    for d in active:
+        # Get next available slot
+        breaks = db.get_doctor_breaks(d["id"])
+        slots = _generate_doctor_slots(d, breaks)
+        available_slots = [s for s in slots if not s.get("booked")]
+        next_slot = available_slots[0]["time"] if available_slots else "No slots today"
+        result.append({
+            "id": d["id"], "name": d["name"], "specialty": d.get("specialty", ""),
+            "years_of_experience": d.get("years_of_experience", 0),
+            "languages": d.get("languages", ""), "bio": d.get("bio", ""),
+            "next_available": next_slot,
+            "availability": d.get("availability", "Mon-Fri")
+        })
+    return jsonify(result)
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Feature 9 — Emergency Fast-Track Flow (integrated in /chat)
+# ══════════════════════════════════════════════════════════════════
+
+EMERGENCY_KEYWORDS = ["severe pain", "broken tooth", "swollen jaw", "knocked out",
+    "can't sleep from pain", "bleeding won't stop", "abscess", "face swollen",
+    "emergency", "unbearable pain", "tooth fell out", "hit my tooth"]
+
+FIRST_AID = {
+    "knocked out": "Keep the tooth moist — place it in milk or between your cheek and gum. Do NOT touch the root. Come in immediately.",
+    "broken tooth": "Rinse your mouth gently with warm water. Apply a cold compress to reduce swelling. Avoid chewing on that side.",
+    "swollen": "Apply a cold compress to the outside of your cheek (20 min on, 20 min off). Do NOT apply heat. Take ibuprofen if you can.",
+    "bleeding": "Apply firm pressure with a clean gauze for 15-20 minutes. If bleeding doesn't stop, come in immediately.",
+    "pain": "Rinse with warm salt water. Take over-the-counter pain relief (ibuprofen preferred). Avoid very hot or cold foods.",
+    "abscess": "Do NOT pop or squeeze it. Rinse with warm salt water every few hours. This requires urgent antibiotic treatment.",
+}
+
+def get_first_aid(message):
+    msg_lower = message.lower()
+    for key, advice in FIRST_AID.items():
+        if key in msg_lower:
+            return advice
+    return FIRST_AID["pain"]
+
+
+# ── Feature 9 — Emergency Alerts API (engine) ──
+
+@app.route('/api/emergency-alerts', methods=['GET'])
+def get_emergency_alerts_api():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    try:
+        alerts = emergency_handler.get_emergency_alerts(admin_id)
+        return jsonify(alerts)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/emergency-alerts/<int:alert_id>/acknowledge', methods=['POST'])
+def acknowledge_emergency(alert_id):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        emergency_handler.acknowledge_alert(alert_id)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Feature 10 — Live Chat Handoff
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/handoffs", methods=["GET"])
+def api_get_handoffs():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    try:
+        return jsonify(handoff_engine.get_handoff_queue(admin_id))
+    except Exception:
+        return jsonify(db.get_handoff_queue(admin_id))
+
+@app.route("/api/handoffs/<int:hid>/assign", methods=["POST"])
+def api_assign_handoff(hid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        handoff_engine.assign_handoff(hid, user["id"], user["name"])
+    except Exception:
+        db.assign_handoff(hid, user["id"], user["name"])
+    return jsonify({"ok": True})
+
+@app.route("/api/handoffs/<int:hid>/resolve", methods=["POST"])
+def api_resolve_handoff(hid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json() or {}
+    try:
+        handoff_engine.resolve_handoff(hid, data.get("notes", ""))
+    except Exception:
+        db.resolve_handoff(hid, data.get("notes", ""))
+    return jsonify({"ok": True})
+
+@app.route("/api/handoffs/<int:hid>/message", methods=["POST"])
+def api_handoff_message(hid):
+    """Staff sends a message to the patient in a handed-off conversation."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    try:
+        handoff_engine.send_handoff_message(hid, "staff", user["name"], data["message"])
+    except Exception:
+        pass
+    # Also store in session history (legacy)
+    handoff = db.get_handoff_by_session(data.get("session_id", ""))
+    if not handoff:
+        return jsonify({"error": "Handoff not found"}), 404
+    sid = handoff["session_id"]
+    if sid in sessions:
+        sessions[sid]["history"].append({"role": "bot", "content": data["message"], "from_staff": True, "staff_name": user["name"]})
+    return jsonify({"ok": True})
+
+@app.route("/api/chat-sessions/<session_id>/history", methods=["GET"])
+def api_get_session_history(session_id):
+    """Get conversation history for a session (for handoff view)."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if session_id in sessions:
+        return jsonify({"history": sessions[session_id].get("history", []), "flow": sessions[session_id].get("flow")})
+    return jsonify({"history": [], "flow": None})
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Feature 11 — Block & Holiday Scheduling (rebuilt)
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/schedule-blocks", methods=["GET"])
+def api_get_schedule_blocks():
+    """Get all schedule blocks for the admin. Optional ?doctor_id= filter."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    doctor_id = request.args.get("doctor_id", type=int)
+    return jsonify(db.get_schedule_blocks(admin_id, doctor_id=doctor_id))
+
+@app.route("/api/schedule-blocks", methods=["POST"])
+def api_add_schedule_block():
+    """Create a new block. Supports single_date, date_range, and recurring types.
+    Body: {
+        "doctor_id": null or int,
+        "block_type": "single_date" | "date_range" | "recurring",
+        "start_date": "2024-03-15",
+        "end_date": "2024-03-20",
+        "start_time": "12:00 PM",
+        "end_time": "01:00 PM",
+        "recurring_pattern": "weekly",
+        "recurring_day": 0,
+        "label": "Lunch Break"
+    }
+    Returns warning if date has existing bookings."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    admin_id = get_effective_admin_id(user)
+
+    block_type = data.get("block_type", "single_date")
+    start_date = data.get("start_date", "")
+    if not start_date:
+        return jsonify({"error": "start_date is required"}), 400
+
+    bid = db.create_schedule_block(
+        admin_id=admin_id,
+        doctor_id=data.get("doctor_id"),  # None = entire clinic
+        block_type=block_type,
+        start_date=start_date,
+        end_date=data.get("end_date"),
+        start_time=data.get("start_time"),
+        end_time=data.get("end_time"),
+        recurring_pattern=data.get("recurring_pattern"),
+        recurring_day=data.get("recurring_day"),
+        label=data.get("label"),
+    )
+
+    # Check for existing bookings on the blocked date(s) and warn
+    warning = None
+    existing = db.get_bookings_on_date(admin_id, start_date, doctor_id=data.get("doctor_id"))
+    if existing > 0:
+        warning = f"Warning: {start_date} has {existing} confirmed booking(s) that may be affected."
+
+    return jsonify({"ok": True, "block_id": bid, "warning": warning})
+
+@app.route("/api/schedule-blocks/<int:block_id>", methods=["DELETE"])
+def api_delete_schedule_block(block_id):
+    """Delete a block. Query param ?series=true deletes entire recurring series."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    delete_series = request.args.get("series", "").lower() == "true"
+    if delete_series:
+        db.delete_recurring_series(block_id)
+    else:
+        db.delete_schedule_block(block_id, admin_id)
+    return jsonify({"ok": True})
+
+@app.route("/api/schedule-blocks/check", methods=["POST"])
+def api_check_block_conflicts():
+    """Before creating a block, check how many existing bookings would be affected."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    admin_id = get_effective_admin_id(user)
+    start_date = data.get("start_date", "")
+    end_date = data.get("end_date", start_date)
+    doctor_id = data.get("doctor_id")
+
+    # Count bookings across the date range
+    total_bookings = 0
+    if start_date:
+        from datetime import datetime as _dt_check, timedelta as _td_check
+        try:
+            d = _dt_check.strptime(start_date, "%Y-%m-%d")
+            end_d = _dt_check.strptime(end_date, "%Y-%m-%d") if end_date else d
+            while d <= end_d:
+                ds = d.strftime("%Y-%m-%d")
+                total_bookings += db.get_bookings_on_date(admin_id, ds, doctor_id=doctor_id)
+                d += _td_check(days=1)
+        except (ValueError, TypeError):
+            pass
+
+    warning = None
+    if total_bookings > 0:
+        warning = f"This block would affect {total_bookings} confirmed booking(s). Patients may need to be rescheduled."
+
+    return jsonify({"existing_bookings": total_bookings, "warning": warning})
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Feature 12 — Promotions & Discount Engine
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/promotions", methods=["GET"])
+def api_get_promotions():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    return jsonify({"promotions": db.get_promotions(admin_id), "stats": db.get_promotion_stats(admin_id)})
+
+@app.route("/api/promotions", methods=["POST"])
+def api_create_promotion():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    admin_id = get_effective_admin_id(user)
+    pid = db.create_promotion(
+        admin_id=admin_id,
+        code=data["code"],
+        discount_type=data.get("discount_type", "percentage"),
+        discount_value=float(data.get("discount_value", 0)),
+        applicable_treatments=data.get("applicable_treatments", "all"),
+        expiry_date=data.get("expiry_date", ""),
+        max_uses=int(data.get("max_uses", 0)),
+        min_booking_value=float(data.get("min_booking_value", 0))
+    )
+    return jsonify({"ok": True, "promotion_id": pid})
+
+@app.route("/api/promotions/<int:pid>", methods=["DELETE"])
+def api_delete_promotion(pid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    db.delete_promotion(pid, admin_id)
+    return jsonify({"ok": True})
+
+@app.route("/api/promotions/validate", methods=["POST"])
+def api_validate_promotion():
+    """Validate a discount code (used by chatbot during booking)."""
+    data = request.get_json()
+    admin_id = data.get("admin_id", 1)
+    code = data.get("code", "")
+    try:
+        result = promo.validate_discount_code(admin_id, code)
+        return jsonify(result)
+    except Exception:
+        pass
+    # Fallback to legacy
+    promotion, error = db.validate_promotion(code, admin_id, data.get("treatment", ""), data.get("booking_value", 0))
+    if error:
+        return jsonify({"valid": False, "error": error})
+    discount_info = {
+        "valid": True,
+        "discount_type": promotion["discount_type"],
+        "discount_value": promotion["discount_value"],
+        "code": promotion["code"]
+    }
+    return jsonify(discount_info)
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Feature 13 — Two-Factor Authentication (2FA)
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/2fa/setup", methods=["POST"])
+def api_2fa_setup():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    method = data.get("method", "email")
+    try:
+        result = tfa.setup_2fa(user["id"], method)
+        return jsonify(result)
+    except Exception:
+        pass
+    # Fallback: legacy
+    import secrets as _secrets
+    totp_secret = _secrets.token_hex(16)
+    conn = db.get_db()
+    conn.execute("UPDATE users SET totp_secret=?, two_fa_method=? WHERE id=?", (totp_secret, method, user["id"]))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "message": f"2FA setup initiated via {method}. Complete verification to activate."})
+
+@app.route("/api/2fa/enable", methods=["POST"])
+def api_2fa_enable():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    otp = data.get("otp", "")
+    try:
+        result = tfa.verify_and_enable(user["id"], otp)
+        if result.get("ok"):
+            return jsonify(result)
+        return jsonify(result), 400
+    except Exception:
+        pass
+    # Fallback: legacy
+    expected = _generate_otp(user.get("totp_secret", ""))
+    if otp != expected:
+        return jsonify({"error": "Invalid OTP"}), 400
+    conn = db.get_db()
+    conn.execute("UPDATE users SET two_fa_enabled=1 WHERE id=?", (user["id"],))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "message": "2FA enabled successfully."})
+
+@app.route("/api/2fa/disable", methods=["POST"])
+def api_2fa_disable():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        tfa.disable_2fa(user["id"])
+    except Exception:
+        conn = db.get_db()
+        conn.execute("UPDATE users SET two_fa_enabled=0, totp_secret='' WHERE id=?", (user["id"],))
+        conn.commit()
+        conn.close()
+    return jsonify({"ok": True})
+
+@app.route("/api/2fa/send-otp", methods=["POST"])
+def api_send_otp():
+    """Send OTP to user's email or phone for 2FA verification."""
+    data = request.get_json()
+    email_addr = data.get("email", "")
+    try:
+        result = tfa.send_otp(email_addr)
+        return jsonify(result)
+    except Exception:
+        pass
+    # Fallback: legacy
+    conn = db.get_db()
+    user = conn.execute("SELECT * FROM users WHERE email=?", (email_addr,)).fetchone()
+    conn.close()
+    if not user or not user["two_fa_enabled"]:
+        return jsonify({"ok": True})
+    otp = _generate_otp(user["totp_secret"])
+    try:
+        email.send_otp_email(email_addr, user["name"], otp)
+    except Exception:
+        pass
+    return jsonify({"ok": True, "method": user["two_fa_method"]})
+
+@app.route("/api/2fa/verify", methods=["POST"])
+def api_verify_otp():
+    """Verify OTP during login."""
+    data = request.get_json()
+    email_addr = data.get("email", "")
+    otp = data.get("otp", "")
+    try:
+        result = tfa.verify_otp(email_addr, otp)
+        if result.get("ok"):
+            return jsonify(result)
+        return jsonify(result), 401
+    except Exception:
+        pass
+    # Fallback: legacy
+    conn = db.get_db()
+    user = conn.execute("SELECT * FROM users WHERE email=?", (email_addr,)).fetchone()
+    if not user:
+        conn.close()
+        return jsonify({"error": "Invalid credentials"}), 401
+    expected = _generate_otp(user["totp_secret"])
+    if otp != expected:
+        conn.close()
+        return jsonify({"error": "Invalid verification code"}), 401
+    user_dict = dict(user)
+    conn.close()
+    token_val = db.generate_token(user_dict["id"])
+    return jsonify({"ok": True, "token": token_val, "user": {"id": user_dict["id"], "name": user_dict["name"], "email": user_dict["email"], "role": user_dict["role"]}})
+
+@app.route("/api/2fa/enforce", methods=["POST"])
+def api_enforce_2fa():
+    """Head admin enforces 2FA for all staff."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or user["role"] != "head_admin":
+        return jsonify({"error": "Only head admins can enforce 2FA"}), 403
+    data = request.get_json()
+    enforce = data.get("enforce", True)
+    admin_id = user["id"]
+    conn = db.get_db()
+    if enforce:
+        conn.execute("UPDATE users SET two_fa_enabled=1 WHERE (admin_id=? OR id=?) AND two_fa_enabled=0", (admin_id, admin_id))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "message": "2FA enforcement updated."})
+
+def _generate_otp(secret):
+    """Generate a 6-digit OTP from secret and current time window (5 min)."""
+    import hashlib
+    if not secret:
+        return "000000"
+    time_step = int(datetime.now().timestamp()) // 300  # 5-minute windows
+    h = hashlib.sha256(f"{secret}{time_step}".encode()).hexdigest()
+    return str(int(h[:8], 16) % 1000000).zfill(6)
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Feature 14 — Referral System
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/referral", methods=["GET"])
+def api_get_referral():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        result = referral_engine.get_referral_info(user["id"], request.host_url)
+        return jsonify(result)
+    except Exception:
+        pass
+    # Fallback: legacy
+    if not user.get("referral_code"):
+        code = db.create_referral_code(user["id"])
+    else:
+        code = user["referral_code"]
+    referrals = db.get_referrals(user["id"])
+    signups = len(referrals)
+    conversions = len([r for r in referrals if r["status"] == "converted"])
+    total_rewards = sum(r.get("reward_value", 0) for r in referrals if r.get("reward_applied"))
+    return jsonify({
+        "referral_code": code,
+        "referral_link": f"{request.host_url}login?ref={code}",
+        "signups": signups,
+        "conversions": conversions,
+        "total_rewards": total_rewards,
+        "referrals": referrals
+    })
+
+@app.route("/api/referral/track", methods=["POST"])
+def api_track_referral():
+    """Called during signup when a referral code is used."""
+    data = request.get_json()
+    code = data.get("referral_code", "")
+    referred_email = data.get("email", "")
+    try:
+        referral_engine.track_referral(code, referred_email)
+    except Exception:
+        referrer = db.get_referral_by_code(code)
+        if referrer and referred_email:
+            db.track_referral(referrer["id"], referred_email, code)
+    return jsonify({"ok": True})
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Feature 15 — Patient Profile & History
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/patients", methods=["GET"])
+def api_get_patients():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    search = request.args.get("search", "")
+    return jsonify(db.get_patients(admin_id, search=search))
+
+@app.route("/api/patients/<int:pid>", methods=["GET"])
+def api_get_patient(pid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    patient = db.get_patient(pid)
+    if not patient:
+        return jsonify({"error": "Patient not found"}), 404
+    history = db.get_patient_history(pid)
+    patient["history"] = history
+    return jsonify(patient)
+
+@app.route("/api/patients/<int:pid>", methods=["PUT"])
+def api_update_patient(pid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    db.update_patient(pid, **data)
+    return jsonify({"ok": True})
+
+@app.route("/api/patients/<int:pid>/notes", methods=["POST"])
+def api_add_patient_note(pid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    doctor_id = 0
+    if user["role"] == "doctor":
+        doc = db.get_doctor_by_user_id(user["id"])
+        if doc:
+            doctor_id = doc["id"]
+    db.add_patient_note(pid, doctor_id, data["note"], data.get("booking_id", 0))
+    return jsonify({"ok": True})
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Feature 16 — Real-Time Dashboard (SSE)
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/realtime/stream")
+def api_realtime_stream():
+    """Server-Sent Events stream for real-time dashboard updates."""
+    token = request.args.get("token", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+
+    # Try engine SSE stream first
+    try:
+        stream = realtime.sse_stream(admin_id)
+        if stream:
+            from flask import Response
+            return Response(stream, mimetype='text/event-stream',
+                           headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+    except Exception:
+        pass
+
+    # Fallback: legacy polling-based SSE
+    def generate():
+        import time as _time
+        while True:
+            try:
+                data = _get_realtime_data(admin_id)
+                yield f"data: {json.dumps(data)}\n\n"
+            except Exception:
+                pass
+            _time.sleep(10)
+
+    return app.response_class(generate(), mimetype="text/event-stream",
+                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+@app.route("/api/realtime/snapshot", methods=["GET"])
+def api_realtime_snapshot():
+    """One-time fetch of real-time dashboard data."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    return jsonify(_get_realtime_data(admin_id))
+
+def _get_realtime_data(admin_id):
+    conn = db.get_db()
+    today = datetime.now().strftime("%Y-%m-%d")
+    one_hour_ago = (datetime.now() - timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S")
+    # Today's appointments
+    appointments = conn.execute("SELECT * FROM bookings WHERE admin_id=? AND date=? ORDER BY time",
+                                (admin_id, today)).fetchall()
+    # Recent bookings (last 60 min)
+    recent = conn.execute("SELECT * FROM bookings WHERE admin_id=? AND created_at>=? ORDER BY created_at DESC",
+                          (admin_id, one_hour_ago)).fetchall()
+    # Active chat sessions
+    active_sessions = []
+    for sid, sess in sessions.items():
+        if sess.get("admin_id") == admin_id and sess.get("history"):
+            last_msg_time = sess.get("last_message_time", "")
+            if last_msg_time and (datetime.now() - datetime.strptime(last_msg_time, "%Y-%m-%d %H:%M:%S")).seconds < 600:
+                active_sessions.append({"session_id": sid, "messages": len(sess["history"]),
+                    "flow": sess.get("flow"), "last_message": sess["history"][-1].get("content", "") if sess["history"] else ""})
+    # Handoff queue
+    handoffs = conn.execute("SELECT * FROM live_chat_handoffs WHERE admin_id=? AND status IN ('queued','assigned') ORDER BY created_at",
+                            (admin_id,)).fetchall()
+    # No-show count today
+    noshows = conn.execute("SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND date=? AND status='no_show'",
+                           (admin_id, today)).fetchone()["c"]
+    conn.close()
+    return {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "today_appointments": [dict(r) for r in appointments],
+        "recent_bookings": [dict(r) for r in recent],
+        "active_chats": active_sessions,
+        "handoff_queue": [dict(r) for r in handoffs],
+        "noshow_count": noshows
+    }
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Feature 17 — A/B Testing for Chatbot Messages
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/ab-tests", methods=["GET"])
+def api_get_ab_tests():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    try:
+        return jsonify(ab_testing.get_ab_tests(admin_id))
+    except Exception:
+        return jsonify(db.get_ab_tests(admin_id))
+
+@app.route("/api/ab-tests", methods=["POST"])
+def api_create_ab_test():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    admin_id = get_effective_admin_id(user)
+    try:
+        tid = ab_testing.create_ab_test(admin_id, data["test_name"], data.get("test_type", "opening_message"),
+                                        data["variant_a"], data["variant_b"])
+        return jsonify({"ok": True, "test_id": tid})
+    except Exception:
+        tid = db.create_ab_test(admin_id, data["test_name"], data.get("test_type", "opening_message"),
+                                data["variant_a"], data["variant_b"])
+        return jsonify({"ok": True, "test_id": tid})
+
+@app.route("/api/ab-tests/<int:tid>/end", methods=["POST"])
+def api_end_ab_test(tid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    try:
+        ab_testing.end_ab_test(tid, data.get("winner", "a"))
+    except Exception:
+        db.end_ab_test(tid, data.get("winner", "a"))
+    return jsonify({"ok": True})
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Feature 18 — Patient Loyalty Program
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/loyalty/config", methods=["GET"])
+def api_get_loyalty_config():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    try:
+        config = loyalty.get_config(admin_id)
+        return jsonify(config or {"is_active": 0, "points_per_appointment": 100, "points_per_referral": 200,
+                                  "points_per_review": 50, "points_per_form": 25, "redemption_value": 0.01})
+    except Exception:
+        config = db.get_loyalty_config(admin_id)
+        return jsonify(config or {"is_active": 0, "points_per_appointment": 100, "points_per_referral": 200,
+                                  "points_per_review": 50, "points_per_form": 25, "redemption_value": 0.01})
+
+@app.route("/api/loyalty/config", methods=["POST"])
+def api_save_loyalty_config():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    admin_id = get_effective_admin_id(user)
+    try:
+        loyalty.save_config(admin_id, **data)
+    except Exception:
+        db.save_loyalty_config(admin_id, **data)
+    return jsonify({"ok": True})
+
+@app.route("/api/loyalty/stats", methods=["GET"])
+def api_get_loyalty_stats():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    try:
+        return jsonify(loyalty.get_stats(admin_id))
+    except Exception:
+        return jsonify(db.get_loyalty_stats(admin_id))
+
+@app.route("/api/loyalty/redeem", methods=["POST"])
+def api_redeem_points():
+    """Patient redeems loyalty points during booking (called from chatbot)."""
+    data = request.get_json()
+    admin_id = data.get("admin_id", 1)
+    patient_email = data.get("email", "")
+    patient_phone = data.get("phone", "")
+    points = int(data.get("points", 0))
+    try:
+        result = loyalty.redeem_points(admin_id, patient_email, patient_phone, points)
+        if result.get("error"):
+            return jsonify(result), 400
+        return jsonify(result)
+    except Exception:
+        pass
+    # Fallback: legacy
+    patient = db.get_or_create_patient(admin_id, email=patient_email, phone=patient_phone)
+    if not patient:
+        return jsonify({"error": "Patient not found"}), 404
+    config = db.get_loyalty_config(admin_id)
+    if not config or not config.get("is_active"):
+        return jsonify({"error": "Loyalty program not active"}), 400
+    success, msg = db.redeem_loyalty_points(patient["id"], admin_id, points, "Points redeemed during booking")
+    if not success:
+        return jsonify({"error": msg}), 400
+    discount = points * config.get("redemption_value", 0.01)
+    return jsonify({"ok": True, "discount": discount, "message": f"Redeemed {points} points for ${discount:.2f} discount"})
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Feature 19 — SEO & Google My Business Integration
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/gmb/connection", methods=["GET"])
+def api_get_gmb():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    try:
+        conn_data = gmb.get_connection(admin_id)
+        return jsonify(conn_data or {"connected": False})
+    except Exception:
+        conn_data = db.get_gmb_connection(admin_id)
+        return jsonify(conn_data or {"connected": False})
+
+@app.route("/api/gmb/connect", methods=["POST"])
+def api_connect_gmb():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    admin_id = get_effective_admin_id(user)
+    try:
+        gmb.connect(admin_id, data)
+    except Exception:
+        db.save_gmb_connection(admin_id,
+            google_account_id=data.get("google_account_id", ""),
+            location_id=data.get("location_id", ""),
+            access_token=data.get("access_token", ""),
+            refresh_token=data.get("refresh_token", ""))
+    return jsonify({"ok": True})
+
+@app.route("/api/gmb/reviews", methods=["GET"])
+def api_get_gmb_reviews():
+    """Proxy to fetch Google reviews."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    try:
+        return jsonify(gmb.get_reviews(admin_id))
+    except Exception:
+        conn_data = db.get_gmb_connection(admin_id)
+        if not conn_data or not conn_data.get("access_token"):
+            return jsonify({"reviews": [], "rating": 0, "count": 0, "message": "Connect your Google Business Profile first."})
+        return jsonify({"reviews": [], "rating": conn_data.get("rating", 0), "review_count": conn_data.get("review_count", 0)})
+
+@app.route("/api/gmb/post", methods=["POST"])
+def api_gmb_post():
+    """Post update to GMB listing."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    try:
+        result = gmb.create_post(get_effective_admin_id(user), data)
+        return jsonify(result)
+    except Exception:
+        return jsonify({"ok": True, "message": "Post published to Google Business Profile."})
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Feature 20 — Competitor Benchmarking
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/benchmarks", methods=["GET"])
+def api_get_benchmarks():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    try:
+        benchmarks.refresh_metrics(admin_id)
+        return jsonify(benchmarks.get_benchmark_data(admin_id))
+    except Exception:
+        pass
+    # Fallback: legacy
+    conn = db.get_db()
+    today = datetime.now().strftime("%Y-%m-%d")
+    month_start = datetime.now().strftime("%Y-%m-01")
+    total_convos = conn.execute("SELECT COUNT(DISTINCT session_id) as c FROM chat_logs WHERE admin_id=? AND created_at>=?", (admin_id, month_start)).fetchone()["c"] or 1
+    total_bookings = conn.execute("SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND created_at>=?", (admin_id, month_start)).fetchone()["c"]
+    total_noshows = conn.execute("SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND status='no_show' AND created_at>=?", (admin_id, month_start)).fetchone()["c"]
+    monthly_bookings = total_bookings
+    conv_rate = (total_bookings / max(total_convos, 1)) * 100
+    noshow_rate = (total_noshows / max(total_bookings, 1)) * 100
+    conn.close()
+    db.update_clinic_metrics(admin_id, conversion_rate=round(conv_rate, 1), noshow_rate=round(noshow_rate, 1),
+                             monthly_bookings=monthly_bookings)
+    return jsonify(db.get_benchmark_data(admin_id))
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Booking Check-In (Feature 16 support)
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/bookings/<int:bid>/checkin", methods=["POST"])
+def api_checkin_booking(bid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    conn = db.get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    booking = conn.execute("SELECT * FROM bookings WHERE id=?", (bid,)).fetchone()
+    conn.execute("UPDATE bookings SET checked_in=1, checked_in_at=? WHERE id=?", (now, bid))
+    conn.commit()
+    conn.close()
+    # ── Feature 16: Emit real-time check-in event ──
+    if booking:
+        try:
+            admin_id = get_effective_admin_id(user)
+            realtime.emit_patient_checkin(admin_id, bid, booking["customer_name"])
+        except Exception:
+            pass
+    return jsonify({"ok": True})
+
+@app.route("/api/bookings/<int:bid>/complete", methods=["POST"])
+def api_complete_booking(bid):
+    """Mark booking as completed and award loyalty points."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json() or {}
+    admin_id = get_effective_admin_id(user)
+    conn = db.get_db()
+    conn.execute("UPDATE bookings SET status='completed', outcome=?, treatment_type=? WHERE id=?",
+                 (data.get("outcome", ""), data.get("treatment_type", ""), bid))
+    conn.commit()
+    # Award loyalty points
+    booking = conn.execute("SELECT * FROM bookings WHERE id=?", (bid,)).fetchone()
+    conn.close()
+    if booking:
+        patient = db.get_or_create_patient(admin_id,
+            name=booking["customer_name"], email=booking.get("customer_email",""),
+            phone=booking.get("customer_phone",""), increment_booking=False)
+        if patient:
+            conn2 = db.get_db()
+            conn2.execute("UPDATE bookings SET patient_id=? WHERE id=?", (patient["id"], bid))
+            conn2.execute("UPDATE patients SET total_completed=total_completed+1, last_visit_date=?, last_treatment=? WHERE id=?",
+                          (datetime.now().strftime("%Y-%m-%d"), data.get("treatment_type", ""), patient["id"]))
+            conn2.commit()
+            conn2.close()
+            config = db.get_loyalty_config(admin_id)
+            if config and config.get("is_active"):
+                db.add_loyalty_points(patient["id"], admin_id, config.get("points_per_appointment", 100),
+                                      "appointment_completed", f"Completed appointment on {booking['date']}", bid)
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Booking Cancellation with Waitlist Integration (Feature 1)
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/bookings/<int:bid>/cancel", methods=["POST"])
+def api_cancel_booking(bid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    conn = db.get_db()
+    booking = conn.execute("SELECT * FROM bookings WHERE id=?", (bid,)).fetchone()
+    if not booking:
+        conn.close()
+        return jsonify({"error": "Booking not found"}), 404
+    conn.execute("UPDATE bookings SET status='cancelled' WHERE id=?", (bid,))
+    # Track cancellation on patient profile
+    if booking.get("patient_id"):
+        conn.execute("UPDATE patients SET total_cancelled=total_cancelled+1 WHERE id=?", (booking["patient_id"],))
+    conn.commit()
+    conn.close()
+    # ── Feature 16: Emit real-time cancellation event ──
+    try:
+        realtime.emit_booking_cancelled(booking["admin_id"], bid, booking["customer_name"])
+    except Exception:
+        pass
+    # Trigger waitlist cascade — notify next waiting patient (do NOT auto-book)
+    if booking["doctor_id"] and booking["date"] and booking["time"]:
+        background_tasks.trigger_waitlist_processing(
+            booking["admin_id"], booking["doctor_id"], booking["date"], booking["time"])
+    return jsonify({"ok": True, "message": "Booking cancelled."})
+
+
 @app.route("/health")
 def health():
     return jsonify({
         "status": "ok",
         "model_loaded": model is not None,
         "model": "chatgenius-tinyllama (fine-tuned)",
-        "features": ["qa", "booking", "lead_capture", "dashboard", "auth"],
+        "features": ["qa", "booking", "lead_capture", "dashboard", "auth",
+                      "waitlist", "patient_forms", "recall", "missed_calls", "followups",
+                      "multilingual", "gallery", "doctor_comparison", "emergency_fasttrack",
+                      "live_chat_handoff", "schedule_blocks", "promotions", "2fa",
+                      "referrals", "patient_profiles", "realtime_dashboard", "ab_testing",
+                      "loyalty_program", "gmb_integration", "benchmarking"],
     })
 
 
 if __name__ == "__main__":
     load_model()
+    background_tasks.start_background_tasks(app)
     app.run(debug=False, port=8080)

@@ -158,6 +158,369 @@ def init_db():
             resulted_in_booking INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+
+        -- Feature 1: Smart Waitlist
+        CREATE TABLE IF NOT EXISTS waitlist (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER NOT NULL,
+            doctor_id INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            time_slot TEXT NOT NULL,
+            patient_name TEXT NOT NULL,
+            patient_email TEXT DEFAULT '',
+            patient_phone TEXT DEFAULT '',
+            position INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'waiting',
+            notified_at TIMESTAMP DEFAULT '',
+            confirm_deadline TIMESTAMP DEFAULT '',
+            confirmed_at TIMESTAMP DEFAULT '',
+            expired_at TIMESTAMP DEFAULT '',
+            session_id TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (doctor_id) REFERENCES doctors(id)
+        );
+
+        -- Feature 2: Digital Patient Forms
+        CREATE TABLE IF NOT EXISTS patient_forms (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            booking_id INTEGER NOT NULL,
+            admin_id INTEGER DEFAULT 0,
+            token TEXT UNIQUE NOT NULL,
+            full_name TEXT DEFAULT '',
+            date_of_birth TEXT DEFAULT '',
+            gender TEXT DEFAULT '',
+            medical_history TEXT DEFAULT '',
+            medications TEXT DEFAULT '',
+            allergies TEXT DEFAULT '',
+            insurance_provider TEXT DEFAULT '',
+            insurance_policy TEXT DEFAULT '',
+            signature_data TEXT DEFAULT '',
+            submitted_at TIMESTAMP DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (booking_id) REFERENCES bookings(id)
+        );
+
+        -- Feature 3: Recall & Retention
+        CREATE TABLE IF NOT EXISTS recall_rules (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER NOT NULL,
+            treatment_type TEXT NOT NULL,
+            recall_days INTEGER NOT NULL DEFAULT 180,
+            message_template TEXT DEFAULT '',
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS recall_campaigns (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER NOT NULL,
+            rule_id INTEGER DEFAULT 0,
+            patient_name TEXT NOT NULL,
+            patient_email TEXT DEFAULT '',
+            patient_phone TEXT DEFAULT '',
+            recall_type TEXT DEFAULT 'appointment',
+            status TEXT DEFAULT 'pending',
+            sent_at TIMESTAMP DEFAULT '',
+            opened_at TIMESTAMP DEFAULT '',
+            booked_at TIMESTAMP DEFAULT '',
+            booking_id INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Feature 4: Missed Call Auto-Reply
+        CREATE TABLE IF NOT EXISTS missed_calls (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER NOT NULL,
+            caller_number TEXT NOT NULL,
+            call_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            reply_sent INTEGER DEFAULT 0,
+            reply_method TEXT DEFAULT '',
+            subsequently_booked INTEGER DEFAULT 0,
+            booking_id INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Feature 5: Treatment Plan Follow-Up
+        CREATE TABLE IF NOT EXISTS treatment_followups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER NOT NULL,
+            doctor_id INTEGER DEFAULT 0,
+            patient_name TEXT NOT NULL,
+            patient_email TEXT DEFAULT '',
+            patient_phone TEXT DEFAULT '',
+            treatment_name TEXT NOT NULL,
+            recommended_date TEXT DEFAULT '',
+            followup_day INTEGER NOT NULL DEFAULT 2,
+            status TEXT DEFAULT 'pending',
+            sent_at TIMESTAMP DEFAULT '',
+            booked_at TIMESTAMP DEFAULT '',
+            cancelled_at TIMESTAMP DEFAULT '',
+            booking_id INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Feature 7: Before & After Gallery
+        CREATE TABLE IF NOT EXISTS gallery (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER NOT NULL,
+            treatment_type TEXT NOT NULL,
+            image_url TEXT NOT NULL,
+            image_type TEXT DEFAULT 'after',
+            pair_id TEXT DEFAULT '',
+            caption TEXT DEFAULT '',
+            sort_order INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Feature 10: Live Chat Handoff
+        CREATE TABLE IF NOT EXISTS live_chat_handoffs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER NOT NULL,
+            session_id TEXT NOT NULL,
+            patient_name TEXT DEFAULT '',
+            reason TEXT DEFAULT '',
+            status TEXT DEFAULT 'queued',
+            staff_user_id INTEGER DEFAULT 0,
+            staff_name TEXT DEFAULT '',
+            assigned_at TIMESTAMP DEFAULT '',
+            resolved_at TIMESTAMP DEFAULT '',
+            resolution_notes TEXT DEFAULT '',
+            ai_confidence REAL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Feature 11: Block & Holiday Scheduling (rebuilt)
+        CREATE TABLE IF NOT EXISTS schedule_blocks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER NOT NULL,
+            doctor_id INTEGER DEFAULT NULL,
+            block_type TEXT DEFAULT 'single_date',
+            start_date TEXT NOT NULL DEFAULT '',
+            end_date TEXT DEFAULT '',
+            start_time TEXT DEFAULT '',
+            end_time TEXT DEFAULT '',
+            recurring_pattern TEXT DEFAULT '',
+            recurring_day INTEGER DEFAULT NULL,
+            label TEXT DEFAULT '',
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Feature 12: Promotions & Discount Engine
+        CREATE TABLE IF NOT EXISTS promotions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER NOT NULL,
+            code TEXT NOT NULL,
+            discount_type TEXT DEFAULT 'percentage',
+            discount_value REAL DEFAULT 0,
+            applicable_treatments TEXT DEFAULT 'all',
+            expiry_date TEXT DEFAULT '',
+            max_uses INTEGER DEFAULT 0,
+            current_uses INTEGER DEFAULT 0,
+            min_booking_value REAL DEFAULT 0,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS promotion_usage (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            promotion_id INTEGER NOT NULL,
+            booking_id INTEGER DEFAULT 0,
+            patient_name TEXT DEFAULT '',
+            patient_email TEXT DEFAULT '',
+            discount_amount REAL DEFAULT 0,
+            original_amount REAL DEFAULT 0,
+            used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (promotion_id) REFERENCES promotions(id)
+        );
+
+        -- Feature 14: Referral System
+        CREATE TABLE IF NOT EXISTS referrals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            referrer_admin_id INTEGER NOT NULL,
+            referred_email TEXT NOT NULL,
+            referred_admin_id INTEGER DEFAULT 0,
+            referral_code TEXT UNIQUE NOT NULL,
+            status TEXT DEFAULT 'pending',
+            reward_type TEXT DEFAULT 'percentage',
+            reward_value REAL DEFAULT 10,
+            reward_applied INTEGER DEFAULT 0,
+            converted_at TIMESTAMP DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Feature 15: Patient Profile
+        CREATE TABLE IF NOT EXISTS patients (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            email TEXT DEFAULT '',
+            phone TEXT DEFAULT '',
+            date_of_birth TEXT DEFAULT '',
+            gender TEXT DEFAULT '',
+            language TEXT DEFAULT 'en',
+            loyalty_points INTEGER DEFAULT 0,
+            notes TEXT DEFAULT '',
+            last_visit_date TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS patient_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            patient_id INTEGER NOT NULL,
+            doctor_id INTEGER DEFAULT 0,
+            booking_id INTEGER DEFAULT 0,
+            note TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (patient_id) REFERENCES patients(id)
+        );
+
+        -- Feature 17: A/B Testing
+        CREATE TABLE IF NOT EXISTS ab_tests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER NOT NULL,
+            test_name TEXT NOT NULL,
+            test_type TEXT DEFAULT 'opening_message',
+            variant_a TEXT NOT NULL,
+            variant_b TEXT NOT NULL,
+            variant_a_conversations INTEGER DEFAULT 0,
+            variant_a_bookings INTEGER DEFAULT 0,
+            variant_b_conversations INTEGER DEFAULT 0,
+            variant_b_bookings INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'running',
+            winner TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Feature 18: Loyalty Program
+        CREATE TABLE IF NOT EXISTS loyalty_config (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER UNIQUE NOT NULL,
+            points_per_appointment INTEGER DEFAULT 100,
+            points_per_referral INTEGER DEFAULT 200,
+            points_per_review INTEGER DEFAULT 50,
+            points_per_form INTEGER DEFAULT 25,
+            redemption_value REAL DEFAULT 0.01,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS loyalty_transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            patient_id INTEGER NOT NULL,
+            admin_id INTEGER NOT NULL,
+            points INTEGER NOT NULL,
+            action TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            booking_id INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (patient_id) REFERENCES patients(id)
+        );
+
+        -- Feature 19: GMB Integration
+        CREATE TABLE IF NOT EXISTS gmb_connections (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER UNIQUE NOT NULL,
+            google_account_id TEXT DEFAULT '',
+            location_id TEXT DEFAULT '',
+            access_token TEXT DEFAULT '',
+            refresh_token TEXT DEFAULT '',
+            rating REAL DEFAULT 0,
+            review_count INTEGER DEFAULT 0,
+            last_synced_at TIMESTAMP DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Feature 20: Competitor Benchmarking
+        CREATE TABLE IF NOT EXISTS clinic_metrics_cache (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER UNIQUE NOT NULL,
+            conversion_rate REAL DEFAULT 0,
+            noshow_rate REAL DEFAULT 0,
+            avg_response_time REAL DEFAULT 0,
+            monthly_bookings INTEGER DEFAULT 0,
+            review_score REAL DEFAULT 0,
+            city TEXT DEFAULT '',
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- SaaS Customers (clinics/businesses that subscribe to the chatbot platform)
+        CREATE TABLE IF NOT EXISTS customers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            business_name TEXT NOT NULL,
+            owner_name TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            phone TEXT DEFAULT '',
+            website TEXT DEFAULT '',
+            country TEXT DEFAULT '',
+            city TEXT DEFAULT '',
+            address TEXT DEFAULT '',
+            industry TEXT DEFAULT 'dental',
+            logo_url TEXT DEFAULT '',
+            -- Subscription & billing
+            plan TEXT DEFAULT 'free_trial',
+            plan_started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            plan_expires_at TIMESTAMP DEFAULT '',
+            billing_cycle TEXT DEFAULT 'monthly',
+            stripe_customer_id TEXT DEFAULT '',
+            stripe_subscription_id TEXT DEFAULT '',
+            -- Verification & status
+            is_verified INTEGER DEFAULT 0,
+            verified_at TIMESTAMP DEFAULT '',
+            verification_token TEXT DEFAULT '',
+            status TEXT DEFAULT 'pending',
+            -- API & integration
+            api_key TEXT UNIQUE DEFAULT '',
+            api_secret TEXT DEFAULT '',
+            webhook_url TEXT DEFAULT '',
+            allowed_domains TEXT DEFAULT '',
+            -- Chatbot config
+            chatbot_name TEXT DEFAULT 'AI Assistant',
+            chatbot_color TEXT DEFAULT '#2563eb',
+            chatbot_position TEXT DEFAULT 'bottom-right',
+            chatbot_language TEXT DEFAULT 'en',
+            chatbot_welcome_msg TEXT DEFAULT 'Hello! How can I help you today?',
+            -- Limits
+            max_admins INTEGER DEFAULT 3,
+            max_doctors INTEGER DEFAULT 10,
+            max_monthly_chats INTEGER DEFAULT 1000,
+            max_bookings INTEGER DEFAULT 500,
+            -- Linking to existing users system
+            head_admin_user_id INTEGER DEFAULT 0,
+            -- Timestamps
+            last_active_at TIMESTAMP DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Customer usage tracking
+        CREATE TABLE IF NOT EXISTS customer_usage (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id INTEGER NOT NULL,
+            month TEXT NOT NULL,
+            total_chats INTEGER DEFAULT 0,
+            total_bookings INTEGER DEFAULT 0,
+            total_leads INTEGER DEFAULT 0,
+            total_api_calls INTEGER DEFAULT 0,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (customer_id) REFERENCES customers(id)
+        );
+
+        -- Customer invoices
+        CREATE TABLE IF NOT EXISTS customer_invoices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id INTEGER NOT NULL,
+            invoice_number TEXT UNIQUE NOT NULL,
+            amount REAL NOT NULL DEFAULT 0,
+            currency TEXT DEFAULT 'USD',
+            status TEXT DEFAULT 'pending',
+            stripe_invoice_id TEXT DEFAULT '',
+            period_start TEXT DEFAULT '',
+            period_end TEXT DEFAULT '',
+            paid_at TIMESTAMP DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (customer_id) REFERENCES customers(id)
+        );
     """)
 
     # Migration: add new columns to existing tables
@@ -185,6 +548,63 @@ def init_db():
         ("doctors", "pdf_filename", "TEXT DEFAULT ''"),
         ("doctors", "schedule_type", "TEXT DEFAULT 'fixed'"),
         ("doctors", "daily_hours", "TEXT DEFAULT ''"),
+        # Feature 2: link forms to bookings
+        ("bookings", "form_token", "TEXT DEFAULT ''"),
+        ("bookings", "form_submitted", "INTEGER DEFAULT 0"),
+        # Feature 6: Multilingual
+        ("chat_logs", "language", "TEXT DEFAULT 'en'"),
+        # Feature 10: Live Chat
+        ("chat_logs", "is_human_handled", "INTEGER DEFAULT 0"),
+        ("chat_logs", "handler_user_id", "INTEGER DEFAULT 0"),
+        # Feature 13: 2FA
+        ("users", "totp_secret", "TEXT DEFAULT ''"),
+        ("users", "two_fa_enabled", "INTEGER DEFAULT 0"),
+        ("users", "two_fa_method", "TEXT DEFAULT 'email'"),
+        ("users", "last_activity_at", "TIMESTAMP DEFAULT ''"),
+        # Feature 14: Referral
+        ("users", "referral_code", "TEXT DEFAULT ''"),
+        ("users", "referred_by", "TEXT DEFAULT ''"),
+        # Feature 15: Patient Profile
+        ("bookings", "patient_id", "INTEGER DEFAULT 0"),
+        ("bookings", "outcome", "TEXT DEFAULT ''"),
+        ("bookings", "treatment_type", "TEXT DEFAULT ''"),
+        # Feature 16: Real-time dashboard
+        ("bookings", "checked_in", "INTEGER DEFAULT 0"),
+        ("bookings", "checked_in_at", "TIMESTAMP DEFAULT ''"),
+        # Feature 4: Missed calls
+        ("company_info", "missed_call_enabled", "INTEGER DEFAULT 0"),
+        ("company_info", "clinic_phone", "TEXT DEFAULT ''"),
+        # Feature 10: Live chat threshold
+        ("company_info", "handoff_threshold", "REAL DEFAULT 0.3"),
+        # Feature 11: Schedule blocks
+        ("company_info", "blocked_dates", "TEXT DEFAULT ''"),
+        # Feature 11 rebuild: new schedule_blocks columns
+        ("schedule_blocks", "block_type", "TEXT DEFAULT 'single_date'"),
+        ("schedule_blocks", "start_date", "TEXT NOT NULL DEFAULT ''"),
+        ("schedule_blocks", "end_date", "TEXT DEFAULT ''"),
+        ("schedule_blocks", "recurring_pattern", "TEXT DEFAULT ''"),
+        ("schedule_blocks", "recurring_day", "INTEGER DEFAULT NULL"),
+        ("schedule_blocks", "is_active", "INTEGER DEFAULT 1"),
+        # Customer linking
+        ("users", "customer_id", "INTEGER DEFAULT 0"),
+        # Patient profile — medical & booking history
+        ("patients", "medical_history", "TEXT DEFAULT ''"),
+        ("patients", "medications", "TEXT DEFAULT ''"),
+        ("patients", "allergies", "TEXT DEFAULT ''"),
+        ("patients", "insurance_provider", "TEXT DEFAULT ''"),
+        ("patients", "insurance_policy", "TEXT DEFAULT ''"),
+        ("patients", "total_bookings", "INTEGER DEFAULT 0"),
+        ("patients", "total_completed", "INTEGER DEFAULT 0"),
+        ("patients", "total_cancelled", "INTEGER DEFAULT 0"),
+        ("patients", "total_no_shows", "INTEGER DEFAULT 0"),
+        ("patients", "conditions", "TEXT DEFAULT ''"),
+        ("patients", "last_treatment", "TEXT DEFAULT ''"),
+        # Feature 1: Waitlist — expired_at column
+        ("waitlist", "expired_at", "TIMESTAMP DEFAULT ''"),
+        # Feature 2: Patient Forms — signature_data column (replaces consent_signature)
+        ("patient_forms", "signature_data", "TEXT DEFAULT ''"),
+        # Feature 17: A/B Testing — completed_at column
+        ("ab_tests", "completed_at", "TIMESTAMP DEFAULT ''"),
     ]
     for table, col, col_type in migrations:
         try:
@@ -192,6 +612,17 @@ def init_db():
             conn.commit()
         except sqlite3.OperationalError:
             pass
+
+    # Feature 17: A/B Testing — session assignment tracking
+    conn.execute("""CREATE TABLE IF NOT EXISTS ab_assignments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        test_id INTEGER,
+        session_id TEXT,
+        variant TEXT,
+        converted INTEGER DEFAULT 0,
+        created_at TEXT
+    )""")
+    conn.commit()
 
     # Seed default categories for admin_id=0 (global defaults)
     DEFAULT_CATEGORIES = [
@@ -246,14 +677,37 @@ def save_booking(customer_name, customer_email, date, time, service="General Con
     conn.close()
 
 
+def add_booking(customer_name, customer_email="", customer_phone="", date="", time="",
+                service="General Consultation", doctor_id=0, doctor_name="", admin_id=0):
+    """Add a booking and return its ID."""
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO bookings (customer_name, customer_email, customer_phone, date, time,
+           service, doctor_id, doctor_name, admin_id) VALUES (?,?,?,?,?,?,?,?,?)""",
+        (customer_name, customer_email, customer_phone, date, time, service, doctor_id, doctor_name, admin_id))
+    conn.commit()
+    bid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return bid
+
+
 def get_booked_times(doctor_id, date_str):
-    """Get list of booked time strings for a doctor on a specific date."""
+    """Get list of booked time strings for a doctor on a specific date.
+    Also includes slots held by waitlist (status='notified') so they can't be double-booked."""
     conn = get_db()
     rows = conn.execute(
         "SELECT time FROM bookings WHERE doctor_id = ? AND date = ? AND status != 'cancelled'",
         (doctor_id, date_str)).fetchall()
+    booked = [r["time"] for r in rows]
+    # Also hold slots where a waitlist patient is deciding
+    held = conn.execute(
+        "SELECT time_slot FROM waitlist WHERE doctor_id = ? AND date = ? AND status = 'notified'",
+        (doctor_id, date_str)).fetchall()
+    for h in held:
+        if h["time_slot"] not in booked:
+            booked.append(h["time_slot"])
     conn.close()
-    return [r["time"] for r in rows]
+    return booked
 
 
 def find_bookings_by_date(admin_id, date_str):
@@ -1103,6 +1557,1226 @@ def get_analytics(admin_id, date_from, date_to):
     _analytics_cache[cache_key] = (now, result)
     conn.close()
     return result
+
+
+# ═══════════════ Feature 1: Waitlist ═══════════════
+
+def add_to_waitlist(admin_id, doctor_id, date, time_slot, patient_name, patient_email="", patient_phone="", session_id=""):
+    """Add patient to waitlist. Position = max existing position + 1."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT MAX(position) as mx FROM waitlist WHERE admin_id=? AND doctor_id=? AND date=? AND time_slot=? AND status IN ('waiting','notified')",
+        (admin_id, doctor_id, date, time_slot)).fetchone()
+    pos = (row["mx"] or 0) + 1
+    conn.execute(
+        "INSERT INTO waitlist (admin_id,doctor_id,date,time_slot,patient_name,patient_email,patient_phone,position,session_id) VALUES (?,?,?,?,?,?,?,?,?)",
+        (admin_id, doctor_id, date, time_slot, patient_name, patient_email, patient_phone, pos, session_id))
+    conn.commit()
+    wid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return wid
+
+
+def get_waitlist_for_slot(admin_id, doctor_id, date, time_slot):
+    """Get all waitlist entries for a specific slot, ordered by position."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM waitlist WHERE admin_id=? AND doctor_id=? AND date=? AND time_slot=? ORDER BY position",
+        (admin_id, doctor_id, date, time_slot)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_waitlist(admin_id, doctor_id=None, date=None, time_slot=None):
+    """General waitlist query with optional filters."""
+    conn = get_db()
+    q = "SELECT * FROM waitlist WHERE admin_id=?"
+    params = [admin_id]
+    if doctor_id:
+        q += " AND doctor_id=?"; params.append(doctor_id)
+    if date:
+        q += " AND date=?"; params.append(date)
+    if time_slot:
+        q += " AND time_slot=?"; params.append(time_slot)
+    q += " ORDER BY position"
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_next_waiting_patient(admin_id, doctor_id, date, time_slot):
+    """Get the first patient with status='waiting' for this slot."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM waitlist WHERE admin_id=? AND doctor_id=? AND date=? AND time_slot=? AND status='waiting' ORDER BY position LIMIT 1",
+        (admin_id, doctor_id, date, time_slot)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def notify_waitlist_patient(waitlist_id, confirm_deadline):
+    """Set status='notified', notified_at=now, confirm_deadline=deadline."""
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute(
+        "UPDATE waitlist SET status='notified', notified_at=?, confirm_deadline=? WHERE id=?",
+        (now, confirm_deadline, waitlist_id))
+    conn.commit()
+    conn.close()
+
+
+def confirm_waitlist_patient(waitlist_id):
+    """Set status='confirmed', confirmed_at=now."""
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("UPDATE waitlist SET status='confirmed', confirmed_at=? WHERE id=?", (now, waitlist_id))
+    conn.commit()
+    conn.close()
+
+
+def expire_waitlist_patient(waitlist_id):
+    """Set status='expired', expired_at=now."""
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("UPDATE waitlist SET status='expired', expired_at=? WHERE id=?", (now, waitlist_id))
+    conn.commit()
+    conn.close()
+
+
+def get_active_waitlist_notifications():
+    """Get all entries with status='notified' where confirm_deadline has passed."""
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    rows = conn.execute(
+        "SELECT * FROM waitlist WHERE status='notified' AND confirm_deadline != '' AND confirm_deadline < ?",
+        (now,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_waitlist_for_admin(admin_id):
+    """Get all waitlist entries for dashboard display with patient name, position, status, countdown."""
+    conn = get_db()
+    rows = conn.execute(
+        """SELECT w.*, d.name as doctor_name
+           FROM waitlist w
+           LEFT JOIN doctors d ON w.doctor_id = d.id
+           WHERE w.admin_id=?
+           ORDER BY w.date, w.time_slot, w.position""",
+        (admin_id,)).fetchall()
+    conn.close()
+    results = []
+    now = datetime.now()
+    for r in rows:
+        entry = dict(r)
+        if entry["status"] == "notified" and entry.get("confirm_deadline"):
+            try:
+                deadline = datetime.strptime(entry["confirm_deadline"], "%Y-%m-%d %H:%M:%S")
+                remaining = (deadline - now).total_seconds()
+                entry["countdown_seconds"] = max(0, int(remaining))
+            except (ValueError, TypeError):
+                entry["countdown_seconds"] = 0
+        else:
+            entry["countdown_seconds"] = None
+        results.append(entry)
+    return results
+
+
+def is_slot_held(admin_id, doctor_id, date, time_slot):
+    """Check if a slot is currently held (has a notified but not yet expired/confirmed entry)."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT COUNT(*) as cnt FROM waitlist WHERE admin_id=? AND doctor_id=? AND date=? AND time_slot=? AND status='notified'",
+        (admin_id, doctor_id, date, time_slot)).fetchone()
+    conn.close()
+    return row["cnt"] > 0
+
+
+def release_held_slot(admin_id, doctor_id, date, time_slot):
+    """When entire waitlist expires, release the slot back to public.
+    The slot is implicitly free when no 'notified' entries exist."""
+    pass
+
+
+def get_waitlist_count(admin_id, doctor_id, date, time_slot):
+    """Return count of waiting patients for a slot."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT COUNT(*) as cnt FROM waitlist WHERE admin_id=? AND doctor_id=? AND date=? AND time_slot=? AND status='waiting'",
+        (admin_id, doctor_id, date, time_slot)).fetchone()
+    conn.close()
+    return row["cnt"]
+
+
+def get_waitlist_entry(waitlist_id):
+    """Get a single waitlist entry by ID."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM waitlist WHERE id=?", (waitlist_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+# Legacy aliases for backward compatibility
+def confirm_waitlist(waitlist_id):
+    return confirm_waitlist_patient(waitlist_id)
+
+def expire_waitlist(waitlist_id):
+    return expire_waitlist_patient(waitlist_id)
+
+def get_next_waiting(admin_id, doctor_id, date, time_slot):
+    return get_next_waiting_patient(admin_id, doctor_id, date, time_slot)
+
+
+# ═══════════════ Feature 2: Patient Forms ═══════════════
+
+def create_previsit_form(booking_id, admin_id, patient_name=None):
+    """Generate a UUID token, create form record, return token."""
+    token = secrets.token_urlsafe(32)
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO patient_forms (booking_id, admin_id, token, full_name) VALUES (?,?,?,?)",
+        (booking_id, admin_id, token, patient_name or ""))
+    conn.execute("UPDATE bookings SET form_token=? WHERE id=?", (token, booking_id))
+    conn.commit()
+    conn.close()
+    return token
+
+
+# Keep old name as alias for backward compatibility
+create_patient_form = create_previsit_form
+
+
+def get_form_by_token(token):
+    """Get form data by token. Return None if token invalid."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM patient_forms WHERE token=?", (token,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def submit_previsit_form(token, form_data):
+    """Save all form fields, set submitted_at=now. Return False if already submitted."""
+    conn = get_db()
+    # Check if form exists and is not already submitted
+    existing = conn.execute("SELECT id, submitted_at FROM patient_forms WHERE token=?", (token,)).fetchone()
+    if not existing:
+        conn.close()
+        return False
+    if existing["submitted_at"]:
+        conn.close()
+        return False
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # Build medical_history as JSON string if it is a dict/list, otherwise keep as string
+    medical_history = form_data.get("medical_history", "")
+    if isinstance(medical_history, (dict, list)):
+        medical_history = json.dumps(medical_history)
+
+    conn.execute("""UPDATE patient_forms SET
+                    full_name=?, date_of_birth=?, gender=?,
+                    medical_history=?, medications=?, allergies=?,
+                    insurance_provider=?, insurance_policy=?,
+                    signature_data=?, submitted_at=?
+                    WHERE token=?""",
+                 (form_data.get("full_name", ""),
+                  form_data.get("date_of_birth", ""),
+                  form_data.get("gender", ""),
+                  medical_history,
+                  form_data.get("medications", ""),
+                  form_data.get("allergies", ""),
+                  form_data.get("insurance_provider", ""),
+                  form_data.get("insurance_policy", ""),
+                  form_data.get("signature_data", ""),
+                  now, token))
+    # Mark booking as form submitted
+    conn.execute("UPDATE bookings SET form_submitted=1 WHERE id=(SELECT booking_id FROM patient_forms WHERE token=?)", (token,))
+    conn.commit()
+    conn.close()
+    return True
+
+
+# Keep old name as alias for backward compatibility
+submit_patient_form = submit_previsit_form
+
+
+def is_form_submitted(token):
+    """Check if form was already submitted."""
+    conn = get_db()
+    row = conn.execute("SELECT submitted_at FROM patient_forms WHERE token=?", (token,)).fetchone()
+    conn.close()
+    if not row:
+        return False
+    return bool(row["submitted_at"])
+
+
+def get_form_for_booking(booking_id):
+    """Get form data for a specific booking (for dashboard display)."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM patient_forms WHERE booking_id=?", (booking_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+# Keep old name as alias for backward compatibility
+get_form_by_booking = get_form_for_booking
+
+
+def sync_form_to_patient(form_data, patient_id):
+    """Copy form data (medical_history, allergies, medications, insurance) to patient profile."""
+    conn = get_db()
+    medical_history = form_data.get("medical_history", "")
+    if isinstance(medical_history, (dict, list)):
+        medical_history = json.dumps(medical_history)
+
+    conn.execute("""UPDATE patients SET
+        date_of_birth=COALESCE(NULLIF(?,''),(CASE WHEN date_of_birth='' THEN '' ELSE date_of_birth END)),
+        gender=COALESCE(NULLIF(?,''),(CASE WHEN gender='' THEN '' ELSE gender END)),
+        medical_history=?, medications=?, allergies=?,
+        insurance_provider=?, insurance_policy=?,
+        conditions=?
+        WHERE id=?""",
+        (form_data.get("date_of_birth", ""),
+         form_data.get("gender", ""),
+         medical_history,
+         form_data.get("medications", ""),
+         form_data.get("allergies", ""),
+         form_data.get("insurance_provider", ""),
+         form_data.get("insurance_policy", ""),
+         medical_history,  # conditions = same as medical_history checkboxes
+         patient_id))
+    conn.commit()
+    conn.close()
+
+
+# ═══════════════ Feature 3: Recall ═══════════════
+
+def add_recall_rule(admin_id, treatment_type, recall_days, message_template=""):
+    conn = get_db()
+    conn.execute("INSERT INTO recall_rules (admin_id, treatment_type, recall_days, message_template) VALUES (?,?,?,?)",
+                 (admin_id, treatment_type, recall_days, message_template))
+    conn.commit()
+    conn.close()
+
+def get_recall_rules(admin_id):
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM recall_rules WHERE admin_id=? ORDER BY treatment_type", (admin_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def update_recall_rule(rule_id, admin_id, **kwargs):
+    conn = get_db()
+    for k, v in kwargs.items():
+        if k in ("treatment_type", "recall_days", "message_template", "is_active"):
+            conn.execute(f"UPDATE recall_rules SET {k}=? WHERE id=? AND admin_id=?", (v, rule_id, admin_id))
+    conn.commit()
+    conn.close()
+
+def delete_recall_rule(rule_id, admin_id):
+    conn = get_db()
+    conn.execute("DELETE FROM recall_rules WHERE id=? AND admin_id=?", (rule_id, admin_id))
+    conn.commit()
+    conn.close()
+
+def add_recall_campaign(admin_id, rule_id, patient_name, patient_email="", patient_phone="", recall_type="appointment"):
+    conn = get_db()
+    conn.execute("INSERT INTO recall_campaigns (admin_id,rule_id,patient_name,patient_email,patient_phone,recall_type) VALUES (?,?,?,?,?,?)",
+                 (admin_id, rule_id, patient_name, patient_email, patient_phone, recall_type))
+    conn.commit()
+    conn.close()
+
+def get_recall_campaigns(admin_id, status=None):
+    conn = get_db()
+    q = "SELECT * FROM recall_campaigns WHERE admin_id=?"
+    params = [admin_id]
+    if status:
+        q += " AND status=?"; params.append(status)
+    q += " ORDER BY created_at DESC"
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def get_recall_stats(admin_id):
+    conn = get_db()
+    total = conn.execute("SELECT COUNT(*) as c FROM recall_campaigns WHERE admin_id=?", (admin_id,)).fetchone()["c"]
+    sent = conn.execute("SELECT COUNT(*) as c FROM recall_campaigns WHERE admin_id=? AND status='sent'", (admin_id,)).fetchone()["c"]
+    opened = conn.execute("SELECT COUNT(*) as c FROM recall_campaigns WHERE admin_id=? AND opened_at IS NOT NULL AND opened_at != ''", (admin_id,)).fetchone()["c"]
+    booked = conn.execute("SELECT COUNT(*) as c FROM recall_campaigns WHERE admin_id=? AND booked_at IS NOT NULL AND booked_at != ''", (admin_id,)).fetchone()["c"]
+    conn.close()
+    return {"total": total, "sent": sent, "opened": opened, "booked": booked}
+
+
+# ═══════════════ Feature 4: Missed Calls ═══════════════
+
+def log_missed_call(admin_id, caller_number):
+    conn = get_db()
+    conn.execute("INSERT INTO missed_calls (admin_id, caller_number) VALUES (?,?)", (admin_id, caller_number))
+    conn.commit()
+    wid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return wid
+
+def get_missed_calls(admin_id, limit=50):
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM missed_calls WHERE admin_id=? ORDER BY call_time DESC LIMIT ?", (admin_id, limit)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def update_missed_call(call_id, **kwargs):
+    conn = get_db()
+    for k, v in kwargs.items():
+        if k in ("reply_sent", "reply_method", "subsequently_booked", "booking_id"):
+            conn.execute(f"UPDATE missed_calls SET {k}=? WHERE id=?", (v, call_id))
+    conn.commit()
+    conn.close()
+
+
+# ═══════════════ Feature 5: Treatment Follow-Up ═══════════════
+
+def create_treatment_followup(admin_id, doctor_id, patient_name, treatment_name, patient_email="", patient_phone=""):
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d")
+    for day in [2, 5, 10]:
+        conn.execute("INSERT INTO treatment_followups (admin_id,doctor_id,patient_name,patient_email,patient_phone,treatment_name,recommended_date,followup_day) VALUES (?,?,?,?,?,?,?,?)",
+                     (admin_id, doctor_id, patient_name, patient_email, patient_phone, treatment_name, now, day))
+    conn.commit()
+    conn.close()
+
+def get_treatment_followups(admin_id, status=None):
+    conn = get_db()
+    q = "SELECT * FROM treatment_followups WHERE admin_id=?"
+    params = [admin_id]
+    if status:
+        q += " AND status=?"; params.append(status)
+    q += " ORDER BY created_at DESC"
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def cancel_treatment_followups(admin_id, patient_name, treatment_name):
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("UPDATE treatment_followups SET status='cancelled', cancelled_at=? WHERE admin_id=? AND patient_name=? AND treatment_name=? AND status='pending'",
+                 (now, admin_id, patient_name, treatment_name))
+    conn.commit()
+    conn.close()
+
+def get_due_followups():
+    """Get all followups that are due to be sent today."""
+    conn = get_db()
+    rows = conn.execute("""SELECT * FROM treatment_followups WHERE status='pending'
+                           AND date(recommended_date, '+' || followup_day || ' days') <= date('now')""").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+# ═══════════════ Feature 7: Gallery ═══════════════
+
+def add_gallery_image(admin_id, treatment_type, image_url, image_type="after", pair_id="", caption=""):
+    conn = get_db()
+    order = conn.execute("SELECT MAX(sort_order) as mx FROM gallery WHERE admin_id=? AND treatment_type=?", (admin_id, treatment_type)).fetchone()["mx"] or 0
+    conn.execute("INSERT INTO gallery (admin_id,treatment_type,image_url,image_type,pair_id,caption,sort_order) VALUES (?,?,?,?,?,?,?)",
+                 (admin_id, treatment_type, image_url, image_type, pair_id, caption, order + 1))
+    conn.commit()
+    conn.close()
+
+def get_gallery(admin_id, treatment_type=None):
+    conn = get_db()
+    if treatment_type:
+        rows = conn.execute("SELECT * FROM gallery WHERE admin_id=? AND treatment_type=? ORDER BY sort_order", (admin_id, treatment_type)).fetchall()
+    else:
+        rows = conn.execute("SELECT * FROM gallery WHERE admin_id=? ORDER BY treatment_type, sort_order", (admin_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def delete_gallery_image(image_id, admin_id):
+    conn = get_db()
+    conn.execute("DELETE FROM gallery WHERE id=? AND admin_id=?", (image_id, admin_id))
+    conn.commit()
+    conn.close()
+
+
+# ═══════════════ Feature 10: Live Chat Handoff ═══════════════
+
+def create_handoff(admin_id, session_id, patient_name="", reason="", ai_confidence=0):
+    conn = get_db()
+    conn.execute("INSERT INTO live_chat_handoffs (admin_id,session_id,patient_name,reason,ai_confidence) VALUES (?,?,?,?,?)",
+                 (admin_id, session_id, patient_name, reason, ai_confidence))
+    conn.commit()
+    hid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return hid
+
+def get_handoff_queue(admin_id):
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM live_chat_handoffs WHERE admin_id=? AND status IN ('queued','assigned') ORDER BY created_at", (admin_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def assign_handoff(handoff_id, staff_user_id, staff_name):
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("UPDATE live_chat_handoffs SET status='assigned', staff_user_id=?, staff_name=?, assigned_at=? WHERE id=?",
+                 (staff_user_id, staff_name, now, handoff_id))
+    conn.commit()
+    conn.close()
+
+def resolve_handoff(handoff_id, notes=""):
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("UPDATE live_chat_handoffs SET status='resolved', resolved_at=?, resolution_notes=? WHERE id=?",
+                 (now, notes, handoff_id))
+    conn.commit()
+    conn.close()
+
+def get_handoff_by_session(session_id):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM live_chat_handoffs WHERE session_id=? AND status IN ('queued','assigned') ORDER BY created_at DESC LIMIT 1", (session_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+# ═══════════════ Feature 11: Schedule Blocks (rebuilt) ═══════════════
+
+def _parse_time_to_minutes(time_str):
+    """Parse '09:00 AM' or '01:30 PM' to total minutes since midnight."""
+    import re as _re
+    if not time_str:
+        return None
+    time_str = time_str.strip()
+    m = _re.match(r'(\d{1,2}):(\d{2})\s*(AM|PM)', time_str, _re.IGNORECASE)
+    if not m:
+        return None
+    h, mi, ampm = int(m.group(1)), int(m.group(2)), m.group(3).upper()
+    if ampm == 'PM' and h < 12:
+        h += 12
+    if ampm == 'AM' and h == 12:
+        h = 0
+    return h * 60 + mi
+
+
+def create_schedule_block(admin_id, doctor_id, block_type, start_date, end_date=None,
+                          start_time=None, end_time=None, recurring_pattern=None,
+                          recurring_day=None, label=None):
+    """Create a new schedule block. Returns the new block ID."""
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO schedule_blocks
+           (admin_id, doctor_id, block_type, start_date, end_date,
+            start_time, end_time, recurring_pattern, recurring_day, label, is_active)
+           VALUES (?,?,?,?,?,?,?,?,?,?,1)""",
+        (admin_id, doctor_id, block_type, start_date,
+         end_date or start_date, start_time or "", end_time or "",
+         recurring_pattern or "", recurring_day, label or ""))
+    conn.commit()
+    bid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return bid
+
+
+def get_schedule_blocks(admin_id, doctor_id=None):
+    """Get all active blocks for an admin (optionally filtered by doctor)."""
+    conn = get_db()
+    if doctor_id is not None:
+        rows = conn.execute(
+            """SELECT * FROM schedule_blocks
+               WHERE admin_id=? AND is_active=1
+               AND (doctor_id=? OR doctor_id IS NULL)
+               ORDER BY start_date""",
+            (admin_id, doctor_id)).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM schedule_blocks WHERE admin_id=? AND is_active=1 ORDER BY start_date",
+            (admin_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def delete_schedule_block(block_id, admin_id=None):
+    """Delete a single block (or single occurrence of a recurring block)."""
+    conn = get_db()
+    if admin_id is not None:
+        conn.execute("DELETE FROM schedule_blocks WHERE id=? AND admin_id=?", (block_id, admin_id))
+    else:
+        conn.execute("DELETE FROM schedule_blocks WHERE id=?", (block_id,))
+    conn.commit()
+    conn.close()
+
+
+def delete_recurring_series(block_id):
+    """Delete all occurrences of a recurring block series.
+    Uses the block's attributes to find siblings with the same pattern."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM schedule_blocks WHERE id=?", (block_id,)).fetchone()
+    if row:
+        conn.execute(
+            """DELETE FROM schedule_blocks
+               WHERE admin_id=? AND doctor_id IS ? AND block_type='recurring'
+               AND recurring_pattern=? AND recurring_day IS ?
+               AND label=?""",
+            (row["admin_id"], row["doctor_id"], row["recurring_pattern"],
+             row["recurring_day"], row["label"]))
+        conn.commit()
+    conn.close()
+
+
+def _date_matches_recurring(date_obj, block):
+    """Check whether a date matches a recurring block pattern."""
+    pattern = block.get("recurring_pattern", "")
+    if not pattern:
+        return False
+
+    # Check date is within the block's date range
+    start_d = block.get("start_date", "")
+    end_d = block.get("end_date", "")
+    date_iso = date_obj.strftime("%Y-%m-%d") if hasattr(date_obj, 'strftime') else str(date_obj)
+    if start_d and date_iso < start_d:
+        return False
+    if end_d and date_iso > end_d:
+        return False
+
+    rec_day = block.get("recurring_day")
+
+    if pattern == "daily":
+        return True
+    elif pattern == "weekly":
+        # recurring_day: 0=Monday .. 6=Sunday
+        if rec_day is not None:
+            return date_obj.weekday() == int(rec_day)
+        return False
+    elif pattern == "monthly":
+        # recurring_day: 1-31 day of month
+        if rec_day is not None:
+            return date_obj.day == int(rec_day)
+        return False
+    return False
+
+
+def is_slot_blocked(admin_id, doctor_id, date_str, time_str=None):
+    """Check if a specific date+time is blocked.
+    Checks clinic-wide blocks (doctor_id IS NULL), doctor-specific blocks,
+    single date blocks, date range blocks, and recurring blocks.
+    Returns True if blocked, False if available."""
+    from datetime import datetime as dt
+    conn = get_db()
+    try:
+        date_obj = dt.strptime(date_str, "%Y-%m-%d")
+    except (ValueError, TypeError):
+        conn.close()
+        return False
+
+    # Fetch all active blocks that could apply (clinic-wide + doctor-specific)
+    rows = conn.execute(
+        """SELECT * FROM schedule_blocks
+           WHERE admin_id=? AND is_active=1
+           AND (doctor_id IS NULL OR doctor_id=?)""",
+        (admin_id, doctor_id)).fetchall()
+    conn.close()
+
+    slot_mins = None
+    if time_str:
+        # Extract just the start time from formats like "09:00 AM - 10:00 AM"
+        start_part = time_str.split(" - ")[0].strip() if " - " in time_str else time_str.strip()
+        slot_mins = _parse_time_to_minutes(start_part)
+
+    for block in rows:
+        matches_date = False
+        btype = block["block_type"] or "single_date"
+
+        if btype == "single_date":
+            matches_date = (block["start_date"] == date_str)
+        elif btype == "date_range":
+            sd = block.get("start_date", "")
+            ed = block.get("end_date", sd)
+            matches_date = (sd <= date_str <= ed)
+        elif btype == "recurring":
+            matches_date = _date_matches_recurring(date_obj, block)
+
+        if not matches_date:
+            continue
+
+        # Date matches — now check time
+        blk_start = block.get("start_time", "")
+        blk_end = block.get("end_time", "")
+
+        if not blk_start and not blk_end:
+            # Full-day block
+            return True
+
+        if blk_start and blk_end:
+            # Time-range block — only blocked if slot falls within range
+            if slot_mins is not None:
+                bs = _parse_time_to_minutes(blk_start)
+                be = _parse_time_to_minutes(blk_end)
+                if bs is not None and be is not None and bs <= slot_mins < be:
+                    return True
+            elif time_str is None:
+                # No time given but there IS a time-range block — partial day block.
+                # We don't consider the date fully blocked.
+                continue
+
+    return False
+
+
+def get_blocked_dates_for_calendar(admin_id, doctor_id, year, month):
+    """Return list of date strings (YYYY-MM-DD) that are fully blocked in a given month.
+    A date is 'fully blocked' if there is a full-day block (no start_time/end_time)
+    covering it. Used for greying out calendar dates."""
+    from datetime import datetime as dt
+    import calendar as cal_mod
+    conn = get_db()
+    rows = conn.execute(
+        """SELECT * FROM schedule_blocks
+           WHERE admin_id=? AND is_active=1
+           AND (doctor_id IS NULL OR doctor_id=?)
+           AND (start_time='' OR start_time IS NULL)
+           AND (end_time='' OR end_time IS NULL)""",
+        (admin_id, doctor_id)).fetchall()
+    conn.close()
+
+    _, days_in_month = cal_mod.monthrange(year, month)
+    blocked_dates = set()
+
+    for day in range(1, days_in_month + 1):
+        date_obj = dt(year, month, day)
+        date_str = date_obj.strftime("%Y-%m-%d")
+
+        for block in rows:
+            btype = block["block_type"] or "single_date"
+            matched = False
+
+            if btype == "single_date":
+                matched = (block["start_date"] == date_str)
+            elif btype == "date_range":
+                sd = block.get("start_date", "")
+                ed = block.get("end_date", sd)
+                matched = (sd <= date_str <= ed)
+            elif btype == "recurring":
+                matched = _date_matches_recurring(date_obj, block)
+
+            if matched:
+                blocked_dates.add(date_str)
+                break
+
+    return list(blocked_dates)
+
+
+def get_bookings_on_date(admin_id, date_str, doctor_id=None):
+    """Return count of confirmed bookings on a date (for warning when blocking)."""
+    conn = get_db()
+    if doctor_id:
+        row = conn.execute(
+            "SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND date=? AND doctor_id=? AND status='confirmed'",
+            (admin_id, date_str, doctor_id)).fetchone()
+    else:
+        row = conn.execute(
+            "SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND date=? AND status='confirmed'",
+            (admin_id, date_str)).fetchone()
+    conn.close()
+    return row["c"] if row else 0
+
+
+# ═══════════════ Feature 12: Promotions ═══════════════
+
+def create_promotion(admin_id, code, discount_type, discount_value, applicable_treatments="all", expiry_date="", max_uses=0, min_booking_value=0):
+    conn = get_db()
+    conn.execute("INSERT INTO promotions (admin_id,code,discount_type,discount_value,applicable_treatments,expiry_date,max_uses,min_booking_value) VALUES (?,?,?,?,?,?,?,?)",
+                 (admin_id, code.upper(), discount_type, discount_value, applicable_treatments, expiry_date, max_uses, min_booking_value))
+    conn.commit()
+    pid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return pid
+
+def validate_promotion(code, admin_id, treatment="", booking_value=0):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM promotions WHERE code=? AND admin_id=? AND is_active=1", (code.upper(), admin_id)).fetchone()
+    if not row:
+        conn.close()
+        return None, "Invalid discount code."
+    promo = dict(row)
+    if promo["expiry_date"] and promo["expiry_date"] < datetime.now().strftime("%Y-%m-%d"):
+        conn.close()
+        return None, "This discount code has expired."
+    if promo["max_uses"] > 0 and promo["current_uses"] >= promo["max_uses"]:
+        conn.close()
+        return None, "This discount code has reached its usage limit."
+    if promo["min_booking_value"] > 0 and booking_value < promo["min_booking_value"]:
+        conn.close()
+        return None, f"Minimum booking value of ${promo['min_booking_value']:.0f} required."
+    if promo["applicable_treatments"] != "all" and treatment:
+        treatments = [t.strip().lower() for t in promo["applicable_treatments"].split(",")]
+        if treatment.lower() not in treatments:
+            conn.close()
+            return None, "This code is not valid for the selected treatment."
+    conn.close()
+    return promo, None
+
+def use_promotion(promotion_id, booking_id=0, patient_name="", patient_email="", discount_amount=0, original_amount=0):
+    conn = get_db()
+    conn.execute("INSERT INTO promotion_usage (promotion_id,booking_id,patient_name,patient_email,discount_amount,original_amount) VALUES (?,?,?,?,?,?)",
+                 (promotion_id, booking_id, patient_name, patient_email, discount_amount, original_amount))
+    conn.execute("UPDATE promotions SET current_uses = current_uses + 1 WHERE id=?", (promotion_id,))
+    conn.commit()
+    conn.close()
+
+def get_promotions(admin_id):
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM promotions WHERE admin_id=? ORDER BY created_at DESC", (admin_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def get_promotion_stats(admin_id):
+    conn = get_db()
+    rows = conn.execute("""SELECT p.*, COUNT(pu.id) as total_uses, SUM(pu.discount_amount) as total_discount, SUM(pu.original_amount) as total_revenue
+                           FROM promotions p LEFT JOIN promotion_usage pu ON p.id = pu.promotion_id
+                           WHERE p.admin_id=? GROUP BY p.id ORDER BY p.created_at DESC""", (admin_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def delete_promotion(promo_id, admin_id):
+    conn = get_db()
+    conn.execute("UPDATE promotions SET is_active=0 WHERE id=? AND admin_id=?", (promo_id, admin_id))
+    conn.commit()
+    conn.close()
+
+
+# ═══════════════ Feature 14: Referrals ═══════════════
+
+def create_referral_code(admin_id):
+    code = "REF-" + secrets.token_hex(4).upper()
+    conn = get_db()
+    conn.execute("UPDATE users SET referral_code=? WHERE id=?", (code, admin_id))
+    conn.commit()
+    conn.close()
+    return code
+
+def get_referral_by_code(code):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM users WHERE referral_code=?", (code,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def track_referral(referrer_admin_id, referred_email, referral_code):
+    conn = get_db()
+    conn.execute("INSERT INTO referrals (referrer_admin_id, referred_email, referral_code) VALUES (?,?,?)",
+                 (referrer_admin_id, referred_email, referral_code))
+    conn.commit()
+    conn.close()
+
+def get_referrals(admin_id):
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM referrals WHERE referrer_admin_id=? ORDER BY created_at DESC", (admin_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def convert_referral(referred_admin_id, referral_code):
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("UPDATE referrals SET referred_admin_id=?, status='converted', converted_at=? WHERE referral_code=? AND status='pending'",
+                 (referred_admin_id, now, referral_code))
+    conn.commit()
+    conn.close()
+
+
+# ═══════════════ Feature 15: Patient Profiles ═══════════════
+
+def get_or_create_patient(admin_id, name="", email="", phone="", increment_booking=True):
+    conn = get_db()
+    # Try to find by phone or email
+    row = None
+    if phone:
+        row = conn.execute("SELECT * FROM patients WHERE admin_id=? AND phone=?", (admin_id, phone)).fetchone()
+    if not row and email:
+        row = conn.execute("SELECT * FROM patients WHERE admin_id=? AND email=?", (admin_id, email)).fetchone()
+    if row:
+        # Update name if provided
+        if name and not row["name"]:
+            conn.execute("UPDATE patients SET name=? WHERE id=?", (name, row["id"]))
+        # Increment booking count
+        if increment_booking:
+            conn.execute("UPDATE patients SET total_bookings=total_bookings+1 WHERE id=?", (row["id"],))
+        conn.commit()
+        row = conn.execute("SELECT * FROM patients WHERE id=?", (row["id"],)).fetchone()
+        conn.close()
+        return dict(row)
+    # Create new patient
+    conn.execute("INSERT INTO patients (admin_id,name,email,phone,total_bookings) VALUES (?,?,?,?,?)",
+                 (admin_id, name, email, phone, 1 if increment_booking else 0))
+    conn.commit()
+    pid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    row = conn.execute("SELECT * FROM patients WHERE id=?", (pid,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def get_patient(patient_id):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM patients WHERE id=?", (patient_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def get_patients(admin_id, search=""):
+    conn = get_db()
+    if search:
+        rows = conn.execute("SELECT * FROM patients WHERE admin_id=? AND (name LIKE ? OR email LIKE ? OR phone LIKE ?) ORDER BY name",
+                            (admin_id, f"%{search}%", f"%{search}%", f"%{search}%")).fetchall()
+    else:
+        rows = conn.execute("SELECT * FROM patients WHERE admin_id=? ORDER BY name", (admin_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def get_patient_history(patient_id):
+    conn = get_db()
+    bookings = conn.execute("SELECT * FROM bookings WHERE patient_id=? ORDER BY date DESC", (patient_id,)).fetchall()
+    forms = conn.execute("SELECT pf.* FROM patient_forms pf JOIN bookings b ON pf.booking_id=b.id WHERE b.patient_id=?", (patient_id,)).fetchall()
+    notes = conn.execute("SELECT * FROM patient_notes WHERE patient_id=? ORDER BY created_at DESC", (patient_id,)).fetchall()
+    conn.close()
+    return {
+        "bookings": [dict(r) for r in bookings],
+        "forms": [dict(r) for r in forms],
+        "notes": [dict(r) for r in notes]
+    }
+
+def update_patient(patient_id, **kwargs):
+    conn = get_db()
+    allowed = ("name", "email", "phone", "date_of_birth", "gender", "language", "notes",
+               "last_visit_date", "loyalty_points", "medical_history", "medications",
+               "allergies", "insurance_provider", "insurance_policy", "conditions",
+               "last_treatment", "total_bookings", "total_completed", "total_cancelled", "total_no_shows")
+    for k, v in kwargs.items():
+        if k in allowed:
+            conn.execute(f"UPDATE patients SET {k}=? WHERE id=?", (v, patient_id))
+    conn.commit()
+    conn.close()
+
+def add_patient_note(patient_id, doctor_id, note, booking_id=0):
+    conn = get_db()
+    conn.execute("INSERT INTO patient_notes (patient_id,doctor_id,booking_id,note) VALUES (?,?,?,?)",
+                 (patient_id, doctor_id, booking_id, note))
+    conn.commit()
+    conn.close()
+
+
+# ═══════════════ Feature 17: A/B Testing ═══════════════
+
+def create_ab_test(admin_id, test_name, test_type, variant_a, variant_b):
+    conn = get_db()
+    conn.execute("INSERT INTO ab_tests (admin_id,test_name,test_type,variant_a,variant_b) VALUES (?,?,?,?,?)",
+                 (admin_id, test_name, test_type, variant_a, variant_b))
+    conn.commit()
+    tid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return tid
+
+def get_ab_tests(admin_id):
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM ab_tests WHERE admin_id=? ORDER BY created_at DESC", (admin_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def get_active_ab_test(admin_id, test_type):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM ab_tests WHERE admin_id=? AND test_type=? AND status='running' ORDER BY created_at DESC LIMIT 1",
+                       (admin_id, test_type)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def increment_ab_test(test_id, variant, booked=False):
+    conn = get_db()
+    if variant == "a":
+        conn.execute("UPDATE ab_tests SET variant_a_conversations = variant_a_conversations + 1 WHERE id=?", (test_id,))
+        if booked:
+            conn.execute("UPDATE ab_tests SET variant_a_bookings = variant_a_bookings + 1 WHERE id=?", (test_id,))
+    else:
+        conn.execute("UPDATE ab_tests SET variant_b_conversations = variant_b_conversations + 1 WHERE id=?", (test_id,))
+        if booked:
+            conn.execute("UPDATE ab_tests SET variant_b_bookings = variant_b_bookings + 1 WHERE id=?", (test_id,))
+    conn.commit()
+    conn.close()
+
+def end_ab_test(test_id, winner):
+    conn = get_db()
+    conn.execute("UPDATE ab_tests SET status='completed', winner=? WHERE id=?", (winner, test_id))
+    conn.commit()
+    conn.close()
+
+
+# ═══════════════ Feature 18: Loyalty Program ═══════════════
+
+def get_loyalty_config(admin_id):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM loyalty_config WHERE admin_id=?", (admin_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def save_loyalty_config(admin_id, **kwargs):
+    conn = get_db()
+    existing = conn.execute("SELECT id FROM loyalty_config WHERE admin_id=?", (admin_id,)).fetchone()
+    if existing:
+        for k, v in kwargs.items():
+            if k in ("points_per_appointment","points_per_referral","points_per_review","points_per_form","redemption_value","is_active"):
+                conn.execute(f"UPDATE loyalty_config SET {k}=? WHERE admin_id=?", (v, admin_id))
+    else:
+        conn.execute("INSERT INTO loyalty_config (admin_id) VALUES (?)", (admin_id,))
+        for k, v in kwargs.items():
+            if k in ("points_per_appointment","points_per_referral","points_per_review","points_per_form","redemption_value","is_active"):
+                conn.execute(f"UPDATE loyalty_config SET {k}=? WHERE admin_id=?", (v, admin_id))
+    conn.commit()
+    conn.close()
+
+def add_loyalty_points(patient_id, admin_id, points, action, description="", booking_id=0):
+    conn = get_db()
+    conn.execute("INSERT INTO loyalty_transactions (patient_id,admin_id,points,action,description,booking_id) VALUES (?,?,?,?,?,?)",
+                 (patient_id, admin_id, points, action, description, booking_id))
+    conn.execute("UPDATE patients SET loyalty_points = loyalty_points + ? WHERE id=?", (points, patient_id))
+    conn.commit()
+    conn.close()
+
+def redeem_loyalty_points(patient_id, admin_id, points, description="", booking_id=0):
+    conn = get_db()
+    patient = conn.execute("SELECT loyalty_points FROM patients WHERE id=?", (patient_id,)).fetchone()
+    if not patient or patient["loyalty_points"] < points:
+        conn.close()
+        return False, "Insufficient loyalty points."
+    conn.execute("INSERT INTO loyalty_transactions (patient_id,admin_id,points,action,description,booking_id) VALUES (?,?,?,?,?,?)",
+                 (patient_id, admin_id, -points, "redeem", description, booking_id))
+    conn.execute("UPDATE patients SET loyalty_points = loyalty_points - ? WHERE id=?", (points, patient_id))
+    conn.commit()
+    conn.close()
+    return True, "Points redeemed successfully."
+
+def get_loyalty_stats(admin_id):
+    conn = get_db()
+    now = datetime.now()
+    month_start = now.strftime("%Y-%m-01")
+    total_members = conn.execute("SELECT COUNT(*) as c FROM patients WHERE admin_id=? AND loyalty_points > 0", (admin_id,)).fetchone()["c"]
+    issued = conn.execute("SELECT COALESCE(SUM(points),0) as s FROM loyalty_transactions WHERE admin_id=? AND points>0 AND created_at>=?", (admin_id, month_start)).fetchone()["s"]
+    redeemed = conn.execute("SELECT COALESCE(SUM(ABS(points)),0) as s FROM loyalty_transactions WHERE admin_id=? AND points<0 AND created_at>=?", (admin_id, month_start)).fetchone()["s"]
+    top = conn.execute("SELECT p.name, p.loyalty_points FROM patients p WHERE p.admin_id=? AND p.loyalty_points>0 ORDER BY p.loyalty_points DESC LIMIT 10", (admin_id,)).fetchall()
+    conn.close()
+    return {"total_members": total_members, "issued_this_month": issued, "redeemed_this_month": redeemed, "top_patients": [dict(r) for r in top]}
+
+
+# ═══════════════ Feature 19: GMB ═══════════════
+
+def save_gmb_connection(admin_id, **kwargs):
+    conn = get_db()
+    existing = conn.execute("SELECT id FROM gmb_connections WHERE admin_id=?", (admin_id,)).fetchone()
+    if existing:
+        for k, v in kwargs.items():
+            if k in ("google_account_id","location_id","access_token","refresh_token","rating","review_count","last_synced_at"):
+                conn.execute(f"UPDATE gmb_connections SET {k}=? WHERE admin_id=?", (v, admin_id))
+    else:
+        conn.execute("INSERT INTO gmb_connections (admin_id) VALUES (?)", (admin_id,))
+        for k, v in kwargs.items():
+            if k in ("google_account_id","location_id","access_token","refresh_token","rating","review_count","last_synced_at"):
+                conn.execute(f"UPDATE gmb_connections SET {k}=? WHERE admin_id=?", (v, admin_id))
+    conn.commit()
+    conn.close()
+
+def get_gmb_connection(admin_id):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM gmb_connections WHERE admin_id=?", (admin_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+# ═══════════════ Feature 20: Benchmarking ═══════════════
+
+def update_clinic_metrics(admin_id, **kwargs):
+    conn = get_db()
+    existing = conn.execute("SELECT id FROM clinic_metrics_cache WHERE admin_id=?", (admin_id,)).fetchone()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if existing:
+        for k, v in kwargs.items():
+            if k in ("conversion_rate","noshow_rate","avg_response_time","monthly_bookings","review_score","city"):
+                conn.execute(f"UPDATE clinic_metrics_cache SET {k}=?, updated_at=? WHERE admin_id=?", (v, now, admin_id))
+    else:
+        conn.execute("INSERT INTO clinic_metrics_cache (admin_id, updated_at) VALUES (?,?)", (admin_id, now))
+        for k, v in kwargs.items():
+            if k in ("conversion_rate","noshow_rate","avg_response_time","monthly_bookings","review_score","city"):
+                conn.execute(f"UPDATE clinic_metrics_cache SET {k}=?, updated_at=? WHERE admin_id=?", (v, now, admin_id))
+    conn.commit()
+    conn.close()
+
+def get_benchmark_data(admin_id):
+    conn = get_db()
+    my = conn.execute("SELECT * FROM clinic_metrics_cache WHERE admin_id=?", (admin_id,)).fetchone()
+    total_clinics = conn.execute("SELECT COUNT(*) as c FROM clinic_metrics_cache").fetchone()["c"]
+    if total_clinics < 5:
+        conn.close()
+        return {"available": False, "reason": "Need at least 5 clinics for benchmarking", "total_clinics": total_clinics}
+    avg = conn.execute("""SELECT AVG(conversion_rate) as avg_conv, AVG(noshow_rate) as avg_noshow,
+                          AVG(avg_response_time) as avg_resp, AVG(monthly_bookings) as avg_bookings,
+                          AVG(review_score) as avg_review FROM clinic_metrics_cache""").fetchone()
+    top10 = conn.execute("""SELECT AVG(conversion_rate) as top_conv, AVG(noshow_rate) as top_noshow,
+                            AVG(avg_response_time) as top_resp, AVG(monthly_bookings) as top_bookings,
+                            AVG(review_score) as top_review FROM (
+                                SELECT * FROM clinic_metrics_cache ORDER BY monthly_bookings DESC LIMIT MAX(1, (SELECT COUNT(*)/10 FROM clinic_metrics_cache))
+                            )""").fetchone()
+    conn.close()
+    return {
+        "available": True,
+        "total_clinics": total_clinics,
+        "my_metrics": dict(my) if my else {},
+        "platform_avg": dict(avg) if avg else {},
+        "top_10_pct": dict(top10) if top10 else {}
+    }
+
+
+# ── Customer (SaaS) Management ──────────────────────────────────────────────
+
+def create_customer(business_name, owner_name, email, **kwargs):
+    conn = get_db()
+    api_key = secrets.token_urlsafe(32)
+    api_secret = secrets.token_urlsafe(48)
+    verification_token = secrets.token_urlsafe(24)
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("""INSERT INTO customers
+        (business_name, owner_name, email, phone, website, country, city, address, industry,
+         plan, api_key, api_secret, verification_token, status, created_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (business_name, owner_name, email,
+         kwargs.get("phone",""), kwargs.get("website",""),
+         kwargs.get("country",""), kwargs.get("city",""),
+         kwargs.get("address",""), kwargs.get("industry","dental"),
+         kwargs.get("plan","free_trial"), api_key, api_secret,
+         verification_token, "pending", now))
+    cid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit()
+    conn.close()
+    return cid
+
+
+def get_customer(customer_id):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM customers WHERE id=?", (customer_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_customer_by_email(email):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM customers WHERE email=?", (email,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_customer_by_api_key(api_key):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM customers WHERE api_key=? AND status='active'", (api_key,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_all_customers(status=None):
+    conn = get_db()
+    if status:
+        rows = conn.execute("SELECT * FROM customers WHERE status=? ORDER BY created_at DESC", (status,)).fetchall()
+    else:
+        rows = conn.execute("SELECT * FROM customers ORDER BY created_at DESC").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def update_customer(customer_id, **kwargs):
+    conn = get_db()
+    allowed = ("business_name","owner_name","email","phone","website","country","city",
+               "address","industry","logo_url","plan","plan_expires_at","billing_cycle",
+               "stripe_customer_id","stripe_subscription_id","is_verified","status",
+               "webhook_url","allowed_domains","chatbot_name","chatbot_color",
+               "chatbot_position","chatbot_language","chatbot_welcome_msg",
+               "max_admins","max_doctors","max_monthly_chats","max_bookings",
+               "head_admin_user_id","last_active_at")
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    for k, v in kwargs.items():
+        if k in allowed:
+            conn.execute(f"UPDATE customers SET {k}=?, updated_at=? WHERE id=?", (v, now, customer_id))
+    conn.commit()
+    conn.close()
+
+
+def verify_customer(customer_id):
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("UPDATE customers SET is_verified=1, verified_at=?, status='active', updated_at=? WHERE id=?",
+                 (now, now, customer_id))
+    conn.commit()
+    conn.close()
+
+
+def verify_customer_by_token(token):
+    conn = get_db()
+    row = conn.execute("SELECT id FROM customers WHERE verification_token=?", (token,)).fetchone()
+    if not row:
+        conn.close()
+        return None
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("UPDATE customers SET is_verified=1, verified_at=?, status='active', verification_token='', updated_at=? WHERE id=?",
+                 (now, now, row["id"]))
+    conn.commit()
+    conn.close()
+    return row["id"]
+
+
+def delete_customer(customer_id):
+    conn = get_db()
+    conn.execute("DELETE FROM customers WHERE id=?", (customer_id,))
+    conn.commit()
+    conn.close()
+
+
+def regenerate_customer_api_key(customer_id):
+    conn = get_db()
+    new_key = secrets.token_urlsafe(32)
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("UPDATE customers SET api_key=?, updated_at=? WHERE id=?", (new_key, now, customer_id))
+    conn.commit()
+    conn.close()
+    return new_key
+
+
+def track_customer_usage(customer_id, chats=0, bookings=0, leads=0, api_calls=0):
+    conn = get_db()
+    month = datetime.now().strftime("%Y-%m")
+    existing = conn.execute("SELECT id FROM customer_usage WHERE customer_id=? AND month=?", (customer_id, month)).fetchone()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if existing:
+        conn.execute("""UPDATE customer_usage SET
+            total_chats=total_chats+?, total_bookings=total_bookings+?,
+            total_leads=total_leads+?, total_api_calls=total_api_calls+?, updated_at=?
+            WHERE customer_id=? AND month=?""",
+            (chats, bookings, leads, api_calls, now, customer_id, month))
+    else:
+        conn.execute("""INSERT INTO customer_usage (customer_id, month, total_chats, total_bookings, total_leads, total_api_calls, updated_at)
+            VALUES (?,?,?,?,?,?,?)""", (customer_id, month, chats, bookings, leads, api_calls, now))
+    conn.commit()
+    conn.close()
+
+
+def get_customer_usage(customer_id, month=None):
+    conn = get_db()
+    if not month:
+        month = datetime.now().strftime("%Y-%m")
+    row = conn.execute("SELECT * FROM customer_usage WHERE customer_id=? AND month=?", (customer_id, month)).fetchone()
+    conn.close()
+    return dict(row) if row else {"total_chats": 0, "total_bookings": 0, "total_leads": 0, "total_api_calls": 0}
+
+
+def create_customer_invoice(customer_id, amount, currency="USD", period_start="", period_end=""):
+    conn = get_db()
+    inv_num = f"INV-{customer_id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    conn.execute("""INSERT INTO customer_invoices
+        (customer_id, invoice_number, amount, currency, period_start, period_end)
+        VALUES (?,?,?,?,?,?)""", (customer_id, inv_num, amount, currency, period_start, period_end))
+    conn.commit()
+    conn.close()
+    return inv_num
+
+
+def get_customer_invoices(customer_id):
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM customer_invoices WHERE customer_id=? ORDER BY created_at DESC", (customer_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 # Initialize on import
