@@ -607,17 +607,17 @@ def detect_intent(text):
     """
     intent, confidence = intent_classifier.classify(text)
 
-    # Map classifier intents to flow intents
-    # "availability_question" and "question" both go to "qa" —
-    # they're answered, not routed to booking
-    if intent in ("question", "availability_question", "greeting", "farewell"):
-        return "qa"
-    if intent == "cancel":
+    # Map 19 classifier intents to flow intents
+    if intent == "booking":
+        return "booking"
+    if intent in ("cancellation", "cancel"):
         return "cancel"
     if intent == "lead_capture":
         return "lead_capture"
-    if intent == "booking":
-        return "booking"
+    # All other intents (availability, doctor_info, treatment_question, emergency,
+    # greeting, farewell, pricing_insurance, clinic_info, waitlist, promotions,
+    # loyalty, pre_visit_form, recall, symptom_question, human_handoff, complaint)
+    # are routed to Q&A / smart router
     return "qa"
 
 

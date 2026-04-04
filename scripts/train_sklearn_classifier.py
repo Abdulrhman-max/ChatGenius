@@ -1,7 +1,7 @@
 """
-Train sklearn intent classifier from BrightSmile dental QA dataset.
-Reads dental_chatbot_qa_final.xlsx, maps categories to intents, trains
-TF-IDF + LogisticRegression pipeline, saves as intent_classifier.pkl.
+Train sklearn intent classifier from BrightSmile 10,000-row training dataset.
+Reads brightsmile_training_10000.xlsx, uses 19 intents directly from column 3,
+trains TF-IDF + LogisticRegression pipeline, saves as intent_classifier.pkl.
 """
 import pandas as pd
 from sklearn.pipeline import Pipeline
@@ -12,37 +12,32 @@ from sklearn.metrics import classification_report
 import pickle
 import os
 
-DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "dental_chatbot_qa_final.xlsx")
+DATA_PATH = os.path.expanduser("~/Downloads/brightsmile_training_10000.xlsx")
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "intent_classifier.pkl")
 
 df = pd.read_excel(DATA_PATH)
 
-intent_map = {
-    "Appointment Scheduling":      "book_appointment",
-    "Doctor Availability":         "check_availability",
-    "Dental Services Info":        "services_info",
-    "Pricing & Payment":           "pricing_info",
-    "Office Hours & Location":     "office_hours",
-    "Oral Hygiene Tips":           "oral_hygiene",
-    "Specialist Recommendations":  "specialist_recommendation",
-    "Post-Treatment Care":         "post_treatment",
-    "Emergency Dental":            "emergency",
-    "General Dental Questions":    "general_dental",
-}
+# Column 2 = User Input (index 1), Column 3 = Intent (index 2)
+# Use iloc-based column positions in case header names vary
+cols = df.columns.tolist()
+text_col = cols[1]   # Col 2: User Input
+intent_col = cols[2] # Col 3: Intent
 
-df["intent"] = df["Category"].map(intent_map)
-df = df.dropna(subset=["intent", "Question"])
+df = df.dropna(subset=[text_col, intent_col])
 
-X = df["Question"].astype(str)
-y = df["intent"]
+X = df[text_col].astype(str)
+y = df[intent_col].astype(str).str.strip()
+
+print(f"Dataset loaded: {len(df)} rows")
+print(f"Intents ({y.nunique()}): {sorted(y.unique())}")
 
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
+    X, y, test_size=0.2, random_state=42, stratify=y
 )
 
 model = Pipeline([
-    ("tfidf", TfidfVectorizer(ngram_range=(1, 2), max_features=10000)),
-    ("clf",   LogisticRegression(max_iter=1000))
+    ("tfidf", TfidfVectorizer(ngram_range=(1, 3), max_features=30000, sublinear_tf=True)),
+    ("clf",   LogisticRegression(C=5.0, max_iter=2000, class_weight="balanced"))
 ])
 
 model.fit(X_train, y_train)

@@ -1,0 +1,123 @@
+{
+  "total": 10000,
+  "classic_accuracy": 76.75,
+  "sklearn_accuracy": 99.98,
+  "action_accuracy": 99.68,
+  "per_intent": {
+    "booking": {
+      "total": 1947,
+      "classic_ok": 1427,
+      "sklearn_ok": 1947,
+      "action_ok": 1929
+    },
+    "availability": {
+      "total": 980,
+      "classic_ok": 639,
+      "sklearn_ok": 980,
+      "action_ok": 980
+    },
+    "doctor_info": {
+      "total": 735,
+      "classic_ok": 442,
+      "sklearn_ok": 735,
+      "action_ok": 735
+    },
+    "treatment_question": {
+      "total": 1184,
+      "classic_ok": 745,
+      "sklearn_ok": 1184,
+      "action_ok": 1184
+    },
+    "emergency": {
+      "total": 422,
+      "classic_ok": 365,
+      "sklearn_ok": 422,
+      "action_ok": 422
+    },
+    "greeting": {
+      "total": 1034,
+      "classic_ok": 596,
+      "sklearn_ok": 1032,
+      "action_ok": 1020
+    },
+    "farewell": {
+      "total": 294,
+      "classic_ok": 236,
+      "sklearn_ok": 294,
+      "action_ok": 294
+    },
+    "cancellation": {
+      "total": 331,
+      "classic_ok": 312,
+      "sklearn_ok": 331,
+      "action_ok": 331
+    },
+    "pricing_insurance": {
+      "total": 410,
+      "classic_ok": 340,
+      "sklearn_ok": 410,
+      "action_ok": 410
+    },
+    "lead_capture": {
+      "total": 290,
+      "classic_ok": 271,
+      "sklearn_ok": 290,
+      "action_ok": 290
+    },
+    "waitlist": {
+      "total": 328,
+      "classic_ok": 328,
+      "sklearn_ok": 328,
+      "action_ok": 328
+    },
+    "promotions": {
+      "total": 240,
+      "classic_ok": 240,
+      "sklearn_ok": 240,
+      "action_ok": 240
+    },
+    "loyalty": {
+      "total": 205,
+      "classic_ok": 205,
+      "sklearn_ok": 205,
+      "action_ok": 205
+    },
+    "clinic_info": {
+      "total": 393,
+      "classic_ok": 361,
+      "sklearn_ok": 393,
+      "action_ok": 393
+    },
+    "pre_visit_form": {
+      "total": 233,
+      "classic_ok": 233,
+      "sklearn_ok": 233,
+      "action_ok": 233
+    },
+    "recall": {
+      "total": 188,
+      "classic_ok": 188,
+      "sklearn_ok": 188,
+      "action_ok": 188
+    },
+    "symptom_question": {
+      "total": 359,
+      "classic_ok": 320,
+      "sklearn_ok": 359,
+      "action_ok": 359
+    },
+    "human_handoff": {
+      "total": 208,
+      "classic_ok": 208,
+      "sklearn_ok": 208,
+      "action_ok": 208
+    },
+    "complaint": {
+      "total": 219,
+      "classic_ok": 219,
+      "sklearn_ok": 219,
+      "action_ok": 219
+    }
+  },
+  "error_samples": {}
+}

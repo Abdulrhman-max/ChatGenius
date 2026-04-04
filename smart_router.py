@@ -245,63 +245,88 @@ def route(sklearn_intent, sklearn_conf, message, context):
     doctor_slots = context.get("doctor_slots", {})
     history = context.get("history", [])
 
-    # ── EMERGENCY HANDLER — always shows +966 50 111 2222 ──
+    # ── EMERGENCY HANDLER ──
     if effective_intent == "emergency":
         return emergency_handler(message, doctors=active_doctors, history=history)
 
-    # ── CHATGPT — symptom detection / specialist recommendation ──
-    if effective_intent in ("symptom_detection", "specialist_recommendation"):
+    # ── SYMPTOM QUESTIONS — medical triage ──
+    if effective_intent in ("symptom_question", "symptom_detection", "specialist_recommendation"):
         return chatgpt_symptom_engine(message, doctors=active_doctors, history=history)
 
-    # ── BOOKING ENGINE — handled by existing app.py booking flow ──
-    if effective_intent == "book_appointment":
-        return None  # Let existing booking flow handle it
+    # ── BOOKING — handled by existing app.py booking flow ──
+    if effective_intent in ("booking", "book_appointment"):
+        return None
 
-    # ── CALENDAR SYSTEM — availability checks ──
-    if effective_intent == "check_availability":
+    # ── AVAILABILITY CHECKS ──
+    if effective_intent in ("availability", "check_availability"):
         return grok_answer_engine(
             message, company_info, active_doctors,
             doctor_slots=doctor_slots, history=history
         )
 
-    # ── PRICING DATABASE ──
-    if effective_intent in ("pricing_info", "payment_financing"):
+    # ── DOCTOR INFO / COMPARISON ──
+    if effective_intent == "doctor_info":
+        return grok_answer_engine(
+            message, company_info, active_doctors,
+            doctor_slots=doctor_slots, history=history
+        )
+
+    # ── PRICING & INSURANCE ──
+    if effective_intent in ("pricing_insurance", "pricing_info", "payment_financing"):
         return pricing_lookup(message, company_info, active_doctors, history=history)
 
-    # ── INSURANCE ENGINE ──
     if effective_intent == "insurance_verification":
         return insurance_engine.handle(
             message, company_info=company_info, doctors=active_doctors, history=history
         )
 
-    # ── PATIENT INTAKE ENGINE ──
-    if effective_intent == "patient_intake":
-        return patient_intake_engine.handle(
-            message, company_info=company_info, history=history
-        )
+    # ── CANCELLATION — handled by existing app.py cancel flow ──
+    if effective_intent == "cancellation":
+        return None
 
-    # ── CONTACT/CALLBACK ENGINE ──
-    if effective_intent == "contact_callback":
+    # ── WAITLIST — handled by existing app.py booking flow ──
+    if effective_intent == "waitlist":
+        return None
+
+    # ── LEAD CAPTURE — handled by existing app.py lead flow ──
+    if effective_intent == "lead_capture":
+        return None
+
+    # ── HUMAN HANDOFF ──
+    if effective_intent in ("human_handoff", "contact_callback"):
         return contact_engine.handle(
             message, company_info=company_info, history=history
         )
 
-    # ── NO-SHOW / REMINDER ENGINE ──
-    if effective_intent == "noshow_reminders":
+    # ── PRE-VISIT FORM ──
+    if effective_intent in ("pre_visit_form", "patient_intake"):
+        return patient_intake_engine.handle(
+            message, company_info=company_info, history=history
+        )
+
+    # ── RECALL / REMINDERS ──
+    if effective_intent in ("recall", "noshow_reminders"):
         return reminder_engine.handle(
             message, company_info=company_info, history=history
         )
 
-    # ── TREATMENT EDUCATION / UPSELLING ──
-    if effective_intent == "treatment_education":
+    # ── TREATMENT EDUCATION ──
+    if effective_intent in ("treatment_question", "treatment_education"):
         return treatment_education_engine.handle(
             message, company_info=company_info, doctors=active_doctors, history=history
         )
 
-    # ── GROK AI — all general dental Q&A ──
+    # ── COMPLAINT ──
+    if effective_intent == "complaint":
+        return grok_answer_engine(
+            message, company_info, active_doctors, history=history
+        )
+
+    # ── ALL OTHER Q&A (clinic_info, greeting, farewell, promotions, loyalty, etc.) ──
     if effective_intent in (
+        "clinic_info", "greeting", "farewell", "promotions", "loyalty",
         "faq_general", "services_info", "office_hours", "oral_hygiene",
-        "post_treatment", "general_dental", "patient_recall", "promotions",
+        "post_treatment", "general_dental", "patient_recall",
         "multilingual", "compliance", "pms_integration", "analytics",
         "multi_location",
     ):
