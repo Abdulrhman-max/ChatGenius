@@ -1,12 +1,16 @@
 """
 Smart router for BrightSmile Advanced Dental Center chatbot.
 Connects each sklearn intent to the correct AI engine.
-Does NOT contain any new AI logic — purely a routing layer.
+Covers all 24 intents across 10 engines.
 """
 import message_interpreter
 import dental_ai
 import claude_specialist
-import dental_knowledge_engine as dke
+import insurance_engine
+import patient_intake_engine
+import contact_engine
+import reminder_engine
+import treatment_education_engine
 
 CLINIC_CONTEXT = """
 You are the virtual assistant for BrightSmile Advanced Dental Center.
@@ -35,20 +39,18 @@ CONTACT_FOOTER = (
 )
 
 
+# ── AI Engine Functions ──────────────────────────────────────
+
 def chatgpt_symptom_engine(message, doctors=None, history=None):
     """Route symptoms to Claude specialist (most accurate for medical triage)."""
-    # Try Claude first
     if claude_specialist.is_configured():
         result = claude_specialist.analyze_symptoms(message, doctors=doctors, history=history)
         if result and result.get("reply"):
             return result["reply"] + CONTACT_FOOTER
-
-    # Fallback to OpenAI
     if dental_ai.is_configured():
         result = dental_ai.think_and_respond(message, doctors=doctors, history=history)
         if result and result.get("reply"):
             return result["reply"] + CONTACT_FOOTER
-
     return None
 
 
@@ -77,15 +79,12 @@ def grok_answer_engine(message, company_info=None, doctors=None,
         )
         if result and result.get("reply"):
             return result["reply"] + CONTACT_FOOTER
-
-    # Fallback to OpenAI
     if dental_ai.is_configured():
         result = dental_ai.think_and_respond(
             message, company_info, doctors, history=history
         )
         if result and result.get("reply"):
             return result["reply"] + CONTACT_FOOTER
-
     return None
 
 
@@ -94,10 +93,13 @@ def pricing_lookup(message, company_info=None, doctors=None, history=None):
     return grok_answer_engine(message, company_info, doctors, history=history)
 
 
+# ── Keyword Fallback Detection ────────────────────────────────
+
 _EMERGENCY_KEYWORDS = [
     "swollen", "swelling", "bleeding", "broken", "knocked out", "abscess",
     "severe pain", "unbearable", "can't eat", "can't sleep", "jaw swollen",
-    "face swollen", "pus", "fever", "emergency",
+    "face swollen", "pus", "fever", "emergency", "uncontrolled bleeding",
+    "jaw locking", "jaw locked",
 ]
 
 _SYMPTOM_KEYWORDS = [
@@ -108,13 +110,20 @@ _SYMPTOM_KEYWORDS = [
 
 _PRICING_KEYWORDS = [
     "cost", "price", "how much", "pricing", "fee", "charge", "expensive",
-    "cheap", "afford", "dollar", "pay", "insurance", "bupa", "accept",
-    "tawuniya", "medgulf", "allianz", "axa", "payment",
+    "cheap", "afford", "dollar", "pay", "payment plan", "installment",
+    "financing", "finance", "how much does",
+]
+
+_INSURANCE_KEYWORDS = [
+    "insurance", "bupa", "tawuniya", "medgulf", "allianz", "axa",
+    "coverage", "covered", "member id", "group number", "co-pay",
+    "copay", "out of pocket", "pre-authorization", "referral",
+    "accept my insurance", "accept bupa", "accept tawuniya",
 ]
 
 _HOURS_KEYWORDS = [
-    "open", "close", "hours", "time", "when do you", "working hours",
-    "office hours", "schedule", "saturday", "friday", "weekend",
+    "open", "close", "hours", "when do you", "working hours",
+    "office hours", "saturday", "friday", "weekend",
 ]
 
 _SERVICES_KEYWORDS = [
@@ -127,6 +136,29 @@ _HYGIENE_KEYWORDS = [
     "clean teeth", "oral hygiene", "how to brush", "how to floss",
 ]
 
+_BOOKING_KEYWORDS = [
+    "book", "booking", "appointment", "schedule", "reserve",
+    "reschedule", "cancel appointment", "rebook",
+]
+
+_INTAKE_KEYWORDS = [
+    "medical history", "intake form", "registration form", "new patient form",
+    "consent form", "allergy form", "fill out form", "paperwork",
+    "before my first visit", "first appointment",
+]
+
+_CALLBACK_KEYWORDS = [
+    "call me", "call back", "callback", "contact me", "get back to me",
+    "not ready to book", "speak to a doctor", "want a doctor to call",
+    "leave my number", "leave my contact",
+]
+
+_REMINDER_KEYWORDS = [
+    "remind me", "reminder", "confirm my appointment", "no-show",
+    "missed appointment", "send me a reminder", "notification",
+    "missed my appointment", "i missed", "rebook",
+]
+
 
 def _detect_keyword_intent(message):
     """Fallback keyword detection when sklearn confidence is low."""
@@ -137,13 +169,32 @@ def _detect_keyword_intent(message):
         return "emergency"
 
     # Symptom detection
-    symptom_count = sum(1 for kw in _SYMPTOM_KEYWORDS if kw in lower)
-    if symptom_count >= 1:
+    if sum(1 for kw in _SYMPTOM_KEYWORDS if kw in lower) >= 1:
         return "emergency"
+
+    # Insurance (before pricing — more specific)
+    if any(kw in lower for kw in _INSURANCE_KEYWORDS):
+        return "insurance_verification"
 
     # Pricing
     if any(kw in lower for kw in _PRICING_KEYWORDS):
         return "pricing_info"
+
+    # Intake
+    if any(kw in lower for kw in _INTAKE_KEYWORDS):
+        return "patient_intake"
+
+    # Callback
+    if any(kw in lower for kw in _CALLBACK_KEYWORDS):
+        return "contact_callback"
+
+    # Reminder
+    if any(kw in lower for kw in _REMINDER_KEYWORDS):
+        return "noshow_reminders"
+
+    # Booking
+    if any(kw in lower for kw in _BOOKING_KEYWORDS):
+        return "book_appointment"
 
     # Hours
     if any(kw in lower for kw in _HOURS_KEYWORDS):
@@ -159,6 +210,8 @@ def _detect_keyword_intent(message):
 
     return None
 
+
+# ── Main Router ───────────────────────────────────────────────
 
 def route(sklearn_intent, sklearn_conf, message, context):
     """
@@ -184,7 +237,7 @@ def route(sklearn_intent, sklearn_conf, message, context):
             return None  # No confident classification, fall through
     else:
         # Even with good sklearn confidence, certain keyword intents override
-        if keyword_intent in ("emergency", "pricing_info", "services_info") and sklearn_intent != keyword_intent:
+        if keyword_intent in ("emergency", "insurance_verification", "pricing_info", "noshow_reminders") and sklearn_intent != keyword_intent:
             effective_intent = keyword_intent
 
     company_info = context.get("company_info")
@@ -192,29 +245,69 @@ def route(sklearn_intent, sklearn_conf, message, context):
     doctor_slots = context.get("doctor_slots", {})
     history = context.get("history", [])
 
-    # Emergency — always show emergency number
+    # ── EMERGENCY HANDLER — always shows +966 50 111 2222 ──
     if effective_intent == "emergency":
         return emergency_handler(message, doctors=active_doctors, history=history)
 
-    # Symptom/specialist detection
-    if effective_intent == "specialist_recommendation":
+    # ── CHATGPT — symptom detection / specialist recommendation ──
+    if effective_intent in ("symptom_detection", "specialist_recommendation"):
         return chatgpt_symptom_engine(message, doctors=active_doctors, history=history)
 
-    # Availability, services, office hours — Groq AI with full context
-    if effective_intent in ("check_availability", "services_info", "office_hours"):
+    # ── BOOKING ENGINE — handled by existing app.py booking flow ──
+    if effective_intent == "book_appointment":
+        return None  # Let existing booking flow handle it
+
+    # ── CALENDAR SYSTEM — availability checks ──
+    if effective_intent == "check_availability":
         return grok_answer_engine(
             message, company_info, active_doctors,
             doctor_slots=doctor_slots, history=history
         )
 
-    # Pricing — dedicated lookup
-    if effective_intent == "pricing_info":
+    # ── PRICING DATABASE ──
+    if effective_intent in ("pricing_info", "payment_financing"):
         return pricing_lookup(message, company_info, active_doctors, history=history)
 
-    # Oral hygiene, post-treatment, general dental — AI answer
-    if effective_intent in ("oral_hygiene", "post_treatment", "general_dental"):
+    # ── INSURANCE ENGINE ──
+    if effective_intent == "insurance_verification":
+        return insurance_engine.handle(
+            message, company_info=company_info, doctors=active_doctors, history=history
+        )
+
+    # ── PATIENT INTAKE ENGINE ──
+    if effective_intent == "patient_intake":
+        return patient_intake_engine.handle(
+            message, company_info=company_info, history=history
+        )
+
+    # ── CONTACT/CALLBACK ENGINE ──
+    if effective_intent == "contact_callback":
+        return contact_engine.handle(
+            message, company_info=company_info, history=history
+        )
+
+    # ── NO-SHOW / REMINDER ENGINE ──
+    if effective_intent == "noshow_reminders":
+        return reminder_engine.handle(
+            message, company_info=company_info, history=history
+        )
+
+    # ── TREATMENT EDUCATION / UPSELLING ──
+    if effective_intent == "treatment_education":
+        return treatment_education_engine.handle(
+            message, company_info=company_info, doctors=active_doctors, history=history
+        )
+
+    # ── GROK AI — all general dental Q&A ──
+    if effective_intent in (
+        "faq_general", "services_info", "office_hours", "oral_hygiene",
+        "post_treatment", "general_dental", "patient_recall", "promotions",
+        "multilingual", "compliance", "pms_integration", "analytics",
+        "multi_location",
+    ):
         return grok_answer_engine(
-            message, company_info, active_doctors, history=history
+            message, company_info, active_doctors,
+            doctor_slots=doctor_slots, history=history
         )
 
     return None

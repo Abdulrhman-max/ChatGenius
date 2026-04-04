@@ -812,8 +812,7 @@
                     btn.onclick = function() {
                         daysGrid.querySelectorAll('.cal-day.selected').forEach(b => b.classList.remove('selected'));
                         btn.classList.add('selected');
-                        const display = thisDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-                        setTimeout(() => { inputEl.value = display; handleSend(); }, 250);
+                        setTimeout(() => { inputEl.value = iso; handleSend(); }, 250);
                     };
                 }
                 if (thisDate.getTime() === today.getTime()) btn.classList.add('today');
@@ -831,9 +830,10 @@
     }
 
     function renderOptions(options) {
+        if (!options || !options.type) return;
         if (options.type === 'calendar') { renderCalendar(options); return; }
         const type = options.type;
-        const items = options.items;
+        const items = options.items || [];
         const isDoctor = type === 'doctors';
         const isTime = type === 'timeslots';
         const isDate = type === 'dates';

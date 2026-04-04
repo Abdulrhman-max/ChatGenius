@@ -1,26 +1,51 @@
 """
 Restriction filter for BrightSmile Advanced Dental Center chatbot.
 Blocks non-dental messages after intent detection.
+Covers all 24 intents across all engines.
 """
 
 ALLOWED_INTENTS = [
+    # Booking Engine
     "book_appointment",
+    # Calendar System
     "check_availability",
-    "services_info",
+    # Pricing Database
     "pricing_info",
+    "payment_financing",
+    # Emergency Handler
+    "emergency",
+    # ChatGPT — symptom detection
+    "symptom_detection",
+    # Insurance Engine
+    "insurance_verification",
+    # Patient Intake Engine
+    "patient_intake",
+    # Contact/Callback Engine
+    "contact_callback",
+    # No-Show/Reminder Engine
+    "noshow_reminders",
+    # Grok AI — general dental
+    "faq_general",
+    "services_info",
+    "treatment_education",
+    "patient_recall",
+    "promotions",
+    "multilingual",
+    "compliance",
+    "pms_integration",
+    "analytics",
+    "multi_location",
     "office_hours",
     "oral_hygiene",
     "specialist_recommendation",
     "post_treatment",
-    "emergency",
     "general_dental",
-    "symptom_detection",
 ]
 
 BLOCKED_RESPONSE = (
     "I'm sorry, I can only assist with dental-related topics for BrightSmile "
     "Advanced Dental Center such as booking appointments, checking symptoms, "
-    "dental services, pricing, office hours, and oral hygiene advice. "
+    "dental services, pricing, insurance, office hours, and oral hygiene advice. "
     "For other inquiries please call us at +966 11 234 5678 or WhatsApp "
     "+966 55 987 6543. How can I assist you with your dental needs?"
 )
@@ -34,6 +59,7 @@ _OFF_TOPIC_KEYWORDS = [
     "homework", "essay", "history lesson", "geography",
     "joke", "tell me a joke", "funny", "riddle",
     "translate", "what language", "speak french",
+    "restaurant", "hotel", "travel", "flight", "car rental",
 ]
 
 # Keywords that are definitely dental (override off-topic detection)
@@ -55,6 +81,19 @@ _DENTAL_KEYWORDS = [
     "tabby", "tamara", "mada", "stc pay",
     "hurt", "swell", "swollen", "bleed", "broken", "crack", "chip",
     "loose", "numb", "tingling", "throb", "sharp", "dull",
+    # New keywords for expanded features
+    "intake", "form", "medical history", "allergy", "medication",
+    "consent", "registration", "hipaa", "gdpr", "privacy",
+    "callback", "call me", "contact me", "call back",
+    "reminder", "no-show", "confirm", "cancel",
+    "recall", "reactivation", "overdue", "checkup",
+    "promotion", "offer", "discount", "special", "campaign",
+    "financing", "installment", "payment plan", "carecredit",
+    "upsell", "education", "treatment option",
+    "pms", "dentrix", "eaglesoft", "open dental",
+    "analytics", "dashboard", "report", "metrics",
+    "multi-location", "dso", "branch", "location",
+    "multilingual", "arabic", "language",
 ]
 
 

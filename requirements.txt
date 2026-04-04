@@ -12,3 +12,6 @@ google-auth
 requests
 PyJWT
 cryptography
+google-generativeai
+httpx
+PyPDF2

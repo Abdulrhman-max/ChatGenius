@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ChatGenius — Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         :root{--navy:#0b1628;--navy-light:#111d33;--navy-card:#162040;--cyan:#00d4ff;--cyan-glow:rgba(0,212,255,0.15);--white:#f0f4f8;--gray:#8892a4;--green:#22c55e;--yellow:#f5a623;--red:#ef4444;--gradient:linear-gradient(135deg,#00d4ff,#0090ff)}
@@ -223,6 +224,16 @@
         .manage-save-btn:hover { transform: translateY(-1px); }
         .manage-save-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
+        .schedule-toggle-btn {
+            padding: 0.35rem 0.9rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.05); color: var(--gray); font-size: 0.78rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .schedule-toggle-btn.active {
+            background: var(--gradient); color: #fff; border-color: transparent;
+        }
+        .schedule-toggle-btn:hover:not(.active) { background: rgba(255,255,255,0.1); }
+
         .manage-toggle { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
         .manage-toggle input { opacity: 0; width: 0; height: 0; }
         .manage-toggle-slider {
@@ -369,6 +380,69 @@
         .upload-text strong { color: var(--cyan); }
         .upload-progress { display: none; margin-top: 0.75rem; }
         .upload-progress .usage-bar-bg { height: 6px; }
+
+        /* ═══ Analytics & Reports ═══ */
+        .analytics-filter-btn {
+            padding: 0.4rem 0.85rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.04); color: var(--gray); font-size: 0.85rem; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .analytics-filter-btn:hover { background: rgba(255,255,255,0.08); color: var(--white); }
+        .analytics-filter-btn.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+
+        .analytics-card {
+            background: var(--card); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px;
+            padding: 1.25rem 1.5rem; transition: border-color 0.2s;
+        }
+        .analytics-card:hover { border-color: rgba(0,212,255,0.15); }
+        .analytics-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .analytics-card-header h3 { font-size: 1rem; font-weight: 600; color: var(--white); margin: 0; }
+
+        .analytics-toggle { display: flex; gap: 0; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); }
+        .analytics-toggle button {
+            padding: 0.3rem 0.75rem; border: none; background: transparent; color: var(--gray);
+            font-size: 0.78rem; cursor: pointer; transition: all 0.2s;
+        }
+        .analytics-toggle button.active { background: var(--accent); color: #000; font-weight: 600; }
+        .analytics-toggle button:hover:not(.active) { background: rgba(255,255,255,0.06); }
+
+        .analytics-chart { position: relative; min-height: 220px; }
+        .analytics-chart canvas { max-height: 280px; }
+
+        .analytics-table { overflow-x: auto; }
+        .analytics-table table {
+            width: 100%; border-collapse: collapse; font-size: 0.85rem;
+        }
+        .analytics-table th {
+            text-align: left; padding: 0.6rem 0.8rem; color: var(--gray); font-weight: 500;
+            border-bottom: 1px solid rgba(255,255,255,0.08); cursor: pointer; user-select: none;
+            white-space: nowrap;
+        }
+        .analytics-table th:hover { color: var(--cyan); }
+        .analytics-table td {
+            padding: 0.55rem 0.8rem; color: var(--white); border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .analytics-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+        .analytics-skeleton {
+            background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
+            background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; height: 220px;
+        }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        @media (max-width: 768px) {
+            .analytics-card { padding: 1rem; }
+            .analytics-card-header { flex-direction: column; gap: 0.5rem; align-items: flex-start; }
+        }
+
+        .ai-badge {
+            display: inline-block; font-size: 0.68rem; padding: 0.12rem 0.5rem; border-radius: 20px;
+            background: rgba(99,102,241,0.15); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3);
+            margin-left: 0.4rem; vertical-align: middle; font-weight: 600;
+        }
+        .ai-badge.hidden { display: none; }
+        #pdfDropZone.dragover { border-color: var(--cyan); background: rgba(0,212,255,0.05); }
+        .doc-cat-tag { display:inline-block;font-size:0.75rem;padding:0.15rem 0.55rem;border-radius:12px;background:rgba(0,212,255,0.12);color:var(--cyan);border:1px solid rgba(0,212,255,0.2);font-weight:500; }
     </style>
 </head>
 <body>
@@ -439,6 +513,7 @@
             <li class="head-admin-only"><a href="#" onclick="showPage('company')"><span class="icon">&#127970;</span> Company Info</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('doctors')"><span class="icon">&#129657;</span> Doctors</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('manage')"><span class="icon">&#9881;</span> Manage</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('analytics')"><span class="icon">&#128202;</span> Analytics & Reports</a></li>
             <li class="head-admin-only" style="display:none"><a href="#" onclick="showPage('admins')"><span class="icon">&#128101;</span> Admins</a></li>
             <li class="doctor-only" style="display:none"><a href="#" onclick="showPage('requests')"><span class="icon">&#128233;</span> Requests <span class="notif-badge" id="requestBadge" style="display:none">0</span></a></li>
             <li class="invited-admin-only" style="display:none"><a href="#" onclick="showPage('admin-requests')"><span class="icon">&#128233;</span> Invitations <span class="notif-badge" id="adminRequestBadge" style="display:none">0</span></a></li>
@@ -578,7 +653,10 @@
         <div id="page-doctors" style="display:none">
             <div class="main-header">
                 <h1>Doctors Available</h1>
-                <button class="btn-primary" onclick="openDoctorModal()">+ Add Doctor</button>
+                <div style="display:flex;gap:0.5rem">
+                    <button class="btn-primary" onclick="openPdfUploadModal()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">Upload Doctor PDF</button>
+                    <button class="btn-primary" onclick="openDoctorModal()">+ Add Doctor</button>
+                </div>
             </div>
             <p style="color:var(--gray);font-size:0.9rem;margin-bottom:1.5rem">Add doctors by their email. They'll receive a request to join your practice. Once accepted, customers can choose them when booking.</p>
             <div id="doctorsList"><div class="section"><p class="empty-msg">No doctors added yet.</p></div></div>
@@ -674,6 +752,107 @@
             <div id="manageDoctorsList"></div>
         </div>
 
+        <!-- ═══════ Analytics & Reports Page ═══════ -->
+        <div id="page-analytics" style="display:none">
+            <div class="main-header">
+                <h1>Analytics & Reports</h1>
+            </div>
+
+            <!-- Global date filter -->
+            <div id="analyticsFilters" style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1.5rem">
+                <button class="analytics-filter-btn active" onclick="setAnalyticsRange('week',this)">This Week</button>
+                <button class="analytics-filter-btn" onclick="setAnalyticsRange('last_week',this)">Last Week</button>
+                <button class="analytics-filter-btn" onclick="setAnalyticsRange('month',this)">This Month</button>
+                <button class="analytics-filter-btn" onclick="setAnalyticsRange('last_month',this)">Last Month</button>
+                <span style="color:var(--gray);font-size:0.85rem;margin:0 0.3rem">|</span>
+                <input type="date" id="analyticsFrom" style="padding:0.4rem 0.6rem;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--white);font-size:0.85rem">
+                <span style="color:var(--gray);font-size:0.85rem">to</span>
+                <input type="date" id="analyticsTo" style="padding:0.4rem 0.6rem;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--white);font-size:0.85rem">
+                <button class="analytics-filter-btn" onclick="loadAnalytics()" style="background:var(--accent)">Apply</button>
+            </div>
+
+            <!-- Metric cards container -->
+            <div id="analyticsCards" style="display:grid;gap:1.25rem">
+                <!-- Card 1: Leads -->
+                <div class="analytics-card" id="card-leads">
+                    <div class="analytics-card-header">
+                        <h3>Leads Per Day</h3>
+                        <div class="analytics-toggle" data-metric="leads">
+                            <button class="active" onclick="toggleView('leads','graph',this)">Graph</button>
+                            <button onclick="toggleView('leads','table',this)">Table</button>
+                        </div>
+                    </div>
+                    <div class="analytics-chart" id="chart-leads"><canvas id="canvas-leads"></canvas></div>
+                    <div class="analytics-table" id="table-leads" style="display:none"></div>
+                </div>
+
+                <!-- Card 2: Bookings Per Day -->
+                <div class="analytics-card" id="card-bookings">
+                    <div class="analytics-card-header">
+                        <h3>Booking</h3>
+                        <div class="analytics-toggle" data-metric="bookings">
+                            <button class="active" onclick="toggleView('bookings','graph',this)">Graph</button>
+                            <button onclick="toggleView('bookings','table',this)">Table</button>
+                        </div>
+                    </div>
+                    <div class="analytics-chart" id="chart-bookings"><canvas id="canvas-bookings"></canvas></div>
+                    <div class="analytics-table" id="table-bookings" style="display:none"></div>
+                </div>
+
+                <!-- Card 3: Conversion Rate -->
+                <div class="analytics-card" id="card-conversion">
+                    <div class="analytics-card-header">
+                        <h3>Conversion Rate (Chat &rarr; Booked)</h3>
+                        <div class="analytics-toggle" data-metric="conversion">
+                            <button class="active" onclick="toggleView('conversion','graph',this)">Graph</button>
+                            <button onclick="toggleView('conversion','table',this)">Table</button>
+                        </div>
+                    </div>
+                    <div class="analytics-chart" id="chart-conversion"><canvas id="canvas-conversion"></canvas></div>
+                    <div class="analytics-table" id="table-conversion" style="display:none"></div>
+                </div>
+
+                <!-- Card 3: Peak Booking Hours -->
+                <div class="analytics-card" id="card-peak">
+                    <div class="analytics-card-header">
+                        <h3>Peak Booking Hours</h3>
+                        <div class="analytics-toggle" data-metric="peak">
+                            <button class="active" onclick="toggleView('peak','graph',this)">Graph</button>
+                            <button onclick="toggleView('peak','table',this)">Table</button>
+                        </div>
+                    </div>
+                    <div class="analytics-chart" id="chart-peak"><canvas id="canvas-peak"></canvas></div>
+                    <div class="analytics-table" id="table-peak" style="display:none"></div>
+                </div>
+
+                <!-- Card 4: Most Asked Questions -->
+                <div class="analytics-card" id="card-intents">
+                    <div class="analytics-card-header">
+                        <h3>Most Asked Questions / Intents</h3>
+                        <div class="analytics-toggle" data-metric="intents">
+                            <button class="active" onclick="toggleView('intents','graph',this)">Graph</button>
+                            <button onclick="toggleView('intents','table',this)">Table</button>
+                        </div>
+                    </div>
+                    <div class="analytics-chart" id="chart-intents"><canvas id="canvas-intents"></canvas></div>
+                    <div class="analytics-table" id="table-intents" style="display:none"></div>
+                </div>
+
+                <!-- Card 5: No-Show Rate -->
+                <div class="analytics-card" id="card-noshow">
+                    <div class="analytics-card-header">
+                        <h3>No-Show Rate</h3>
+                        <div class="analytics-toggle" data-metric="noshow">
+                            <button class="active" onclick="toggleView('noshow','graph',this)">Graph</button>
+                            <button onclick="toggleView('noshow','table',this)">Table</button>
+                        </div>
+                    </div>
+                    <div class="analytics-chart" id="chart-noshow"><canvas id="canvas-noshow"></canvas></div>
+                    <div class="analytics-table" id="table-noshow" style="display:none"></div>
+                </div>
+            </div>
+        </div>
+
     </main>
 </div>
 
@@ -684,11 +863,50 @@
         <input type="hidden" id="dm_id" value="">
         <div class="form-group"><label class="form-label">Doctor Name</label><input type="text" class="form-input" id="dm_name" placeholder="e.g. John Smith"></div>
         <div class="form-group"><label class="form-label">Email Address</label><div class="form-hint">The doctor must have an account with this email to accept</div><input type="email" class="form-input" id="dm_email" placeholder="doctor@example.com"></div>
-        <div class="form-group"><label class="form-label">Bio (optional)</label><textarea class="form-textarea" id="dm_bio" placeholder="Experience, certifications..."></textarea></div>
-        <div class="form-group"><label class="form-label">Availability</label><input type="text" class="form-input" id="dm_availability" placeholder="e.g. Mon-Fri"></div>
         <div style="display:flex;gap:0.75rem;margin-top:1.5rem">
             <button class="btn-primary" onclick="saveDoctor()">Save & Send Request</button>
             <button class="btn-danger" onclick="closeDoctorModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- PDF Upload Modal -->
+<div class="modal-overlay" id="pdfUploadModal">
+    <div class="modal" style="max-width:680px;max-height:90vh;overflow-y:auto">
+        <h2 id="pdfModalTitle">Upload Doctor PDF</h2>
+
+        <!-- Upload State -->
+        <div id="pdfUploadState">
+            <div style="border:2px dashed rgba(99,102,241,0.4);border-radius:14px;padding:2.5rem;text-align:center;margin:1rem 0;cursor:pointer" onclick="document.getElementById('pdfFileInput').click()" id="pdfDropZone">
+                <div style="font-size:2.5rem;margin-bottom:0.5rem">&#128196;</div>
+                <p style="color:var(--white);font-weight:600;margin-bottom:0.3rem">Drop PDF here or click to browse</p>
+                <p style="color:var(--gray);font-size:0.82rem">Max 10 MB &middot; PDF files only &middot; Supports multiple doctors in one file</p>
+                <input type="file" id="pdfFileInput" accept=".pdf" style="display:none" onchange="onPdfFileSelected(this)">
+            </div>
+            <p id="pdfFileName" style="color:var(--cyan);font-size:0.85rem;text-align:center;margin:0.5rem 0;display:none"></p>
+            <div style="display:flex;gap:0.75rem;margin-top:1rem">
+                <button class="btn-primary" id="pdfUploadBtn" onclick="uploadDoctorPdf()" disabled style="opacity:0.5">Upload & Extract</button>
+                <button class="btn-danger" onclick="closePdfUploadModal()">Cancel</button>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="pdfLoadingState" style="display:none;text-align:center;padding:3rem 1rem">
+            <div class="analytics-skeleton" style="width:60px;height:60px;border-radius:50%;margin:0 auto 1rem"></div>
+            <p style="color:var(--white);font-weight:600;font-size:1.05rem">Reading PDF...</p>
+            <p style="color:var(--gray);font-size:0.85rem;margin-top:0.3rem">AI is extracting doctor information</p>
+        </div>
+
+        <!-- Review State (dynamically populated) -->
+        <div id="pdfReviewState" style="display:none">
+            <div id="pdfDoctorCount" style="color:var(--cyan);font-weight:600;font-size:0.9rem;margin-bottom:0.75rem"></div>
+            <div id="pdfDoctorsList"></div>
+            <input type="hidden" id="pdf_savedFilename" value="">
+            <div style="display:flex;gap:0.75rem;margin-top:1.25rem">
+                <button class="btn-primary" onclick="saveAllDoctorsFromPdf()">Save All Doctors</button>
+                <button class="btn-primary" onclick="resetPdfModal()" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1)">Clear & Re-upload</button>
+                <button class="btn-danger" onclick="closePdfUploadModal()">Cancel</button>
+            </div>
         </div>
     </div>
 </div>
@@ -805,6 +1023,7 @@
         if (page === 'manage') loadManageDoctors();
         if (page === 'admins') loadAdminManagement();
         if (page === 'admin-requests') loadAdminRequests();
+        if (page === 'analytics') loadAnalytics();
     }
 
     async function loadData() {
@@ -947,13 +1166,17 @@
             const statusBadge = d.status === 'active'
                 ? '<span class="badge badge-green">Active</span>'
                 : '<span class="badge badge-yellow">Pending</span>';
+            const cats = (d.specialty || '').split(',').map(s => s.trim()).filter(Boolean);
+            const catTags = cats.length ? cats.map(c => '<span class="doc-cat-tag">' + c + '</span>').join('') : '<span style="color:var(--gray);font-size:0.82rem">No specialty</span>';
+            const expText = d.years_of_experience ? ` | ${d.years_of_experience} yrs experience` : '';
             return `
             <div class="doctor-card">
                 <div class="doctor-avatar">${(d.name || '?')[0].toUpperCase()}</div>
                 <div class="doctor-info">
                     <div class="doctor-name">Dr. ${d.name} ${statusBadge}</div>
-                    <div class="doctor-specialty">${d.specialty || 'General'}</div>
-                    <div class="doctor-availability">Email: ${d.email || '—'} | Availability: ${d.availability || 'Mon-Fri'}</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin:0.25rem 0">${catTags}</div>
+                    <div class="doctor-availability">Email: ${d.email || '—'} | ${d.availability || 'Mon-Fri'}${expText}</div>
+                    ${d.bio ? '<div style="color:var(--gray);font-size:0.8rem;margin-top:0.3rem;line-height:1.4">' + d.bio.substring(0, 120) + (d.bio.length > 120 ? '...' : '') + '</div>' : ''}
                 </div>
                 <div class="doctor-actions">
                     <button class="btn-small btn-edit" onclick="editDoctor(${d.id})">Edit</button>
@@ -968,8 +1191,6 @@
         document.getElementById('dm_id').value = doc ? doc.id : '';
         document.getElementById('dm_name').value = doc ? doc.name : '';
         document.getElementById('dm_email').value = doc ? (doc.email || '') : '';
-        document.getElementById('dm_bio').value = doc ? doc.bio : '';
-        document.getElementById('dm_availability').value = doc ? doc.availability : 'Mon-Fri';
         // Disable email editing for existing doctors
         document.getElementById('dm_email').disabled = !!doc;
         document.getElementById('doctorModal').classList.add('show');
@@ -987,8 +1208,6 @@
         const data = {
             name: document.getElementById('dm_name').value.trim(),
             email: document.getElementById('dm_email').value.trim(),
-            bio: document.getElementById('dm_bio').value.trim(),
-            availability: document.getElementById('dm_availability').value.trim() || 'Mon-Fri'
         };
         if (!data.name) { showToast('Doctor name is required.', 'warning'); return; }
         if (!id && !data.email) { showToast('Doctor email is required.', 'warning'); return; }
@@ -1020,16 +1239,328 @@
         } catch(e) { showToast('Failed to delete.', 'error'); }
     }
 
+    // ── PDF Upload Doctor (multi-doctor support) ──
+    let _pdfDoctors = [];
+
+    function openPdfUploadModal() {
+        resetPdfModal();
+        document.getElementById('pdfUploadModal').classList.add('show');
+    }
+
+    function closePdfUploadModal() {
+        document.getElementById('pdfUploadModal').classList.remove('show');
+    }
+
+    function resetPdfModal() {
+        _pdfDoctors = [];
+        document.getElementById('pdfUploadState').style.display = '';
+        document.getElementById('pdfLoadingState').style.display = 'none';
+        document.getElementById('pdfReviewState').style.display = 'none';
+        document.getElementById('pdfDoctorsList').innerHTML = '';
+        document.getElementById('pdfFileInput').value = '';
+        document.getElementById('pdfFileName').style.display = 'none';
+        const btn = document.getElementById('pdfUploadBtn');
+        btn.disabled = true; btn.style.opacity = '0.5';
+    }
+
+    function onPdfFileSelected(input) {
+        const file = input.files[0];
+        const nameEl = document.getElementById('pdfFileName');
+        const btn = document.getElementById('pdfUploadBtn');
+        if (file) {
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                showToast('Only PDF files are accepted.', 'warning'); input.value = ''; return;
+            }
+            if (file.size > 10 * 1024 * 1024) {
+                showToast('File too large. Maximum 10 MB.', 'warning'); input.value = ''; return;
+            }
+            nameEl.textContent = file.name; nameEl.style.display = '';
+            btn.disabled = false; btn.style.opacity = '1';
+        } else {
+            nameEl.style.display = 'none';
+            btn.disabled = true; btn.style.opacity = '0.5';
+        }
+    }
+
+    // Drag & drop
+    document.addEventListener('DOMContentLoaded', () => {
+        const zone = document.getElementById('pdfDropZone');
+        if (!zone) return;
+        zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+        zone.addEventListener('drop', e => {
+            e.preventDefault(); zone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                const input = document.getElementById('pdfFileInput');
+                const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files;
+                onPdfFileSelected(input);
+            }
+        });
+    });
+
+    function _aiBadge(val) {
+        return val ? '<span class="ai-badge">AI extracted</span>' : '';
+    }
+
+    function _renderDoctorForm(doc, idx) {
+        const s = doc.availableTimeSlots || {};
+        const startTime = (s && typeof s === 'object') ? (s.from || '') : '';
+        const endTime = (s && typeof s === 'object') ? (s.to || '') : '';
+        return `
+        <div class="pdf-doctor-card" id="pdf-doc-${idx}" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+                <h3 style="font-size:0.95rem;font-weight:700;color:var(--cyan)">Doctor ${idx + 1}: ${doc.fullName || 'Unknown'}</h3>
+                <button onclick="removePdfDoctor(${idx})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.8rem;opacity:0.7" title="Remove this doctor">&#10005; Remove</button>
+            </div>
+            <div class="form-group" style="margin-bottom:0.5rem">
+                <label class="form-label" style="font-size:0.8rem">Full Name <span style="color:var(--red)">*</span> ${_aiBadge(doc.fullName)}</label>
+                <input type="text" class="form-input" id="pd_name_${idx}" value="${doc.fullName || ''}" placeholder="Doctor's full name">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+                <div class="form-group" style="margin-bottom:0.5rem">
+                    <label class="form-label" style="font-size:0.8rem">Specialty ${_aiBadge(doc.specialty)}</label>
+                    <input type="text" class="form-input" id="pd_spec_${idx}" value="${doc.specialty || ''}" placeholder="e.g. Orthodontist">
+                </div>
+                <div class="form-group" style="margin-bottom:0.5rem">
+                    <label class="form-label" style="font-size:0.8rem">Email ${_aiBadge(doc.email)}</label>
+                    <input type="email" class="form-input" id="pd_email_${idx}" value="${doc.email || ''}" placeholder="Optional">
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+                <div class="form-group" style="margin-bottom:0.5rem">
+                    <label class="form-label" style="font-size:0.8rem">Phone ${_aiBadge(doc.phone)}</label>
+                    <input type="text" class="form-input" id="pd_phone_${idx}" value="${doc.phone || ''}" placeholder="Optional">
+                </div>
+                <div class="form-group" style="margin-bottom:0.5rem">
+                    <label class="form-label" style="font-size:0.8rem">Experience ${_aiBadge(doc.yearsOfExperience)}</label>
+                    <input type="number" class="form-input" id="pd_exp_${idx}" value="${doc.yearsOfExperience || ''}" min="0" placeholder="Years">
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom:0.5rem">
+                <label class="form-label" style="font-size:0.8rem">Available Days ${_aiBadge(doc.availableDays)}</label>
+                <input type="text" class="form-input" id="pd_days_${idx}" value="${doc.availableDays || ''}" placeholder="Mon-Fri">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+                <div class="form-group" style="margin-bottom:0.5rem">
+                    <label class="form-label" style="font-size:0.8rem">Default Start ${_aiBadge(startTime)}</label>
+                    <input type="text" class="form-input" id="pd_start_${idx}" value="${startTime}" placeholder="09:00 AM">
+                </div>
+                <div class="form-group" style="margin-bottom:0.5rem">
+                    <label class="form-label" style="font-size:0.8rem">Default End ${_aiBadge(endTime)}</label>
+                    <input type="text" class="form-input" id="pd_end_${idx}" value="${endTime}" placeholder="05:00 PM">
+                </div>
+            </div>
+            ${doc.dailyHours && Object.keys(doc.dailyHours).length ? `
+            <div style="margin-bottom:0.5rem;padding:0.5rem;background:rgba(0,245,212,0.05);border-radius:8px;border:1px solid rgba(0,245,212,0.15)">
+                <label class="form-label" style="font-size:0.78rem;color:var(--cyan);margin-bottom:0.3rem">Per-Day Hours (AI Extracted)</label>
+                <input type="hidden" id="pd_schedtype_${idx}" value="flexible">
+                <input type="hidden" id="pd_dailyhours_${idx}" value='${JSON.stringify(doc.dailyHours)}'>
+                ${Object.entries(doc.dailyHours).map(([day, h]) =>
+                    '<div style="display:flex;gap:0.5rem;align-items:center;font-size:0.78rem;margin-bottom:0.15rem"><span style="width:75px;color:var(--accent);font-weight:600">' + day + '</span><span style="color:var(--gray)">' + (h.from || '') + ' → ' + (h.to || '') + '</span></div>'
+                ).join('')}
+            </div>` : `<input type="hidden" id="pd_schedtype_${idx}" value="fixed"><input type="hidden" id="pd_dailyhours_${idx}" value="{}">`}
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+                <div class="form-group" style="margin-bottom:0.5rem">
+                    <label class="form-label" style="font-size:0.8rem">Qualifications ${_aiBadge(doc.qualifications)}</label>
+                    <input type="text" class="form-input" id="pd_qual_${idx}" value="${doc.qualifications || ''}" placeholder="BDS, MDS">
+                </div>
+                <div class="form-group" style="margin-bottom:0.5rem">
+                    <label class="form-label" style="font-size:0.8rem">Languages ${_aiBadge(doc.languages)}</label>
+                    <input type="text" class="form-input" id="pd_lang_${idx}" value="${doc.languages || ''}" placeholder="Arabic, English">
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+                <label class="form-label" style="font-size:0.8rem">Bio ${_aiBadge(doc.bio)}</label>
+                <textarea class="form-input" id="pd_bio_${idx}" rows="2" placeholder="Short description" style="resize:vertical">${doc.bio || ''}</textarea>
+            </div>
+        </div>`;
+    }
+
+    function removePdfDoctor(idx) {
+        _pdfDoctors.splice(idx, 1);
+        _renderPdfReview();
+    }
+
+    function _renderPdfReview() {
+        const countEl = document.getElementById('pdfDoctorCount');
+        const listEl = document.getElementById('pdfDoctorsList');
+        countEl.textContent = `${_pdfDoctors.length} doctor(s) found in PDF`;
+        listEl.innerHTML = _pdfDoctors.map((d, i) => _renderDoctorForm(d, i)).join('');
+    }
+
+    async function uploadDoctorPdf() {
+        const fileInput = document.getElementById('pdfFileInput');
+        if (!fileInput.files[0]) return;
+
+        document.getElementById('pdfUploadState').style.display = 'none';
+        document.getElementById('pdfLoadingState').style.display = '';
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        try {
+            const res = await fetch('/api/doctors/upload-pdf', {
+                method: 'POST',
+                headers: { 'Authorization': headers['Authorization'] },
+                body: formData
+            });
+            const result = await res.json();
+            if (result.error) {
+                showToast(result.error, 'error', 5000);
+                document.getElementById('pdfLoadingState').style.display = 'none';
+                document.getElementById('pdfUploadState').style.display = '';
+                return;
+            }
+
+            const allDocs = result.doctors || (result.extracted ? [result.extracted] : []);
+            const dupes = allDocs.filter(d => d.alreadyExists);
+            _pdfDoctors = allDocs.filter(d => !d.alreadyExists);
+            document.getElementById('pdf_savedFilename').value = result.pdf_filename || '';
+
+            if (dupes.length) {
+                const names = dupes.map(d => d.fullName).join(', ');
+                showToast(`Skipped ${dupes.length} already-existing doctor(s): ${names}`, 'warning', 5000);
+            }
+
+            _renderPdfReview();
+
+            document.getElementById('pdfLoadingState').style.display = 'none';
+            document.getElementById('pdfReviewState').style.display = '';
+
+        } catch(e) {
+            console.error('PDF upload error:', e);
+            showToast('Failed to upload PDF. Please try again.', 'error');
+            document.getElementById('pdfLoadingState').style.display = 'none';
+            document.getElementById('pdfUploadState').style.display = '';
+        }
+    }
+
+    async function saveAllDoctorsFromPdf() {
+        // Collect all doctor data from forms
+        const doctors = [];
+        for (let i = 0; i < _pdfDoctors.length; i++) {
+            const name = (document.getElementById('pd_name_' + i) || {}).value || '';
+            if (!name.trim()) continue;
+            let dailyHours = {};
+            const schedType = (document.getElementById('pd_schedtype_' + i) || {}).value || 'fixed';
+            try { dailyHours = JSON.parse((document.getElementById('pd_dailyhours_' + i) || {}).value || '{}'); } catch(e) {}
+            doctors.push({
+                fullName: name.trim(),
+                specialty: (document.getElementById('pd_spec_' + i) || {}).value || '',
+                email: (document.getElementById('pd_email_' + i) || {}).value || '',
+                phone: (document.getElementById('pd_phone_' + i) || {}).value || '',
+                availableDays: (document.getElementById('pd_days_' + i) || {}).value || 'Mon-Fri',
+                availableTimeSlots: {
+                    from: (document.getElementById('pd_start_' + i) || {}).value || '09:00 AM',
+                    to: (document.getElementById('pd_end_' + i) || {}).value || '05:00 PM'
+                },
+                qualifications: (document.getElementById('pd_qual_' + i) || {}).value || '',
+                languages: (document.getElementById('pd_lang_' + i) || {}).value || '',
+                bio: (document.getElementById('pd_bio_' + i) || {}).value || '',
+                yearsOfExperience: parseInt((document.getElementById('pd_exp_' + i) || {}).value) || 0,
+                scheduleType: schedType,
+                dailyHours: dailyHours
+            });
+        }
+
+        if (!doctors.length) { showToast('No doctors to save. At least one name is required.', 'warning'); return; }
+
+        try {
+            const res = await fetch('/api/doctors/from-pdf', {
+                method: 'POST', headers,
+                body: JSON.stringify({ doctors, pdf_filename: document.getElementById('pdf_savedFilename').value })
+            });
+            const result = await res.json();
+            if (result.error) { showToast(result.error, 'error'); return; }
+            closePdfUploadModal();
+            loadDoctors();
+            showToast(result.message || `${doctors.length} doctor(s) added!`, 'success', 4000);
+        } catch(e) { showToast('Failed to save doctors.', 'error'); }
+    }
+
     // ── Manage Doctors ──
     let manageDoctors = [];
+
+    let allCategories = [];
 
     async function loadManageDoctors() {
         if (!isAdmin) return;
         try {
-            const res = await fetch('/api/doctors', { headers });
-            manageDoctors = await res.json();
+            const [docRes, catRes] = await Promise.all([
+                fetch('/api/categories', { headers }),
+                fetch('/api/doctors', { headers })
+            ]);
+            allCategories = await docRes.json();
+            manageDoctors = await catRes.json();
             renderManageDoctors();
         } catch(e) {}
+    }
+
+    function getWorkingDays(availability) {
+        // Parse "Mon-Fri" or "Sun,Mon,Tue,Wed,Thu" etc.
+        const dayMap = { Sun: 'Sunday', Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday' };
+        const allDays = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+        if (!availability) return allDays.slice(1, 6); // default Mon-Fri
+        const av = availability.trim();
+        // Range format: "Mon-Fri"
+        const rangeMatch = av.match(/^(\w{3})\s*[-–]\s*(\w{3})$/);
+        if (rangeMatch) {
+            const shorts = Object.keys(dayMap);
+            const si = shorts.indexOf(rangeMatch[1]);
+            const ei = shorts.indexOf(rangeMatch[2]);
+            if (si >= 0 && ei >= 0) {
+                const days = [];
+                for (let i = si; i !== (ei + 1) % 7; i = (i + 1) % 7) days.push(allDays[i]);
+                days.push(allDays[ei]);
+                return days;
+            }
+        }
+        // Comma-separated: "Sun,Mon,Tue"
+        return av.split(/[,\s]+/).map(s => dayMap[s.trim()] || s.trim()).filter(Boolean);
+    }
+
+    function renderFlexibleHours(d) {
+        const days = getWorkingDays(d.availability);
+        let dailyHours = {};
+        try { dailyHours = typeof d.daily_hours === 'string' ? JSON.parse(d.daily_hours || '{}') : (d.daily_hours || {}); } catch(e) {}
+        return days.map(day => {
+            const dh = dailyHours[day] || {};
+            const from = parseTime(dh.from || d.start_time);
+            const to = parseTime(dh.to || d.end_time);
+            return `<div class="flex-day-row" style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.35rem;flex-wrap:wrap">
+                <span style="width:80px;font-size:0.8rem;color:var(--accent);font-weight:600">${day}</span>
+                <div class="time-group">
+                    <input type="text" class="time-input" id="fsh_${d.id}_${day}" value="${from.hh}" maxlength="2" placeholder="HH" oninput="clampTimeInput(this,12)" onblur="padTime(this)">
+                    <span class="time-colon">:</span>
+                    <input type="text" class="time-input" id="fsm_${d.id}_${day}" value="${from.mm}" maxlength="2" placeholder="MM" oninput="clampTimeInput(this,59)" onblur="padTime(this)">
+                    <select class="time-ampm" id="fsa_${d.id}_${day}">
+                        <option value="AM" ${from.ampm === 'AM' ? 'selected' : ''}>AM</option>
+                        <option value="PM" ${from.ampm === 'PM' ? 'selected' : ''}>PM</option>
+                    </select>
+                </div>
+                <span style="color:var(--gray);font-size:0.8rem">to</span>
+                <div class="time-group">
+                    <input type="text" class="time-input" id="feh_${d.id}_${day}" value="${to.hh}" maxlength="2" placeholder="HH" oninput="clampTimeInput(this,12)" onblur="padTime(this)">
+                    <span class="time-colon">:</span>
+                    <input type="text" class="time-input" id="fem_${d.id}_${day}" value="${to.mm}" maxlength="2" placeholder="MM" oninput="clampTimeInput(this,59)" onblur="padTime(this)">
+                    <select class="time-ampm" id="fea_${d.id}_${day}">
+                        <option value="AM" ${to.ampm === 'AM' ? 'selected' : ''}>AM</option>
+                        <option value="PM" ${to.ampm === 'PM' ? 'selected' : ''}>PM</option>
+                    </select>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function toggleScheduleType(id, type) {
+        document.getElementById('sched-fixed-' + id).classList.toggle('active', type === 'fixed');
+        document.getElementById('sched-flex-' + id).classList.toggle('active', type === 'flexible');
+        document.getElementById('fixed-hours-' + id).style.display = type === 'fixed' ? 'block' : 'none';
+        document.getElementById('flex-hours-' + id).style.display = type === 'flexible' ? 'block' : 'none';
+        // Store on the doc object for saving
+        const doc = manageDoctors.find(d => d.id === id);
+        if (doc) doc._scheduleType = type;
     }
 
     function parseTime(str) {
@@ -1089,29 +1620,69 @@
                     </div>
                 </div>
 
+                <!-- Categories (multi-select checkboxes) -->
+                <div class="manage-subsection" style="margin-bottom:0.75rem">
+                    <div class="manage-subsection-title">Specialties / Categories</div>
+                    <div id="cats-${d.id}" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.4rem">
+                        ${allCategories.map(c => {
+                            const docCats = (d.specialty || '').split(',').map(s => s.trim().toLowerCase());
+                            const checked = docCats.includes(c.name.toLowerCase()) ? 'checked' : '';
+                            return '<label style="display:flex;align-items:center;gap:0.35rem;padding:0.3rem 0.65rem;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);font-size:0.82rem;color:var(--white);cursor:pointer;user-select:none"><input type="checkbox" ' + checked + ' value="' + c.name + '" onchange="saveDoctorCategories(' + d.id + ')" style="accent-color:var(--cyan);cursor:pointer"> ' + c.name + '</label>';
+                        }).join('')}
+                    </div>
+                </div>
+
+                <!-- Bio & Experience -->
+                <div style="display:grid;grid-template-columns:1fr auto;gap:0.75rem;margin-bottom:0.75rem">
+                    <div class="form-group" style="margin:0">
+                        <div class="time-label">Bio / Qualifications</div>
+                        <textarea class="form-input" id="bio_${d.id}" rows="2" placeholder="Doctor's qualifications, expertise..." style="font-size:0.82rem;margin-top:0.3rem;resize:vertical">${d.bio || ''}</textarea>
+                    </div>
+                    <div class="form-group" style="margin:0;min-width:100px">
+                        <div class="time-label">Experience</div>
+                        <div style="display:flex;align-items:center;gap:0.3rem;margin-top:0.3rem">
+                            <input type="number" class="form-input" id="exp_${d.id}" value="${d.years_of_experience || ''}" min="0" max="70" placeholder="0" style="width:60px;font-size:0.85rem;text-align:center">
+                            <span style="color:var(--gray);font-size:0.8rem">years</span>
+                        </div>
+                    </div>
+                </div>
                 <div style="margin-bottom:0.5rem">
-                    <div class="time-label">Working Hours</div>
-                    <div class="time-row">
-                        <div class="time-group">
-                            <input type="text" class="time-input" id="sh_${d.id}" value="${start.hh}" maxlength="2" placeholder="HH" oninput="clampTimeInput(this,12)" onblur="padTime(this)">
-                            <span class="time-colon">:</span>
-                            <input type="text" class="time-input" id="sm_${d.id}" value="${start.mm}" maxlength="2" placeholder="MM" oninput="clampTimeInput(this,59)" onblur="padTime(this)">
-                            <select class="time-ampm" id="sa_${d.id}">
-                                <option value="AM" ${start.ampm === 'AM' ? 'selected' : ''}>AM</option>
-                                <option value="PM" ${start.ampm === 'PM' ? 'selected' : ''}>PM</option>
-                            </select>
+                    <button class="manage-save-btn" onclick="saveDoctorProfile(${d.id})" style="margin-bottom:0.65rem;font-size:0.78rem">Save Profile</button>
+                </div>
+
+                <div style="margin-bottom:0.5rem">
+                    <div class="time-label" style="margin-bottom:0.4rem">Working Hours</div>
+                    <div style="display:flex;gap:0.4rem;margin-bottom:0.5rem">
+                        <button class="schedule-toggle-btn ${(d.schedule_type || 'fixed') === 'fixed' ? 'active' : ''}" onclick="toggleScheduleType(${d.id},'fixed')" id="sched-fixed-${d.id}">Fixed</button>
+                        <button class="schedule-toggle-btn ${d.schedule_type === 'flexible' ? 'active' : ''}" onclick="toggleScheduleType(${d.id},'flexible')" id="sched-flex-${d.id}">Flexible</button>
+                    </div>
+                    <!-- Fixed schedule (single start/end) -->
+                    <div id="fixed-hours-${d.id}" style="display:${(d.schedule_type || 'fixed') === 'fixed' ? 'block' : 'none'}">
+                        <div class="time-row">
+                            <div class="time-group">
+                                <input type="text" class="time-input" id="sh_${d.id}" value="${start.hh}" maxlength="2" placeholder="HH" oninput="clampTimeInput(this,12)" onblur="padTime(this)">
+                                <span class="time-colon">:</span>
+                                <input type="text" class="time-input" id="sm_${d.id}" value="${start.mm}" maxlength="2" placeholder="MM" oninput="clampTimeInput(this,59)" onblur="padTime(this)">
+                                <select class="time-ampm" id="sa_${d.id}">
+                                    <option value="AM" ${start.ampm === 'AM' ? 'selected' : ''}>AM</option>
+                                    <option value="PM" ${start.ampm === 'PM' ? 'selected' : ''}>PM</option>
+                                </select>
+                            </div>
+                            <span class="time-arrow">&rarr;</span>
+                            <div class="time-group">
+                                <input type="text" class="time-input" id="eh_${d.id}" value="${end.hh}" maxlength="2" placeholder="HH" oninput="clampTimeInput(this,12)" onblur="padTime(this)">
+                                <span class="time-colon">:</span>
+                                <input type="text" class="time-input" id="em_${d.id}" value="${end.mm}" maxlength="2" placeholder="MM" oninput="clampTimeInput(this,59)" onblur="padTime(this)">
+                                <select class="time-ampm" id="ea_${d.id}">
+                                    <option value="AM" ${end.ampm === 'AM' ? 'selected' : ''}>AM</option>
+                                    <option value="PM" ${end.ampm === 'PM' ? 'selected' : ''}>PM</option>
+                                </select>
+                            </div>
                         </div>
-                        <span class="time-arrow">&rarr;</span>
-                        <div class="time-group">
-                            <input type="text" class="time-input" id="eh_${d.id}" value="${end.hh}" maxlength="2" placeholder="HH" oninput="clampTimeInput(this,12)" onblur="padTime(this)">
-                            <span class="time-colon">:</span>
-                            <input type="text" class="time-input" id="em_${d.id}" value="${end.mm}" maxlength="2" placeholder="MM" oninput="clampTimeInput(this,59)" onblur="padTime(this)">
-                            <select class="time-ampm" id="ea_${d.id}">
-                                <option value="AM" ${end.ampm === 'AM' ? 'selected' : ''}>AM</option>
-                                <option value="PM" ${end.ampm === 'PM' ? 'selected' : ''}>PM</option>
-                            </select>
-                        </div>
-                        <button class="manage-save-btn" onclick="saveDoctorSchedule(${d.id})">Save</button>
+                    </div>
+                    <!-- Flexible schedule (per-day hours) -->
+                    <div id="flex-hours-${d.id}" style="display:${d.schedule_type === 'flexible' ? 'block' : 'none'}">
+                        ${renderFlexibleHours(d)}
                     </div>
                     <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.65rem">
                         <div class="time-label" style="margin:0">Appointment Length</div>
@@ -1124,6 +1695,7 @@
                             <option value="120" ${apptLen === 120 ? 'selected' : ''}>2 hours</option>
                         </select>
                     </div>
+                    <button class="manage-save-btn" onclick="saveDoctorSchedule(${d.id})" style="margin-top:0.5rem">Save Schedule</button>
                     <div class="manage-error" id="manage-err-${d.id}"></div>
                 </div>
 
@@ -1197,36 +1769,63 @@
         const doc = manageDoctors.find(d => d.id === id);
         if (!doc) return;
 
-        const sh = document.getElementById('sh_' + id).value || '00';
-        const sm = document.getElementById('sm_' + id).value || '00';
-        const sa = document.getElementById('sa_' + id).value;
-        const eh = document.getElementById('eh_' + id).value || '00';
-        const em = document.getElementById('em_' + id).value || '00';
-        const ea = document.getElementById('ea_' + id).value;
-
         const errEl = document.getElementById('manage-err-' + id);
+        const schedType = doc._scheduleType || doc.schedule_type || 'fixed';
+        const apptLength = parseInt(document.getElementById('al_' + id).value) || 60;
 
-        // Validate not empty
-        if (!sh || !sm || !eh || !em) {
-            errEl.textContent = 'Please fill in all time fields.';
-            errEl.style.display = 'block';
-            return;
-        }
+        let startTime, endTime, dailyHours = {};
 
-        // Validate start < end
-        const startMin = timeTo24(sh, sm, sa);
-        const endMin = timeTo24(eh, em, ea);
-        if (startMin >= endMin) {
-            errEl.textContent = 'Start time must be before end time.';
-            errEl.style.display = 'block';
-            return;
+        if (schedType === 'flexible') {
+            // Collect per-day hours
+            const days = getWorkingDays(doc.availability);
+            for (const day of days) {
+                const fsh = document.getElementById('fsh_' + id + '_' + day)?.value || '00';
+                const fsm = document.getElementById('fsm_' + id + '_' + day)?.value || '00';
+                const fsa = document.getElementById('fsa_' + id + '_' + day)?.value || 'AM';
+                const feh = document.getElementById('feh_' + id + '_' + day)?.value || '00';
+                const fem = document.getElementById('fem_' + id + '_' + day)?.value || '00';
+                const fea = document.getElementById('fea_' + id + '_' + day)?.value || 'AM';
+
+                const sMin = timeTo24(fsh, fsm, fsa);
+                const eMin = timeTo24(feh, fem, fea);
+                if (sMin >= eMin) {
+                    errEl.textContent = `${day}: start time must be before end time.`;
+                    errEl.style.display = 'block';
+                    return;
+                }
+                dailyHours[day] = { from: formatTime(fsh, fsm, fsa), to: formatTime(feh, fem, fea) };
+            }
+            // Use first day's hours as the default start/end
+            const firstDay = days[0];
+            startTime = dailyHours[firstDay]?.from || '09:00 AM';
+            endTime = dailyHours[firstDay]?.to || '05:00 PM';
+        } else {
+            const sh = document.getElementById('sh_' + id).value || '00';
+            const sm = document.getElementById('sm_' + id).value || '00';
+            const sa = document.getElementById('sa_' + id).value;
+            const eh = document.getElementById('eh_' + id).value || '00';
+            const em = document.getElementById('em_' + id).value || '00';
+            const ea = document.getElementById('ea_' + id).value;
+
+            if (!sh || !sm || !eh || !em) {
+                errEl.textContent = 'Please fill in all time fields.';
+                errEl.style.display = 'block';
+                return;
+            }
+
+            const startMin = timeTo24(sh, sm, sa);
+            const endMin = timeTo24(eh, em, ea);
+            if (startMin >= endMin) {
+                errEl.textContent = 'Start time must be before end time.';
+                errEl.style.display = 'block';
+                return;
+            }
+
+            startTime = formatTime(sh, sm, sa);
+            endTime = formatTime(eh, em, ea);
         }
 
         errEl.style.display = 'none';
-
-        const startTime = formatTime(sh, sm, sa);
-        const endTime = formatTime(eh, em, ea);
-        const apptLength = parseInt(document.getElementById('al_' + id).value) || 60;
 
         try {
             const res = await fetch(`/api/doctors/${id}`, {
@@ -1235,7 +1834,9 @@
                     name: doc.name, specialty: doc.specialty || '',
                     bio: doc.bio || '', availability: doc.availability || 'Mon-Fri',
                     start_time: startTime, end_time: endTime,
-                    appointment_length: apptLength
+                    appointment_length: apptLength,
+                    schedule_type: schedType,
+                    daily_hours: JSON.stringify(dailyHours)
                 })
             });
             const result = await res.json();
@@ -1248,6 +1849,8 @@
             doc.start_time = startTime;
             doc.end_time = endTime;
             doc.appointment_length = apptLength;
+            doc.schedule_type = schedType;
+            doc.daily_hours = JSON.stringify(dailyHours);
             showManageSuccess();
         } catch(e) {
             errEl.textContent = 'Failed to save. Try again.';
@@ -1259,6 +1862,44 @@
         const el = document.getElementById('manageSaveSuccess');
         el.style.display = 'block';
         setTimeout(() => { el.style.display = 'none'; }, 2500);
+    }
+
+    async function saveDoctorCategories(id) {
+        const doc = manageDoctors.find(d => d.id === id);
+        if (!doc) return;
+        const catsEl = document.getElementById('cats-' + id);
+        const checked = Array.from(catsEl.querySelectorAll('input[type=checkbox]:checked')).map(cb => cb.value);
+        const specialty = checked.join(', ');
+        try {
+            await fetch(`/api/doctors/${id}`, {
+                method: 'PUT', headers,
+                body: JSON.stringify({ name: doc.name, specialty, bio: doc.bio || '', availability: doc.availability || 'Mon-Fri' })
+            });
+            doc.specialty = specialty;
+            // Update specialty display in card header
+            const card = document.getElementById('manage-card-' + id);
+            if (card) {
+                const specEl = card.querySelector('.manage-card-specialty');
+                if (specEl) specEl.textContent = specialty || 'No specialty selected';
+            }
+            showManageSuccess();
+        } catch(e) {}
+    }
+
+    async function saveDoctorProfile(id) {
+        const doc = manageDoctors.find(d => d.id === id);
+        if (!doc) return;
+        const bio = document.getElementById('bio_' + id).value.trim();
+        const exp = parseInt(document.getElementById('exp_' + id).value) || 0;
+        try {
+            await fetch(`/api/doctors/${id}`, {
+                method: 'PUT', headers,
+                body: JSON.stringify({ name: doc.name, specialty: doc.specialty || '', bio, availability: doc.availability || 'Mon-Fri', years_of_experience: exp })
+            });
+            doc.bio = bio;
+            doc.years_of_experience = exp;
+            showManageSuccess();
+        } catch(e) { showToast('Failed to save profile.', 'error'); }
     }
 
     // ── Doctor Requests (doctor role) ──
@@ -1818,8 +2459,7 @@
                     btn.onclick = function() {
                         daysGrid.querySelectorAll('.cal-day.selected').forEach(b => b.classList.remove('selected'));
                         btn.classList.add('selected');
-                        const display = thisDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-                        setTimeout(() => { document.getElementById('demoInput').value = display; sendDemoMessage(); }, 250);
+                        setTimeout(() => { document.getElementById('demoInput').value = iso; sendDemoMessage(); }, 250);
                     };
                 }
                 if (thisDate.getTime() === today.getTime()) btn.classList.add('today');
@@ -1837,10 +2477,11 @@
     }
 
     function renderDemoPicker(options) {
+        if (!options || !options.type) return;
         if (options.type === 'calendar') { renderDemoCalendar(options); return; }
         const container = document.getElementById('demoChatMessages');
         const type = options.type;
-        const items = options.items;
+        const items = options.items || [];
         const isDoctor = type === 'doctors';
         const isTime = type === 'timeslots';
         const isDate = type === 'dates';
@@ -1963,6 +2604,280 @@
             if (typingEl) typingEl.remove();
             addDemoMessage('Could not reach the server.', false);
         }
+    }
+
+    // ══════════════════════════════════════════════
+    //  Analytics & Reports Module
+    // ══════════════════════════════════════════════
+
+    const analyticsCharts = {};
+    let analyticsData = null;
+    let analyticsDateFrom = '';
+    let analyticsDateTo = '';
+
+    function _fmtNum(n) { return n == null ? '0' : n.toLocaleString(); }
+    function _fmtPct(n) { return n == null ? '0%' : n.toFixed(1) + '%'; }
+    function _hourLabel(h) {
+        if (h === 0) return '12 AM';
+        if (h < 12) return h + ' AM';
+        if (h === 12) return '12 PM';
+        return (h - 12) + ' PM';
+    }
+
+    function setAnalyticsRange(preset, btn) {
+        const now = new Date();
+        let from, to;
+        if (preset === 'today') { from = to = new Date(now); }
+        else if (preset === 'week') {
+            const day = now.getDay();
+            from = new Date(now); from.setDate(now.getDate() - day);
+            to = new Date(now);
+        } else if (preset === 'last_week') {
+            const day = now.getDay();
+            to = new Date(now); to.setDate(now.getDate() - day - 1);
+            from = new Date(to); from.setDate(to.getDate() - 6);
+        } else if (preset === 'month') {
+            from = new Date(now.getFullYear(), now.getMonth(), 1);
+            to = new Date(now);
+        } else if (preset === 'last_month') {
+            from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            to = new Date(now.getFullYear(), now.getMonth(), 0);
+        }
+        const fmt = d => d.toISOString().split('T')[0];
+        document.getElementById('analyticsFrom').value = fmt(from);
+        document.getElementById('analyticsTo').value = fmt(to);
+        document.querySelectorAll('.analytics-filter-btn').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        _analyticsInitialized = true;
+        loadAnalytics();
+    }
+
+    let _analyticsInitialized = false;
+
+    async function loadAnalytics() {
+        // Initialize date range on first load
+        if (!_analyticsInitialized) {
+            _analyticsInitialized = true;
+            const now = new Date();
+            const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            document.getElementById('analyticsFrom').value = thirtyDaysAgo.toISOString().split('T')[0];
+            document.getElementById('analyticsTo').value = now.toISOString().split('T')[0];
+        }
+
+        const from = document.getElementById('analyticsFrom').value;
+        const to = document.getElementById('analyticsTo').value;
+        if (!from || !to) return;
+
+        // Show loading skeletons
+        const metrics = ['leads','bookings','conversion','peak','intents','noshow'];
+        metrics.forEach(id => {
+            const chart = document.getElementById('chart-' + id);
+            const table = document.getElementById('table-' + id);
+            if (chart && chart.style.display !== 'none') chart.innerHTML = '<div class="analytics-skeleton"></div>';
+            if (table && table.style.display !== 'none') table.innerHTML = '<div class="analytics-skeleton"></div>';
+        });
+
+        try {
+            const res = await fetch('/api/analytics?from=' + from + '&to=' + to, { headers });
+            if (!res.ok) {
+                // Clear skeletons and show error
+                metrics.forEach(id => {
+                    const chart = document.getElementById('chart-' + id);
+                    if (chart) chart.innerHTML = '<p style="color:var(--gray);text-align:center;padding:2rem">No data available</p>';
+                });
+                return;
+            }
+            analyticsData = await res.json();
+            if (analyticsData.error) {
+                metrics.forEach(id => {
+                    const chart = document.getElementById('chart-' + id);
+                    if (chart) chart.innerHTML = '<p style="color:var(--gray);text-align:center;padding:2rem">No data available</p>';
+                });
+                return;
+            }
+            renderAllCharts();
+        } catch(e) {
+            console.error('Analytics fetch error:', e);
+            metrics.forEach(id => {
+                const chart = document.getElementById('chart-' + id);
+                if (chart) chart.innerHTML = '<p style="color:var(--gray);text-align:center;padding:2rem">Could not load data</p>';
+            });
+        }
+    }
+
+    function toggleView(metric, view, btn) {
+        const chartEl = document.getElementById('chart-' + metric);
+        const tableEl = document.getElementById('table-' + metric);
+        if (view === 'graph') {
+            chartEl.style.display = ''; tableEl.style.display = 'none';
+        } else {
+            chartEl.style.display = 'none'; tableEl.style.display = '';
+        }
+        btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+
+    function _destroyChart(key) {
+        if (analyticsCharts[key]) { analyticsCharts[key].destroy(); delete analyticsCharts[key]; }
+    }
+
+    function _sortTable(tableEl, colIdx) {
+        const rows = Array.from(tableEl.querySelectorAll('tbody tr'));
+        const th = tableEl.querySelectorAll('th')[colIdx];
+        const asc = th.dataset.sort !== 'asc';
+        th.dataset.sort = asc ? 'asc' : 'desc';
+        rows.sort((a, b) => {
+            let va = a.cells[colIdx].textContent.replace(/[,%]/g, '');
+            let vb = b.cells[colIdx].textContent.replace(/[,%]/g, '');
+            const na = parseFloat(va), nb = parseFloat(vb);
+            if (!isNaN(na) && !isNaN(nb)) return asc ? na - nb : nb - na;
+            return asc ? va.localeCompare(vb) : vb.localeCompare(va);
+        });
+        const tbody = tableEl.querySelector('tbody');
+        rows.forEach(r => tbody.appendChild(r));
+    }
+
+    function _buildTable(id, headers, rows) {
+        const el = document.getElementById('table-' + id);
+        let html = '<table><thead><tr>';
+        headers.forEach((h, i) => { html += '<th onclick="_sortTable(this.closest(\'table\'),' + i + ')">' + h + ' &#8597;</th>'; });
+        html += '</tr></thead><tbody>';
+        rows.forEach(r => { html += '<tr>' + r.map(c => '<td>' + c + '</td>').join('') + '</tr>'; });
+        if (rows.length === 0) html += '<tr><td colspan="' + headers.length + '" style="text-align:center;color:var(--gray);padding:2rem">No data for this period</td></tr>';
+        html += '</tbody></table>';
+        el.innerHTML = html;
+    }
+
+    const _chartColors = {
+        cyan: 'rgba(0,212,255,0.8)', cyanBg: 'rgba(0,212,255,0.15)',
+        green: 'rgba(34,197,94,0.8)', greenBg: 'rgba(34,197,94,0.15)',
+        orange: 'rgba(249,115,22,0.8)', orangeBg: 'rgba(249,115,22,0.15)',
+        purple: 'rgba(139,92,246,0.8)', purpleBg: 'rgba(139,92,246,0.15)',
+        red: 'rgba(239,68,68,0.8)', redBg: 'rgba(239,68,68,0.15)',
+    };
+    const _chartDefaults = {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#999', font: { size: 11 } } } },
+        scales: {
+            x: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+            y: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true }
+        }
+    };
+
+    function renderAllCharts() {
+        if (!analyticsData) return;
+        const d = analyticsData;
+
+        // ── 1. Leads Per Day (Line) ──
+        const leadsEl = document.getElementById('chart-leads');
+        leadsEl.innerHTML = '<canvas id="canvas-leads"></canvas>';
+        _destroyChart('leads');
+        analyticsCharts['leads'] = new Chart(document.getElementById('canvas-leads'), {
+            type: 'line',
+            data: {
+                labels: d.leads_per_day.map(r => r.date),
+                datasets: [{ label: 'Leads', data: d.leads_per_day.map(r => r.count),
+                    borderColor: _chartColors.cyan, backgroundColor: _chartColors.cyanBg,
+                    fill: true, tension: 0.3, pointRadius: 3 }]
+            },
+            options: { ..._chartDefaults, plugins: { ...(_chartDefaults.plugins),
+                title: { display: true, text: 'Total Sessions: ' + _fmtNum(d.total_sessions), color: '#888', font: { size: 12 } } } }
+        });
+        _buildTable('leads', ['Date', 'Leads'],
+            d.leads_per_day.map(r => [r.date, _fmtNum(r.count)]));
+
+        // ── 2. Bookings Per Day (Bar) ──
+        const bkEl = document.getElementById('chart-bookings');
+        bkEl.innerHTML = '<canvas id="canvas-bookings"></canvas>';
+        _destroyChart('bookings');
+        const totalBkDay = d.bookings_per_day ? d.bookings_per_day.reduce((s, r) => s + r.count, 0) : 0;
+        analyticsCharts['bookings'] = new Chart(document.getElementById('canvas-bookings'), {
+            type: 'line',
+            data: {
+                labels: (d.bookings_per_day || []).map(r => r.date),
+                datasets: [{ label: 'Bookings', data: (d.bookings_per_day || []).map(r => r.count),
+                    borderColor: _chartColors.green, backgroundColor: _chartColors.greenBg,
+                    fill: true, tension: 0.3, pointRadius: 3 }]
+            },
+            options: { ..._chartDefaults, plugins: { ...(_chartDefaults.plugins),
+                title: { display: true, text: 'Total Bookings: ' + _fmtNum(totalBkDay), color: '#888', font: { size: 12 } } } }
+        });
+        _buildTable('bookings', ['Date', 'Bookings'],
+            (d.bookings_per_day || []).map(r => [r.date, _fmtNum(r.count)]));
+
+        // ── 3. Conversion Rate (Bar) ──
+        const convEl = document.getElementById('chart-conversion');
+        convEl.innerHTML = '<canvas id="canvas-conversion"></canvas>';
+        _destroyChart('conversion');
+        analyticsCharts['conversion'] = new Chart(document.getElementById('canvas-conversion'), {
+            type: 'bar',
+            data: {
+                labels: d.conversion.map(r => r.week),
+                datasets: [
+                    { label: 'Total Chats', data: d.conversion.map(r => r.total_chats), backgroundColor: _chartColors.cyanBg, borderColor: _chartColors.cyan, borderWidth: 1 },
+                    { label: 'Bookings', data: d.conversion.map(r => r.total_bookings), backgroundColor: _chartColors.greenBg, borderColor: _chartColors.green, borderWidth: 1 }
+                ]
+            },
+            options: { ..._chartDefaults, plugins: { ...(_chartDefaults.plugins),
+                title: { display: true, text: 'Overall: ' + _fmtPct(d.conversion_rate), color: '#888', font: { size: 12 } } } }
+        });
+        _buildTable('conversion', ['Week', 'Total Chats', 'Total Bookings', 'Conversion %'],
+            d.conversion.map(r => [r.week, _fmtNum(r.total_chats), _fmtNum(r.total_bookings), _fmtPct(r.rate)]));
+
+        // ── 3. Peak Booking Hours (Bar) ──
+        const peakEl = document.getElementById('chart-peak');
+        peakEl.innerHTML = '<canvas id="canvas-peak"></canvas>';
+        _destroyChart('peak');
+        const allHours = Array.from({length: 24}, (_, i) => i);
+        const peakMap = {};
+        d.peak_hours.forEach(r => { peakMap[r.hour] = r; });
+        analyticsCharts['peak'] = new Chart(document.getElementById('canvas-peak'), {
+            type: 'bar',
+            data: {
+                labels: allHours.map(_hourLabel),
+                datasets: [{ label: 'Bookings', data: allHours.map(h => peakMap[h] ? peakMap[h].count : 0),
+                    backgroundColor: allHours.map(h => peakMap[h] && peakMap[h].count > 0 ? _chartColors.orange : 'rgba(255,255,255,0.04)'),
+                    borderColor: allHours.map(h => peakMap[h] && peakMap[h].count > 0 ? _chartColors.orange : 'transparent'), borderWidth: 1 }]
+            },
+            options: { ..._chartDefaults, plugins: { ...(_chartDefaults.plugins), legend: { display: false } } }
+        });
+        _buildTable('peak', ['Hour', 'Bookings', '% of Total'],
+            d.peak_hours.map(r => [_hourLabel(r.hour), _fmtNum(r.count), _fmtPct(r.pct)]));
+
+        // ── 4. Most Asked Questions (Horizontal Bar) ──
+        const intEl = document.getElementById('chart-intents');
+        intEl.innerHTML = '<canvas id="canvas-intents"></canvas>';
+        _destroyChart('intents');
+        const intentLabels = d.top_intents.map(r => r.intent.replace(/_/g, ' '));
+        analyticsCharts['intents'] = new Chart(document.getElementById('canvas-intents'), {
+            type: 'bar',
+            data: {
+                labels: intentLabels,
+                datasets: [{ label: 'Times Asked', data: d.top_intents.map(r => r.count),
+                    backgroundColor: _chartColors.purpleBg, borderColor: _chartColors.purple, borderWidth: 1 }]
+            },
+            options: { ..._chartDefaults, indexAxis: 'y',
+                plugins: { ...(_chartDefaults.plugins), legend: { display: false } } }
+        });
+        _buildTable('intents', ['Rank', 'Intent', 'Times Asked', '% of Total'],
+            d.top_intents.map((r, i) => [i + 1, r.intent.replace(/_/g, ' '), _fmtNum(r.count), _fmtPct(r.pct)]));
+
+        // ── 5. No-Show Rate (Line) ──
+        const nsEl = document.getElementById('chart-noshow');
+        nsEl.innerHTML = '<canvas id="canvas-noshow"></canvas>';
+        _destroyChart('noshow');
+        analyticsCharts['noshow'] = new Chart(document.getElementById('canvas-noshow'), {
+            type: 'line',
+            data: {
+                labels: d.noshow.map(r => r.week),
+                datasets: [{ label: 'No-Show Rate %', data: d.noshow.map(r => r.rate),
+                    borderColor: _chartColors.red, backgroundColor: _chartColors.redBg,
+                    fill: true, tension: 0.3, pointRadius: 3 }]
+            },
+            options: _chartDefaults
+        });
+        _buildTable('noshow', ['Week', 'Confirmed', 'No-Shows', 'No-Show Rate %'],
+            d.noshow.map(r => [r.week, _fmtNum(r.confirmed), _fmtNum(r.no_shows), _fmtPct(r.rate)]));
     }
 
     // ── Boot ──

@@ -147,6 +147,17 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (head_admin_id) REFERENCES users(id)
         );
+
+        CREATE TABLE IF NOT EXISTS chat_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL,
+            admin_id INTEGER DEFAULT 0,
+            message TEXT NOT NULL,
+            intent TEXT DEFAULT '',
+            intent_confidence REAL DEFAULT 0,
+            resulted_in_booking INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
     """)
 
     # Migration: add new columns to existing tables
@@ -167,6 +178,13 @@ def init_db():
         ("doctors", "end_time", "TEXT DEFAULT '00:00 AM'"),
         ("doctors", "is_active", "INTEGER DEFAULT 1"),
         ("doctors", "appointment_length", "INTEGER DEFAULT 60"),
+        ("doctors", "phone", "TEXT DEFAULT ''"),
+        ("doctors", "qualifications", "TEXT DEFAULT ''"),
+        ("doctors", "languages", "TEXT DEFAULT ''"),
+        ("doctors", "years_of_experience", "INTEGER DEFAULT 0"),
+        ("doctors", "pdf_filename", "TEXT DEFAULT ''"),
+        ("doctors", "schedule_type", "TEXT DEFAULT 'fixed'"),
+        ("doctors", "daily_hours", "TEXT DEFAULT ''"),
     ]
     for table, col, col_type in migrations:
         try:
@@ -531,7 +549,14 @@ def get_doctor_by_user_id(user_id):
     return dict(row) if row else None
 
 
+def _strip_dr_prefix(name):
+    """Remove leading 'Dr.' or 'Dr ' from a name to avoid 'Dr. Dr. X'."""
+    import re
+    return re.sub(r'^(?:Dr\.?\s+)+', '', name, flags=re.IGNORECASE).strip()
+
+
 def add_doctor(admin_id, name, email="", specialty="", bio="", availability="Mon-Fri"):
+    name = _strip_dr_prefix(name)
     conn = get_db()
     conn.execute(
         "INSERT INTO doctors (admin_id, user_id, name, email, specialty, bio, availability, status) VALUES (?,0,?,?,?,?,?,?)",
@@ -542,8 +567,32 @@ def add_doctor(admin_id, name, email="", specialty="", bio="", availability="Mon
     return doctor_id
 
 
+def add_doctor_from_pdf(admin_id, name, email="", specialty="", bio="", availability="Mon-Fri",
+                        start_time=None, end_time=None, phone="", qualifications="",
+                        languages="", years_of_experience=0, pdf_filename="",
+                        schedule_type="fixed", daily_hours=""):
+    """Create a doctor record directly from PDF extraction (no invitation flow)."""
+    name = _strip_dr_prefix(name)
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO doctors (admin_id, user_id, name, email, specialty, bio, availability,
+           status, start_time, end_time, phone, qualifications, languages, years_of_experience,
+           pdf_filename, schedule_type, daily_hours)
+           VALUES (?,0,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (admin_id, name, email, specialty, bio, availability, "active",
+         start_time or "09:00 AM", end_time or "05:00 PM",
+         phone, qualifications, languages, int(years_of_experience or 0), pdf_filename,
+         schedule_type, daily_hours))
+    conn.commit()
+    doctor_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return doctor_id
+
+
 def update_doctor(doctor_id, admin_id, name, specialty="", bio="", availability="Mon-Fri",
-                   start_time=None, end_time=None, is_active=None, appointment_length=None):
+                   start_time=None, end_time=None, is_active=None, appointment_length=None,
+                   years_of_experience=None, schedule_type=None, daily_hours=None):
+    name = _strip_dr_prefix(name)
     conn = get_db()
     conn.execute("UPDATE doctors SET name=?, specialty=?, bio=?, availability=? WHERE id=? AND admin_id=?",
                  (name, specialty, bio, availability, doctor_id, admin_id))
@@ -559,6 +608,16 @@ def update_doctor(doctor_id, admin_id, name, specialty="", bio="", availability=
     if appointment_length is not None:
         conn.execute("UPDATE doctors SET appointment_length=? WHERE id=? AND admin_id=?",
                      (int(appointment_length), doctor_id, admin_id))
+    if years_of_experience is not None:
+        conn.execute("UPDATE doctors SET years_of_experience=? WHERE id=? AND admin_id=?",
+                     (int(years_of_experience), doctor_id, admin_id))
+    if schedule_type is not None:
+        conn.execute("UPDATE doctors SET schedule_type=? WHERE id=? AND admin_id=?",
+                     (schedule_type, doctor_id, admin_id))
+    if daily_hours is not None:
+        conn.execute("UPDATE doctors SET daily_hours=? WHERE id=? AND admin_id=?",
+                     (daily_hours if isinstance(daily_hours, str) else json.dumps(daily_hours),
+                      doctor_id, admin_id))
     conn.commit()
     conn.close()
 
@@ -891,14 +950,159 @@ def delete_category(category_id, admin_id):
 
 
 def get_doctors_by_category(admin_id, category_name):
-    """Get active doctors filtered by specialty/category."""
+    """Get active doctors filtered by specialty/category (supports comma-separated multi-specialty)."""
     conn = get_db()
     rows = conn.execute(
-        "SELECT * FROM doctors WHERE admin_id = ? AND status = 'active' AND specialty = ? ORDER BY name",
-        (admin_id, category_name)
+        "SELECT * FROM doctors WHERE admin_id = ? AND status = 'active' AND (specialty = ? OR specialty LIKE ? OR specialty LIKE ? OR specialty LIKE ?) ORDER BY name",
+        (admin_id, category_name,
+         f"{category_name}, %", f"%, {category_name}, %", f"%, {category_name}")
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+# ══════════════════════════════════════════════
+#  Chat Logging & Analytics
+# ══════════════════════════════════════════════
+
+def log_chat(session_id, admin_id, message, intent="", intent_confidence=0.0, resulted_in_booking=0):
+    """Log a chat message for analytics."""
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO chat_logs (session_id, admin_id, message, intent, intent_confidence, resulted_in_booking) "
+        "VALUES (?,?,?,?,?,?)",
+        (session_id, admin_id, message, intent, intent_confidence, resulted_in_booking))
+    conn.commit()
+    conn.close()
+
+
+def mark_session_booked(session_id):
+    """Mark all messages in a session as having resulted in a booking."""
+    conn = get_db()
+    conn.execute("UPDATE chat_logs SET resulted_in_booking = 1 WHERE session_id = ?", (session_id,))
+    conn.commit()
+    conn.close()
+
+
+_analytics_cache = {}
+_CACHE_TTL = 300  # 5 minutes
+
+
+def get_analytics(admin_id, date_from, date_to):
+    """Get all 5 analytics metrics in a single query. Cached for 5 minutes."""
+    cache_key = f"{admin_id}:{date_from}:{date_to}"
+    now = datetime.now().timestamp()
+    if cache_key in _analytics_cache:
+        cached_at, data = _analytics_cache[cache_key]
+        if now - cached_at < _CACHE_TTL:
+            return data
+
+    conn = get_db()
+
+    # 1. Leads per day (unique sessions per day)
+    leads_rows = conn.execute("""
+        SELECT DATE(created_at) as day, COUNT(DISTINCT session_id) as count
+        FROM chat_logs WHERE admin_id = ? AND DATE(created_at) BETWEEN ? AND ?
+        GROUP BY DATE(created_at) ORDER BY day
+    """, (admin_id, date_from, date_to)).fetchall()
+    leads_per_day = [{"date": r["day"], "count": r["count"]} for r in leads_rows]
+
+    total_sessions = conn.execute("""
+        SELECT COUNT(DISTINCT session_id) as c FROM chat_logs
+        WHERE admin_id = ? AND DATE(created_at) BETWEEN ? AND ?
+    """, (admin_id, date_from, date_to)).fetchone()["c"]
+
+    # 2. Conversion rate (sessions that booked / total sessions) per week
+    conversion_rows = conn.execute("""
+        SELECT
+            strftime('%Y-W%W', created_at) as week,
+            COUNT(DISTINCT session_id) as total_chats,
+            COUNT(DISTINCT CASE WHEN resulted_in_booking = 1 THEN session_id END) as booked
+        FROM chat_logs WHERE admin_id = ? AND DATE(created_at) BETWEEN ? AND ?
+        GROUP BY week ORDER BY week
+    """, (admin_id, date_from, date_to)).fetchall()
+    conversion_data = [{
+        "week": r["week"], "total_chats": r["total_chats"],
+        "total_bookings": r["booked"],
+        "rate": round(r["booked"] / r["total_chats"] * 100, 1) if r["total_chats"] > 0 else 0
+    } for r in conversion_rows]
+
+    total_booked_sessions = conn.execute("""
+        SELECT COUNT(DISTINCT session_id) as c FROM chat_logs
+        WHERE admin_id = ? AND resulted_in_booking = 1 AND DATE(created_at) BETWEEN ? AND ?
+    """, (admin_id, date_from, date_to)).fetchone()["c"]
+
+    # 3. Peak booking hours
+    peak_rows = conn.execute("""
+        SELECT CAST(SUBSTR(time, 1, 2) as INTEGER) as hour_num,
+               CASE WHEN time LIKE '%PM%' AND SUBSTR(time, 1, 2) != '12' THEN CAST(SUBSTR(time, 1, 2) as INTEGER) + 12
+                    WHEN time LIKE '%AM%' AND SUBSTR(time, 1, 2) = '12' THEN 0
+                    ELSE CAST(SUBSTR(time, 1, 2) as INTEGER) END as hour24,
+               COUNT(*) as count
+        FROM bookings WHERE admin_id = ? AND status != 'cancelled'
+        AND DATE(created_at) BETWEEN ? AND ?
+        GROUP BY hour24 ORDER BY hour24
+    """, (admin_id, date_from, date_to)).fetchall()
+
+    total_bookings_period = sum(r["count"] for r in peak_rows) if peak_rows else 0
+    peak_hours = [{
+        "hour": r["hour24"], "count": r["count"],
+        "pct": round(r["count"] / total_bookings_period * 100, 1) if total_bookings_period > 0 else 0
+    } for r in peak_rows]
+
+    # 4. Most asked questions (top intents)
+    intent_rows = conn.execute("""
+        SELECT intent, COUNT(*) as count FROM chat_logs
+        WHERE admin_id = ? AND intent != '' AND DATE(created_at) BETWEEN ? AND ?
+        GROUP BY intent ORDER BY count DESC LIMIT 10
+    """, (admin_id, date_from, date_to)).fetchall()
+
+    total_intents = sum(r["count"] for r in intent_rows) if intent_rows else 0
+    top_intents = [{
+        "intent": r["intent"], "count": r["count"],
+        "pct": round(r["count"] / total_intents * 100, 1) if total_intents > 0 else 0
+    } for r in intent_rows]
+
+    # 5. No-show rate per week
+    noshow_rows = conn.execute("""
+        SELECT
+            strftime('%Y-W%W', created_at) as week,
+            COUNT(*) as total,
+            SUM(CASE WHEN status = 'no_show' THEN 1 ELSE 0 END) as no_shows
+        FROM bookings WHERE admin_id = ? AND status IN ('confirmed', 'no_show', 'completed')
+        AND DATE(created_at) BETWEEN ? AND ?
+        GROUP BY week ORDER BY week
+    """, (admin_id, date_from, date_to)).fetchall()
+    noshow_data = [{
+        "week": r["week"], "confirmed": r["total"], "no_shows": r["no_shows"],
+        "rate": round(r["no_shows"] / r["total"] * 100, 1) if r["total"] > 0 else 0
+    } for r in noshow_rows]
+
+    # 6. Bookings per day
+    bookings_per_day_rows = conn.execute("""
+        SELECT DATE(created_at) as day, COUNT(*) as count
+        FROM bookings WHERE admin_id = ? AND status != 'cancelled'
+        AND DATE(created_at) BETWEEN ? AND ?
+        GROUP BY DATE(created_at) ORDER BY day
+    """, (admin_id, date_from, date_to)).fetchall()
+    bookings_per_day = [{"date": r["day"], "count": r["count"]} for r in bookings_per_day_rows]
+
+    result = {
+        "leads_per_day": leads_per_day,
+        "total_sessions": total_sessions,
+        "conversion": conversion_data,
+        "conversion_rate": round(total_booked_sessions / total_sessions * 100, 1) if total_sessions > 0 else 0,
+        "peak_hours": peak_hours,
+        "top_intents": top_intents,
+        "noshow": noshow_data,
+        "total_bookings": total_bookings_period,
+        "total_booked_sessions": total_booked_sessions,
+        "bookings_per_day": bookings_per_day,
+    }
+
+    _analytics_cache[cache_key] = (now, result)
+    conn.close()
+    return result
 
 
 # Initialize on import
