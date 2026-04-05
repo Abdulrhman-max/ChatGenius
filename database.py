@@ -521,6 +521,249 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (customer_id) REFERENCES customers(id)
         );
+
+        -- Smart Appointment Reminders
+        CREATE TABLE IF NOT EXISTS appointment_reminders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            booking_id INTEGER,
+            admin_id INTEGER DEFAULT 0,
+            reminder_type TEXT DEFAULT '48h',
+            channel TEXT DEFAULT 'email',
+            scheduled_for TEXT,
+            sent_at TEXT,
+            status TEXT DEFAULT 'pending',
+            patient_response TEXT DEFAULT 'none',
+            responded_at TEXT,
+            job_id TEXT,
+            confirm_token TEXT DEFAULT '',
+            cancel_token TEXT DEFAULT '',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS reminder_config (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER UNIQUE,
+            reminder_48h_enabled INTEGER DEFAULT 1,
+            reminder_24h_enabled INTEGER DEFAULT 1,
+            reminder_2h_enabled INTEGER DEFAULT 1,
+            hours_before_first INTEGER DEFAULT 48,
+            hours_before_second INTEGER DEFAULT 24,
+            hours_before_third INTEGER DEFAULT 2,
+            quiet_hours_start INTEGER DEFAULT 23,
+            quiet_hours_end INTEGER DEFAULT 8,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Feature: Patient Satisfaction Surveys
+        CREATE TABLE IF NOT EXISTS surveys (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER DEFAULT 0,
+            booking_id INTEGER,
+            patient_id INTEGER,
+            doctor_id INTEGER,
+            token TEXT UNIQUE,
+            star_rating INTEGER,
+            feedback_text TEXT DEFAULT '',
+            treatment_type TEXT DEFAULT '',
+            sent_at TEXT,
+            completed_at TEXT,
+            google_review_clicked INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS survey_config (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER UNIQUE,
+            auto_send_enabled INTEGER DEFAULT 1,
+            send_delay_hours INTEGER DEFAULT 2,
+            google_review_url TEXT DEFAULT '',
+            min_rating_for_review INTEGER DEFAULT 4,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Feature: Treatment Packages
+        CREATE TABLE IF NOT EXISTS treatment_packages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER DEFAULT 0,
+            name TEXT,
+            description TEXT,
+            treatments_json TEXT,
+            package_price REAL,
+            individual_total REAL,
+            savings REAL,
+            validity_days INTEGER DEFAULT 90,
+            max_redemptions INTEGER DEFAULT 0,
+            current_redemptions INTEGER DEFAULT 0,
+            is_active INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS package_redemptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            package_id INTEGER,
+            patient_id INTEGER,
+            booking_id INTEGER,
+            treatment_name TEXT,
+            redeemed_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Feature: Smart Upsell
+        CREATE TABLE IF NOT EXISTS upsell_rules (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER DEFAULT 0,
+            trigger_treatment TEXT,
+            suggested_treatment TEXT,
+            suggested_package_id INTEGER,
+            message_template TEXT,
+            discount_percent REAL DEFAULT 0,
+            is_active INTEGER DEFAULT 1,
+            priority INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS upsell_impressions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            upsell_rule_id INTEGER,
+            session_id TEXT,
+            shown_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            accepted INTEGER DEFAULT 0,
+            booking_id INTEGER,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- No-Show Recovery Engine
+        CREATE TABLE IF NOT EXISTS noshow_recovery (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            booking_id INTEGER,
+            patient_id INTEGER,
+            admin_id INTEGER DEFAULT 0,
+            recovery_status TEXT DEFAULT 'pending',
+            reschedule_token TEXT,
+            cancel_token TEXT,
+            message_sent_at TEXT,
+            responded_at TEXT,
+            new_booking_id INTEGER,
+            noshow_count INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS noshow_policy (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER UNIQUE,
+            max_noshows_before_deposit INTEGER DEFAULT 2,
+            deposit_amount REAL DEFAULT 50,
+            recovery_delay_minutes INTEGER DEFAULT 15,
+            auto_recovery_enabled INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Invoice Engine
+        CREATE TABLE IF NOT EXISTS invoices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER DEFAULT 0,
+            booking_id INTEGER,
+            patient_id INTEGER,
+            invoice_number TEXT UNIQUE,
+            items_json TEXT,
+            subtotal REAL DEFAULT 0,
+            tax_rate REAL DEFAULT 15,
+            tax_amount REAL DEFAULT 0,
+            total REAL DEFAULT 0,
+            currency TEXT DEFAULT 'SAR',
+            payment_method TEXT DEFAULT '',
+            payment_status TEXT DEFAULT 'pending',
+            paid_at TEXT,
+            voided_at TEXT,
+            void_reason TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS invoice_config (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER UNIQUE,
+            business_name TEXT DEFAULT '',
+            business_name_ar TEXT DEFAULT '',
+            vat_number TEXT DEFAULT '',
+            address TEXT DEFAULT '',
+            address_ar TEXT DEFAULT '',
+            logo_url TEXT DEFAULT '',
+            next_invoice_number INTEGER DEFAULT 1,
+            auto_generate INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Monthly Performance Report Engine
+        CREATE TABLE IF NOT EXISTS performance_reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER,
+            month INTEGER,
+            year INTEGER,
+            report_data_json TEXT,
+            generated_at TEXT,
+            emailed_at TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(admin_id, month, year)
+        );
+
+        CREATE TABLE IF NOT EXISTS report_config (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER UNIQUE,
+            auto_generate INTEGER DEFAULT 1,
+            send_day_of_month INTEGER DEFAULT 1,
+            recipients_json TEXT DEFAULT '[]',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Multi-Channel Unified Inbox
+        CREATE TABLE IF NOT EXISTS channel_conversations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER DEFAULT 0,
+            channel_type TEXT DEFAULT 'web',
+            external_id TEXT DEFAULT '',
+            sender_name TEXT DEFAULT '',
+            phone TEXT DEFAULT '',
+            email TEXT DEFAULT '',
+            last_message_at TEXT,
+            unread_count INTEGER DEFAULT 0,
+            assigned_to INTEGER DEFAULT 0,
+            tags TEXT DEFAULT '',
+            status TEXT DEFAULT 'open',
+            resolved_at TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS channel_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER DEFAULT 0,
+            conversation_id INTEGER,
+            direction TEXT DEFAULT 'inbound',
+            sender_name TEXT DEFAULT '',
+            message_text TEXT DEFAULT '',
+            message_type TEXT DEFAULT 'text',
+            media_url TEXT DEFAULT '',
+            external_message_id TEXT DEFAULT '',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (conversation_id) REFERENCES channel_conversations(id)
+        );
+
+        -- White-Label Configuration
+        CREATE TABLE IF NOT EXISTS whitelabel_config (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER UNIQUE,
+            custom_domain TEXT DEFAULT '',
+            domain_verified INTEGER DEFAULT 0,
+            brand_name TEXT DEFAULT '',
+            logo_url TEXT DEFAULT '',
+            favicon_url TEXT DEFAULT '',
+            primary_color TEXT DEFAULT '#2563eb',
+            secondary_color TEXT DEFAULT '#1e40af',
+            font_family TEXT DEFAULT '',
+            custom_css TEXT DEFAULT '',
+            email_from_name TEXT DEFAULT '',
+            email_from_address TEXT DEFAULT '',
+            hide_powered_by INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
     """)
 
     # Migration: add new columns to existing tables
@@ -605,6 +848,11 @@ def init_db():
         ("patient_forms", "signature_data", "TEXT DEFAULT ''"),
         # Feature 17: A/B Testing — completed_at column
         ("ab_tests", "completed_at", "TIMESTAMP DEFAULT ''"),
+        # Doctor Portal — emergency availability & status message
+        ("doctors", "emergency_available", "INTEGER DEFAULT 0"),
+        ("doctors", "status_message", "TEXT DEFAULT ''"),
+        # Waitlist-to-booking linkage
+        ("bookings", "waitlist_id", "INTEGER DEFAULT 0"),
     ]
     for table, col, col_type in migrations:
         try:
@@ -638,9 +886,6 @@ def init_db():
             conn.execute("INSERT INTO categories (admin_id, name) VALUES (0, ?)", (cat,))
         conn.commit()
 
-    # Log all users out
-    conn.execute("UPDATE users SET token = '', token_expires_at = ''")
-    conn.commit()
     conn.close()
 
 
@@ -665,30 +910,38 @@ def get_all_leads(admin_id=0):
 
 
 def save_booking(customer_name, customer_email, date, time, service="General Consultation",
-                 calendar_event_id="", customer_phone="", doctor_id=0, doctor_name="", admin_id=0):
+                 calendar_event_id="", customer_phone="", doctor_id=0, doctor_name="", admin_id=0, status="pending"):
     conn = get_db()
     conn.execute(
         """INSERT INTO bookings (customer_name, customer_email, customer_phone, date, time,
-           service, calendar_event_id, doctor_id, doctor_name, admin_id) VALUES (?,?,?,?,?,?,?,?,?,?)""",
+           service, calendar_event_id, doctor_id, doctor_name, admin_id, status) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
         (customer_name, customer_email, customer_phone, date, time, service,
-         calendar_event_id, doctor_id, doctor_name, admin_id),
+         calendar_event_id, doctor_id, doctor_name, admin_id, status),
     )
     conn.commit()
     conn.close()
 
 
 def add_booking(customer_name, customer_email="", customer_phone="", date="", time="",
-                service="General Consultation", doctor_id=0, doctor_name="", admin_id=0):
+                service="General Consultation", doctor_id=0, doctor_name="", admin_id=0, status="pending"):
     """Add a booking and return its ID."""
     conn = get_db()
     conn.execute(
         """INSERT INTO bookings (customer_name, customer_email, customer_phone, date, time,
-           service, doctor_id, doctor_name, admin_id) VALUES (?,?,?,?,?,?,?,?,?)""",
-        (customer_name, customer_email, customer_phone, date, time, service, doctor_id, doctor_name, admin_id))
+           service, doctor_id, doctor_name, admin_id, status) VALUES (?,?,?,?,?,?,?,?,?,?)""",
+        (customer_name, customer_email, customer_phone, date, time, service, doctor_id, doctor_name, admin_id, status))
     conn.commit()
     bid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     conn.close()
     return bid
+
+
+def confirm_booking_by_id(booking_id):
+    """Mark a pending booking as confirmed."""
+    conn = get_db()
+    conn.execute("UPDATE bookings SET status='confirmed' WHERE id=?", (booking_id,))
+    conn.commit()
+    conn.close()
 
 
 def get_booked_times(doctor_id, date_str):
@@ -720,6 +973,16 @@ def find_bookings_by_date(admin_id, date_str):
     return [dict(r) for r in rows]
 
 
+def get_booking_dates(admin_id):
+    """Return a list of distinct dates that have active bookings for an admin."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT DISTINCT date FROM bookings WHERE admin_id = ? AND status NOT IN ('cancelled','no_show') ORDER BY date",
+        (admin_id,)).fetchall()
+    conn.close()
+    return [r["date"] for r in rows]
+
+
 def cancel_booking(booking_id):
     """Cancel a booking by setting its status to 'cancelled'."""
     conn = get_db()
@@ -738,11 +1001,11 @@ def get_booking_by_id(booking_id):
 def get_all_bookings(admin_id=0, doctor_id=0):
     conn = get_db()
     if doctor_id:
-        rows = conn.execute("SELECT * FROM bookings WHERE doctor_id = ? ORDER BY created_at DESC", (doctor_id,)).fetchall()
+        rows = conn.execute("SELECT * FROM bookings WHERE doctor_id = ? AND status != 'cancelled' ORDER BY created_at DESC", (doctor_id,)).fetchall()
     elif admin_id:
-        rows = conn.execute("SELECT * FROM bookings WHERE admin_id = ? ORDER BY created_at DESC", (admin_id,)).fetchall()
+        rows = conn.execute("SELECT * FROM bookings WHERE admin_id = ? AND status != 'cancelled' ORDER BY created_at DESC", (admin_id,)).fetchall()
     else:
-        rows = conn.execute("SELECT * FROM bookings ORDER BY created_at DESC").fetchall()
+        rows = conn.execute("SELECT * FROM bookings WHERE status != 'cancelled' ORDER BY created_at DESC").fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
@@ -752,16 +1015,16 @@ def get_stats(admin_id=0, doctor_id=0):
     today = datetime.now().strftime("%Y-%m-%d")
     if doctor_id:
         lead_count = 0
-        booking_count = conn.execute("SELECT COUNT(*) FROM bookings WHERE doctor_id = ?", (doctor_id,)).fetchone()[0]
-        today_bookings = conn.execute("SELECT COUNT(*) FROM bookings WHERE doctor_id = ? AND date = ?", (doctor_id, today)).fetchone()[0]
+        booking_count = conn.execute("SELECT COUNT(*) FROM bookings WHERE doctor_id = ? AND status != 'cancelled'", (doctor_id,)).fetchone()[0]
+        today_bookings = conn.execute("SELECT COUNT(*) FROM bookings WHERE doctor_id = ? AND date = ? AND status != 'cancelled'", (doctor_id, today)).fetchone()[0]
     elif admin_id:
         lead_count = conn.execute("SELECT COUNT(*) FROM leads WHERE admin_id = ?", (admin_id,)).fetchone()[0]
-        booking_count = conn.execute("SELECT COUNT(*) FROM bookings WHERE admin_id = ?", (admin_id,)).fetchone()[0]
-        today_bookings = conn.execute("SELECT COUNT(*) FROM bookings WHERE admin_id = ? AND date = ?", (admin_id, today)).fetchone()[0]
+        booking_count = conn.execute("SELECT COUNT(*) FROM bookings WHERE admin_id = ? AND status != 'cancelled'", (admin_id,)).fetchone()[0]
+        today_bookings = conn.execute("SELECT COUNT(*) FROM bookings WHERE admin_id = ? AND date = ? AND status != 'cancelled'", (admin_id, today)).fetchone()[0]
     else:
         lead_count = conn.execute("SELECT COUNT(*) FROM leads").fetchone()[0]
-        booking_count = conn.execute("SELECT COUNT(*) FROM bookings").fetchone()[0]
-        today_bookings = conn.execute("SELECT COUNT(*) FROM bookings WHERE date = ?", (today,)).fetchone()[0]
+        booking_count = conn.execute("SELECT COUNT(*) FROM bookings WHERE status != 'cancelled'").fetchone()[0]
+        today_bookings = conn.execute("SELECT COUNT(*) FROM bookings WHERE date = ? AND status != 'cancelled'", (today,)).fetchone()[0]
     conn.close()
     return {
         "total_leads": lead_count,
@@ -1452,7 +1715,14 @@ def get_analytics(admin_id, date_from, date_to):
             return data
 
     conn = get_db()
+    try:
+        return _get_analytics_inner(conn, admin_id, date_from, date_to, cache_key, now)
+    except Exception:
+        raise
+    finally:
+        conn.close()
 
+def _get_analytics_inner(conn, admin_id, date_from, date_to, cache_key, now):
     # 1. Leads per day (unique sessions per day)
     leads_rows = conn.execute("""
         SELECT DATE(created_at) as day, COUNT(DISTINCT session_id) as count
@@ -1555,7 +1825,6 @@ def get_analytics(admin_id, date_from, date_to):
     }
 
     _analytics_cache[cache_key] = (now, result)
-    conn.close()
     return result
 
 
@@ -2777,6 +3046,826 @@ def get_customer_invoices(customer_id):
     rows = conn.execute("SELECT * FROM customer_invoices WHERE customer_id=? ORDER BY created_at DESC", (customer_id,)).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+# ── Smart Appointment Reminders ──────────────────────────────────────────────
+
+def create_appointment_reminder(booking_id, admin_id, reminder_type, scheduled_for, job_id=""):
+    """Insert a reminder row and return its id."""
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO appointment_reminders
+           (booking_id, admin_id, reminder_type, scheduled_for, job_id)
+           VALUES (?, ?, ?, ?, ?)""",
+        (booking_id, admin_id, reminder_type, scheduled_for, job_id),
+    )
+    conn.commit()
+    rid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return rid
+
+
+def get_reminders_for_booking(booking_id):
+    """Return all reminders for a booking."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM appointment_reminders WHERE booking_id = ? ORDER BY scheduled_for",
+        (booking_id,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def update_reminder_status(reminder_id, status, sent_at=None):
+    """Update the status of a reminder."""
+    conn = get_db()
+    if sent_at:
+        conn.execute(
+            "UPDATE appointment_reminders SET status = ?, sent_at = ? WHERE id = ?",
+            (status, sent_at, reminder_id),
+        )
+    else:
+        conn.execute(
+            "UPDATE appointment_reminders SET status = ? WHERE id = ?",
+            (status, reminder_id),
+        )
+    conn.commit()
+    conn.close()
+
+
+def update_reminder_tokens(reminder_id, confirm_token, cancel_token):
+    """Store confirm/cancel tokens on a reminder."""
+    conn = get_db()
+    conn.execute(
+        "UPDATE appointment_reminders SET confirm_token = ?, cancel_token = ? WHERE id = ?",
+        (confirm_token, cancel_token, reminder_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_reminder_by_token(token):
+    """Look up a reminder by its confirm or cancel token."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM appointment_reminders WHERE confirm_token = ? OR cancel_token = ?",
+        (token, token),
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def record_reminder_response(reminder_id, response):
+    """Record confirmed/cancelled response with timestamp."""
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute(
+        "UPDATE appointment_reminders SET patient_response = ?, responded_at = ? WHERE id = ?",
+        (response, now, reminder_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_pending_reminders():
+    """Return reminders where status='pending' and scheduled_for <= now."""
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    rows = conn.execute(
+        "SELECT * FROM appointment_reminders WHERE status = 'pending' AND scheduled_for <= ?",
+        (now,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def cancel_reminders_for_booking(booking_id):
+    """Set status='skipped' for all pending reminders of a booking."""
+    conn = get_db()
+    conn.execute(
+        "UPDATE appointment_reminders SET status = 'skipped' WHERE booking_id = ? AND status = 'pending'",
+        (booking_id,),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_reminder_config(admin_id):
+    """Return config for an admin, or sensible defaults."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM reminder_config WHERE admin_id = ?", (admin_id,)
+    ).fetchone()
+    conn.close()
+    if row:
+        return dict(row)
+    return {
+        "admin_id": admin_id,
+        "reminder_48h_enabled": 1,
+        "reminder_24h_enabled": 1,
+        "reminder_2h_enabled": 1,
+        "hours_before_first": 48,
+        "hours_before_second": 24,
+        "hours_before_third": 2,
+        "quiet_hours_start": 23,
+        "quiet_hours_end": 8,
+    }
+
+
+def save_reminder_config(admin_id, **kwargs):
+    """Upsert reminder config for an admin."""
+    conn = get_db()
+    existing = conn.execute(
+        "SELECT id FROM reminder_config WHERE admin_id = ?", (admin_id,)
+    ).fetchone()
+    if existing:
+        sets = []
+        vals = []
+        for k, v in kwargs.items():
+            sets.append(f"{k} = ?")
+            vals.append(v)
+        if sets:
+            vals.append(admin_id)
+            conn.execute(
+                f"UPDATE reminder_config SET {', '.join(sets)} WHERE admin_id = ?",
+                tuple(vals),
+            )
+    else:
+        cols = ["admin_id"] + list(kwargs.keys())
+        placeholders = ", ".join(["?"] * len(cols))
+        vals = [admin_id] + list(kwargs.values())
+        conn.execute(
+            f"INSERT INTO reminder_config ({', '.join(cols)}) VALUES ({placeholders})",
+            tuple(vals),
+        )
+    conn.commit()
+    conn.close()
+
+
+def get_todays_confirmation_stats(admin_id):
+    """Return {total, confirmed, at_risk, pending} for today's bookings."""
+    conn = get_db()
+    today = datetime.now().strftime("%Y-%m-%d")
+    # Get all active bookings for today
+    bookings = conn.execute(
+        "SELECT id FROM bookings WHERE admin_id = ? AND date = ? AND status != 'cancelled'",
+        (admin_id, today),
+    ).fetchall()
+    booking_ids = [b["id"] for b in bookings]
+    total = len(booking_ids)
+    confirmed = 0
+    at_risk = 0
+    pending = 0
+    for bid in booking_ids:
+        reminder = conn.execute(
+            "SELECT patient_response FROM appointment_reminders WHERE booking_id = ? AND patient_response = 'confirmed' LIMIT 1",
+            (bid,),
+        ).fetchone()
+        if reminder:
+            confirmed += 1
+        else:
+            # Check if any reminder was sent but no response
+            sent = conn.execute(
+                "SELECT id FROM appointment_reminders WHERE booking_id = ? AND status = 'sent' AND patient_response = 'none' LIMIT 1",
+                (bid,),
+            ).fetchone()
+            if sent:
+                at_risk += 1
+            else:
+                pending += 1
+    conn.close()
+    return {"total": total, "confirmed": confirmed, "at_risk": at_risk, "pending": pending}
+
+
+def get_reminder_analytics(admin_id, date_from, date_to):
+    """Return weekly reminder stats between date_from and date_to."""
+    conn = get_db()
+    rows = conn.execute(
+        """SELECT
+            strftime('%%Y-%%W', scheduled_for) as week,
+            COUNT(*) as total_sent,
+            SUM(CASE WHEN patient_response = 'confirmed' THEN 1 ELSE 0 END) as confirmed,
+            SUM(CASE WHEN patient_response = 'cancelled' THEN 1 ELSE 0 END) as cancelled,
+            SUM(CASE WHEN patient_response = 'none' AND status = 'sent' THEN 1 ELSE 0 END) as no_response
+        FROM appointment_reminders
+        WHERE admin_id = ? AND scheduled_for >= ? AND scheduled_for <= ?
+        GROUP BY week ORDER BY week""",
+        (admin_id, date_from, date_to),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_reminder_by_id(reminder_id):
+    """Return a single reminder by id."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM appointment_reminders WHERE id = ?", (reminder_id,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+# ─── Survey DB Helpers ───────────────────────────────────────────────
+
+def create_survey(admin_id, booking_id, patient_id, doctor_id, token, treatment_type=""):
+    """Create a new survey record."""
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO surveys (admin_id, booking_id, patient_id, doctor_id, token, treatment_type)
+           VALUES (?,?,?,?,?,?)""",
+        (admin_id, booking_id, patient_id, doctor_id, token, treatment_type),
+    )
+    conn.commit()
+    survey_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return survey_id
+
+
+def get_survey_by_token(token):
+    """Get a survey by its unique token."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM surveys WHERE token = ?", (token,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def submit_survey_response(token, star_rating, feedback_text="", google_review_clicked=0):
+    """Record a survey response."""
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute(
+        """UPDATE surveys SET star_rating=?, feedback_text=?, completed_at=?,
+           google_review_clicked=? WHERE token=?""",
+        (star_rating, feedback_text, now, google_review_clicked, token),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_survey_analytics_db(admin_id, date_from=None, date_to=None):
+    """Get survey analytics data for an admin."""
+    conn = get_db()
+    params = [admin_id]
+    date_filter = ""
+    if date_from:
+        date_filter += " AND completed_at >= ?"
+        params.append(date_from)
+    if date_to:
+        date_filter += " AND completed_at <= ?"
+        params.append(date_to)
+
+    # Overall stats
+    stats = conn.execute(
+        f"""SELECT COUNT(*) as total_surveys,
+            SUM(CASE WHEN completed_at IS NOT NULL THEN 1 ELSE 0 END) as completed,
+            AVG(CASE WHEN star_rating IS NOT NULL THEN star_rating END) as avg_rating,
+            SUM(CASE WHEN google_review_clicked = 1 THEN 1 ELSE 0 END) as google_clicks
+        FROM surveys WHERE admin_id = ? {date_filter}""",
+        params,
+    ).fetchone()
+    stats = dict(stats) if stats else {}
+
+    # Per-doctor averages
+    doctor_stats = conn.execute(
+        f"""SELECT doctor_id, AVG(star_rating) as avg_rating, COUNT(*) as total
+        FROM surveys WHERE admin_id = ? AND star_rating IS NOT NULL {date_filter}
+        GROUP BY doctor_id""",
+        params,
+    ).fetchall()
+
+    # Per-treatment averages
+    treatment_stats = conn.execute(
+        f"""SELECT treatment_type, AVG(star_rating) as avg_rating, COUNT(*) as total
+        FROM surveys WHERE admin_id = ? AND star_rating IS NOT NULL AND treatment_type != '' {date_filter}
+        GROUP BY treatment_type""",
+        params,
+    ).fetchall()
+
+    # Trend data (weekly)
+    trend = conn.execute(
+        f"""SELECT strftime('%Y-%W', completed_at) as week, AVG(star_rating) as avg_rating, COUNT(*) as total
+        FROM surveys WHERE admin_id = ? AND completed_at IS NOT NULL {date_filter}
+        GROUP BY week ORDER BY week""",
+        params,
+    ).fetchall()
+
+    conn.close()
+    return {
+        "stats": stats,
+        "doctor_stats": [dict(r) for r in doctor_stats],
+        "treatment_stats": [dict(r) for r in treatment_stats],
+        "trend": [dict(r) for r in trend],
+    }
+
+
+def get_feedback_inbox_db(admin_id):
+    """Get surveys with rating <= 3 (negative feedback)."""
+    conn = get_db()
+    rows = conn.execute(
+        """SELECT * FROM surveys WHERE admin_id = ? AND star_rating IS NOT NULL AND star_rating <= 3
+           ORDER BY completed_at DESC""",
+        (admin_id,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_survey_config(admin_id):
+    """Get survey configuration for an admin."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM survey_config WHERE admin_id = ?", (admin_id,)).fetchone()
+    conn.close()
+    if row:
+        return dict(row)
+    return {
+        "admin_id": admin_id,
+        "auto_send_enabled": 1,
+        "send_delay_hours": 2,
+        "google_review_url": "",
+        "min_rating_for_review": 4,
+    }
+
+
+def save_survey_config(admin_id, auto_send_enabled=1, send_delay_hours=2, google_review_url="", min_rating_for_review=4):
+    """Save or update survey configuration."""
+    conn = get_db()
+    existing = conn.execute("SELECT id FROM survey_config WHERE admin_id = ?", (admin_id,)).fetchone()
+    if existing:
+        conn.execute(
+            """UPDATE survey_config SET auto_send_enabled=?, send_delay_hours=?,
+               google_review_url=?, min_rating_for_review=? WHERE admin_id=?""",
+            (auto_send_enabled, send_delay_hours, google_review_url, min_rating_for_review, admin_id),
+        )
+    else:
+        conn.execute(
+            """INSERT INTO survey_config (admin_id, auto_send_enabled, send_delay_hours, google_review_url, min_rating_for_review)
+               VALUES (?,?,?,?,?)""",
+            (admin_id, auto_send_enabled, send_delay_hours, google_review_url, min_rating_for_review),
+        )
+    conn.commit()
+    conn.close()
+
+
+# ─── Package DB Helpers ──────────────────────────────────────────────
+
+def create_package_db(admin_id, name, description, treatments_json, package_price, individual_total, savings, validity_days=90, max_redemptions=0):
+    """Create a new treatment package."""
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO treatment_packages
+           (admin_id, name, description, treatments_json, package_price, individual_total, savings, validity_days, max_redemptions)
+           VALUES (?,?,?,?,?,?,?,?,?)""",
+        (admin_id, name, description, treatments_json, package_price, individual_total, savings, validity_days, max_redemptions),
+    )
+    conn.commit()
+    pkg_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return pkg_id
+
+
+def get_packages_db(admin_id, active_only=True):
+    """Get all treatment packages for an admin."""
+    conn = get_db()
+    if active_only:
+        rows = conn.execute(
+            "SELECT * FROM treatment_packages WHERE admin_id = ? AND is_active = 1 ORDER BY created_at DESC",
+            (admin_id,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM treatment_packages WHERE admin_id = ? ORDER BY created_at DESC",
+            (admin_id,),
+        ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def update_package_db(package_id, **kwargs):
+    """Update a treatment package with given fields."""
+    conn = get_db()
+    allowed = ["name", "description", "treatments_json", "package_price", "individual_total",
+               "savings", "validity_days", "max_redemptions", "is_active"]
+    sets = []
+    vals = []
+    for k, v in kwargs.items():
+        if k in allowed:
+            sets.append(f"{k} = ?")
+            vals.append(v)
+    if sets:
+        vals.append(package_id)
+        conn.execute(f"UPDATE treatment_packages SET {', '.join(sets)} WHERE id = ?", vals)
+        conn.commit()
+    conn.close()
+
+
+def get_package_by_id(package_id):
+    """Get a single package by id."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM treatment_packages WHERE id = ?", (package_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def redeem_package_db(package_id, patient_id, booking_id, treatment_name):
+    """Record a package redemption."""
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute(
+        "INSERT INTO package_redemptions (package_id, patient_id, booking_id, treatment_name, redeemed_at) VALUES (?,?,?,?,?)",
+        (package_id, patient_id, booking_id, treatment_name, now),
+    )
+    conn.execute("UPDATE treatment_packages SET current_redemptions = current_redemptions + 1 WHERE id = ?", (package_id,))
+    conn.commit()
+    redemption_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return redemption_id
+
+
+def get_package_analytics_db(admin_id):
+    """Get analytics for all packages for an admin."""
+    conn = get_db()
+    packages = conn.execute(
+        "SELECT * FROM treatment_packages WHERE admin_id = ? ORDER BY created_at DESC", (admin_id,)
+    ).fetchall()
+    result = []
+    for p in packages:
+        p = dict(p)
+        redemptions = conn.execute(
+            "SELECT COUNT(*) as total_redemptions FROM package_redemptions WHERE package_id = ?",
+            (p["id"],),
+        ).fetchone()
+        redemptions = dict(redemptions) if redemptions else {"total_redemptions": 0}
+        p["total_redemptions"] = redemptions["total_redemptions"]
+        p["revenue"] = p["total_redemptions"] * (p.get("package_price") or 0)
+        result.append(p)
+    conn.close()
+    return result
+
+
+# ─── Upsell DB Helpers ───────────────────────────────────────────────
+
+def create_upsell_rule(admin_id, trigger_treatment, suggested_treatment, message_template="",
+                       suggested_package_id=None, discount_percent=0, priority=0):
+    """Create a new upsell rule."""
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO upsell_rules
+           (admin_id, trigger_treatment, suggested_treatment, suggested_package_id, message_template, discount_percent, priority)
+           VALUES (?,?,?,?,?,?,?)""",
+        (admin_id, trigger_treatment, suggested_treatment, suggested_package_id, message_template, discount_percent, priority),
+    )
+    conn.commit()
+    rule_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return rule_id
+
+
+def get_upsell_rules(admin_id, trigger_treatment=None):
+    """Get upsell rules, optionally filtered by trigger treatment."""
+    conn = get_db()
+    if trigger_treatment:
+        rows = conn.execute(
+            """SELECT * FROM upsell_rules WHERE admin_id = ? AND is_active = 1
+               AND LOWER(trigger_treatment) = LOWER(?) ORDER BY priority DESC""",
+            (admin_id, trigger_treatment),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM upsell_rules WHERE admin_id = ? AND is_active = 1 ORDER BY priority DESC",
+            (admin_id,),
+        ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def record_upsell_impression(upsell_rule_id, session_id):
+    """Record that an upsell was shown."""
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute(
+        "INSERT INTO upsell_impressions (upsell_rule_id, session_id, shown_at) VALUES (?,?,?)",
+        (upsell_rule_id, session_id, now),
+    )
+    conn.commit()
+    impression_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return impression_id
+
+
+def record_upsell_acceptance(impression_id, booking_id):
+    """Record that an upsell was accepted."""
+    conn = get_db()
+    conn.execute(
+        "UPDATE upsell_impressions SET accepted = 1, booking_id = ? WHERE id = ?",
+        (booking_id, impression_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_upsell_impressions_for_session(session_id):
+    """Get all upsell impressions for a session."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM upsell_impressions WHERE session_id = ?", (session_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_upsell_analytics_db(admin_id):
+    """Get upsell analytics per rule."""
+    conn = get_db()
+    rules = conn.execute(
+        "SELECT * FROM upsell_rules WHERE admin_id = ?", (admin_id,)
+    ).fetchall()
+    result = []
+    for r in rules:
+        r = dict(r)
+        stats = conn.execute(
+            """SELECT COUNT(*) as total_impressions,
+                SUM(CASE WHEN accepted = 1 THEN 1 ELSE 0 END) as total_accepted
+            FROM upsell_impressions WHERE upsell_rule_id = ?""",
+            (r["id"],),
+        ).fetchone()
+        stats = dict(stats) if stats else {"total_impressions": 0, "total_accepted": 0}
+        r["total_impressions"] = stats["total_impressions"]
+        r["total_accepted"] = stats["total_accepted"]
+        r["conversion_rate"] = round(stats["total_accepted"] / stats["total_impressions"] * 100, 1) if stats["total_impressions"] > 0 else 0
+        result.append(r)
+    conn.close()
+    return result
+
+
+# ─── No-Show Recovery DB Helpers ─────────────────────────────────────
+
+def create_noshow_recovery(booking_id, patient_id, admin_id, reschedule_token, cancel_token, noshow_count=1):
+    """Create a no-show recovery record and return its id."""
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO noshow_recovery
+           (booking_id, patient_id, admin_id, reschedule_token, cancel_token, noshow_count)
+           VALUES (?,?,?,?,?,?)""",
+        (booking_id, patient_id, admin_id, reschedule_token, cancel_token, noshow_count),
+    )
+    conn.commit()
+    recovery_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return recovery_id
+
+
+def get_recovery_by_token(token, token_type="reschedule"):
+    """Look up a recovery record by reschedule or cancel token."""
+    conn = get_db()
+    col = "reschedule_token" if token_type == "reschedule" else "cancel_token"
+    row = conn.execute(f"SELECT * FROM noshow_recovery WHERE {col}=?", (token,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def update_recovery_status(recovery_id, status, responded_at=None, new_booking_id=None):
+    """Update recovery status and optional fields."""
+    conn = get_db()
+    if responded_at and new_booking_id:
+        conn.execute(
+            "UPDATE noshow_recovery SET recovery_status=?, responded_at=?, new_booking_id=? WHERE id=?",
+            (status, responded_at, new_booking_id, recovery_id),
+        )
+    elif responded_at:
+        conn.execute(
+            "UPDATE noshow_recovery SET recovery_status=?, responded_at=? WHERE id=?",
+            (status, responded_at, recovery_id),
+        )
+    else:
+        conn.execute(
+            "UPDATE noshow_recovery SET recovery_status=? WHERE id=?",
+            (status, recovery_id),
+        )
+    conn.commit()
+    conn.close()
+
+
+def get_noshow_policy(admin_id):
+    """Get no-show policy for an admin. Returns dict or None."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM noshow_policy WHERE admin_id=?", (admin_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def save_noshow_policy(admin_id, **kwargs):
+    """Insert or update no-show policy for an admin."""
+    conn = get_db()
+    existing = conn.execute("SELECT id FROM noshow_policy WHERE admin_id=?", (admin_id,)).fetchone()
+    allowed = ["max_noshows_before_deposit", "deposit_amount", "recovery_delay_minutes", "auto_recovery_enabled"]
+    fields = {k: v for k, v in kwargs.items() if k in allowed}
+    if existing:
+        if fields:
+            set_clause = ", ".join(f"{k}=?" for k in fields)
+            values = list(fields.values()) + [admin_id]
+            conn.execute(f"UPDATE noshow_policy SET {set_clause} WHERE admin_id=?", values)
+    else:
+        cols = ["admin_id"] + list(fields.keys())
+        placeholders = ",".join(["?"] * len(cols))
+        values = [admin_id] + list(fields.values())
+        conn.execute(f"INSERT INTO noshow_policy ({','.join(cols)}) VALUES ({placeholders})", values)
+    conn.commit()
+    conn.close()
+
+
+def get_recovery_stats(admin_id):
+    """Return recovery rate, revenue recovered, and flagged patients for an admin."""
+    conn = get_db()
+    total = conn.execute(
+        "SELECT COUNT(*) as c FROM noshow_recovery WHERE admin_id=?", (admin_id,)
+    ).fetchone()["c"]
+    rescheduled = conn.execute(
+        "SELECT COUNT(*) as c FROM noshow_recovery WHERE admin_id=? AND recovery_status='rescheduled'",
+        (admin_id,),
+    ).fetchone()["c"]
+    sent = conn.execute(
+        "SELECT COUNT(*) as c FROM noshow_recovery WHERE admin_id=? AND recovery_status IN ('sent','rescheduled','rescheduling','expired')",
+        (admin_id,),
+    ).fetchone()["c"]
+
+    # Revenue recovered: sum of invoices linked to rescheduled bookings
+    revenue = 0.0
+    try:
+        rev_row = conn.execute(
+            """SELECT SUM(i.total) as rev FROM invoices i
+               JOIN noshow_recovery nr ON i.booking_id = nr.new_booking_id
+               WHERE nr.admin_id=? AND nr.recovery_status='rescheduled' AND i.payment_status='paid'""",
+            (admin_id,),
+        ).fetchone()
+        if rev_row and rev_row["rev"]:
+            revenue = rev_row["rev"]
+    except Exception:
+        pass
+
+    # Flagged patients: those at or above deposit threshold
+    policy = get_noshow_policy(admin_id)
+    threshold = policy.get("max_noshows_before_deposit", 2) if policy else 2
+    flagged = conn.execute(
+        "SELECT COUNT(*) as c FROM patients WHERE admin_id=? AND total_no_shows >= ?",
+        (admin_id, threshold),
+    ).fetchone()["c"]
+
+    conn.close()
+    return {
+        "total_recoveries": total,
+        "rescheduled": rescheduled,
+        "recovery_rate": round(rescheduled / sent * 100, 1) if sent > 0 else 0,
+        "revenue_recovered": revenue,
+        "flagged_patients": flagged,
+    }
+
+
+# ─── Invoice DB Helpers ─────────────────────────────────────────────
+
+def create_invoice(admin_id, booking_id, patient_id, invoice_number, items_json,
+                   subtotal, tax_rate, tax_amount, total):
+    """Create an invoice record and return its id."""
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO invoices
+           (admin_id, booking_id, patient_id, invoice_number, items_json,
+            subtotal, tax_rate, tax_amount, total)
+           VALUES (?,?,?,?,?,?,?,?,?)""",
+        (admin_id, booking_id, patient_id, invoice_number, items_json,
+         subtotal, tax_rate, tax_amount, total),
+    )
+    conn.commit()
+    invoice_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return invoice_id
+
+
+def get_invoice_by_id(invoice_id):
+    """Return a single invoice by id."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM invoices WHERE id=?", (invoice_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_invoices_list(admin_id, date_from=None, date_to=None):
+    """List invoices for an admin, optionally filtered by date range."""
+    conn = get_db()
+    if date_from and date_to:
+        rows = conn.execute(
+            "SELECT * FROM invoices WHERE admin_id=? AND DATE(created_at) BETWEEN ? AND ? ORDER BY created_at DESC",
+            (admin_id, date_from, date_to),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM invoices WHERE admin_id=? ORDER BY created_at DESC", (admin_id,)
+        ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_invoice_config(admin_id):
+    """Get invoice config for an admin. Returns dict or None."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM invoice_config WHERE admin_id=?", (admin_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def save_invoice_config(admin_id, **kwargs):
+    """Insert or update invoice config for an admin."""
+    conn = get_db()
+    existing = conn.execute("SELECT id FROM invoice_config WHERE admin_id=?", (admin_id,)).fetchone()
+    allowed = ["business_name", "business_name_ar", "vat_number", "address", "address_ar",
+               "logo_url", "next_invoice_number", "auto_generate"]
+    fields = {k: v for k, v in kwargs.items() if k in allowed}
+    if existing:
+        if fields:
+            set_clause = ", ".join(f"{k}=?" for k in fields)
+            values = list(fields.values()) + [admin_id]
+            conn.execute(f"UPDATE invoice_config SET {set_clause} WHERE admin_id=?", values)
+    else:
+        cols = ["admin_id"] + list(fields.keys())
+        placeholders = ",".join(["?"] * len(cols))
+        values = [admin_id] + list(fields.values())
+        conn.execute(f"INSERT INTO invoice_config ({','.join(cols)}) VALUES ({placeholders})", values)
+    conn.commit()
+    conn.close()
+
+
+# ─── Performance Report DB Helpers ──────────────────────────────────
+
+def create_performance_report(admin_id, month, year, report_data_json, generated_at):
+    """Create or replace a performance report and return its id."""
+    conn = get_db()
+    # Use INSERT OR REPLACE due to UNIQUE(admin_id, month, year)
+    conn.execute(
+        """INSERT OR REPLACE INTO performance_reports
+           (admin_id, month, year, report_data_json, generated_at)
+           VALUES (?,?,?,?,?)""",
+        (admin_id, month, year, report_data_json, generated_at),
+    )
+    conn.commit()
+    report_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return report_id
+
+
+def get_performance_report(report_id):
+    """Return a single performance report by id, with parsed JSON data."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM performance_reports WHERE id=?", (report_id,)).fetchone()
+    conn.close()
+    if not row:
+        return None
+    result = dict(row)
+    try:
+        import json as _json
+        result["report_data"] = _json.loads(result.get("report_data_json", "{}"))
+    except (ValueError, TypeError):
+        result["report_data"] = {}
+    return result
+
+
+def get_performance_reports(admin_id):
+    """List all performance reports for an admin."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT id, admin_id, month, year, generated_at, emailed_at, created_at "
+        "FROM performance_reports WHERE admin_id=? ORDER BY year DESC, month DESC",
+        (admin_id,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_report_config(admin_id):
+    """Get report config for an admin. Returns dict or None."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM report_config WHERE admin_id=?", (admin_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def save_report_config(admin_id, **kwargs):
+    """Insert or update report config for an admin."""
+    conn = get_db()
+    existing = conn.execute("SELECT id FROM report_config WHERE admin_id=?", (admin_id,)).fetchone()
+    allowed = ["auto_generate", "send_day_of_month", "recipients_json"]
+    fields = {k: v for k, v in kwargs.items() if k in allowed}
+    if existing:
+        if fields:
+            set_clause = ", ".join(f"{k}=?" for k in fields)
+            values = list(fields.values()) + [admin_id]
+            conn.execute(f"UPDATE report_config SET {set_clause} WHERE admin_id=?", values)
+    else:
+        cols = ["admin_id"] + list(fields.keys())
+        placeholders = ",".join(["?"] * len(cols))
+        values = [admin_id] + list(fields.values())
+        conn.execute(f"INSERT INTO report_config ({','.join(cols)}) VALUES ({placeholders})", values)
+    conn.commit()
+    conn.close()
 
 
 # Initialize on import

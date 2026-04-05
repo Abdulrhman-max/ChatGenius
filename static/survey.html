@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rate Your Experience</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f2f5;min-height:100vh;display:flex;justify-content:center;align-items:center;padding:20px;}
+.card{background:#fff;border-radius:16px;padding:48px;max-width:500px;width:100%;box-shadow:0 4px 20px rgba(0,0,0,0.08);text-align:center;}
+h1{font-size:24px;margin-bottom:8px;color:#333;}
+p{color:#666;margin-bottom:24px;line-height:1.5;}
+.stars{display:flex;justify-content:center;gap:12px;margin:24px 0;}
+.star{font-size:48px;cursor:pointer;transition:transform 0.2s;text-decoration:none;padding:8px;border-radius:8px;}
+.star:hover{transform:scale(1.2);background:#f8f9fa;}
+.feedback-section{display:none;margin-top:24px;}
+textarea{width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:14px;resize:vertical;min-height:80px;}
+.btn{display:inline-block;padding:12px 32px;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;margin-top:16px;}
+.btn:hover{opacity:0.9;}
+.thank-you{display:none;}
+</style>
+</head>
+<body>
+<div class="card" id="surveyCard">
+    <h1>How was your experience?</h1>
+    <p>Your feedback helps us improve our service</p>
+    <div class="stars" id="starsContainer"></div>
+    <div class="feedback-section" id="feedbackSection">
+        <textarea id="feedbackText" placeholder="Tell us more about your experience (optional)..."></textarea>
+        <button class="btn" onclick="submitSurvey()">Submit Feedback</button>
+    </div>
+</div>
+<div class="card thank-you" id="thankYou">
+    <h1 style="color:#16a34a;">Thank You!</h1>
+    <p>Your feedback has been recorded.</p>
+    <p id="redirectMsg" style="display:none;">Redirecting you to Google Reviews...</p>
+</div>
+<script>
+const token = new URLSearchParams(window.location.search).get('token') || window.location.pathname.split('/').pop();
+let selectedRating = 0;
+const starsEl = document.getElementById('starsContainer');
+for (let i = 1; i <= 5; i++) {
+    const s = document.createElement('a');
+    s.className = 'star';
+    s.href = '#';
+    s.textContent = i <= selectedRating ? '\u2B50' : '\u2606';
+    s.onclick = (e) => { e.preventDefault(); selectRating(i); };
+    starsEl.appendChild(s);
+}
+function selectRating(r) {
+    selectedRating = r;
+    document.querySelectorAll('.star').forEach((s, idx) => { s.textContent = idx < r ? '\u2B50' : '\u2606'; });
+    document.getElementById('feedbackSection').style.display = 'block';
+}
+async function submitSurvey() {
+    const feedback = document.getElementById('feedbackText').value;
+    try {
+        const r = await fetch('/api/survey/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, rating: selectedRating, feedback })
+        }).then(r => r.json());
+        document.getElementById('surveyCard').style.display = 'none';
+        document.getElementById('thankYou').style.display = 'block';
+        if (r.redirect_to_google && r.google_review_url) {
+            document.getElementById('redirectMsg').style.display = 'block';
+            setTimeout(() => { window.location.href = r.google_review_url; }, 2000);
+        }
+    } catch (e) { alert('Error submitting survey'); }
+}
+</script>
+</body>
+</html>

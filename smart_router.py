@@ -159,6 +159,27 @@ _REMINDER_KEYWORDS = [
     "missed my appointment", "i missed", "rebook",
 ]
 
+_INVOICE_KEYWORDS = [
+    "invoice", "receipt", "tax invoice", "vatinvoice", "payment receipt",
+    "proof of payment", "billing", "فاتورة", "رسید",
+]
+
+_PACKAGE_KEYWORDS = [
+    "package", "bundle", "combo deal", "treatment package",
+    "dental package", "family package", "باقة", "باقات", "پیکیج",
+]
+
+_SURVEY_KEYWORDS = [
+    "feedback", "rate my experience", "leave a review", "survey",
+    "rate my visit", "give feedback", "تقييم", "ریٹنگ",
+]
+
+_NOSHOW_KEYWORDS = [
+    "missed my appointment", "i was a no-show", "i missed",
+    "sorry i didn't show up", "reschedule my missed",
+    "couldn't make it", "forgot my appointment",
+]
+
 
 def _detect_keyword_intent(message):
     """Fallback keyword detection when sklearn confidence is low."""
@@ -168,9 +189,9 @@ def _detect_keyword_intent(message):
     if any(kw in lower for kw in _EMERGENCY_KEYWORDS):
         return "emergency"
 
-    # Symptom detection
+    # Symptom detection — route to symptom triage, not emergency
     if sum(1 for kw in _SYMPTOM_KEYWORDS if kw in lower) >= 1:
-        return "emergency"
+        return "symptom_question"
 
     # Insurance (before pricing — more specific)
     if any(kw in lower for kw in _INSURANCE_KEYWORDS):
@@ -207,6 +228,22 @@ def _detect_keyword_intent(message):
     # Hygiene
     if any(kw in lower for kw in _HYGIENE_KEYWORDS):
         return "oral_hygiene"
+
+    # No-show recovery
+    if any(kw in lower for kw in _NOSHOW_KEYWORDS):
+        return "noshow_reschedule"
+
+    # Invoice/Receipt
+    if any(kw in lower for kw in _INVOICE_KEYWORDS):
+        return "invoice_receipt"
+
+    # Treatment packages
+    if any(kw in lower for kw in _PACKAGE_KEYWORDS):
+        return "treatment_package"
+
+    # Survey/feedback
+    if any(kw in lower for kw in _SURVEY_KEYWORDS):
+        return "survey_feedback"
 
     return None
 
@@ -318,6 +355,66 @@ def route(sklearn_intent, sklearn_conf, message, context):
 
     # ── COMPLAINT ──
     if effective_intent == "complaint":
+        return grok_answer_engine(
+            message, company_info, active_doctors, history=history
+        )
+
+    # ── APPOINTMENT REMINDERS ──
+    if effective_intent == "appointment_reminder":
+        return grok_answer_engine(
+            message, company_info, active_doctors,
+            doctor_slots=doctor_slots, history=history
+        )
+
+    # ── SURVEY / FEEDBACK ──
+    if effective_intent == "survey_feedback":
+        return grok_answer_engine(
+            message, company_info, active_doctors, history=history
+        )
+
+    # ── TREATMENT PACKAGES ──
+    if effective_intent == "treatment_package":
+        return grok_answer_engine(
+            message, company_info, active_doctors, history=history
+        )
+
+    # ── INVOICE / RECEIPT ──
+    if effective_intent == "invoice_receipt":
+        return grok_answer_engine(
+            message, company_info, active_doctors, history=history
+        )
+
+    # ── NO-SHOW RECOVERY / RESCHEDULE ──
+    if effective_intent == "noshow_reschedule":
+        return None  # Fall through to booking flow for rescheduling
+
+    # ── UPSELL / ADD-ON ──
+    if effective_intent == "upsell_addon":
+        return grok_answer_engine(
+            message, company_info, active_doctors, history=history
+        )
+
+    # ── DOCTOR PORTAL — redirect to portal page ──
+    if effective_intent == "doctor_portal":
+        return ("You can access the Doctor Portal at **/doctor-portal**. "
+                "Log in with your doctor credentials to manage your schedule, "
+                "view your bookings, request time off, and see your performance stats."
+                + CONTACT_FOOTER)
+
+    # ── CHANNEL INBOX ──
+    if effective_intent == "channel_inbox":
+        return grok_answer_engine(
+            message, company_info, active_doctors, history=history
+        )
+
+    # ── PERFORMANCE REPORTS ──
+    if effective_intent == "performance_report":
+        return grok_answer_engine(
+            message, company_info, active_doctors, history=history
+        )
+
+    # ── WHITE-LABEL / BRANDING ──
+    if effective_intent == "whitelabel_branding":
         return grok_answer_engine(
             message, company_info, active_doctors, history=history
         )

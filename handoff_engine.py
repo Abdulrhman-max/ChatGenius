@@ -227,9 +227,15 @@ def check_handoff_timeout():
     results = []
     for h in timed_out:
         h = dict(h)
-        # Don't mark as timed out, just flag for "busy" message
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        conn.execute(
+            "UPDATE live_chat_handoffs SET status='timeout', resolved_at=? WHERE id=?",
+            (now, h["id"])
+        )
+        logger.info(f"Handoff #{h['id']} for {h.get('patient_name', 'Unknown')} timed out after {HANDOFF_TIMEOUT_MINUTES} minutes with no staff pickup")
         results.append(h)
 
+    conn.commit()
     conn.close()
     return results
 

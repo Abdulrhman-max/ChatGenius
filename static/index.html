@@ -717,8 +717,13 @@
     statusText.textContent = 'AI Assistant — Book, Ask, or Leave Info';
 
     // Simple markdown to HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
     function md(text) {
-        return text
+        return escapeHtml(text)
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\n\n/g, '<br><br>')
             .replace(/\n/g, '<br>');
@@ -808,10 +813,18 @@
                 const iso = thisDate.getFullYear() + '-' + String(thisDate.getMonth()+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
 
                 const dayOfWeek = thisDate.getDay(); // 0=Sun, 6=Sat
+                const isCancelMode = options.mode === 'cancel';
+                const bookedDates = new Set(options.booked_dates || []);
                 if (thisDate < today) { btn.classList.add('disabled'); }
-                else if (dayOfWeek === 0 || dayOfWeek === 6) { btn.classList.add('disabled'); btn.title = 'Closed on weekends'; btn.style.color = '#ccc'; }
-                else if (offDates.has(iso)) { btn.classList.add('off-day'); btn.title = 'Doctor off day'; }
+                else if (!isCancelMode && dayOfWeek === 5) { btn.classList.add('disabled'); btn.title = 'Closed on Friday'; btn.style.color = '#ccc'; }
+                else if (!isCancelMode && offDates.has(iso)) { btn.classList.add('off-day'); btn.title = 'Doctor off day'; }
                 else {
+                    if (isCancelMode && bookedDates.has(iso)) {
+                        btn.style.background = 'linear-gradient(135deg,#ef4444,#dc2626)';
+                        btn.style.color = '#fff';
+                        btn.style.fontWeight = '700';
+                        btn.title = 'Has appointment(s)';
+                    }
                     btn.onclick = function() {
                         daysGrid.querySelectorAll('.cal-day.selected').forEach(b => b.classList.remove('selected'));
                         btn.classList.add('selected');
@@ -842,7 +855,7 @@
             (options.items || []).forEach(doc => {
                 const card = document.createElement('div');
                 card.style.cssText = 'background:rgba(0,245,212,0.06);border:1px solid rgba(0,245,212,0.15);border-radius:10px;padding:0.6rem;cursor:pointer;transition:all 0.2s';
-                card.innerHTML = `<div style="font-weight:700;font-size:0.85rem;color:#00f5d4">Dr. ${doc.name}</div><div style="font-size:0.75rem;color:#aaa;margin:0.2rem 0">${doc.specialty} &bull; ${doc.experience} &bull; ${doc.languages||'English'}</div><div style="font-size:0.75rem;color:#7c3aed">Next: ${doc.next_available}</div>`;
+                card.innerHTML = `<div style="font-weight:700;font-size:0.85rem;color:#00f5d4">Dr. ${escapeHtml(doc.name)}</div><div style="font-size:0.75rem;color:#aaa;margin:0.2rem 0">${escapeHtml(doc.specialty)} &bull; ${escapeHtml(doc.experience)} &bull; ${escapeHtml(doc.languages||'English')}</div><div style="font-size:0.75rem;color:#7c3aed">Next: ${escapeHtml(doc.next_available)}</div>`;
                 card.onmouseenter = () => card.style.borderColor = '#00f5d4';
                 card.onmouseleave = () => card.style.borderColor = 'rgba(0,245,212,0.15)';
                 card.onclick = () => { document.getElementById('chatInput').value = `Book with Dr. ${doc.name}`; handleSend(); };
@@ -872,7 +885,8 @@
         const isTime = type === 'timeslots';
         const isDate = type === 'dates';
         const isCancel = type === 'cancel_bookings';
-        const label = isDoctor ? 'Select Doctor' : isTime ? 'Select Time' : isDate ? 'Select Date' : isCancel ? 'Select Appointment' : 'Select Specialty';
+        const isConfirm = type === 'confirm_yesno';
+        const label = isDoctor ? 'Select Doctor' : isTime ? 'Select Time' : isDate ? 'Select Date' : isCancel ? 'Select Appointment' : isConfirm ? 'Confirm' : 'Select Specialty';
 
         const wrap = document.createElement('div');
         wrap.className = 'chat-dropdown-wrap';
@@ -905,6 +919,11 @@
                 row.innerHTML = `<div class="chat-dd-avatar" style="font-size:0.9rem;background:linear-gradient(135deg,#22c55e,#16a34a)">&#x1F4C5;</div><div class="chat-dd-info"><div class="chat-dd-name">${display}</div></div>`;
             } else if (isCancel) {
                 row.innerHTML = `<div class="chat-dd-avatar" style="font-size:0.9rem;background:linear-gradient(135deg,#ef4444,#dc2626)">&#x2716;</div><div class="chat-dd-info"><div class="chat-dd-name">${item.name}</div></div>`;
+            } else if (isConfirm) {
+                const isYes = (item.value || '').toLowerCase() === 'yes';
+                const bg = isYes ? 'linear-gradient(135deg,#ef4444,#dc2626)' : 'linear-gradient(135deg,#22c55e,#16a34a)';
+                const icon = isYes ? '&#x2716;' : '&#x2714;';
+                row.innerHTML = `<div class="chat-dd-avatar" style="font-size:0.9rem;background:${bg}">${icon}</div><div class="chat-dd-info"><div class="chat-dd-name">${item.name}</div></div>`;
             } else {
                 const initials = item.name.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
                 row.innerHTML = `<div class="chat-dd-avatar">${initials}</div><div class="chat-dd-info"><div class="chat-dd-name">${item.name}</div></div>`;
@@ -918,7 +937,7 @@
                 list.classList.remove('open');
                 btn.classList.remove('open');
                 setTimeout(() => {
-                    inputEl.value = isCancel ? String(item.index) : item.name;
+                    inputEl.value = isConfirm ? item.value : (isCancel ? String(item.index) : item.name);
                     handleSend();
                 }, 300);
             };

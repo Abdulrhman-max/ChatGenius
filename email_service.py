@@ -353,6 +353,53 @@ def send_waitlist_notification(to_email, patient_name, date_display, time_slot, 
     return _send_email(to_email, subject, _wrap_luxury(content))
 
 
+# ── Waitlist Expired Notification ────────────────────────────────────────────
+
+def send_waitlist_expired_notification(to_email, patient_name, date_display, time_slot, doctor_name=""):
+    """Send email to patient who didn't fill the pre-visit form in time."""
+    subject = f"Your Waitlist Reservation Has Expired — {date_display}"
+
+    doctor_html = ""
+    if doctor_name:
+        doctor_html = f'<p style="margin:4px 0;font-size:15px;"><strong>Doctor:</strong> Dr. {doctor_name}</p>'
+
+    content = f"""
+    <tr><td style="height:4px;background:linear-gradient(90deg,#dc2626,#ef4444,#f87171,#ef4444,#dc2626);"></td></tr>
+    <tr><td style="background:linear-gradient(145deg,#450a0a,#7f1d1d);padding:48px 40px;text-align:center;">
+        <div style="width:64px;height:64px;margin:0 auto 16px;border-radius:50%;background:linear-gradient(135deg,#f87171,#ef4444);line-height:64px;">
+            <span style="font-size:28px;">&#9200;</span>
+        </div>
+        <h1 style="margin:0;color:#fff;font-size:24px;font-weight:300;">Reservation <strong>Expired</strong></h1>
+    </td></tr>
+    <tr><td style="padding:36px 40px;">
+        <p style="color:#555;font-size:15px;line-height:1.6;margin:0;">
+            Dear <strong style="color:#1a1a2e;">{patient_name}</strong>,
+        </p>
+        <p style="color:#555;font-size:15px;line-height:1.6;margin:12px 0 0;">
+            Unfortunately, the time to complete your pre-visit form has expired and your waitlist reservation for the following appointment has been released:
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef2f2;border-radius:12px;border:1px solid #fecaca;margin:20px 0;">
+        <tr><td style="padding:24px;">
+            {doctor_html}
+            <p style="margin:4px 0;font-size:15px;"><strong>Date:</strong> {date_display}</p>
+            <p style="margin:4px 0;font-size:15px;"><strong>Time:</strong> {time_slot}</p>
+        </td></tr>
+        </table>
+        <p style="color:#555;font-size:15px;line-height:1.6;margin:12px 0 0;">
+            The slot has been offered to the next person on the waitlist. If you'd still like to book, please contact us or visit our chatbot to check available times.
+        </p>
+    </td></tr>
+    <tr><td style="padding:0 40px 36px;text-align:center;">
+        <p style="color:#999;font-size:13px;margin:0;">
+            We hope to see you soon!<br>
+            <strong style="color:#c9a84c;">{BUSINESS_NAME}</strong>
+        </p>
+    </td></tr>
+    <tr><td style="height:4px;background:linear-gradient(90deg,#dc2626,#ef4444,#f87171,#ef4444,#dc2626);"></td></tr>"""
+
+    return _send_email(to_email, subject, _wrap_luxury(content))
+
+
 # ── Recall / Retention Email ─────────────────────────────────────────────────
 
 def send_recall_email(to_email, patient_name, treatment_type, message="", booking_url=""):

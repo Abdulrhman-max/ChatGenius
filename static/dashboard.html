@@ -103,6 +103,11 @@
 </div>
 
 <script>
+    function escapeHtml(str) {
+        if (str == null) return '';
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+    }
+
     function switchTab(tab, el) {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         el.classList.add('active');
@@ -129,9 +134,9 @@
             } else {
                 leadsBody.innerHTML = leads.map(l => `
                     <tr>
-                        <td><strong>${l.name}</strong></td>
-                        <td>${l.phone}</td>
-                        <td><span class="badge badge-green">${l.source}</span></td>
+                        <td><strong>${escapeHtml(l.name)}</strong></td>
+                        <td>${escapeHtml(l.phone)}</td>
+                        <td><span class="badge badge-green">${escapeHtml(l.source)}</span></td>
                         <td>${new Date(l.created_at).toLocaleString()}</td>
                     </tr>
                 `).join('');
@@ -143,12 +148,12 @@
             } else {
                 bookingsBody.innerHTML = bookings.map(b => `
                     <tr>
-                        <td><strong>${b.customer_name}</strong></td>
-                        <td>${b.customer_email || '—'}</td>
-                        <td>${b.customer_phone || '—'}</td>
-                        <td>${b.date}</td>
-                        <td>${b.time}</td>
-                        <td><span class="badge badge-green">${b.status}</span></td>
+                        <td><strong>${escapeHtml(b.customer_name)}</strong></td>
+                        <td>${escapeHtml(b.customer_email) || '—'}</td>
+                        <td>${escapeHtml(b.customer_phone) || '—'}</td>
+                        <td>${escapeHtml(b.date)}</td>
+                        <td>${escapeHtml(b.time)}</td>
+                        <td><span class="badge badge-green">${escapeHtml(b.status)}</span></td>
                     </tr>
                 `).join('');
             }

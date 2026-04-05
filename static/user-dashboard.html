@@ -296,9 +296,10 @@
         .chat-dd-name { font-weight: 600; font-size: 0.82rem; color: #fff; }
         .chat-dd-sub { font-size: 0.7rem; color: rgba(255,255,255,0.4); }
         .chat-dd-item.booked {
-            opacity: 0.35; pointer-events: none; text-decoration: line-through;
+            opacity: 0.7; cursor: pointer;
         }
-        .chat-dd-item.booked .chat-dd-sub { color: var(--red); }
+        .chat-dd-item.booked .chat-dd-name { text-decoration: line-through; color: #999; }
+        .chat-dd-item.booked .chat-dd-sub { color: #c9a84c; font-weight: 600; }
 
         /* ── Calendar Widget ── */
         .chat-calendar-wrap {
@@ -518,8 +519,9 @@
             <li class="doctor-only" style="display:none"><a href="#" onclick="showPage('requests')"><span class="icon">&#128233;</span> Requests <span class="notif-badge" id="requestBadge" style="display:none">0</span></a></li>
             <li class="invited-admin-only" style="display:none"><a href="#" onclick="showPage('admin-requests')"><span class="icon">&#128233;</span> Invitations <span class="notif-badge" id="adminRequestBadge" style="display:none">0</span></a></li>
             <li><a href="#" onclick="showPage('demo')"><span class="icon">&#128172;</span> Try Demo</a></li>
-            <li class="admin-only"><a href="#" onclick="showPage('waitlist')"><span class="icon">&#128203;</span> Waitlist</a></li>
+            <li class="admin-doctor-only"><a href="#" onclick="showPage('waitlist')"><span class="icon">&#128203;</span> Waitlist</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('patients')"><span class="icon">&#128100;</span> Patients</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('customers')"><span class="icon">&#128101;</span> Customers</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('schedule-blocks')"><span class="icon">&#128197;</span> Schedule & Holidays</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('promotions')"><span class="icon">&#127873;</span> Promotions</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('recall')"><span class="icon">&#128276;</span> Recall & Retention</a></li>
@@ -662,6 +664,30 @@
                 <div class="form-group"><label class="form-label">Emergency Info</label><textarea class="form-textarea" id="ci_emergency_info" placeholder="Emergency line: (512) 555-0199&#10;Walk-ins accepted for emergencies"></textarea></div>
                 <div class="form-group"><label class="form-label">About &amp; Credentials</label><textarea class="form-textarea" id="ci_about" placeholder="Serving Austin since 2005. ADA accredited..."></textarea></div>
                 <button class="btn-primary" onclick="saveCompanyInfo()">Save Company Info</button>
+            </div>
+
+            <div class="section head-admin-only" style="display:none;margin-top:1.5rem">
+                <div class="section-header"><div class="section-title">Embed Chatbot on Your Website</div></div>
+                <p style="color:var(--gray);font-size:0.85rem;margin-bottom:1rem">Copy and paste this code before the closing <code style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px">&lt;/body&gt;</code> tag of your website. The chatbot will use your company info to answer patient questions.</p>
+                <div style="display:flex;gap:0.5rem;margin-bottom:0.8rem;flex-wrap:wrap">
+                    <div class="form-group" style="flex:1;min-width:200px">
+                        <label class="form-label">Chatbot Title</label>
+                        <input type="text" class="form-input" id="embed_title" placeholder="Chat with us" value="Chat with us">
+                    </div>
+                    <div class="form-group" style="flex:1;min-width:200px">
+                        <label class="form-label">Welcome Message</label>
+                        <input type="text" class="form-input" id="embed_welcome" placeholder="Hello! How can I help you today?" value="Hello! How can I help you today?">
+                    </div>
+                    <div class="form-group" style="min-width:120px">
+                        <label class="form-label">Color</label>
+                        <input type="color" id="embed_color" value="#0891b2" style="height:38px;width:60px;border:none;background:none;cursor:pointer">
+                    </div>
+                </div>
+                <div style="position:relative">
+                    <pre id="embedCodeBlock" style="background:#1a1d27;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:1rem;font-size:0.78rem;color:#94a3b8;overflow-x:auto;white-space:pre-wrap;word-break:break-all;line-height:1.6;max-height:160px"></pre>
+                    <button onclick="copyEmbedCode()" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;padding:4px 12px;font-size:0.78rem;cursor:pointer">Copy</button>
+                </div>
+                <span id="embedCopyMsg" style="font-size:0.8rem;color:var(--cyan);display:none;margin-top:0.4rem">Copied to clipboard!</span>
             </div>
         </div>
 
@@ -1105,6 +1131,42 @@
             <div id="patientDetail" class="section" style="display:none;margin-top:1rem"></div>
         </div>
 
+        <!-- CUSTOMERS PAGE -->
+        <div id="page-customers" style="display:none">
+            <div class="main-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
+                <h1>Customers</h1>
+                <div style="display:flex;gap:0.5rem">
+                    <button class="manage-save-btn" onclick="exportCustomers('csv')" style="font-size:0.82rem;padding:0.4rem 1rem">&#128196; Export CSV</button>
+                    <button class="manage-save-btn" onclick="exportCustomers('excel')" style="font-size:0.82rem;padding:0.4rem 1rem;background:linear-gradient(135deg,#16a34a,#15803d)">&#128202; Export Excel</button>
+                </div>
+            </div>
+            <div class="section">
+                <div style="display:flex;gap:0.8rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
+                    <input type="text" class="form-input" id="customerSearch" placeholder="Search by name, email, or phone..." oninput="loadCustomers()" style="max-width:350px;flex:1">
+                    <span id="customerCount" style="font-size:0.82rem;color:var(--gray)"></span>
+                </div>
+                <div style="overflow-x:auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Gender</th>
+                                <th>Language</th>
+                                <th>Loyalty Pts</th>
+                                <th>Last Visit</th>
+                                <th>Joined</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customersBody">
+                            <tr><td colspan="8" class="empty-msg">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- Feature 16: Real-Time Dashboard -->
         <div id="page-realtime" style="display:none">
             <h2 class="page-title">Live Dashboard <span id="rtTimestamp" style="font-size:0.75rem;color:var(--gray);font-weight:400"></span></h2>
@@ -1248,13 +1310,19 @@
 </div>
 
 <script>
+    // ── HTML Escaping ──
+    function escapeHtml(str) {
+        if (str == null) return '';
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+    }
+
     // ── Toast & Confirm system ──
     const TOAST_ICONS = { success: '\u2705', error: '\u274C', warning: '\u26A0\uFE0F', info: '\u2139\uFE0F' };
     function showToast(message, type = 'info', duration = 3500) {
         const container = document.getElementById('toastContainer');
         const toast = document.createElement('div');
         toast.className = 'toast toast-' + type;
-        toast.innerHTML = `<span class="toast-icon">${TOAST_ICONS[type] || ''}</span><span class="toast-msg">${message}</span><button class="toast-close" onclick="this.parentElement.classList.add('toast-out');setTimeout(()=>this.parentElement.remove(),300)">&times;</button>`;
+        toast.innerHTML = `<span class="toast-icon">${TOAST_ICONS[type] || ''}</span><span class="toast-msg">${escapeHtml(message)}</span><button class="toast-close" onclick="this.parentElement.classList.add('toast-out');setTimeout(()=>this.parentElement.remove(),300)">&times;</button>`;
         container.appendChild(toast);
         setTimeout(() => { if (toast.parentElement) { toast.classList.add('toast-out'); setTimeout(() => toast.remove(), 300); } }, duration);
     }
@@ -1295,6 +1363,7 @@
         // Hide/show role-based elements
         document.querySelectorAll('.admin-only').forEach(el => el.style.display = isAdmin ? '' : 'none');
         document.querySelectorAll('.doctor-only').forEach(el => el.style.display = isDoctor ? '' : 'none');
+        document.querySelectorAll('.admin-doctor-only').forEach(el => el.style.display = (isAdmin || isDoctor) ? '' : 'none');
         document.querySelectorAll('.head-admin-only').forEach(el => el.style.display = isHeadAdmin ? '' : 'none');
         // Show invitations link only for admins NOT yet linked to a company
         const isUnlinkedAdmin = user && user.role === 'admin' && (!user.admin_id || user.admin_id === 0);
@@ -1362,6 +1431,7 @@
         if (page === 'analytics') loadAnalytics();
         if (page === 'waitlist') loadWaitlist();
         if (page === 'patients') loadPatients();
+        if (page === 'customers') loadCustomers();
         if (page === 'schedule-blocks') loadScheduleBlocks();
         if (page === 'promotions') loadPromotions();
         if (page === 'recall') loadRecall();
@@ -1400,7 +1470,7 @@
             const actBody = document.getElementById('activityBody');
             actBody.innerHTML = activities.length === 0
                 ? '<tr><td colspan="4" class="empty-msg">No activity yet.</td></tr>'
-                : activities.slice(0, 10).map(a => `<tr><td><span class="badge ${a.badge}">${a.type}</span></td><td>${a.name}</td><td>${a.details}</td><td>${new Date(a.date).toLocaleString()}</td></tr>`).join('');
+                : activities.slice(0, 10).map(a => `<tr><td><span class="badge ${a.badge}">${escapeHtml(a.type)}</span></td><td>${escapeHtml(a.name)}</td><td>${escapeHtml(a.details)}</td><td>${new Date(a.date).toLocaleString()}</td></tr>`).join('');
 
             // Bookings table
             const bBody = document.getElementById('bookingsBody');
@@ -1410,7 +1480,7 @@
                     const isCancelled = b.status === 'cancelled';
                     const rowStyle = isCancelled ? 'style="text-decoration:line-through;opacity:0.5"' : '';
                     const badgeClass = isCancelled ? 'badge-red' : 'badge-green';
-                    return `<tr ${rowStyle}><td>${b.customer_name}</td><td>${b.doctor_name ? 'Dr. ' + b.doctor_name : '—'}</td><td>${b.date}</td><td>${b.time}</td><td><span class="badge ${badgeClass}">${b.status}</span></td></tr>`;
+                    return `<tr ${rowStyle}><td>${escapeHtml(b.customer_name)}</td><td>${b.doctor_name ? 'Dr. ' + escapeHtml(b.doctor_name) : '—'}</td><td>${escapeHtml(b.date)}</td><td>${escapeHtml(b.time)}</td><td><span class="badge ${badgeClass}">${escapeHtml(b.status)}</span></td></tr>`;
                 }).join('');
 
             // Leads table
@@ -1418,7 +1488,7 @@
                 const lBody = document.getElementById('leadsBody');
                 lBody.innerHTML = leads.length === 0
                     ? '<tr><td colspan="4" class="empty-msg">No leads yet</td></tr>'
-                    : leads.map(l => `<tr><td>${l.name}</td><td>${l.phone}</td><td><span class="badge badge-cyan">${l.source}</span></td><td>${new Date(l.created_at).toLocaleString()}</td></tr>`).join('');
+                    : leads.map(l => `<tr><td>${escapeHtml(l.name)}</td><td>${escapeHtml(l.phone)}</td><td><span class="badge badge-cyan">${escapeHtml(l.source)}</span></td><td>${new Date(l.created_at).toLocaleString()}</td></tr>`).join('');
             }
         } catch (e) { console.error('Failed to load data:', e); }
     }
@@ -1478,8 +1548,14 @@
                     const el = document.getElementById('ci_' + f);
                     if (el && info[f]) el.value = info[f];
                 });
+                // Pre-fill embed title with business name if available
+                if (info.business_name) {
+                    var t = document.getElementById('embed_title');
+                    if (t && t.value === 'Chat with us') t.value = info.business_name;
+                }
             }
         } catch(e) {}
+        generateEmbedCode();
     }
 
     async function saveCompanyInfo() {
@@ -1489,12 +1565,53 @@
             data[f] = el ? el.value.trim() : '';
         });
         try {
-            await fetch('/api/company-info', { method: 'POST', headers, body: JSON.stringify(data) });
+            const res = await fetch('/api/company-info', { method: 'POST', headers, body: JSON.stringify(data) });
+            const result = await res.json();
+            if (!res.ok) {
+                showToast(result.error || 'Failed to save company info.', 'error');
+                return;
+            }
             const msg = document.getElementById('companySaveMsg');
             msg.style.display = 'inline';
             setTimeout(() => msg.style.display = 'none', 3000);
+            generateEmbedCode();
         } catch(e) { showToast('Failed to save.', 'error'); }
     }
+
+    // ── Embed Code ──
+    function generateEmbedCode() {
+        var adminId = isHeadAdmin ? user.id : (user.admin_id || user.id);
+        var server = window.location.origin;
+        var title = document.getElementById('embed_title').value || 'Chat with us';
+        var welcome = document.getElementById('embed_welcome').value || 'Hello! How can I help you today?';
+        var color = document.getElementById('embed_color').value || '#0891b2';
+        var code = '<script>\n'
+            + 'window.ChatGeniusConfig = {\n'
+            + '  adminId: "' + adminId + '",\n'
+            + '  server: "' + server + '",\n'
+            + '  title: "' + title.replace(/"/g, '\\"') + '",\n'
+            + '  welcome: "' + welcome.replace(/"/g, '\\"') + '",\n'
+            + '  color: "' + color + '"\n'
+            + '};\n'
+            + '<\/script>\n'
+            + '<script src="' + server + '/static/chatbot-embed.js"><\/script>';
+        document.getElementById('embedCodeBlock').textContent = code;
+    }
+
+    function copyEmbedCode() {
+        var code = document.getElementById('embedCodeBlock').textContent;
+        navigator.clipboard.writeText(code).then(function() {
+            var msg = document.getElementById('embedCopyMsg');
+            msg.style.display = 'inline-block';
+            setTimeout(function() { msg.style.display = 'none'; }, 3000);
+        });
+    }
+
+    // Re-generate embed code when settings change
+    ['embed_title', 'embed_welcome', 'embed_color'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('input', generateEmbedCode);
+    });
 
     // ── Doctors (admin) ──
     let doctorsCache = [];
@@ -1519,20 +1636,20 @@
                 ? '<span class="badge badge-green">Active</span>'
                 : '<span class="badge badge-yellow">Pending</span>';
             const cats = (d.specialty || '').split(',').map(s => s.trim()).filter(Boolean);
-            const catTags = cats.length ? cats.map(c => '<span class="doc-cat-tag">' + c + '</span>').join('') : '<span style="color:var(--gray);font-size:0.82rem">No specialty</span>';
-            const expText = d.years_of_experience ? ` | ${d.years_of_experience} yrs experience` : '';
+            const catTags = cats.length ? cats.map(c => '<span class="doc-cat-tag">' + escapeHtml(c) + '</span>').join('') : '<span style="color:var(--gray);font-size:0.82rem">No specialty</span>';
+            const expText = d.years_of_experience ? ` | ${escapeHtml(String(d.years_of_experience))} yrs experience` : '';
             return `
             <div class="doctor-card">
-                <div class="doctor-avatar">${(d.name || '?')[0].toUpperCase()}</div>
+                <div class="doctor-avatar">${escapeHtml((d.name || '?')[0].toUpperCase())}</div>
                 <div class="doctor-info">
-                    <div class="doctor-name">Dr. ${d.name} ${statusBadge}</div>
+                    <div class="doctor-name">Dr. ${escapeHtml(d.name)} ${statusBadge}</div>
                     <div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin:0.25rem 0">${catTags}</div>
-                    <div class="doctor-availability">Email: ${d.email || '—'} | ${d.availability || 'Mon-Fri'}${expText}</div>
-                    ${d.bio ? '<div style="color:var(--gray);font-size:0.8rem;margin-top:0.3rem;line-height:1.4">' + d.bio.substring(0, 120) + (d.bio.length > 120 ? '...' : '') + '</div>' : ''}
+                    <div class="doctor-availability">Email: ${escapeHtml(d.email) || '—'} | ${escapeHtml(d.availability) || 'Mon-Fri'}${expText}</div>
+                    ${d.bio ? '<div style="color:var(--gray);font-size:0.8rem;margin-top:0.3rem;line-height:1.4">' + escapeHtml(d.bio.substring(0, 120)) + (d.bio.length > 120 ? '...' : '') + '</div>' : ''}
                 </div>
                 <div class="doctor-actions">
                     <button class="btn-small btn-edit" onclick="editDoctor(${d.id})">Edit</button>
-                    ${isHeadAdmin ? `<button class="btn-small btn-delete" onclick="deleteDoctor(${d.id}, '${d.name.replace(/'/g, "\\'")}')">Delete</button>` : ''}
+                    ${isHeadAdmin ? `<button class="btn-small btn-delete" onclick="deleteDoctor(${d.id}, '${escapeHtml(d.name).replace(/'/g, "\\'")}')">Delete</button>` : ''}
                 </div>
             </div>`;
         }).join('');
@@ -1662,27 +1779,27 @@
         return `
         <div class="pdf-doctor-card" id="pdf-doc-${idx}" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
-                <h3 style="font-size:0.95rem;font-weight:700;color:var(--cyan)">Doctor ${idx + 1}: ${doc.fullName || 'Unknown'}</h3>
+                <h3 style="font-size:0.95rem;font-weight:700;color:var(--cyan)">Doctor ${idx + 1}: ${escapeHtml(doc.fullName) || 'Unknown'}</h3>
                 <button onclick="removePdfDoctor(${idx})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.8rem;opacity:0.7" title="Remove this doctor">&#10005; Remove</button>
             </div>
             <div class="form-group" style="margin-bottom:0.5rem">
                 <label class="form-label" style="font-size:0.8rem">Full Name <span style="color:var(--red)">*</span> ${_aiBadge(doc.fullName)}</label>
-                <input type="text" class="form-input" id="pd_name_${idx}" value="${doc.fullName || ''}" placeholder="Doctor's full name">
+                <input type="text" class="form-input" id="pd_name_${idx}" value="${escapeHtml(doc.fullName) || ''}" placeholder="Doctor's full name">
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
                 <div class="form-group" style="margin-bottom:0.5rem">
                     <label class="form-label" style="font-size:0.8rem">Specialty ${_aiBadge(doc.specialty)}</label>
-                    <input type="text" class="form-input" id="pd_spec_${idx}" value="${doc.specialty || ''}" placeholder="e.g. Orthodontist">
+                    <input type="text" class="form-input" id="pd_spec_${idx}" value="${escapeHtml(doc.specialty) || ''}" placeholder="e.g. Orthodontist">
                 </div>
                 <div class="form-group" style="margin-bottom:0.5rem">
                     <label class="form-label" style="font-size:0.8rem">Email ${_aiBadge(doc.email)}</label>
-                    <input type="email" class="form-input" id="pd_email_${idx}" value="${doc.email || ''}" placeholder="Optional">
+                    <input type="email" class="form-input" id="pd_email_${idx}" value="${escapeHtml(doc.email) || ''}" placeholder="Optional">
                 </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
                 <div class="form-group" style="margin-bottom:0.5rem">
                     <label class="form-label" style="font-size:0.8rem">Phone ${_aiBadge(doc.phone)}</label>
-                    <input type="text" class="form-input" id="pd_phone_${idx}" value="${doc.phone || ''}" placeholder="Optional">
+                    <input type="text" class="form-input" id="pd_phone_${idx}" value="${escapeHtml(doc.phone) || ''}" placeholder="Optional">
                 </div>
                 <div class="form-group" style="margin-bottom:0.5rem">
                     <label class="form-label" style="font-size:0.8rem">Experience ${_aiBadge(doc.yearsOfExperience)}</label>
@@ -1691,7 +1808,7 @@
             </div>
             <div class="form-group" style="margin-bottom:0.5rem">
                 <label class="form-label" style="font-size:0.8rem">Available Days ${_aiBadge(doc.availableDays)}</label>
-                <input type="text" class="form-input" id="pd_days_${idx}" value="${doc.availableDays || ''}" placeholder="Mon-Fri">
+                <input type="text" class="form-input" id="pd_days_${idx}" value="${escapeHtml(doc.availableDays) || ''}" placeholder="Mon-Fri">
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
                 <div class="form-group" style="margin-bottom:0.5rem">
@@ -1715,16 +1832,16 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
                 <div class="form-group" style="margin-bottom:0.5rem">
                     <label class="form-label" style="font-size:0.8rem">Qualifications ${_aiBadge(doc.qualifications)}</label>
-                    <input type="text" class="form-input" id="pd_qual_${idx}" value="${doc.qualifications || ''}" placeholder="BDS, MDS">
+                    <input type="text" class="form-input" id="pd_qual_${idx}" value="${escapeHtml(doc.qualifications) || ''}" placeholder="BDS, MDS">
                 </div>
                 <div class="form-group" style="margin-bottom:0.5rem">
                     <label class="form-label" style="font-size:0.8rem">Languages ${_aiBadge(doc.languages)}</label>
-                    <input type="text" class="form-input" id="pd_lang_${idx}" value="${doc.languages || ''}" placeholder="Arabic, English">
+                    <input type="text" class="form-input" id="pd_lang_${idx}" value="${escapeHtml(doc.languages) || ''}" placeholder="Arabic, English">
                 </div>
             </div>
             <div class="form-group" style="margin-bottom:0">
                 <label class="form-label" style="font-size:0.8rem">Bio ${_aiBadge(doc.bio)}</label>
-                <textarea class="form-input" id="pd_bio_${idx}" rows="2" placeholder="Short description" style="resize:vertical">${doc.bio || ''}</textarea>
+                <textarea class="form-input" id="pd_bio_${idx}" rows="2" placeholder="Short description" style="resize:vertical">${escapeHtml(doc.bio) || ''}</textarea>
             </div>
         </div>`;
     }
@@ -1850,26 +1967,8 @@
     }
 
     function getWorkingDays(availability) {
-        // Parse "Mon-Fri" or "Sun,Mon,Tue,Wed,Thu" etc.
-        const dayMap = { Sun: 'Sunday', Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday' };
-        const allDays = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-        if (!availability) return allDays.slice(1, 6); // default Mon-Fri
-        const av = availability.trim();
-        // Range format: "Mon-Fri"
-        const rangeMatch = av.match(/^(\w{3})\s*[-–]\s*(\w{3})$/);
-        if (rangeMatch) {
-            const shorts = Object.keys(dayMap);
-            const si = shorts.indexOf(rangeMatch[1]);
-            const ei = shorts.indexOf(rangeMatch[2]);
-            if (si >= 0 && ei >= 0) {
-                const days = [];
-                for (let i = si; i !== (ei + 1) % 7; i = (i + 1) % 7) days.push(allDays[i]);
-                days.push(allDays[ei]);
-                return days;
-            }
-        }
-        // Comma-separated: "Sun,Mon,Tue"
-        return av.split(/[,\s]+/).map(s => dayMap[s.trim()] || s.trim()).filter(Boolean);
+        // Always show all 7 days in flexible mode — admin uses the X (off) button per day
+        return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
     }
 
     function renderFlexibleHours(d) {
@@ -1878,31 +1977,68 @@
         try { dailyHours = typeof d.daily_hours === 'string' ? JSON.parse(d.daily_hours || '{}') : (d.daily_hours || {}); } catch(e) {}
         return days.map(day => {
             const dh = dailyHours[day] || {};
+            const isOff = dh.off === true;
             const from = parseTime(dh.from || d.start_time);
             const to = parseTime(dh.to || d.end_time);
-            return `<div class="flex-day-row" style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.35rem;flex-wrap:wrap">
-                <span style="width:80px;font-size:0.8rem;color:var(--accent);font-weight:600">${day}</span>
-                <div class="time-group">
-                    <input type="text" class="time-input" id="fsh_${d.id}_${day}" value="${from.hh}" maxlength="2" placeholder="HH" oninput="clampTimeInput(this,12)" onblur="padTime(this)">
-                    <span class="time-colon">:</span>
-                    <input type="text" class="time-input" id="fsm_${d.id}_${day}" value="${from.mm}" maxlength="2" placeholder="MM" oninput="clampTimeInput(this,59)" onblur="padTime(this)">
-                    <select class="time-ampm" id="fsa_${d.id}_${day}">
-                        <option value="AM" ${from.ampm === 'AM' ? 'selected' : ''}>AM</option>
-                        <option value="PM" ${from.ampm === 'PM' ? 'selected' : ''}>PM</option>
-                    </select>
+            return `<div class="flex-day-row" id="flex-row-${d.id}-${day}" style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.35rem;flex-wrap:wrap">
+                <span style="width:80px;font-size:0.8rem;color:${isOff ? 'var(--gray)' : 'var(--accent)'};font-weight:600;${isOff ? 'text-decoration:line-through' : ''}">${day}</span>
+                <div id="flex-inputs-${d.id}-${day}" style="display:${isOff ? 'none' : 'flex'};align-items:center;gap:0.4rem;flex-wrap:wrap">
+                    <div class="time-group">
+                        <input type="text" class="time-input" id="fsh_${d.id}_${day}" value="${from.hh}" maxlength="2" placeholder="HH" oninput="clampTimeInput(this,12)" onblur="padTime(this)">
+                        <span class="time-colon">:</span>
+                        <input type="text" class="time-input" id="fsm_${d.id}_${day}" value="${from.mm}" maxlength="2" placeholder="MM" oninput="clampTimeInput(this,59)" onblur="padTime(this)">
+                        <select class="time-ampm" id="fsa_${d.id}_${day}">
+                            <option value="AM" ${from.ampm === 'AM' ? 'selected' : ''}>AM</option>
+                            <option value="PM" ${from.ampm === 'PM' ? 'selected' : ''}>PM</option>
+                        </select>
+                    </div>
+                    <span style="color:var(--gray);font-size:0.8rem">to</span>
+                    <div class="time-group">
+                        <input type="text" class="time-input" id="feh_${d.id}_${day}" value="${to.hh}" maxlength="2" placeholder="HH" oninput="clampTimeInput(this,12)" onblur="padTime(this)">
+                        <span class="time-colon">:</span>
+                        <input type="text" class="time-input" id="fem_${d.id}_${day}" value="${to.mm}" maxlength="2" placeholder="MM" oninput="clampTimeInput(this,59)" onblur="padTime(this)">
+                        <select class="time-ampm" id="fea_${d.id}_${day}">
+                            <option value="AM" ${to.ampm === 'AM' ? 'selected' : ''}>AM</option>
+                            <option value="PM" ${to.ampm === 'PM' ? 'selected' : ''}>PM</option>
+                        </select>
+                    </div>
                 </div>
-                <span style="color:var(--gray);font-size:0.8rem">to</span>
-                <div class="time-group">
-                    <input type="text" class="time-input" id="feh_${d.id}_${day}" value="${to.hh}" maxlength="2" placeholder="HH" oninput="clampTimeInput(this,12)" onblur="padTime(this)">
-                    <span class="time-colon">:</span>
-                    <input type="text" class="time-input" id="fem_${d.id}_${day}" value="${to.mm}" maxlength="2" placeholder="MM" oninput="clampTimeInput(this,59)" onblur="padTime(this)">
-                    <select class="time-ampm" id="fea_${d.id}_${day}">
-                        <option value="AM" ${to.ampm === 'AM' ? 'selected' : ''}>AM</option>
-                        <option value="PM" ${to.ampm === 'PM' ? 'selected' : ''}>PM</option>
-                    </select>
-                </div>
+                <span id="flex-off-label-${d.id}-${day}" style="display:${isOff ? 'inline' : 'none'};color:#ff6b6b;font-size:0.75rem;font-weight:600">OFF</span>
+                <button onclick="toggleDayOff(${d.id},'${day}')" title="${isOff ? 'Mark as working' : 'Mark as off'}" id="flex-off-btn-${d.id}-${day}" style="background:${isOff ? '#4ecdc4' : 'rgba(255,107,107,0.15)'};border:1px solid ${isOff ? '#4ecdc4' : 'rgba(255,107,107,0.4)'};color:${isOff ? '#fff' : '#ff6b6b'};border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.7rem;padding:0;flex-shrink:0">${isOff ? '&#10003;' : '&#10005;'}</button>
             </div>`;
         }).join('');
+    }
+
+    function toggleDayOff(docId, day) {
+        const inputsEl = document.getElementById('flex-inputs-' + docId + '-' + day);
+        const offLabel = document.getElementById('flex-off-label-' + docId + '-' + day);
+        const btn = document.getElementById('flex-off-btn-' + docId + '-' + day);
+        const row = document.getElementById('flex-row-' + docId + '-' + day);
+        const dayLabel = row?.querySelector('span');
+
+        const isCurrentlyOff = inputsEl.style.display === 'none';
+
+        if (isCurrentlyOff) {
+            // Turn back on
+            inputsEl.style.display = 'flex';
+            offLabel.style.display = 'none';
+            btn.innerHTML = '&#10005;';
+            btn.style.background = 'rgba(255,107,107,0.15)';
+            btn.style.borderColor = 'rgba(255,107,107,0.4)';
+            btn.style.color = '#ff6b6b';
+            btn.title = 'Mark as off';
+            if (dayLabel) { dayLabel.style.color = 'var(--accent)'; dayLabel.style.textDecoration = 'none'; }
+        } else {
+            // Mark as off
+            inputsEl.style.display = 'none';
+            offLabel.style.display = 'inline';
+            btn.innerHTML = '&#10003;';
+            btn.style.background = '#4ecdc4';
+            btn.style.borderColor = '#4ecdc4';
+            btn.style.color = '#fff';
+            btn.title = 'Mark as working';
+            if (dayLabel) { dayLabel.style.color = 'var(--gray)'; dayLabel.style.textDecoration = 'line-through'; }
+        }
     }
 
     function toggleScheduleType(id, type) {
@@ -1958,10 +2094,10 @@
             return `
             <div class="manage-card" id="manage-card-${d.id}">
                 <div class="manage-card-header">
-                    <div class="manage-card-avatar">${(d.name || '?')[0].toUpperCase()}</div>
+                    <div class="manage-card-avatar">${escapeHtml((d.name || '?')[0].toUpperCase())}</div>
                     <div>
-                        <div class="manage-card-name">Dr. ${d.name} ${statusBadge}</div>
-                        <div class="manage-card-specialty">${d.specialty || 'General Dentist'}</div>
+                        <div class="manage-card-name">Dr. ${escapeHtml(d.name)} ${statusBadge}</div>
+                        <div class="manage-card-specialty">${escapeHtml(d.specialty) || 'General Dentist'}</div>
                     </div>
                     <div class="manage-card-status" style="display:flex;align-items:center;gap:0.5rem">
                         <span style="font-size:0.78rem;color:var(--gray)">${isActive ? 'Available' : 'Unavailable'}</span>
@@ -1979,7 +2115,7 @@
                         ${allCategories.map(c => {
                             const docCats = (d.specialty || '').split(',').map(s => s.trim().toLowerCase());
                             const checked = docCats.includes(c.name.toLowerCase()) ? 'checked' : '';
-                            return '<label style="display:flex;align-items:center;gap:0.35rem;padding:0.3rem 0.65rem;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);font-size:0.82rem;color:var(--white);cursor:pointer;user-select:none"><input type="checkbox" ' + checked + ' value="' + c.name + '" onchange="saveDoctorCategories(' + d.id + ')" style="accent-color:var(--cyan);cursor:pointer"> ' + c.name + '</label>';
+                            return '<label style="display:flex;align-items:center;gap:0.35rem;padding:0.3rem 0.65rem;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);font-size:0.82rem;color:var(--white);cursor:pointer;user-select:none"><input type="checkbox" ' + checked + ' value="' + escapeHtml(c.name) + '" onchange="saveDoctorCategories(' + d.id + ')" style="accent-color:var(--cyan);cursor:pointer"> ' + escapeHtml(c.name) + '</label>';
                         }).join('')}
                     </div>
                 </div>
@@ -1988,7 +2124,7 @@
                 <div style="display:grid;grid-template-columns:1fr auto;gap:0.75rem;margin-bottom:0.75rem">
                     <div class="form-group" style="margin:0">
                         <div class="time-label">Bio / Qualifications</div>
-                        <textarea class="form-input" id="bio_${d.id}" rows="2" placeholder="Doctor's qualifications, expertise..." style="font-size:0.82rem;margin-top:0.3rem;resize:vertical">${d.bio || ''}</textarea>
+                        <textarea class="form-input" id="bio_${d.id}" rows="2" placeholder="Doctor's qualifications, expertise..." style="font-size:0.82rem;margin-top:0.3rem;resize:vertical">${escapeHtml(d.bio) || ''}</textarea>
                     </div>
                     <div class="form-group" style="margin:0;min-width:100px">
                         <div class="time-label">Experience</div>
@@ -2131,6 +2267,13 @@
             // Collect per-day hours
             const days = getWorkingDays(doc.availability);
             for (const day of days) {
+                // Check if day is marked as off
+                const inputsEl = document.getElementById('flex-inputs-' + id + '-' + day);
+                if (inputsEl && inputsEl.style.display === 'none') {
+                    dailyHours[day] = { off: true };
+                    continue;
+                }
+
                 const fsh = document.getElementById('fsh_' + id + '_' + day)?.value || '00';
                 const fsm = document.getElementById('fsm_' + id + '_' + day)?.value || '00';
                 const fsa = document.getElementById('fsa_' + id + '_' + day)?.value || 'AM';
@@ -2147,10 +2290,10 @@
                 }
                 dailyHours[day] = { from: formatTime(fsh, fsm, fsa), to: formatTime(feh, fem, fea) };
             }
-            // Use first day's hours as the default start/end
-            const firstDay = days[0];
-            startTime = dailyHours[firstDay]?.from || '09:00 AM';
-            endTime = dailyHours[firstDay]?.to || '05:00 PM';
+            // Use first non-off day's hours as the default start/end
+            const firstWorkDay = days.find(d => !dailyHours[d]?.off) || days[0];
+            startTime = dailyHours[firstWorkDay]?.from || '09:00 AM';
+            endTime = dailyHours[firstWorkDay]?.to || '05:00 PM';
         } else {
             const sh = document.getElementById('sh_' + id).value || '00';
             const sm = document.getElementById('sm_' + id).value || '00';
@@ -2281,10 +2424,10 @@
         container.innerHTML = pending.map(r => `
             <div class="request-card">
                 <div class="request-header">
-                    <div class="request-biz">${r.business_name || 'Dental Practice'}</div>
+                    <div class="request-biz">${escapeHtml(r.business_name) || 'Dental Practice'}</div>
                     <span class="badge badge-yellow">Pending</span>
                 </div>
-                <div class="request-admin">Invited by: ${r.admin_name}</div>
+                <div class="request-admin">Invited by: ${escapeHtml(r.admin_name)}</div>
                 <div style="color:var(--gray);font-size:0.82rem;margin-top:0.25rem">Sent: ${new Date(r.created_at).toLocaleDateString()}</div>
                 <div class="request-actions">
                     <button class="btn-small btn-accept" onclick="respondRequest(${r.id}, true)">Accept</button>
@@ -2336,10 +2479,10 @@
             } else {
                 adminsContainer.innerHTML = admins.map(a => `
                     <div class="doctor-card">
-                        <div class="doctor-avatar">${(a.name || '?')[0].toUpperCase()}</div>
+                        <div class="doctor-avatar">${escapeHtml((a.name || '?')[0].toUpperCase())}</div>
                         <div class="doctor-info">
-                            <div class="doctor-name">${a.name}</div>
-                            <div class="doctor-specialty">${a.email}</div>
+                            <div class="doctor-name">${escapeHtml(a.name)}</div>
+                            <div class="doctor-specialty">${escapeHtml(a.email)}</div>
                             <div class="doctor-availability">Joined: ${new Date(a.created_at).toLocaleDateString()}</div>
                         </div>
                         <div class="doctor-actions">
@@ -2359,7 +2502,7 @@
                     return `
                         <div class="request-card">
                             <div class="request-header">
-                                <div class="request-biz">${r.admin_email}</div>
+                                <div class="request-biz">${escapeHtml(r.admin_email)}</div>
                                 <div style="display:flex;align-items:center;gap:0.5rem">
                                     <span class="badge ${statusBadge}">${r.status}</span>
                                     <button class="btn-small btn-delete" onclick="deleteAdminInvite(${r.id})">Delete</button>
@@ -2433,10 +2576,10 @@
             container.innerHTML = pending.map(r => `
                 <div class="request-card">
                     <div class="request-header">
-                        <div class="request-biz">${r.business_name || 'Company'}</div>
+                        <div class="request-biz">${escapeHtml(r.business_name) || 'Company'}</div>
                         <span class="badge badge-yellow">Pending</span>
                     </div>
-                    <div class="request-admin">Invited by: ${r.head_admin_name}</div>
+                    <div class="request-admin">Invited by: ${escapeHtml(r.head_admin_name)}</div>
                     <div style="color:var(--gray);font-size:0.82rem;margin-top:0.25rem">Sent: ${new Date(r.created_at).toLocaleDateString()}</div>
                     <div class="request-actions">
                         <button class="btn-small btn-accept" onclick="respondAdminRequest(${r.id}, true)">Accept</button>
@@ -2586,7 +2729,8 @@
         div.style.cssText = isUser
             ? 'background:var(--gradient);border-radius:12px 12px 4px 12px;padding:0.75rem 1rem;max-width:80%;font-size:0.92rem;line-height:1.5;color:#fff;align-self:flex-end'
             : 'background:rgba(0,212,255,0.08);border-radius:12px 12px 12px 4px;padding:0.75rem 1rem;max-width:80%;font-size:0.92rem;line-height:1.5;color:var(--white)';
-        div.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+        const escaped = (function(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; })(text);
+        div.innerHTML = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
         container.appendChild(div);
         container.scrollTop = container.scrollHeight;
     }
@@ -2653,7 +2797,7 @@
             }
             container.innerHTML = days.map(d => `
                 <div class="offday-row">
-                    <span><strong>${d.off_date}</strong>${d.reason ? ' &mdash; ' + d.reason : ''}</span>
+                    <span><strong>${escapeHtml(d.off_date)}</strong>${d.reason ? ' &mdash; ' + escapeHtml(d.reason) : ''}</span>
                     <button class="offday-del" onclick="deleteOffDay(${doctorId}, ${d.id})" title="Remove">&times;</button>
                 </div>
             `).join('');
@@ -2805,9 +2949,17 @@
                 const thisDate = new Date(d.getFullYear(), d.getMonth(), day);
                 const iso = thisDate.getFullYear() + '-' + String(thisDate.getMonth()+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
 
+                const isCancelMode = options.mode === 'cancel';
+                const bookedDates = new Set(options.booked_dates || []);
                 if (thisDate < today) { btn.classList.add('disabled'); }
-                else if (offDates.has(iso)) { btn.classList.add('off-day'); btn.title = 'Doctor off day'; }
+                else if (!isCancelMode && offDates.has(iso)) { btn.classList.add('off-day'); btn.title = 'Doctor off day'; }
                 else {
+                    if (isCancelMode && bookedDates.has(iso)) {
+                        btn.style.background = 'linear-gradient(135deg,#ef4444,#dc2626)';
+                        btn.style.color = '#fff';
+                        btn.style.fontWeight = '700';
+                        btn.title = 'Has appointment(s)';
+                    }
                     btn.onclick = function() {
                         daysGrid.querySelectorAll('.cal-day.selected').forEach(b => b.classList.remove('selected'));
                         btn.classList.add('selected');
@@ -2838,7 +2990,8 @@
         const isTime = type === 'timeslots';
         const isDate = type === 'dates';
         const isCancel = type === 'cancel_bookings';
-        const label = isDoctor ? 'Select Doctor' : isTime ? 'Select Time' : isDate ? 'Select Date' : isCancel ? 'Select Appointment' : 'Select Specialty';
+        const isConfirm = type === 'confirm_yesno';
+        const label = isDoctor ? 'Select Doctor' : isTime ? 'Select Time' : isDate ? 'Select Date' : isCancel ? 'Select Appointment' : isConfirm ? 'Confirm' : 'Select Specialty';
 
         const wrap = document.createElement('div');
         wrap.className = 'chat-dropdown-wrap';
@@ -2861,28 +3014,34 @@
 
             if (isDoctor) {
                 const initials = item.name.split(' ').map(function(w){ return w[0]; }).join('').substring(0,2).toUpperCase();
-                row.innerHTML = '<div class="chat-dd-avatar">' + initials + '</div>'
-                    + '<div class="chat-dd-info"><div class="chat-dd-name">Dr. ' + item.name + '</div>'
-                    + '<div class="chat-dd-sub">' + item.specialty + ' &bull; ' + item.availability + '</div></div>';
+                row.innerHTML = '<div class="chat-dd-avatar">' + escapeHtml(initials) + '</div>'
+                    + '<div class="chat-dd-info"><div class="chat-dd-name">Dr. ' + escapeHtml(item.name) + '</div>'
+                    + '<div class="chat-dd-sub">' + escapeHtml(item.specialty) + ' &bull; ' + escapeHtml(item.availability) + '</div></div>';
             } else if (isTime) {
                 const icon = item.booked ? '&#x1F6AB;' : (item.hour < 12 ? '&#x2600;&#xFE0F;' : '&#x1F319;');
                 const bg = item.booked ? 'linear-gradient(135deg,#666,#888)' : (item.hour < 12 ? 'linear-gradient(135deg,#f59e0b,#f97316)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)');
-                const subText = item.booked ? 'Booked' : (item.hour < 12 ? 'Morning' : 'Afternoon');
+                const subText = item.booked ? 'Booked \u2014 Tap to join waitlist' : (item.hour < 12 ? 'Morning' : 'Afternoon');
                 row.innerHTML = '<div class="chat-dd-avatar" style="font-size:0.9rem;background:' + bg + '">' + icon + '</div>'
-                    + '<div class="chat-dd-info"><div class="chat-dd-name">' + item.name + '</div>'
+                    + '<div class="chat-dd-info"><div class="chat-dd-name">' + escapeHtml(item.name) + '</div>'
                     + '<div class="chat-dd-sub">' + subText + '</div></div>';
                 if (item.booked) row.classList.add('booked');
             } else if (isDate) {
                 var display = item.display || item.name;
                 row.innerHTML = '<div class="chat-dd-avatar" style="font-size:0.9rem;background:linear-gradient(135deg,#22c55e,#16a34a)">&#x1F4C5;</div>'
-                    + '<div class="chat-dd-info"><div class="chat-dd-name">' + display + '</div></div>';
+                    + '<div class="chat-dd-info"><div class="chat-dd-name">' + escapeHtml(display) + '</div></div>';
             } else if (isCancel) {
                 row.innerHTML = '<div class="chat-dd-avatar" style="font-size:0.9rem;background:linear-gradient(135deg,#ef4444,#dc2626)">&#x2716;</div>'
-                    + '<div class="chat-dd-info"><div class="chat-dd-name">' + item.name + '</div></div>';
+                    + '<div class="chat-dd-info"><div class="chat-dd-name">' + escapeHtml(item.name) + '</div></div>';
+            } else if (isConfirm) {
+                const isYes = (item.value || '').toLowerCase() === 'yes';
+                const bg = isYes ? 'linear-gradient(135deg,#ef4444,#dc2626)' : 'linear-gradient(135deg,#22c55e,#16a34a)';
+                const icon = isYes ? '&#x2716;' : '&#x2714;';
+                row.innerHTML = '<div class="chat-dd-avatar" style="font-size:0.9rem;background:' + bg + '">' + icon + '</div>'
+                    + '<div class="chat-dd-info"><div class="chat-dd-name">' + escapeHtml(item.name) + '</div></div>';
             } else {
                 const initials = item.name.split(' ').map(function(w){ return w[0]; }).join('').substring(0,2).toUpperCase();
-                row.innerHTML = '<div class="chat-dd-avatar">' + initials + '</div>'
-                    + '<div class="chat-dd-info"><div class="chat-dd-name">' + item.name + '</div></div>';
+                row.innerHTML = '<div class="chat-dd-avatar">' + escapeHtml(initials) + '</div>'
+                    + '<div class="chat-dd-info"><div class="chat-dd-name">' + escapeHtml(item.name) + '</div></div>';
             }
 
             row.onclick = function() {
@@ -2893,7 +3052,7 @@
                 list.classList.remove('open');
                 btn.classList.remove('open');
                 setTimeout(function() {
-                    document.getElementById('demoInput').value = isCancel ? String(item.index) : item.name;
+                    document.getElementById('demoInput').value = isConfirm ? item.value : (isCancel ? String(item.index) : item.name);
                     sendDemoMessage();
                 }, 300);
             };
@@ -3250,7 +3409,11 @@
 
     // ═══════ Feature 1: Waitlist ═══════
     async function loadWaitlist() {
-        const doctorId = document.getElementById('waitlistDoctorFilter').value;
+        // Hide doctor filter for doctors — backend auto-filters
+        if (isDoctor) {
+            document.getElementById('waitlistDoctorFilter').style.display = 'none';
+        }
+        const doctorId = isDoctor ? '' : document.getElementById('waitlistDoctorFilter').value;
         const date = document.getElementById('waitlistDateFilter').value;
         let url = '/api/waitlist?';
         if (doctorId) url += `doctor_id=${doctorId}&`;
@@ -3261,7 +3424,7 @@
             const c = document.getElementById('waitlistContainer');
             if (!data.length) { c.innerHTML = '<span class="empty-msg">No waitlist entries.</span>'; return; }
             c.innerHTML = '<table style="width:100%;font-size:0.82rem;border-collapse:collapse"><thead><tr style="text-align:left;color:var(--gray);border-bottom:1px solid rgba(255,255,255,0.1)"><th style="padding:0.4rem">Patient</th><th>Date</th><th>Slot</th><th>Position</th><th>Status</th><th>Deadline</th></tr></thead><tbody>' +
-                data.map(w => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:0.4rem">${w.patient_name}</td><td>${w.date}</td><td>${w.time_slot}</td><td>#${w.position}</td><td><span class="badge ${w.status==='confirmed'?'badge-green':w.status==='notified'?'badge-yellow':'badge-gray'}">${w.status}</span></td><td>${w.confirm_deadline||'-'}</td></tr>`).join('') + '</tbody></table>';
+                data.map(w => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:0.4rem">${escapeHtml(w.patient_name)}</td><td>${escapeHtml(w.date)}</td><td>${escapeHtml(w.time_slot)}</td><td>#${w.position}</td><td><span class="badge ${w.status==='confirmed'?'badge-green':w.status==='notified'?'badge-yellow':'badge-gray'}">${escapeHtml(w.status)}</span></td><td>${escapeHtml(w.confirm_deadline)||'-'}</td></tr>`).join('') + '</tbody></table>';
         } catch(e) { console.error(e); }
     }
 
@@ -3272,7 +3435,7 @@
             const rules = await rulesRes.json();
             const camp = await campRes.json();
             document.getElementById('recallRulesList').innerHTML = rules.length ? rules.map(r =>
-                `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;border-bottom:1px solid rgba(255,255,255,0.05)"><div><strong>${r.treatment_type}</strong> — recall after ${r.recall_days} days</div><button onclick="deleteRecallRule(${r.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.8rem">Delete</button></div>`
+                `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;border-bottom:1px solid rgba(255,255,255,0.05)"><div><strong>${escapeHtml(r.treatment_type)}</strong> — recall after ${r.recall_days} days</div><button onclick="deleteRecallRule(${r.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.8rem">Delete</button></div>`
             ).join('') : '<span class="empty-msg">No recall rules configured.</span>';
             const s = camp.stats || {};
             document.getElementById('recallStats').innerHTML = `<div style="display:flex;gap:1rem;flex-wrap:wrap"><div>Sent: <strong>${s.sent||0}</strong></div><div>Opened: <strong>${s.opened||0}</strong></div><div>Booked: <strong>${s.booked||0}</strong></div></div>`;
@@ -3297,7 +3460,7 @@
             const c = document.getElementById('missedCallsList');
             if (!data.length) { c.innerHTML = '<span class="empty-msg">No missed calls recorded.</span>'; return; }
             c.innerHTML = '<table style="width:100%;font-size:0.82rem;border-collapse:collapse"><thead><tr style="text-align:left;color:var(--gray);border-bottom:1px solid rgba(255,255,255,0.1)"><th style="padding:0.4rem">Caller</th><th>Time</th><th>Reply Sent</th><th>Booked</th></tr></thead><tbody>' +
-                data.map(m => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:0.4rem">${m.caller_number}</td><td>${m.call_time}</td><td>${m.reply_sent?'Yes':'No'}</td><td>${m.subsequently_booked?'Yes':'No'}</td></tr>`).join('') + '</tbody></table>';
+                data.map(m => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:0.4rem">${escapeHtml(m.caller_number)}</td><td>${escapeHtml(m.call_time)}</td><td>${m.reply_sent?'Yes':'No'}</td><td>${m.subsequently_booked?'Yes':'No'}</td></tr>`).join('') + '</tbody></table>';
         } catch(e) { console.error(e); }
     }
 
@@ -3314,7 +3477,7 @@
         const data = await res.json();
         const c = document.getElementById('followupsList');
         if (!data.length) { c.innerHTML = '<span class="empty-msg">No follow-ups.</span>'; return; }
-        c.innerHTML = data.map(f => `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.82rem"><div><strong>${f.patient_name}</strong> — ${f.treatment_name} (Day ${f.followup_day})</div><div style="display:flex;gap:0.5rem;align-items:center"><span class="badge ${f.status==='pending'?'badge-yellow':f.status==='sent'?'badge-green':'badge-gray'}">${f.status}</span>${f.status==='pending'?`<button onclick="cancelFollowup(${f.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.75rem">Cancel</button>`:''}</div></div>`).join('');
+        c.innerHTML = data.map(f => `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.82rem"><div><strong>${escapeHtml(f.patient_name)}</strong> — ${escapeHtml(f.treatment_name)} (Day ${f.followup_day})</div><div style="display:flex;gap:0.5rem;align-items:center"><span class="badge ${f.status==='pending'?'badge-yellow':f.status==='sent'?'badge-green':'badge-gray'}">${escapeHtml(f.status)}</span>${f.status==='pending'?`<button onclick="cancelFollowup(${f.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.75rem">Cancel</button>`:''}</div></div>`).join('');
     }
 
     async function createFollowup() {
@@ -3334,7 +3497,7 @@
         const data = await res.json();
         const c = document.getElementById('galleryGrid');
         if (!data.length) { c.innerHTML = '<span class="empty-msg">No gallery images yet.</span>'; return; }
-        c.innerHTML = data.map(img => `<div style="position:relative;border-radius:8px;overflow:hidden;background:rgba(255,255,255,0.05)"><img src="${img.image_url}" style="width:100%;height:120px;object-fit:cover"><div style="padding:0.3rem 0.5rem;font-size:0.72rem"><span class="badge ${img.image_type==='before'?'badge-yellow':'badge-green'}">${img.image_type}</span> ${img.treatment_type}${img.caption?' — '+img.caption:''}</div><button onclick="deleteGalleryImage(${img.id})" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.6);border:none;color:#fff;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:0.7rem">x</button></div>`).join('');
+        c.innerHTML = data.map(img => `<div style="position:relative;border-radius:8px;overflow:hidden;background:rgba(255,255,255,0.05)"><img src="${escapeHtml(img.image_url)}" style="width:100%;height:120px;object-fit:cover"><div style="padding:0.3rem 0.5rem;font-size:0.72rem"><span class="badge ${img.image_type==='before'?'badge-yellow':'badge-green'}">${escapeHtml(img.image_type)}</span> ${escapeHtml(img.treatment_type)}${img.caption?' — '+escapeHtml(img.caption):''}</div><button onclick="deleteGalleryImage(${img.id})" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.6);border:none;color:#fff;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:0.7rem">x</button></div>`).join('');
     }
 
     async function uploadGalleryImage() {
@@ -3358,7 +3521,7 @@
         const data = await res.json();
         const c = document.getElementById('handoffQueue');
         if (!data.length) { c.innerHTML = '<span class="empty-msg">No conversations waiting for human assistance.</span>'; return; }
-        c.innerHTML = data.map(h => `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.7rem;border:1px solid rgba(255,255,255,0.08);border-radius:8px;margin-bottom:0.5rem"><div><strong>${h.patient_name||'Anonymous'}</strong><div style="font-size:0.78rem;color:var(--gray)">${h.reason||'Low AI confidence'} | ${h.created_at}</div></div><div style="display:flex;gap:0.4rem">${h.status==='queued'?`<button class="manage-save-btn" style="font-size:0.75rem;padding:0.3rem 0.7rem" onclick="assignHandoff(${h.id})">Take Over</button>`:''}<button class="manage-save-btn" style="font-size:0.75rem;padding:0.3rem 0.7rem;background:var(--green)" onclick="resolveHandoff(${h.id})">Resolve</button></div></div>`).join('');
+        c.innerHTML = data.map(h => `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.7rem;border:1px solid rgba(255,255,255,0.08);border-radius:8px;margin-bottom:0.5rem"><div><strong>${escapeHtml(h.patient_name)||'Anonymous'}</strong><div style="font-size:0.78rem;color:var(--gray)">${escapeHtml(h.reason)||'Low AI confidence'} | ${escapeHtml(h.created_at)}</div></div><div style="display:flex;gap:0.4rem">${h.status==='queued'?`<button class="manage-save-btn" style="font-size:0.75rem;padding:0.3rem 0.7rem" onclick="assignHandoff(${h.id})">Take Over</button>`:''}<button class="manage-save-btn" style="font-size:0.75rem;padding:0.3rem 0.7rem;background:var(--green)" onclick="resolveHandoff(${h.id})">Resolve</button></div></div>`).join('');
     }
 
     async function assignHandoff(id) { await fetch(`/api/handoffs/${id}/assign`,{method:'POST',headers}); loadHandoffs(); showToast('Conversation assigned to you','success'); }
@@ -3371,7 +3534,7 @@
         const c = document.getElementById('blocksList');
         if (!data.length) { c.innerHTML = '<span class="empty-msg">No schedule blocks.</span>'; return; }
         c.innerHTML = '<table style="width:100%;font-size:0.82rem;border-collapse:collapse"><thead><tr style="text-align:left;color:var(--gray);border-bottom:1px solid rgba(255,255,255,0.1)"><th style="padding:0.4rem">Label</th><th>Type</th><th>Date/Day</th><th>Time</th><th></th></tr></thead><tbody>' +
-            data.map(b => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:0.4rem">${b.label}</td><td>${b.is_recurring?'Recurring':b.block_type}</td><td>${b.is_recurring?b.recurrence_day:b.block_date}</td><td>${b.start_time?b.start_time+' - '+b.end_time:'Full Day'}</td><td><button onclick="deleteBlock(${b.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.75rem">Delete</button></td></tr>`).join('') + '</tbody></table>';
+            data.map(b => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:0.4rem">${escapeHtml(b.label)}</td><td>${b.is_recurring?'Recurring':escapeHtml(b.block_type)}</td><td>${b.is_recurring?escapeHtml(b.recurrence_day):escapeHtml(b.block_date)}</td><td>${b.start_time?escapeHtml(b.start_time)+' - '+escapeHtml(b.end_time):'Full Day'}</td><td><button onclick="deleteBlock(${b.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.75rem">Delete</button></td></tr>`).join('') + '</tbody></table>';
     }
 
     function toggleBlockFields() {
@@ -3404,8 +3567,8 @@
         const stats = data.stats || [];
         const c = document.getElementById('promotionsList');
         if (!promos.length) { c.innerHTML = '<span class="empty-msg">No promotions created.</span>'; }
-        else c.innerHTML = promos.map(p => `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.82rem"><div><code style="background:rgba(0,245,212,0.15);padding:0.1rem 0.4rem;border-radius:4px;color:var(--cyan)">${p.code}</code> — ${p.discount_type==='percentage'?p.discount_value+'%':'$'+p.discount_value} off ${p.applicable_treatments==='all'?'all treatments':p.applicable_treatments}${p.expiry_date?' | Expires: '+p.expiry_date:''}${p.max_uses?' | Max: '+p.max_uses+' uses':''} | Used: ${p.current_uses}x</div><button onclick="deletePromotion(${p.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.75rem">${p.is_active?'Deactivate':'Inactive'}</button></div>`).join('');
-        document.getElementById('promoStats').innerHTML = stats.map(s => `<div style="font-size:0.82rem;padding:0.3rem 0"><code>${s.code}</code>: ${s.total_uses||0} uses, $${(s.total_revenue||0).toFixed(0)} revenue influenced</div>`).join('') || '<span class="empty-msg">No usage data yet.</span>';
+        else c.innerHTML = promos.map(p => `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.82rem"><div><code style="background:rgba(0,245,212,0.15);padding:0.1rem 0.4rem;border-radius:4px;color:var(--cyan)">${escapeHtml(p.code)}</code> — ${p.discount_type==='percentage'?escapeHtml(String(p.discount_value))+'%':'$'+escapeHtml(String(p.discount_value))} off ${p.applicable_treatments==='all'?'all treatments':escapeHtml(p.applicable_treatments)}${p.expiry_date?' | Expires: '+escapeHtml(p.expiry_date):''}${p.max_uses?' | Max: '+p.max_uses+' uses':''} | Used: ${p.current_uses}x</div><button onclick="deletePromotion(${p.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.75rem">${p.is_active?'Deactivate':'Inactive'}</button></div>`).join('');
+        document.getElementById('promoStats').innerHTML = stats.map(s => `<div style="font-size:0.82rem;padding:0.3rem 0"><code>${escapeHtml(s.code)}</code>: ${s.total_uses||0} uses, $${(s.total_revenue||0).toFixed(0)} revenue influenced</div>`).join('') || '<span class="empty-msg">No usage data yet.</span>';
     }
 
     async function createPromotion() {
@@ -3466,7 +3629,7 @@
         document.getElementById('refConversions').textContent = data.conversions || 0;
         document.getElementById('refRewards').textContent = '$' + (data.total_rewards || 0);
         const list = data.referrals || [];
-        document.getElementById('referralsList').innerHTML = list.length ? list.map(r => `<div style="font-size:0.82rem;padding:0.3rem 0;border-bottom:1px solid rgba(255,255,255,0.05)">${r.referred_email} — <span class="badge ${r.status==='converted'?'badge-green':'badge-yellow'}">${r.status}</span>${r.converted_at?' | Converted: '+r.converted_at:''}</div>`).join('') : '<span class="empty-msg">No referrals yet. Share your link!</span>';
+        document.getElementById('referralsList').innerHTML = list.length ? list.map(r => `<div style="font-size:0.82rem;padding:0.3rem 0;border-bottom:1px solid rgba(255,255,255,0.05)">${escapeHtml(r.referred_email)} — <span class="badge ${r.status==='converted'?'badge-green':'badge-yellow'}">${escapeHtml(r.status)}</span>${r.converted_at?' | Converted: '+escapeHtml(r.converted_at):''}</div>`).join('') : '<span class="empty-msg">No referrals yet. Share your link!</span>';
     }
 
     // ═══════ Feature 15: Patients ═══════
@@ -3476,7 +3639,7 @@
         const data = await res.json();
         const c = document.getElementById('patientsList');
         if (!data.length) { c.innerHTML = '<span class="empty-msg">No patients found.</span>'; return; }
-        c.innerHTML = data.map(p => `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer" onclick="loadPatientDetail(${p.id})"><div><strong>${p.name||'Unknown'}</strong><div style="font-size:0.78rem;color:var(--gray)">${p.email||''} ${p.phone||''}</div></div><div style="display:flex;gap:0.8rem;font-size:0.8rem;color:var(--gray)">${p.loyalty_points?'<span style="color:var(--cyan)">'+p.loyalty_points+' pts</span>':''}${p.last_visit_date?'Last: '+p.last_visit_date:''}</div></div>`).join('');
+        c.innerHTML = data.map(p => `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer" onclick="loadPatientDetail(${p.id})"><div><strong>${escapeHtml(p.name)||'Unknown'}</strong><div style="font-size:0.78rem;color:var(--gray)">${escapeHtml(p.email)||''} ${escapeHtml(p.phone)||''}</div></div><div style="display:flex;gap:0.8rem;font-size:0.8rem;color:var(--gray)">${p.loyalty_points?'<span style="color:var(--cyan)">'+p.loyalty_points+' pts</span>':''}${p.last_visit_date?'Last: '+escapeHtml(p.last_visit_date):''}</div></div>`).join('');
     }
 
     async function loadPatientDetail(pid) {
@@ -3485,12 +3648,12 @@
         const h = p.history || {};
         const d = document.getElementById('patientDetail');
         d.style.display = '';
-        d.innerHTML = `<h3 style="margin-bottom:0.8rem">${p.name||'Patient'} <span style="font-size:0.8rem;color:var(--gray);font-weight:400">${p.email||''} | ${p.phone||''}</span></h3>
-            <div style="display:flex;gap:1rem;margin-bottom:1rem;flex-wrap:wrap"><div>Language: ${p.language||'en'}</div><div>Points: <strong style="color:var(--cyan)">${p.loyalty_points||0}</strong></div><div>Last Visit: ${p.last_visit_date||'Never'}</div></div>
+        d.innerHTML = `<h3 style="margin-bottom:0.8rem">${escapeHtml(p.name)||'Patient'} <span style="font-size:0.8rem;color:var(--gray);font-weight:400">${escapeHtml(p.email)||''} | ${escapeHtml(p.phone)||''}</span></h3>
+            <div style="display:flex;gap:1rem;margin-bottom:1rem;flex-wrap:wrap"><div>Language: ${escapeHtml(p.language)||'en'}</div><div>Points: <strong style="color:var(--cyan)">${p.loyalty_points||0}</strong></div><div>Last Visit: ${escapeHtml(p.last_visit_date)||'Never'}</div></div>
             <h4 style="font-size:0.85rem;margin-bottom:0.4rem">Appointments (${(h.bookings||[]).length})</h4>
-            ${(h.bookings||[]).map(b => `<div style="font-size:0.8rem;padding:0.25rem 0">${b.date} ${b.time} — Dr. ${b.doctor_name||'N/A'} — <span class="badge ${b.status==='completed'?'badge-green':b.status==='cancelled'?'badge-gray':'badge-yellow'}">${b.status}</span></div>`).join('') || '<span class="empty-msg">No appointments.</span>'}
+            ${(h.bookings||[]).map(b => `<div style="font-size:0.8rem;padding:0.25rem 0">${escapeHtml(b.date)} ${escapeHtml(b.time)} — Dr. ${escapeHtml(b.doctor_name)||'N/A'} — <span class="badge ${b.status==='completed'?'badge-green':b.status==='cancelled'?'badge-gray':'badge-yellow'}">${escapeHtml(b.status)}</span></div>`).join('') || '<span class="empty-msg">No appointments.</span>'}
             <h4 style="font-size:0.85rem;margin:0.8rem 0 0.4rem">Notes</h4>
-            ${(h.notes||[]).map(n => `<div style="font-size:0.8rem;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.05)">${n.note} <span style="color:var(--gray);font-size:0.72rem">${n.created_at}</span></div>`).join('') || '<span class="empty-msg">No notes.</span>'}
+            ${(h.notes||[]).map(n => `<div style="font-size:0.8rem;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.05)">${escapeHtml(n.note)} <span style="color:var(--gray);font-size:0.72rem">${escapeHtml(n.created_at)}</span></div>`).join('') || '<span class="empty-msg">No notes.</span>'}
             <div style="margin-top:0.8rem;display:flex;gap:0.5rem"><input type="text" class="form-input" id="noteInput_${pid}" placeholder="Add a note..." style="flex:1"><button class="manage-save-btn" onclick="addPatientNote(${pid})">Add Note</button></div>`;
     }
 
@@ -3499,6 +3662,38 @@
         if (!note) return;
         await fetch(`/api/patients/${pid}/notes`, {method:'POST',headers,body:JSON.stringify({note})});
         loadPatientDetail(pid);
+    }
+
+    // ═══════ Customers ═══════
+    async function loadCustomers() {
+        const search = document.getElementById('customerSearch').value;
+        const res = await fetch(`/api/patients?search=${encodeURIComponent(search)}`, {headers});
+        const data = await res.json();
+        const body = document.getElementById('customersBody');
+        document.getElementById('customerCount').textContent = data.length + ' customer' + (data.length !== 1 ? 's' : '');
+        if (!data.length) {
+            body.innerHTML = '<tr><td colspan="8" class="empty-msg">No customers found.</td></tr>';
+            return;
+        }
+        body.innerHTML = data.map(function(p) {
+            return '<tr>'
+                + '<td><strong>' + escapeHtml(p.name || '') + '</strong></td>'
+                + '<td>' + escapeHtml(p.email || '—') + '</td>'
+                + '<td>' + escapeHtml(p.phone || '—') + '</td>'
+                + '<td>' + escapeHtml(p.gender || '—') + '</td>'
+                + '<td>' + escapeHtml(p.language || 'en') + '</td>'
+                + '<td style="text-align:center">' + (p.loyalty_points || 0) + '</td>'
+                + '<td>' + escapeHtml(p.last_visit_date || 'Never') + '</td>'
+                + '<td>' + escapeHtml((p.created_at || '').split(' ')[0] || '—') + '</td>'
+                + '</tr>';
+        }).join('');
+    }
+
+    function exportCustomers(format) {
+        var token = localStorage.getItem('token');
+        var search = document.getElementById('customerSearch').value;
+        var url = '/api/customers/export?format=' + format + '&search=' + encodeURIComponent(search) + '&token=' + encodeURIComponent(token);
+        window.open(url, '_blank');
     }
 
     // ═══════ Feature 16: Real-Time Dashboard ═══════
@@ -3526,7 +3721,7 @@
             if (a.status==='completed') statusClass = 'badge-green';
             else if (a.status==='no_show') statusClass = 'badge-red';
             else if (a.checked_in) statusClass = 'badge-green';
-            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.82rem"><div><strong>${a.time}</strong> — ${a.customer_name} ${a.doctor_name?'with Dr. '+a.doctor_name:''}</div><div style="display:flex;gap:0.4rem;align-items:center"><span class="badge ${statusClass}">${a.checked_in?'Checked In':a.status}</span>${a.status==='confirmed'&&!a.checked_in?`<button class="manage-save-btn" style="font-size:0.7rem;padding:0.2rem 0.5rem" onclick="checkinBooking(${a.id})">Check In</button>`:''}</div></div>`;
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.82rem"><div><strong>${escapeHtml(a.time)}</strong> — ${escapeHtml(a.customer_name)} ${a.doctor_name?'with Dr. '+escapeHtml(a.doctor_name):''}</div><div style="display:flex;gap:0.4rem;align-items:center"><span class="badge ${statusClass}">${a.checked_in?'Checked In':escapeHtml(a.status)}</span>${a.status==='confirmed'&&!a.checked_in?`<button class="manage-save-btn" style="font-size:0.7rem;padding:0.2rem 0.5rem" onclick="checkinBooking(${a.id})">Check In</button>`:''}</div></div>`;
         }).join('');
     }
 
@@ -3543,7 +3738,7 @@
             const bRate = t.variant_b_conversations ? ((t.variant_b_bookings/t.variant_b_conversations)*100).toFixed(1) : '0.0';
             const totalConvos = t.variant_a_conversations + t.variant_b_conversations;
             const sigReached = totalConvos >= 200;
-            return `<div style="padding:0.8rem;border:1px solid rgba(255,255,255,0.08);border-radius:8px;margin-bottom:0.5rem"><div style="display:flex;justify-content:space-between;margin-bottom:0.5rem"><strong>${t.test_name}</strong> <span class="badge ${t.status==='running'?'badge-green':'badge-gray'}">${t.status}${t.winner?' — Winner: '+t.winner.toUpperCase():''}</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.82rem"><div style="padding:0.4rem;background:rgba(255,255,255,0.03);border-radius:6px"><div style="font-weight:600;color:var(--cyan)">Variant A</div><div>${t.variant_a_conversations} convos | ${t.variant_a_bookings} bookings | ${aRate}% conv.</div></div><div style="padding:0.4rem;background:rgba(255,255,255,0.03);border-radius:6px"><div style="font-weight:600;color:var(--accent)">Variant B</div><div>${t.variant_b_conversations} convos | ${t.variant_b_bookings} bookings | ${bRate}% conv.</div></div></div>${t.status==='running'&&sigReached?`<button class="manage-save-btn" style="margin-top:0.5rem;font-size:0.75rem" onclick="endAbTest(${t.id},'${parseFloat(aRate)>=parseFloat(bRate)?'a':'b'}')">Apply Winner (${parseFloat(aRate)>=parseFloat(bRate)?'A':'B'})</button>`:''}</div>`;
+            return `<div style="padding:0.8rem;border:1px solid rgba(255,255,255,0.08);border-radius:8px;margin-bottom:0.5rem"><div style="display:flex;justify-content:space-between;margin-bottom:0.5rem"><strong>${escapeHtml(t.test_name)}</strong> <span class="badge ${t.status==='running'?'badge-green':'badge-gray'}">${escapeHtml(t.status)}${t.winner?' — Winner: '+escapeHtml(t.winner.toUpperCase()):''}</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.82rem"><div style="padding:0.4rem;background:rgba(255,255,255,0.03);border-radius:6px"><div style="font-weight:600;color:var(--cyan)">Variant A</div><div>${t.variant_a_conversations} convos | ${t.variant_a_bookings} bookings | ${aRate}% conv.</div></div><div style="padding:0.4rem;background:rgba(255,255,255,0.03);border-radius:6px"><div style="font-weight:600;color:var(--accent)">Variant B</div><div>${t.variant_b_conversations} convos | ${t.variant_b_bookings} bookings | ${bRate}% conv.</div></div></div>${t.status==='running'&&sigReached?`<button class="manage-save-btn" style="margin-top:0.5rem;font-size:0.75rem" onclick="endAbTest(${t.id},'${parseFloat(aRate)>=parseFloat(bRate)?'a':'b'}')">Apply Winner (${parseFloat(aRate)>=parseFloat(bRate)?'A':'B'})</button>`:''}</div>`;
         }).join('');
     }
 
@@ -3568,7 +3763,7 @@
         document.getElementById('loyPtsReview').value = config.points_per_review || 50;
         document.getElementById('loyPtsForm').value = config.points_per_form || 25;
         document.getElementById('loyRedemption').value = config.redemption_value || 0.01;
-        document.getElementById('loyaltyStats').innerHTML = `<div style="display:flex;gap:1.5rem;flex-wrap:wrap;font-size:0.85rem"><div>Members: <strong>${stats.total_members||0}</strong></div><div>Issued this month: <strong>${stats.issued_this_month||0} pts</strong></div><div>Redeemed this month: <strong>${stats.redeemed_this_month||0} pts</strong></div></div>${(stats.top_patients||[]).length?'<div style="margin-top:0.5rem;font-size:0.82rem"><strong>Top Patients:</strong> '+stats.top_patients.map(p=>p.name+' ('+p.loyalty_points+' pts)').join(', ')+'</div>':''}`;
+        document.getElementById('loyaltyStats').innerHTML = `<div style="display:flex;gap:1.5rem;flex-wrap:wrap;font-size:0.85rem"><div>Members: <strong>${stats.total_members||0}</strong></div><div>Issued this month: <strong>${stats.issued_this_month||0} pts</strong></div><div>Redeemed this month: <strong>${stats.redeemed_this_month||0} pts</strong></div></div>${(stats.top_patients||[]).length?'<div style="margin-top:0.5rem;font-size:0.82rem"><strong>Top Patients:</strong> '+stats.top_patients.map(p=>escapeHtml(p.name)+' ('+p.loyalty_points+' pts)').join(', ')+'</div>':''}`;
     }
 
     async function saveLoyaltyConfig() {

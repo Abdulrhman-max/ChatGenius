@@ -21,30 +21,38 @@ _scheduler = None
 
 # ── Deadline calculation ─────────────────────────────────────────────────────
 
-def _calculate_confirm_deadline(appointment_date_str, appointment_time_str):
-    """Calculate how long a patient has to confirm based on appointment proximity.
-    - Appointment > 1 day away  -> 2 hours to confirm
-    - Appointment is tomorrow   -> 30 minutes to confirm
-    - Appointment is today      -> 10 minutes to confirm
+def _calculate_confirm_deadline(appointment_date_str, appointment_time_str, is_only_on_waitlist=False):
+    """Calculate how long a patient has to fill the pre-visit form.
+    - Only person on waitlist     -> 5 hours to fill form
+    - Appointment <= 24 hours away -> 3 hours to fill form
+    - Appointment > 24 hours away  -> 5 hours to fill form
     """
     now = datetime.now()
+
+    # If only person on waitlist, always give 5 hours
+    if is_only_on_waitlist:
+        return (now + timedelta(hours=5)).strftime("%Y-%m-%d %H:%M:%S")
+
     try:
         appt_date = datetime.strptime(appointment_date_str, "%Y-%m-%d").date()
     except (ValueError, TypeError):
-        # Fallback: 30 minutes
-        return (now + timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M:%S")
+        # Fallback: 5 hours
+        return (now + timedelta(hours=5)).strftime("%Y-%m-%d %H:%M:%S")
 
-    days_until = (appt_date - now.date()).days
+    # Calculate hours until appointment
+    try:
+        # Try to parse the time for a more accurate calculation
+        time_part = appointment_time_str.split(" - ")[0].strip() if " - " in appointment_time_str else appointment_time_str.strip()
+        appt_dt = datetime.strptime(f"{appointment_date_str} {time_part}", "%Y-%m-%d %I:%M %p")
+    except (ValueError, TypeError):
+        appt_dt = datetime.combine(appt_date, datetime.min.time().replace(hour=9))
 
-    if days_until <= 0:
-        # Today
-        deadline = now + timedelta(minutes=10)
-    elif days_until == 1:
-        # Tomorrow
-        deadline = now + timedelta(minutes=30)
+    hours_until = (appt_dt - now).total_seconds() / 3600
+
+    if hours_until <= 24:
+        deadline = now + timedelta(hours=3)
     else:
-        # More than 1 day away
-        deadline = now + timedelta(hours=2)
+        deadline = now + timedelta(hours=5)
 
     return deadline.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -85,12 +93,20 @@ def _notify_next_patient(admin_id, doctor_id, date, time_slot):
         logger.info(f"Waitlist: no more patients for {date} {time_slot} — slot released to public")
         return False
 
-    # Calculate deadline
-    deadline = _calculate_confirm_deadline(date, time_slot)
-    db.notify_waitlist_patient(patient["id"], deadline)
-    logger.info(f"Waitlist: notified {patient['patient_name']} (id={patient['id']}) for {date} {time_slot}, deadline={deadline}")
+    # Check if this patient is the only one remaining on waitlist for this slot
+    is_only = False
+    try:
+        remaining = db.get_waitlist_count(admin_id, doctor_id, date, time_slot)
+        is_only = (remaining <= 1)
+    except Exception:
+        pass
 
-    # Send notification email
+    # Calculate deadline with new rules
+    deadline = _calculate_confirm_deadline(date, time_slot, is_only_on_waitlist=is_only)
+    db.notify_waitlist_patient(patient["id"], deadline)
+    logger.info(f"Waitlist: notified {patient['patient_name']} (id={patient['id']}) for {date} {time_slot}, deadline={deadline}, only_on_waitlist={is_only}")
+
+    # Send notification email with link to confirm (which redirects to form)
     if patient.get("patient_email"):
         try:
             # Get doctor name
@@ -106,8 +122,9 @@ def _notify_next_patient(admin_id, doctor_id, date, time_slot):
 
             deadline_display = _format_deadline_display(deadline)
 
-            # Build confirm URL
-            confirm_url = f"/api/waitlist/{patient['id']}/confirm"
+            # Build confirm URL — this will create a pending booking + form and redirect to form
+            base_url = os.getenv("BASE_URL", "http://localhost:8080")
+            confirm_url = f"{base_url}/api/waitlist/{patient['id']}/confirm"
 
             email_svc.send_waitlist_notification(
                 to_email=patient["patient_email"],
@@ -131,6 +148,7 @@ def _process_expired_waitlist_notifications():
     """Check for expired waitlist notifications and cascade to next patient.
     Runs every 30 seconds via APScheduler."""
     import database as db
+    import email_service as email_svc
 
     try:
         expired = db.get_active_waitlist_notifications()
@@ -143,6 +161,37 @@ def _process_expired_waitlist_notifications():
             # Mark as expired
             db.expire_waitlist_patient(entry["id"])
             logger.info(f"Waitlist: expired entry id={entry['id']} ({entry['patient_name']})")
+
+            # Cancel any pending booking created for this waitlist entry
+            try:
+                conn = db.get_db()
+                pending = conn.execute(
+                    "SELECT id FROM bookings WHERE waitlist_id=? AND status='pending'",
+                    (entry["id"],)).fetchone()
+                if pending:
+                    conn.execute("UPDATE bookings SET status='cancelled' WHERE id=?", (pending["id"],))
+                    conn.commit()
+                    logger.info(f"Waitlist: cancelled pending booking {pending['id']} for expired entry {entry['id']}")
+                conn.close()
+            except Exception as e:
+                logger.error(f"Waitlist: error cancelling pending booking for entry {entry['id']}: {e}")
+
+            # Send "you took too long" email to the expired patient
+            if entry.get("patient_email"):
+                try:
+                    try:
+                        dt = datetime.strptime(entry["date"], "%Y-%m-%d")
+                        date_display = dt.strftime("%A, %B %d, %Y")
+                    except ValueError:
+                        date_display = entry["date"]
+                    doctor = db.get_doctor_by_id(entry["doctor_id"])
+                    doctor_name = doctor["name"] if doctor else ""
+                    email_svc.send_waitlist_expired_notification(
+                        entry["patient_email"], entry["patient_name"],
+                        date_display, entry["time_slot"], doctor_name=doctor_name
+                    )
+                except Exception as e:
+                    logger.error(f"Waitlist: failed to send expiry email to {entry.get('patient_email')}: {e}")
 
             # Try to notify the next waiting patient for this slot
             _notify_next_patient(
@@ -158,26 +207,34 @@ def _process_noshow_detection():
     import database as db
 
     conn = db.get_db()
-    now = datetime.now()
-    today = now.strftime("%Y-%m-%d")
-    rows = conn.execute(
-        "SELECT * FROM bookings WHERE date=? AND status='confirmed' AND checked_in=0",
-        (today,)
-    ).fetchall()
-    for row in rows:
-        row = dict(row)
-        try:
-            time_str = row["time"].split(" - ")[0].strip() if " - " in row["time"] else row["time"].strip()
-            appt_time = datetime.strptime(f"{today} {time_str}", "%Y-%m-%d %I:%M %p")
-            if now > appt_time + timedelta(minutes=10):
-                conn.execute("UPDATE bookings SET status='no_show' WHERE id=? AND status='confirmed'", (row["id"],))
-                if row.get("patient_id"):
-                    conn.execute("UPDATE patients SET total_no_shows=total_no_shows+1 WHERE id=?", (row["patient_id"],))
-                conn.commit()
-                logger.info(f"No-show detected: booking {row['id']} for {row['customer_name']}")
-        except (ValueError, IndexError):
-            pass
-    conn.close()
+    try:
+        now = datetime.now()
+        today = now.strftime("%Y-%m-%d")
+        rows = conn.execute(
+            "SELECT * FROM bookings WHERE date=? AND status='confirmed' AND checked_in=0",
+            (today,)
+        ).fetchall()
+        for row in rows:
+            row = dict(row)
+            try:
+                time_str = row["time"].split(" - ")[0].strip() if " - " in row["time"] else row["time"].strip()
+                appt_time = datetime.strptime(f"{today} {time_str}", "%Y-%m-%d %I:%M %p")
+                if now > appt_time + timedelta(minutes=10):
+                    conn.execute("UPDATE bookings SET status='no_show' WHERE id=? AND status='confirmed'", (row["id"],))
+                    if row.get("patient_id"):
+                        conn.execute("UPDATE patients SET total_no_shows=total_no_shows+1 WHERE id=?", (row["patient_id"],))
+                    conn.commit()
+                    logger.info(f"No-show detected: booking {row['id']} for {row['customer_name']}")
+                    # Trigger no-show recovery
+                    try:
+                        import noshow_recovery_engine
+                        noshow_recovery_engine.on_noshow_detected(row["id"])
+                    except Exception as e:
+                        logger.warning(f"No-show recovery trigger failed for booking {row['id']}: {e}")
+            except (ValueError, IndexError):
+                pass
+    finally:
+        conn.close()
 
 
 # ── Public API ───────────────────────────────────────────────────────────────
@@ -309,8 +366,47 @@ def start_background_tasks(app):
     except Exception as e:
         logger.warning(f"Could not register handoff timeout job: {e}")
 
+    # ── Feature 1: Smart Appointment Reminders — process pending every 60s ──
+    try:
+        import appointment_reminder_engine as _reminder_eng
+        _scheduler.add_job(
+            _reminder_eng.process_pending_reminders,
+            "interval", seconds=60,
+            id="reminder_processing", replace_existing=True,
+            name="Process pending appointment reminders (every 60s)",
+        )
+        logger.info("Appointment reminder processing job registered")
+    except Exception as e:
+        logger.warning(f"Could not register reminder processing job: {e}")
+
+    # ── Feature 6: Monthly Performance Report — auto-generate on 1st of month ──
+    try:
+        import report_engine as _report_eng
+        _scheduler.add_job(
+            _report_eng.generate_all_monthly_reports,
+            "cron", day=1, hour=6, minute=0,
+            id="monthly_report_generation", replace_existing=True,
+            name="Generate monthly performance reports (1st of month, 6am)",
+        )
+        logger.info("Monthly report generation job registered")
+    except Exception as e:
+        logger.warning(f"Could not register monthly report job: {e}")
+
+    # ── Feature 9: No-Show Recovery — expire stale recoveries every 5 min ──
+    try:
+        import noshow_recovery_engine as _noshow_eng
+        _scheduler.add_job(
+            _noshow_eng.process_expired_recoveries,
+            "interval", minutes=5,
+            id="noshow_recovery_expiry", replace_existing=True,
+            name="Expire stale no-show recovery records (every 5min)",
+        )
+        logger.info("No-show recovery expiry job registered")
+    except Exception as e:
+        logger.warning(f"Could not register no-show recovery job: {e}")
+
     _scheduler.start()
-    logger.info("APScheduler started with waitlist expiry (30s), no-show detection (60s), and engine jobs")
+    logger.info("APScheduler started with all background jobs")
 
 
 def stop_background_tasks():

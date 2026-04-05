@@ -74,12 +74,11 @@ def handle(message, company_info=None, history=None):
     Returns:
         str: Response string
     """
-    enriched_prompt = f"[Contact collection] {message}"
-
     # Try Grok AI (message_interpreter) first
     if message_interpreter.is_configured():
         result = message_interpreter.think_and_respond(
-            enriched_prompt, company_info, history=history
+            message, company_info, history=history,
+            extra_context="The patient wants to speak with staff or get a callback. Collect their contact details and let them know someone will reach out."
         )
         if result and result.get("reply"):
             return result["reply"] + CONTACT_FOOTER
@@ -87,7 +86,7 @@ def handle(message, company_info=None, history=None):
     # Fallback to OpenAI
     if dental_ai.is_configured():
         result = dental_ai.think_and_respond(
-            enriched_prompt, company_info, history=history
+            message, company_info, history=history
         )
         if result and result.get("reply"):
             return result["reply"] + CONTACT_FOOTER

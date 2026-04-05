@@ -16,9 +16,9 @@ GOOGLE_CALENDAR_ID = os.getenv("GOOGLE_CALENDAR_ID", "primary")
 # Business hours config
 BUSINESS_HOURS = {
     "start": 9,   # 9 AM
-    "end": 17,    # 5 PM
+    "end": 21,    # 9 PM
     "slot_minutes": 30,
-    "days": [0, 1, 2, 3, 4],  # Mon-Fri
+    "days": [0, 1, 2, 3, 5, 6],  # Sun-Thu + Sat (closed Friday)
 }
 
 _google_service = None
@@ -294,7 +294,7 @@ def get_available_slots(date_str):
         return None, "I couldn't understand that date. Could you try a format like 'Monday', 'tomorrow', or '2026-04-10'?"
 
     if date_obj.weekday() not in BUSINESS_HOURS["days"]:
-        return None, f"Sorry, we're closed on weekends. Our business hours are Monday to Friday, {BUSINESS_HOURS['start']}AM to {BUSINESS_HOURS['end'] - 12}PM."
+        return None, f"Sorry, we're closed on Fridays. Our business hours are Sunday to Thursday, {BUSINESS_HOURS['start']}AM to {BUSINESS_HOURS['end'] - 12}PM."
 
     now = datetime.now()
     if date_obj < now.date():

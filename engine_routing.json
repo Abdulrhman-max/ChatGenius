@@ -23,5 +23,15 @@
   "oral_hygiene": "GROK_AI",
   "specialist_recommendation": "GROK_AI",
   "post_treatment": "GROK_AI",
-  "general_dental": "GROK_AI"
+  "general_dental": "GROK_AI",
+  "appointment_reminder": "REMINDER_ENGINE",
+  "survey_feedback": "SURVEY_ENGINE",
+  "treatment_package": "PACKAGE_ENGINE",
+  "invoice_receipt": "INVOICE_ENGINE",
+  "noshow_reschedule": "NOSHOW_RECOVERY_ENGINE",
+  "upsell_addon": "UPSELL_ENGINE",
+  "doctor_portal": "DOCTOR_PORTAL_ENGINE",
+  "channel_inbox": "CHANNEL_ENGINE",
+  "performance_report": "REPORT_ENGINE",
+  "whitelabel_branding": "WHITELABEL_ENGINE"
 }

@@ -106,15 +106,16 @@ def handle(message, company_info=None, doctors=None, history=None):
         if treatment in lower_msg:
             related_suggestions.extend(upsells)
 
-    enriched_prompt = f"[Treatment education inquiry] {message}"
+    extra_ctx = "This is a treatment education inquiry. Provide clear, patient-friendly explanations."
     if related_suggestions:
         unique_suggestions = list(dict.fromkeys(related_suggestions))
-        enriched_prompt += f" [Related treatments to mention naturally: {', '.join(unique_suggestions)}]"
+        extra_ctx += f" Also naturally mention related treatments: {', '.join(unique_suggestions)}"
 
     # Try Grok AI (message_interpreter) first
     if message_interpreter.is_configured():
         result = message_interpreter.think_and_respond(
-            enriched_prompt, company_info, doctors, history=history
+            message, company_info, doctors, history=history,
+            extra_context=extra_ctx
         )
         if result and result.get("reply"):
             return result["reply"] + CONTACT_FOOTER
@@ -122,7 +123,7 @@ def handle(message, company_info=None, doctors=None, history=None):
     # Fallback to OpenAI
     if dental_ai.is_configured():
         result = dental_ai.think_and_respond(
-            enriched_prompt, company_info, doctors, history=history
+            message, company_info, doctors, history=history
         )
         if result and result.get("reply"):
             return result["reply"] + CONTACT_FOOTER

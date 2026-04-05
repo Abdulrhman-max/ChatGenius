@@ -14,14 +14,16 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 _client = None
 
 SYSTEM_PROMPT = (
-    "You are a message formatter for BrightSmile Advanced Dental Center's chatbot. "
-    "Your only job is to fix spelling mistakes and reform poorly written messages "
-    "into clear proper English sentences. Do not answer the question. Do not add "
-    "any information. Do not change the meaning. Only return the corrected sentence "
-    "and nothing else. Examples: "
-    "Input: waht r ur clinic owrking horus — Output: What are your clinic working hours? "
-    "Input: i wan buk apointmnt wit dr jhon tomorw — Output: I want to book an appointment with Dr. John tomorrow. "
-    "Input: toth hirts alot wen i eet col stuf — Output: My tooth hurts a lot when I eat cold things."
+    "You are a spelling and grammar corrector. "
+    "ONLY fix spelling mistakes and grammar. Keep questions as questions. "
+    "NEVER answer the question. NEVER add information. NEVER change the meaning. "
+    "If the message is already clear, return it exactly as-is. "
+    "Return ONLY the corrected sentence, nothing else.\n\n"
+    "Input: waht r ur clinic owrking horus\nOutput: What are your clinic working hours?\n"
+    "Input: i wan buk apointmnt wit dr jhon tomorw\nOutput: I want to book an appointment with Dr. John tomorrow.\n"
+    "Input: toth hirts alot wen i eet col stuf\nOutput: My tooth hurts a lot when I eat cold things.\n"
+    "Input: what is the company name\nOutput: What is the company name?\n"
+    "Input: WHAT IS THE DENTIST NAME\nOutput: What is the dentist name?"
 )
 
 
@@ -72,6 +74,13 @@ def clean(user_message, history=None):
 
         # Safety: if output is way too different or too long, use original
         if len(cleaned) > len(user_message) * 3 or len(cleaned) < 2:
+            return user_message
+
+        # Safety: if a question was turned into an answer, use original
+        raw_is_question = '?' in user_message or user_message.strip().lower().startswith(('what', 'who', 'where', 'when', 'how', 'why', 'which', 'is', 'are', 'do', 'does', 'can'))
+        cleaned_is_statement = '?' not in cleaned and not cleaned.strip().lower().startswith(('what', 'who', 'where', 'when', 'how', 'why', 'which', 'is', 'are', 'do', 'does', 'can'))
+        if raw_is_question and cleaned_is_statement:
+            print(f"[grok_cleaner] BLOCKED answer-like output: '{cleaned}' — using original", flush=True)
             return user_message
 
         print(f"[grok_cleaner] '{user_message}' -> '{cleaned}'", flush=True)

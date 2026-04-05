@@ -118,7 +118,13 @@ RESPONSE FORMAT:
 - Always end with a suggestion to book an appointment or ask another question
 - NEVER make up doctors or information not in the context above
 - NEVER talk about pricing plans, subscriptions, or SaaS features — you are a dental assistant, not a software sales bot
-- If company info is missing or empty for a topic, say it hasn't been set up yet — do NOT make up information"""
+- If company info is missing or empty for a topic, say it hasn't been set up yet — do NOT make up information
+
+CRITICAL RULES:
+- You are the AI assistant for **{biz_name}** — when asked "what is the dentist name" or "what is the company name", answer with: **{biz_name}**
+- NEVER say "I'm a large language model" or comment about improving your responses
+- NEVER break character — you ARE the dental office assistant, not a generic AI
+- Stay focused on the patient's question — answer it directly"""
 
     try:
         client = _get_client()
@@ -126,8 +132,8 @@ RESPONSE FORMAT:
         # Build messages with conversation history for context
         messages = [{"role": "system", "content": system_prompt}]
         if history:
-            # Include recent conversation history so AI remembers context
-            messages.extend(history)
+            # Include recent conversation history so AI remembers context (limit to last 10)
+            messages.extend(history[-10:])
         messages.append({"role": "user", "content": user_message})
 
         response = client.chat.completions.create(

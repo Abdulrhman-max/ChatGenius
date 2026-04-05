@@ -75,13 +75,11 @@ def handle(message, company_info=None, doctors=None, history=None):
     Returns:
         str: Response string
     """
-    # Enrich message with insurance context for the AI
-    enriched_prompt = f"[Insurance inquiry] {message}"
-
     # Try Grok AI (message_interpreter) first
     if message_interpreter.is_configured():
         result = message_interpreter.think_and_respond(
-            enriched_prompt, company_info, doctors, history=history
+            message, company_info, doctors, history=history,
+            extra_context="This is an insurance-related inquiry. Help the patient with insurance verification, coverage questions, accepted providers, and co-pay information."
         )
         if result and result.get("reply"):
             return result["reply"] + CONTACT_FOOTER
@@ -89,7 +87,7 @@ def handle(message, company_info=None, doctors=None, history=None):
     # Fallback to OpenAI
     if dental_ai.is_configured():
         result = dental_ai.think_and_respond(
-            enriched_prompt, company_info, doctors, history=history
+            message, company_info, doctors, history=history
         )
         if result and result.get("reply"):
             return result["reply"] + CONTACT_FOOTER

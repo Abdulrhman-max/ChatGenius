@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Doctor Portal — ChatGenius</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f2f5;color:#333;min-height:100vh;}
+.navbar{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:16px 32px;display:flex;justify-content:space-between;align-items:center;}
+.navbar h1{font-size:20px;font-weight:600;}
+.navbar .user-info{display:flex;align-items:center;gap:12px;}
+.navbar button{background:rgba(255,255,255,0.2);color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;}
+.navbar button:hover{background:rgba(255,255,255,0.3);}
+.container{max-width:1100px;margin:24px auto;padding:0 20px;}
+.tabs{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;}
+.tab{padding:10px 20px;border-radius:8px;background:#fff;border:1px solid #ddd;cursor:pointer;font-size:14px;transition:all 0.2s;}
+.tab.active{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-color:transparent;}
+.tab:hover:not(.active){background:#f8f9fa;}
+.panel{display:none;}
+.panel.active{display:block;}
+.card{background:#fff;border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+.card h2{font-size:18px;margin-bottom:16px;color:#333;}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;}
+.stat-card{background:linear-gradient(135deg,#f8f9fa,#fff);border:1px solid #eee;border-radius:10px;padding:20px;text-align:center;}
+.stat-card .value{font-size:28px;font-weight:700;color:#667eea;}
+.stat-card .label{font-size:12px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-top:4px;}
+table{width:100%;border-collapse:collapse;}
+th{background:#f8f9fa;padding:10px 12px;text-align:left;font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.5px;}
+td{padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:14px;}
+tr:hover{background:#fafafa;}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;}
+.badge-green{background:#dcfce7;color:#16a34a;}
+.badge-red{background:#fee2e2;color:#dc2626;}
+.badge-yellow{background:#fef3c7;color:#d97706;}
+.badge-blue{background:#dbeafe;color:#2563eb;}
+.form-group{margin-bottom:16px;}
+.form-group label{display:block;font-size:13px;color:#666;margin-bottom:4px;font-weight:600;}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,0.1);}
+.btn{padding:10px 24px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;}
+.btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;}
+.btn-primary:hover{opacity:0.9;}
+.btn-danger{background:#fee2e2;color:#dc2626;}
+.btn-danger:hover{background:#fecaca;}
+.toggle-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:8px;border:2px solid #ddd;background:#fff;cursor:pointer;font-size:14px;font-weight:600;transition:all 0.2s;}
+.toggle-btn.active{border-color:#16a34a;background:#dcfce7;color:#16a34a;}
+.off-day-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+.off-day-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#f8f9fa;border:1px solid #eee;border-radius:8px;font-size:13px;}
+.off-day-chip button{background:none;border:none;color:#dc2626;cursor:pointer;font-size:16px;}
+.empty{text-align:center;color:#999;padding:40px;font-size:15px;}
+.login-box{max-width:400px;margin:80px auto;background:#fff;padding:40px;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.08);text-align:center;}
+.login-box h2{margin-bottom:24px;}
+#loginError{color:#dc2626;margin-top:12px;font-size:13px;}
+</style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div id="loginScreen" class="login-box">
+    <h2>Doctor Portal Login</h2>
+    <div class="form-group"><label>Email</label><input type="email" id="loginEmail"></div>
+    <div class="form-group"><label>Password</label><input type="password" id="loginPassword"></div>
+    <button class="btn btn-primary" onclick="doLogin()" style="width:100%;margin-top:8px;">Sign In</button>
+    <div id="loginError"></div>
+</div>
+
+<!-- Portal -->
+<div id="portal" style="display:none;">
+<nav class="navbar">
+    <h1>Doctor Portal</h1>
+    <div class="user-info">
+        <span id="doctorName"></span>
+        <button onclick="logout()">Logout</button>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="tabs">
+        <div class="tab active" onclick="showTab('dashboard')">Dashboard</div>
+        <div class="tab" onclick="showTab('schedule')">My Schedule</div>
+        <div class="tab" onclick="showTab('bookings')">My Bookings</div>
+        <div class="tab" onclick="showTab('timeoff')">Time Off</div>
+        <div class="tab" onclick="showTab('settings')">Settings</div>
+    </div>
+
+    <!-- Dashboard Tab -->
+    <div id="tab-dashboard" class="panel active">
+        <div class="card">
+            <h2>This Month's Performance</h2>
+            <div class="stat-grid" id="statsGrid"></div>
+        </div>
+        <div class="card">
+            <h2>Today's Appointments</h2>
+            <div id="todayBookings"></div>
+        </div>
+    </div>
+
+    <!-- Schedule Tab -->
+    <div id="tab-schedule" class="panel">
+        <div class="card">
+            <h2>My Working Hours</h2>
+            <div id="scheduleInfo"></div>
+        </div>
+    </div>
+
+    <!-- Bookings Tab -->
+    <div id="tab-bookings" class="panel">
+        <div class="card">
+            <h2>Upcoming Bookings</h2>
+            <div id="bookingsList"></div>
+        </div>
+    </div>
+
+    <!-- Time Off Tab -->
+    <div id="tab-timeoff" class="panel">
+        <div class="card">
+            <h2>Request Time Off</h2>
+            <div class="form-group"><label>Date</label><input type="date" id="offDate"></div>
+            <div class="form-group"><label>Reason (optional)</label><input type="text" id="offReason" placeholder="Personal, sick leave, etc."></div>
+            <button class="btn btn-primary" onclick="requestTimeOff()">Request Day Off</button>
+            <h3 style="margin-top:24px;margin-bottom:12px;">Scheduled Off Days</h3>
+            <div id="offDaysList" class="off-day-list"></div>
+        </div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div id="tab-settings" class="panel">
+        <div class="card">
+            <h2>Availability Settings</h2>
+            <div class="form-group"><label>Start Time</label><input type="text" id="settStartTime" placeholder="09:00 AM"></div>
+            <div class="form-group"><label>End Time</label><input type="text" id="settEndTime" placeholder="05:00 PM"></div>
+            <div class="form-group"><label>Appointment Length (minutes)</label><input type="number" id="settApptLength" value="60"></div>
+            <button class="btn btn-primary" onclick="saveAvailability()">Save Changes</button>
+        </div>
+        <div class="card">
+            <h2>Emergency Availability</h2>
+            <button class="toggle-btn" id="emergencyBtn" onclick="toggleEmergency()">
+                <span id="emergencyIcon">&#9723;</span> Available for Emergencies
+            </button>
+        </div>
+        <div class="card">
+            <h2>Status Message</h2>
+            <div class="form-group"><textarea id="statusMsg" rows="3" placeholder="e.g., On vacation until Jan 15"></textarea></div>
+            <button class="btn btn-primary" onclick="saveStatusMsg()">Update Status</button>
+        </div>
+    </div>
+</div>
+</div>
+
+<script>
+let TOKEN = localStorage.getItem('doctor_token') || '';
+
+function api(url, opts = {}) {
+    return fetch(url, {
+        ...opts,
+        headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json', ...(opts.headers || {}) },
+        body: opts.body ? JSON.stringify(opts.body) : undefined,
+    }).then(r => r.json());
+}
+
+async function doLogin() {
+    const email = document.getElementById('loginEmail').value;
+    const pwd = document.getElementById('loginPassword').value;
+    try {
+        const r = await fetch('/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password: pwd })
+        }).then(r => r.json());
+        if (r.error) { document.getElementById('loginError').textContent = r.error; return; }
+        TOKEN = r.token;
+        localStorage.setItem('doctor_token', TOKEN);
+        initPortal();
+    } catch (e) { document.getElementById('loginError').textContent = 'Login failed'; }
+}
+
+function logout() {
+    localStorage.removeItem('doctor_token');
+    TOKEN = '';
+    document.getElementById('portal').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'block';
+}
+
+function showTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('tab-' + name).classList.add('active');
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+async function initPortal() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('portal').style.display = 'block';
+    try {
+        const me = await api('/auth/me');
+        if (me.error) { logout(); return; }
+        document.getElementById('doctorName').textContent = 'Dr. ' + (me.user?.name || '');
+    } catch { logout(); return; }
+    loadStats();
+    loadTodayBookings();
+    loadSchedule();
+    loadBookings();
+    loadOffDays();
+}
+
+async function loadStats() {
+    const s = await api('/api/doctor-portal/stats');
+    if (s.error) { document.getElementById('statsGrid').innerHTML = '<div class="empty">' + esc(s.error) + '</div>'; return; }
+    document.getElementById('statsGrid').innerHTML = `
+        <div class="stat-card"><div class="value">${s.bookings_this_month || 0}</div><div class="label">Bookings</div></div>
+        <div class="stat-card"><div class="value">${s.completed_this_month || 0}</div><div class="label">Completed</div></div>
+        <div class="stat-card"><div class="value" style="color:#dc2626;">${s.noshow_this_month || 0}</div><div class="label">No-Shows</div></div>
+        <div class="stat-card"><div class="value">${s.noshow_rate || 0}%</div><div class="label">No-Show Rate</div></div>
+        <div class="stat-card"><div class="value" style="color:#d97706;">${s.avg_satisfaction || 'N/A'}</div><div class="label">Avg Rating</div></div>`;
+}
+
+async function loadTodayBookings() {
+    const bookings = await api('/api/doctor-portal/today');
+    if (!bookings.length) { document.getElementById('todayBookings').innerHTML = '<div class="empty">No appointments today</div>'; return; }
+    let html = '<table><thead><tr><th>Time</th><th>Patient</th><th>Service</th><th>Status</th></tr></thead><tbody>';
+    bookings.forEach(b => {
+        const badge = b.status === 'confirmed' ? 'badge-green' : b.status === 'no_show' ? 'badge-red' : 'badge-yellow';
+        html += `<tr><td>${esc(b.time)}</td><td>${esc(b.customer_name)}</td><td>${esc(b.service)}</td>
+            <td><span class="badge ${badge}">${esc(b.status)}</span></td></tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('todayBookings').innerHTML = html;
+}
+
+async function loadSchedule() {
+    const s = await api('/api/doctor-portal/schedule');
+    if (s.error || !s.doctor) { document.getElementById('scheduleInfo').innerHTML = '<div class="empty">Schedule not available</div>'; return; }
+    const d = s.doctor;
+    let html = `<p><strong>Schedule Type:</strong> ${esc(d.schedule_type)}</p>
+        <p><strong>Hours:</strong> ${esc(d.start_time)} — ${esc(d.end_time)}</p>
+        <p><strong>Appointment Length:</strong> ${d.appointment_length} min</p>
+        <p><strong>Availability:</strong> ${esc(d.availability)}</p>`;
+    if (s.breaks && s.breaks.length) {
+        html += '<h3 style="margin-top:16px;">Breaks</h3><ul>';
+        s.breaks.forEach(b => { html += `<li>${esc(b.break_name)}: ${esc(b.start_time)} — ${esc(b.end_time)}</li>`; });
+        html += '</ul>';
+    }
+    document.getElementById('scheduleInfo').innerHTML = html;
+    document.getElementById('settStartTime').value = d.start_time || '';
+    document.getElementById('settEndTime').value = d.end_time || '';
+    document.getElementById('settApptLength').value = d.appointment_length || 60;
+}
+
+async function loadBookings() {
+    const bookings = await api('/api/doctor-portal/bookings');
+    if (!bookings.length) { document.getElementById('bookingsList').innerHTML = '<div class="empty">No upcoming bookings</div>'; return; }
+    let html = '<table><thead><tr><th>Date</th><th>Time</th><th>Patient</th><th>Service</th><th>Status</th></tr></thead><tbody>';
+    bookings.forEach(b => {
+        const badge = b.status === 'confirmed' ? 'badge-green' : b.status === 'completed' ? 'badge-blue' : b.status === 'no_show' ? 'badge-red' : 'badge-yellow';
+        html += `<tr><td>${esc(b.date)}</td><td>${esc(b.time)}</td><td>${esc(b.customer_name)}</td>
+            <td>${esc(b.service)}</td><td><span class="badge ${badge}">${esc(b.status)}</span></td></tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('bookingsList').innerHTML = html;
+}
+
+async function loadOffDays() {
+    const s = await api('/api/doctor-portal/schedule');
+    if (!s || !s.off_days) return;
+    const el = document.getElementById('offDaysList');
+    if (!s.off_days.length) { el.innerHTML = '<span style="color:#999;">No off days scheduled</span>'; return; }
+    el.innerHTML = s.off_days.map(d =>
+        `<div class="off-day-chip">${esc(d.off_date)} ${d.reason ? '(' + esc(d.reason) + ')' : ''}
+        <button onclick="cancelOff('${esc(d.off_date)}')">&times;</button></div>`
+    ).join('');
+}
+
+async function requestTimeOff() {
+    const date = document.getElementById('offDate').value;
+    const reason = document.getElementById('offReason').value;
+    if (!date) { alert('Please select a date'); return; }
+    const r = await api('/api/doctor-portal/time-off', { method: 'POST', body: { date, reason } });
+    if (r.error) { alert(r.error); return; }
+    document.getElementById('offDate').value = '';
+    document.getElementById('offReason').value = '';
+    loadOffDays();
+}
+
+async function cancelOff(date) {
+    await api('/api/doctor-portal/time-off', { method: 'DELETE', body: { date } });
+    loadOffDays();
+}
+
+async function saveAvailability() {
+    const r = await api('/api/doctor-portal/availability', { method: 'POST', body: {
+        start_time: document.getElementById('settStartTime').value,
+        end_time: document.getElementById('settEndTime').value,
+        appointment_length: parseInt(document.getElementById('settApptLength').value) || 60,
+    }});
+    if (r.error) { alert(r.error); return; }
+    alert('Availability updated!');
+    loadSchedule();
+}
+
+async function toggleEmergency() {
+    const btn = document.getElementById('emergencyBtn');
+    const isActive = btn.classList.contains('active');
+    const r = await api('/api/doctor-portal/emergency', { method: 'POST', body: { available: !isActive } });
+    if (r.ok) {
+        btn.classList.toggle('active');
+        document.getElementById('emergencyIcon').innerHTML = !isActive ? '&#9745;' : '&#9723;';
+    }
+}
+
+async function saveStatusMsg() {
+    const msg = document.getElementById('statusMsg').value;
+    await api('/api/doctor-portal/status-message', { method: 'POST', body: { message: msg } });
+    alert('Status updated!');
+}
+
+// Auto-login if token exists
+if (TOKEN) { initPortal(); }
+</script>
+</body>
+</html>

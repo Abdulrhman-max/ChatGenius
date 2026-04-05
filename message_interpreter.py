@@ -100,7 +100,7 @@ def interpret(user_message, history=None):
 
 
 def think_and_respond(user_message, company_info=None, doctors=None,
-                      doctor_slots=None, history=None):
+                      doctor_slots=None, history=None, extra_context=None):
     """
     The AI brain. Given the user's message and full business context,
     understands what they're asking and responds intelligently.
@@ -195,7 +195,16 @@ RESPONSE FORMAT:
 - Be warm and professional
 - End with a relevant follow-up suggestion
 - NEVER make up doctors or data not in the context above
-- If company info is missing for a topic, say it hasn't been set up yet"""
+- If company info is missing for a topic, say it hasn't been set up yet
+
+CRITICAL RULES:
+- You are the AI assistant for **{biz_name}** — when asked "what is the dentist name" or "what is the company name", answer with: **{biz_name}**
+- NEVER say "I'm a large language model" or comment about improving your responses
+- NEVER break character — you ARE the dental office assistant, not a generic AI
+- Stay focused on the patient's question — answer it directly"""
+
+        if extra_context:
+            system_prompt += f"\n\nADDITIONAL CONTEXT:\n{extra_context}"
 
         messages = [{"role": "system", "content": system_prompt}]
         if history:

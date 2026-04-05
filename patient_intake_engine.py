@@ -83,14 +83,15 @@ def handle(message, company_info=None, history=None):
     lower_msg = message.lower()
     flags_found = [flag for flag in MEDICAL_FLAGS if flag.replace(" ", "") in lower_msg.replace(" ", "")]
 
-    enriched_prompt = f"[Patient intake inquiry] {message}"
+    extra_ctx = "This is a patient intake inquiry. Help with pre-visit forms, medical history, and first-visit preparation."
     if flags_found:
-        enriched_prompt += f" [FLAGGED CONDITIONS: {', '.join(flags_found)}]"
+        extra_ctx += f" FLAGGED CONDITIONS detected: {', '.join(flags_found)}. Alert the patient to inform the doctor about these."
 
     # Try Grok AI (message_interpreter) first
     if message_interpreter.is_configured():
         result = message_interpreter.think_and_respond(
-            enriched_prompt, company_info, history=history
+            message, company_info, history=history,
+            extra_context=extra_ctx
         )
         if result and result.get("reply"):
             return result["reply"] + CONTACT_FOOTER
@@ -98,7 +99,7 @@ def handle(message, company_info=None, history=None):
     # Fallback to OpenAI
     if dental_ai.is_configured():
         result = dental_ai.think_and_respond(
-            enriched_prompt, company_info, history=history
+            message, company_info, history=history
         )
         if result and result.get("reply"):
             return result["reply"] + CONTACT_FOOTER
