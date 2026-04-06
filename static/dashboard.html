@@ -4,56 +4,62 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ChatGenius Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        :root {
-            --navy: #0b1628; --navy-light: #111d33; --navy-card: #162040;
-            --cyan: #00d4ff; --white: #f0f4f8; --gray: #8892a4;
-            --green: #22c55e; --yellow: #f5a623; --red: #ef4444;
-        }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--navy); color: var(--white); }
+        body { font-family: 'Outfit','Inter',sans-serif; background: #06080d; color: #f1f5f9; }
+        body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.022;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 
         .header {
-            background: var(--navy-light); padding: 1.25rem 2rem;
-            border-bottom: 1px solid rgba(0,212,255,0.08);
+            background: rgba(255,255,255,0.035); backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+            padding: 1.25rem 2rem;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
             display: flex; align-items: center; justify-content: space-between;
+            position:relative;z-index:1;
         }
         .header h1 { font-size: 1.3rem; font-weight: 800; }
-        .header h1 span { color: var(--cyan); }
-        .header a { color: var(--cyan); text-decoration: none; font-size: 0.9rem; }
+        .header h1 span { background:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text; }
+        .header a { color: #8b5cf6; text-decoration: none; font-size: 0.9rem; }
 
-        .dashboard { max-width: 1100px; margin: 2rem auto; padding: 0 2rem; }
+        .dashboard { max-width: 1100px; margin: 2rem auto; padding: 0 2rem; position:relative;z-index:1; }
 
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
         .stat-card {
-            background: var(--navy-card); border-radius: 12px; padding: 1.5rem;
-            border: 1px solid rgba(255,255,255,0.04);
+            background: rgba(255,255,255,0.035); backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+            border-radius: 20px; padding: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.05);
         }
-        .stat-label { font-size: 0.82rem; color: var(--gray); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; }
-        .stat-value { font-size: 2rem; font-weight: 800; color: var(--cyan); }
+        .stat-label { font-size: 0.82rem; color: #8b95a8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; }
+        .stat-value { font-size: 2rem; font-weight: 800; background:linear-gradient(135deg,#8b5cf6,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text; }
 
-        .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background:rgba(255,255,255,0.035);border-radius:50px;padding:6px;border:1px solid rgba(255,255,255,0.05); }
         .tab {
-            padding: 0.6rem 1.5rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);
-            background: transparent; color: var(--gray); cursor: pointer; font-size: 0.9rem; font-weight: 600;
+            padding: 0.6rem 1.5rem; border-radius: 50px; border: none;
+            background: transparent; color: #8b95a8; cursor: pointer; font-family:'Outfit','Inter',sans-serif; font-size: 0.9rem; font-weight: 600;
+            transition:all 0.2s;
         }
-        .tab.active { background: var(--cyan); color: var(--navy); border-color: var(--cyan); }
+        .tab.active { background: linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6); color: #fff; box-shadow:0 4px 25px rgba(139,92,246,0.3); }
+        .tab:hover:not(.active){color:#f1f5f9;background:rgba(255,255,255,0.05);}
 
-        table { width: 100%; border-collapse: collapse; background: var(--navy-card); border-radius: 12px; overflow: hidden; }
-        th { background: rgba(0,212,255,0.08); padding: 0.8rem 1rem; text-align: left; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 1px; color: var(--gray); }
-        td { padding: 0.8rem 1rem; border-top: 1px solid rgba(255,255,255,0.04); font-size: 0.9rem; }
-        tr:hover td { background: rgba(0,212,255,0.03); }
+        table { width: 100%; border-collapse: collapse; background: rgba(255,255,255,0.02); border-radius: 16px; overflow: hidden; }
+        th { background: rgba(139,92,246,0.08); padding: 0.8rem 1rem; text-align: left; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 1px; color: #8b95a8; }
+        td { padding: 0.8rem 1rem; border-top: 1px solid rgba(255,255,255,0.04); font-size: 0.9rem; color:#f1f5f9; }
+        tr:hover td { background: rgba(139,92,246,0.04); }
         .badge {
             display: inline-block; padding: 0.2rem 0.7rem; border-radius: 20px;
             font-size: 0.75rem; font-weight: 700;
         }
-        .badge-green { background: rgba(34,197,94,0.15); color: var(--green); }
-        .badge-yellow { background: rgba(245,166,35,0.15); color: var(--yellow); }
-        .empty { text-align: center; padding: 3rem; color: var(--gray); }
+        .badge-green { background: rgba(52,211,153,0.15); color: #34d399; }
+        .badge-yellow { background: rgba(251,191,36,0.15); color: #fbbf24; }
+        .empty { text-align: center; padding: 3rem; color: #8b95a8; }
         .refresh-btn {
-            background: linear-gradient(135deg, #00d4ff, #0090ff); color: #fff; border: none;
-            padding: 0.5rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem;
+            background: linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6); color: #fff; border: none;
+            padding: 0.5rem 1.2rem; border-radius: 50px; cursor: pointer; font-family:'Outfit','Inter',sans-serif; font-weight: 600; font-size: 0.85rem;
+            box-shadow:0 4px 25px rgba(139,92,246,0.3);transition:all 0.2s;
         }
+        .refresh-btn:hover{transform:translateY(-1px);box-shadow:0 8px 35px rgba(139,92,246,0.4);}
     </style>
 </head>
 <body>

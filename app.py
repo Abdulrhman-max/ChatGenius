@@ -109,6 +109,52 @@ def get_effective_admin_id(user):
     return user.get("admin_id", 0) or user["id"]
 
 
+import requests as http_requests  # for external API calls
+
+# ── Cache for customer API lookups (keyed by admin_id + customer_id) ──
+_customer_cache = {}
+_CUSTOMER_CACHE_TTL = 300  # 5 minutes
+
+
+def fetch_customer_by_id(admin_id, customer_id, api_url_override=""):
+    """Fetch a single customer from the business's external API by ID.
+    Calls GET {base_url}/{customer_id} and returns customer dict or None.
+    api_url_override: if provided (from embed config), use this instead of dashboard setting.
+    Caches results for 5 minutes."""
+    if not customer_id:
+        return None
+
+    cache_key = f"{admin_id}_{customer_id}"
+    cache = _customer_cache.get(cache_key)
+    now = datetime.now()
+    if cache and (now - cache["fetched_at"]).total_seconds() < _CUSTOMER_CACHE_TTL:
+        return cache["customer"]
+
+    # Use URL from embed config first, fall back to dashboard setting
+    config = db.get_customers_api_config(admin_id)
+    base_url = (api_url_override or config.get("customers_api_url", "")).strip().rstrip("/")
+    key = config.get("customers_api_key", "").strip()
+    if not base_url:
+        return None
+
+    try:
+        headers = {}
+        if key:
+            headers["Authorization"] = f"Bearer {key}"
+            headers["X-API-Key"] = key
+        resp = http_requests.get(f"{base_url}/{customer_id}", headers=headers, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        # Support both direct object and wrapped {"customer": {...}} or {"data": {...}}
+        customer = data if "name" in data or "email" in data else data.get("customer", data.get("data", data))
+        _customer_cache[cache_key] = {"customer": customer, "fetched_at": now}
+        print(f"[customers_api] Fetched customer {customer_id} for admin {admin_id}: {customer.get('name', 'N/A')}", flush=True)
+        return customer
+    except Exception as e:
+        print(f"[customers_api] Error fetching customer {customer_id} from {base_url}: {e}", flush=True)
+        return None
+
+
 def load_model():
     global model, tokenizer, device
     from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -1118,6 +1164,12 @@ def _init_fast_booking(session, extracted, doctors, admin_id):
     Set up session with pre-filled data and determine the first step to ask.
     Returns (first_reply, ui_options_or_none).
     """
+    # Embedded widget: require login to book
+    if session.get("_is_embedded") and not session.get("_customer_logged_in"):
+        session["flow"] = None
+        session["step"] = None
+        return "You need to log in first before booking an appointment. Please log in to your account and try again.", None
+
     data = session["data"]
     data["_admin_id"] = admin_id
 
@@ -1373,12 +1425,19 @@ def _match_time_to_slot(time_raw, available_slots):
 
 
 def handle_booking(session, user_message, corrected_message=None):
+    # Embedded widget: require login to book
+    if session.get("_is_embedded") and not session.get("_customer_logged_in"):
+        session["flow"] = None
+        session["step"] = None
+        session["data"] = {}
+        return "You need to log in first before booking an appointment. Please log in to your account and try again."
+
     step = session["step"]
     data = session["data"]
     corrected = corrected_message or correct_spelling(user_message)
     lower = corrected.lower().strip()
 
-    # Auto-fill name/email/phone from patient record (real app mode — skip asking)
+    # Auto-fill name/email/phone from customer API (embedded widget — never ask)
     if session.get("_prefill_name") and "name" not in data:
         data["name"] = session["_prefill_name"]
     if session.get("_prefill_email") and "email" not in data:
@@ -1457,11 +1516,8 @@ def handle_booking(session, user_message, corrected_message=None):
         session["step"] = "get_name"
         return "I'd love to help you book an appointment! What's your full name?"
 
-    # Step 2: Got name, ask for doctor (if doctors exist) or email
     if step == "get_name":
-        # Accept anything as a name (people type naturally)
         name = user_message.strip()
-        # Clean up obvious non-name prefixes
         name = re.sub(r'^(my name is|i\'?m|it\'?s|name:?|hi,?\s*(i\'?m)?)\s*', '', name, flags=re.IGNORECASE).strip()
         if len(name) < 2:
             return "I didn't quite catch your name. Could you tell me your full name?"
@@ -2195,6 +2251,18 @@ def handle_cancel_appointment(session, user_message, admin_id):
         date_display = parsed_date.strftime("%A, %B %d, %Y")
         bookings = db.find_bookings_by_date(admin_id, date_iso)
 
+        # For embedded widget with logged-in customer: only show THEIR bookings
+        if session.get("_is_embedded") and session.get("_customer_logged_in"):
+            customer_name = session.get("_prefill_name", "").strip().lower()
+            customer_email = session.get("_prefill_email", "").strip().lower()
+            customer_phone = session.get("_prefill_phone", "").strip()
+            if customer_name or customer_email or customer_phone:
+                bookings = [b for b in bookings if
+                    (customer_name and b.get("customer_name", "").strip().lower() == customer_name) or
+                    (customer_email and b.get("customer_email", "").strip().lower() == customer_email) or
+                    (customer_phone and b.get("customer_phone", "").strip() == customer_phone)
+                ]
+
         if not bookings:
             session["flow"] = None
             session["step"] = None
@@ -2346,17 +2414,57 @@ def handle_cancel_appointment(session, user_message, admin_id):
 # ══════════════════════════════════════════════
 
 def handle_lead_capture(session, user_message):
+    # Embedded widget: require login
+    if session.get("_is_embedded") and not session.get("_customer_logged_in"):
+        session["flow"] = None
+        session["step"] = None
+        session["data"] = {}
+        return "You need to log in first. Please log in to your account and try again."
+
     step = session["step"]
     data = session["data"]
 
+    # Auto-fill from customer API prefill (embedded widget — skip asking)
+    if session.get("_prefill_name") and "name" not in data:
+        data["name"] = session["_prefill_name"]
+    if session.get("_prefill_phone") and "phone" not in data:
+        data["phone"] = session["_prefill_phone"]
+
+    # If both name and phone are already known, skip the whole lead flow
+    if data.get("name") and data.get("phone") and step in (None, "ask_name"):
+        db.save_lead(name=data["name"], phone=data["phone"])
+        session["flow"] = None
+        session["step"] = None
+        session["data"] = {}
+        return (
+            f"Thanks, {data['name']}! We already have your contact info on file. "
+            f"Someone from our team will reach out to you soon.\n\n"
+            f"In the meantime, feel free to ask me any questions about our services!"
+        )
+
     # Step 1: Ask for name
     if step is None or step == "ask_name":
+        if data.get("name"):
+            # Name already known, skip to phone
+            session["step"] = "get_phone"
+            return f"Hi {data['name']}! What's the best phone number to reach you at?"
         session["step"] = "get_name"
         return "No problem! I'd love to stay in touch. What's your name?"
 
     # Step 2: Got name, ask for phone
     if step == "get_name":
         data["name"] = user_message.strip().title()
+        if data.get("phone"):
+            # Phone already known from prefill — save and done
+            db.save_lead(name=data["name"], phone=data["phone"])
+            session["flow"] = None
+            session["step"] = None
+            session["data"] = {}
+            return (
+                f"Got it, {data['name']}! We've saved your info and someone from our team "
+                f"will reach out to you at **{data['phone']}** soon.\n\n"
+                f"In the meantime, feel free to ask me any questions about our services!"
+            )
         session["step"] = "get_phone"
         return f"Thanks, {data['name']}! What's the best phone number to reach you at?"
 
@@ -2433,10 +2541,33 @@ def _ask_ai_during_booking(user_message, session, admin_id=1):
 #  Main Chat Handler
 # ══════════════════════════════════════════════
 
-def process_message(session_id, user_message, admin_id=1, patient_id=None):
+def process_message(session_id, user_message, admin_id=1, patient_id=None,
+                    customer_id="", customer_api_url=""):
     session = get_session(session_id)
     session["admin_id"] = admin_id
     session["last_message_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # ── Pre-fill from external customers API (embedded widget only, NOT demo) ──
+    is_demo = session_id.startswith("demo_")
+    is_embedded = session_id.startswith("web_")
+    if is_embedded and not is_demo:
+        session["_is_embedded"] = True
+        # If customer_id is now provided (user just logged in), always process it
+        if customer_id and not session.get("_customer_logged_in"):
+            session["_customer_api_prefilled"] = True
+            session["_customer_logged_in"] = True
+            customer = fetch_customer_by_id(admin_id, customer_id, api_url_override=customer_api_url)
+            if customer:
+                cname = customer.get("name", "")
+                cemail = customer.get("email", "")
+                cphone = customer.get("phone", "")
+                session["_patient_prefilled"] = True
+                session["_patient_recognized"] = True
+                session["_greeting_name"] = cname
+                session["_prefill_name"] = cname
+                session["_prefill_email"] = cemail
+                session["_prefill_phone"] = cphone
+                session["_customer_api_matched"] = True
 
     # ── Pre-fill patient info when patient_id is provided (real app mode) ──
     if patient_id and not session.get("_patient_prefilled"):
@@ -2928,6 +3059,35 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None):
     if session["flow"] == "lead_capture":
         return _reply(handle_lead_capture(session, user_message))
 
+    # ── Appointment Lookup Flow (demo chatbot — identity not known) ──
+    if session["flow"] == "appointment_lookup" and session.get("step") == "get_identity":
+        identity = user_message.strip()
+        session["flow"] = None
+        session["step"] = None
+        session["data"] = {}
+        if not identity or len(identity) < 2:
+            return _reply("I couldn't understand that. Would you like to **book a new appointment** instead?")
+        # Try matching as name or email
+        is_email = "@" in identity
+        upcoming = db.find_upcoming_bookings_for_customer(
+            admin_id,
+            name="" if is_email else identity,
+            email=identity if is_email else "",
+            phone=""
+        )
+        if upcoming:
+            lines = ["Here are your upcoming appointments:\n"]
+            for i, bk in enumerate(upcoming, 1):
+                _d = bk.get("date", "")
+                _t = bk.get("time", "")
+                _doc = bk.get("doctor_name", "")
+                _svc = bk.get("service", "")
+                lines.append(f"**{i}.** {_d} at {_t}" + (f" — Dr. {_doc}" if _doc else "") + (f" ({_svc})" if _svc else ""))
+            lines.append("\nWould you like to **cancel** or **reschedule** any of these?")
+            return _reply("\n".join(lines))
+        else:
+            return _reply(f"I couldn't find any upcoming appointments for **{identity}**. Would you like to **book one**?")
+
     # Detect intent using the smart classifier (returns intent + confidence)
     classified_raw, classified_conf = intent_classifier.classify(corrected)
     intent = detect_intent(corrected)
@@ -3037,6 +3197,46 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None):
         session["step"] = None
         session["data"] = {}
         return _reply(handle_lead_capture(session, user_message))
+
+    # ── My Appointments Lookup ──
+    # If user asks about their upcoming appointments, look them up in the DB
+    # Match appointment words including typos and plurals
+    _appt_words = r'(appointments?|bookings?|appo\w+ments?|apo\w+ments?|appoitments?)'
+    _appt_triggers = r'(when\s+is|when\s+are|my\s+next|my\s+upcoming|check\s+my|view\s+my|show\s+my|do\s+i\s+have|my)'
+    _appt_check = (
+        re.search(_appt_triggers + r'\b.*?' + _appt_words, raw_lower) or
+        re.search(_appt_triggers + r'\b.*?' + _appt_words, lower) or
+        (sklearn_intent == "appointment_reminder" and sklearn_conf > 0.3)
+    )
+    if _appt_check:
+        _cust_name = session.get("_prefill_name", "").strip()
+        _cust_email = session.get("_prefill_email", "").strip()
+        _cust_phone = session.get("_prefill_phone", "").strip()
+        if _cust_name or _cust_email or _cust_phone:
+            upcoming = db.find_upcoming_bookings_for_customer(
+                admin_id, name=_cust_name, email=_cust_email, phone=_cust_phone
+            )
+            if upcoming:
+                lines = ["Here are your upcoming appointments:\n"]
+                for i, bk in enumerate(upcoming, 1):
+                    _d = bk.get("date", "")
+                    _t = bk.get("time", "")
+                    _doc = bk.get("doctor_name", "")
+                    _svc = bk.get("service", "")
+                    lines.append(f"**{i}.** {_d} at {_t}" + (f" — Dr. {_doc}" if _doc else "") + (f" ({_svc})" if _svc else ""))
+                lines.append("\nWould you like to **cancel** or **reschedule** any of these?")
+                return _reply("\n".join(lines))
+            else:
+                return _reply("You don't have any upcoming appointments. Would you like to **book one**?")
+        else:
+            # Not logged in / no identity — ask for info then look up
+            if session.get("_is_embedded") and not session.get("_customer_logged_in"):
+                return _reply("Please **log in** to your account first so I can look up your appointments.")
+            # Start appointment lookup flow
+            session["flow"] = "appointment_lookup"
+            session["step"] = "get_identity"
+            session["data"] = {"_admin_id": admin_id}
+            return _reply("Sure! Could you tell me your **name** or **email** so I can look up your appointments?")
 
     # ══════════════════════════════════════════════════════════════
     #  AI BRAIN — routes to the right AI for each type of question
@@ -3439,7 +3639,23 @@ def chat():
         return jsonify({"error": "Invalid or missing JSON body"}), 400
     user_message = data.get("message", "").strip()
     session_id = data.get("session_id", "default")
-    admin_id = data.get("admin_id")
+    admin_id_raw = data.get("admin_id")
+    admin_id = None
+
+    # Resolve admin_id: could be a public GUID or numeric ID
+    if admin_id_raw:
+        admin_id_str = str(admin_id_raw).strip()
+        # Check if it's a GUID (contains letters/dashes, not purely numeric)
+        if not admin_id_str.isdigit():
+            # It's a public_id (GUID) — resolve to numeric ID
+            resolved_user = db.get_user_by_public_id(admin_id_str)
+            if resolved_user:
+                admin_id = resolved_user["id"]
+            else:
+                admin_id = None
+        else:
+            admin_id = int(admin_id_str)
+
     if not admin_id:
         # Auto-detect: use the first head_admin's id so analytics data goes to the right place
         try:
@@ -3450,13 +3666,18 @@ def chat():
         except Exception:
             admin_id = 1
 
+    # Customer ID and optional API URL from embedded widget
+    customer_id = str(data.get("customer_id", "")).strip()
+    customer_api_url = data.get("customer_api_url", "").strip()
+
     if not user_message:
         return jsonify({"error": "Empty message"}), 400
     if len(user_message) > 2000:
         user_message = user_message[:2000]
 
     try:
-        reply = process_message(session_id, user_message, admin_id=admin_id)
+        reply = process_message(session_id, user_message, admin_id=admin_id,
+                                customer_id=customer_id, customer_api_url=customer_api_url)
         # Check if session has UI options to send to frontend
         session = get_session(session_id)
         response = {"reply": reply}
@@ -3603,6 +3824,21 @@ def api_get_company_info():
     return jsonify(info or {})
 
 
+@app.route("/api/embed-id", methods=["GET"])
+def api_embed_id():
+    """Return the public GUID for embed code — resolves to the effective company admin."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    effective_id = get_effective_admin_id(user)
+    if effective_id == user["id"]:
+        return jsonify({"public_id": user.get("public_id", "")})
+    # Linked admin/doctor — get head admin's public_id
+    head = db.get_user_by_id(effective_id)
+    return jsonify({"public_id": head.get("public_id", "") if head else ""})
+
+
 @app.route("/api/company-info", methods=["POST"])
 def api_save_company_info():
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
@@ -3615,6 +3851,70 @@ def api_save_company_info():
     admin_id = get_effective_admin_id(user)
     db.save_company_info(admin_id, data)
     return jsonify({"ok": True})
+
+
+@app.route("/api/customers-api-config", methods=["GET"])
+def api_get_customers_api_config():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    if not is_admin_role(user):
+        return jsonify({"error": "Admin only"}), 403
+    admin_id = get_effective_admin_id(user)
+    config = db.get_customers_api_config(admin_id)
+    return jsonify(config)
+
+
+@app.route("/api/customers-api-config", methods=["POST"])
+def api_save_customers_api_config():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    if not is_admin_role(user):
+        return jsonify({"error": "Admin only"}), 403
+    data = request.get_json()
+    admin_id = get_effective_admin_id(user)
+    db.save_customers_api_config(
+        admin_id,
+        data.get("customers_api_url", "").strip(),
+        data.get("customers_api_key", "").strip()
+    )
+    # Clear cache so next chat uses new config
+    keys_to_remove = [k for k in _customer_cache if k.startswith(f"{admin_id}_")]
+    for k in keys_to_remove:
+        _customer_cache.pop(k, None)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/customers-api-test", methods=["POST"])
+def api_test_customers_api():
+    """Test the external customers API endpoint by fetching a sample customer."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    if not is_admin_role(user):
+        return jsonify({"error": "Admin only"}), 403
+    data = request.get_json()
+    url = data.get("customers_api_url", "").strip().rstrip("/")
+    key = data.get("customers_api_key", "").strip()
+    test_id = data.get("test_customer_id", "1").strip()
+    if not url:
+        return jsonify({"error": "API URL is required"}), 400
+    try:
+        req_headers = {}
+        if key:
+            req_headers["Authorization"] = f"Bearer {key}"
+            req_headers["X-API-Key"] = key
+        resp = http_requests.get(f"{url}/{test_id}", headers=req_headers, timeout=10)
+        resp.raise_for_status()
+        result = resp.json()
+        customer = result if "name" in result or "email" in result else result.get("customer", result.get("data", result))
+        return jsonify({"ok": True, "customer": customer})
+    except Exception as e:
+        return jsonify({"error": f"Failed to connect: {str(e)}"}), 400
 
 
 @app.route("/api/doctors", methods=["GET"])
@@ -5530,7 +5830,7 @@ def api_add_patient_note(pid):
 
 @app.route("/api/customers/export")
 def api_customers_export():
-    """Export customer/patient data as CSV or Excel file."""
+    """Export customer/patient data as luxury-styled Excel or CSV file, including pre-visit form details."""
     token = request.args.get("token", "") or request.headers.get("Authorization", "").replace("Bearer ", "")
     user = db.get_user_by_token(token)
     if not user:
@@ -5541,18 +5841,63 @@ def api_customers_export():
 
     patients = db.get_patients(admin_id, search=search)
 
-    # Build rows
-    header = ["Name", "Email", "Phone", "Date of Birth", "Gender", "Language", "Loyalty Points", "Last Visit", "Joined"]
+    # Get company info for the report header
+    company = db.get_company_info(admin_id) or {}
+    company_name = company.get("business_name", "") or user.get("company", "") or "Customer Report"
+
+    # Build enriched rows with form data
+    header = [
+        "Name", "Email", "Phone", "Date of Birth", "Gender", "Language",
+        "Medical History", "Medications", "Allergies",
+        "Insurance Provider", "Insurance Policy",
+        "Loyalty Points", "Total Bookings", "Last Visit", "Joined"
+    ]
     rows = []
     for p in patients:
+        # Get latest submitted form for this patient
+        form_data = {}
+        try:
+            history = db.get_patient_history(p["id"])
+            submitted_forms = [f for f in history.get("forms", []) if f.get("submitted_at")]
+            if submitted_forms:
+                latest_form = submitted_forms[-1]
+                form_data = latest_form
+        except Exception:
+            pass
+
+        # Merge: form data takes priority, then patient record
+        medical = form_data.get("medical_history", "") or p.get("medical_history", "")
+        # Parse JSON medical history into readable text, or empty if no real data
+        if isinstance(medical, str) and medical.strip().startswith(("{", "[")):
+            try:
+                parsed = json.loads(medical)
+                if isinstance(parsed, list):
+                    parsed = [x for x in parsed if x]
+                    medical = ", ".join(parsed) if parsed else ""
+                elif isinstance(parsed, dict):
+                    conditions = parsed.get("conditions", [])
+                    other = parsed.get("other_text", "").strip()
+                    parts = [c for c in conditions if c] + ([other] if other else [])
+                    medical = ", ".join(parts) if parts else ""
+                else:
+                    medical = str(parsed) if parsed else ""
+            except Exception:
+                pass
+
         rows.append([
             p.get("name", ""),
             p.get("email", ""),
             p.get("phone", ""),
-            p.get("date_of_birth", ""),
-            p.get("gender", ""),
+            form_data.get("date_of_birth", "") or p.get("date_of_birth", ""),
+            form_data.get("gender", "") or p.get("gender", ""),
             p.get("language", "en"),
+            medical,
+            form_data.get("medications", "") or p.get("medications", ""),
+            form_data.get("allergies", "") or p.get("allergies", ""),
+            form_data.get("insurance_provider", "") or p.get("insurance_provider", ""),
+            form_data.get("insurance_policy", "") or p.get("insurance_policy", ""),
             str(p.get("loyalty_points", 0)),
+            str(p.get("total_bookings", 0)),
             p.get("last_visit_date", ""),
             str(p.get("created_at", "")).split(" ")[0] if p.get("created_at") else "",
         ])
@@ -5560,35 +5905,133 @@ def api_customers_export():
     if fmt == "excel":
         try:
             import openpyxl
+            from openpyxl.styles import Font, PatternFill, Alignment, Border, Side, numbers
+            from openpyxl.utils import get_column_letter
             from io import BytesIO
+
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = "Customers"
-            ws.append(header)
-            for row in rows:
-                ws.append(row)
-            # Style header
-            from openpyxl.styles import Font, PatternFill
-            for cell in ws[1]:
-                cell.font = Font(bold=True, color="FFFFFF")
-                cell.fill = PatternFill(start_color="0891B2", end_color="0891B2", fill_type="solid")
-            # Auto-width
-            for col in ws.columns:
-                max_len = max(len(str(c.value or "")) for c in col)
-                ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 40)
+
+            # ── Color palette ──
+            DARK_BG = "0A0A14"
+            HEADER_BG = "6C3FC5"
+            HEADER_BG_ALT = "8B5CF6"
+            ROW_EVEN = "12121E"
+            ROW_ODD = "16162A"
+            ACCENT = "A78BFA"
+            GOLD = "D4AF37"
+            WHITE = "F1F5F9"
+            GRAY = "94A3B8"
+            BORDER_COLOR = "2D2D4A"
+
+            thin_border = Border(
+                left=Side(style="thin", color=BORDER_COLOR),
+                right=Side(style="thin", color=BORDER_COLOR),
+                top=Side(style="thin", color=BORDER_COLOR),
+                bottom=Side(style="thin", color=BORDER_COLOR),
+            )
+            thick_bottom = Border(
+                bottom=Side(style="medium", color=ACCENT)
+            )
+
+            # ── Sheet background ──
+            ws.sheet_properties.tabColor = HEADER_BG
+
+            # ── Title row (merged) ──
+            ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(header))
+            title_cell = ws.cell(row=1, column=1, value=company_name.upper())
+            title_cell.font = Font(name="Calibri", bold=True, size=18, color=WHITE)
+            title_cell.fill = PatternFill(start_color=DARK_BG, end_color=DARK_BG, fill_type="solid")
+            title_cell.alignment = Alignment(horizontal="center", vertical="center")
+            title_cell.border = thick_bottom
+            ws.row_dimensions[1].height = 50
+            # Fill remaining merged cells
+            for c in range(2, len(header) + 1):
+                cell = ws.cell(row=1, column=c)
+                cell.fill = PatternFill(start_color=DARK_BG, end_color=DARK_BG, fill_type="solid")
+                cell.border = thick_bottom
+
+            # ── Subtitle row ──
+            ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=len(header))
+            now_str = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+            subtitle_cell = ws.cell(row=2, column=1, value=f"Customer Report  \u2022  Generated {now_str}  \u2022  {len(patients)} customers")
+            subtitle_cell.font = Font(name="Calibri", size=10, color=GRAY, italic=True)
+            subtitle_cell.fill = PatternFill(start_color=DARK_BG, end_color=DARK_BG, fill_type="solid")
+            subtitle_cell.alignment = Alignment(horizontal="center", vertical="center")
+            ws.row_dimensions[2].height = 28
+            for c in range(2, len(header) + 1):
+                ws.cell(row=2, column=c).fill = PatternFill(start_color=DARK_BG, end_color=DARK_BG, fill_type="solid")
+
+            # ── Spacer row ──
+            ws.row_dimensions[3].height = 6
+            for c in range(1, len(header) + 1):
+                ws.cell(row=3, column=c).fill = PatternFill(start_color=DARK_BG, end_color=DARK_BG, fill_type="solid")
+
+            # ── Header row ──
+            header_row = 4
+            for col_idx, col_name in enumerate(header, 1):
+                cell = ws.cell(row=header_row, column=col_idx, value=col_name)
+                bg = HEADER_BG if col_idx % 2 == 1 else HEADER_BG_ALT
+                cell.font = Font(name="Calibri", bold=True, size=11, color="FFFFFF")
+                cell.fill = PatternFill(start_color=bg, end_color=bg, fill_type="solid")
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                cell.border = thin_border
+            ws.row_dimensions[header_row].height = 36
+
+            # ── Data rows ──
+            for row_idx, row_data in enumerate(rows):
+                excel_row = header_row + 1 + row_idx
+                bg = ROW_EVEN if row_idx % 2 == 0 else ROW_ODD
+                for col_idx, value in enumerate(row_data, 1):
+                    cell = ws.cell(row=excel_row, column=col_idx, value=value)
+                    cell.font = Font(name="Calibri", size=10, color=WHITE)
+                    cell.fill = PatternFill(start_color=bg, end_color=bg, fill_type="solid")
+                    cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+                    cell.border = thin_border
+                # Highlight name column with accent
+                name_cell = ws.cell(row=excel_row, column=1)
+                name_cell.font = Font(name="Calibri", bold=True, size=10, color=ACCENT)
+                ws.row_dimensions[excel_row].height = 26
+
+            # ── Footer row ──
+            footer_row = header_row + len(rows) + 2
+            ws.merge_cells(start_row=footer_row, start_column=1, end_row=footer_row, end_column=len(header))
+            footer_cell = ws.cell(row=footer_row, column=1, value=f"\u2728 Powered by ChatGenius  \u2022  {company_name}")
+            footer_cell.font = Font(name="Calibri", size=9, color=GOLD, italic=True)
+            footer_cell.fill = PatternFill(start_color=DARK_BG, end_color=DARK_BG, fill_type="solid")
+            footer_cell.alignment = Alignment(horizontal="center", vertical="center")
+            for c in range(2, len(header) + 1):
+                ws.cell(row=footer_row, column=c).fill = PatternFill(start_color=DARK_BG, end_color=DARK_BG, fill_type="solid")
+
+            # ── Auto column widths ──
+            for col_idx in range(1, len(header) + 1):
+                max_len = len(str(header[col_idx - 1]))
+                for row_data in rows:
+                    if col_idx - 1 < len(row_data):
+                        max_len = max(max_len, len(str(row_data[col_idx - 1] or "")))
+                ws.column_dimensions[get_column_letter(col_idx)].width = min(max(max_len + 4, 14), 45)
+
+            # ── Freeze panes (header row) ──
+            ws.freeze_panes = f"A{header_row + 1}"
+
+            # ── Print settings ──
+            ws.sheet_properties.pageSetUpPr = openpyxl.worksheet.properties.PageSetupProperties(fitToPage=True)
+
             buf = BytesIO()
             wb.save(buf)
             buf.seek(0)
+
+            filename = f"{company_name.replace(' ', '_')}_Customers_{datetime.now().strftime('%Y%m%d')}.xlsx"
             return app.response_class(
                 buf.getvalue(),
                 mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                headers={"Content-Disposition": "attachment; filename=customers.xlsx"}
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
             )
         except ImportError:
-            # openpyxl not installed — fall back to CSV
             fmt = "csv"
 
-    # CSV export
+    # CSV fallback
     import csv
     from io import StringIO
     buf = StringIO()

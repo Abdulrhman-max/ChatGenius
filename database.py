@@ -853,6 +853,11 @@ def init_db():
         ("doctors", "status_message", "TEXT DEFAULT ''"),
         # Waitlist-to-booking linkage
         ("bookings", "waitlist_id", "INTEGER DEFAULT 0"),
+        # Customer API integration — fetch customers from external database
+        ("company_info", "customers_api_url", "TEXT DEFAULT ''"),
+        ("company_info", "customers_api_key", "TEXT DEFAULT ''"),
+        # Public GUID for embed code (never expose numeric IDs)
+        ("users", "public_id", "TEXT DEFAULT ''"),
     ]
     for table, col, col_type in migrations:
         try:
@@ -860,6 +865,14 @@ def init_db():
             conn.commit()
         except sqlite3.OperationalError:
             pass
+
+    # Backfill public_id for existing users that don't have one
+    import uuid as _uuid
+    users_without_pid = conn.execute("SELECT id FROM users WHERE public_id IS NULL OR public_id = ''").fetchall()
+    for u in users_without_pid:
+        conn.execute("UPDATE users SET public_id = ? WHERE id = ?", (str(_uuid.uuid4()), u["id"]))
+    if users_without_pid:
+        conn.commit()
 
     # Feature 17: A/B Testing — session assignment tracking
     conn.execute("""CREATE TABLE IF NOT EXISTS ab_assignments (
@@ -998,6 +1011,28 @@ def get_booking_by_id(booking_id):
     return dict(row) if row else None
 
 
+def find_upcoming_bookings_for_customer(admin_id, name="", email="", phone=""):
+    """Find upcoming (today or later) active bookings matching customer identity."""
+    from datetime import date as _date
+    today = _date.today().isoformat()
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM bookings WHERE admin_id = ? AND date >= ? AND status != 'cancelled' ORDER BY date, time",
+        (admin_id, today)).fetchall()
+    conn.close()
+    results = []
+    name_l = (name or "").strip().lower()
+    email_l = (email or "").strip().lower()
+    phone_s = (phone or "").strip()
+    for r in rows:
+        r = dict(r)
+        if ((name_l and r.get("customer_name", "").strip().lower() == name_l) or
+            (email_l and r.get("customer_email", "").strip().lower() == email_l) or
+            (phone_s and r.get("customer_phone", "").strip() == phone_s)):
+            results.append(r)
+    return results
+
+
 def get_all_bookings(admin_id=0, doctor_id=0):
     conn = get_db()
     if doctor_id:
@@ -1051,15 +1086,17 @@ def _token_expiry():
 
 
 def create_user(name, email, password="", company="", provider="email", provider_id="", role="admin", specialty=""):
+    import uuid as _uuid
     conn = get_db()
     token = _generate_token()
     expires = _token_expiry()
     password_hash = _hash_password(password) if password else ""
+    public_id = str(_uuid.uuid4())
     try:
         conn.execute(
-            """INSERT INTO users (name, email, password_hash, company, role, plan, provider, provider_id, token, token_expires_at, specialty)
-               VALUES (?, ?, ?, ?, ?, 'free_trial', ?, ?, ?, ?, ?)""",
-            (name, email, password_hash, company, role, provider, provider_id, token, expires, specialty),
+            """INSERT INTO users (name, email, password_hash, company, role, plan, provider, provider_id, token, token_expires_at, specialty, public_id)
+               VALUES (?, ?, ?, ?, ?, 'free_trial', ?, ?, ?, ?, ?, ?)""",
+            (name, email, password_hash, company, role, provider, provider_id, token, expires, specialty, public_id),
         )
         conn.commit()
         user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
@@ -1068,6 +1105,23 @@ def create_user(name, email, password="", company="", provider="email", provider
     except sqlite3.IntegrityError:
         conn.close()
         return None, "An account with this email already exists."
+
+
+def get_user_by_id(user_id):
+    conn = get_db()
+    user = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+    return dict(user) if user else None
+
+
+def get_user_by_public_id(public_id):
+    """Resolve a public GUID to the user record."""
+    if not public_id:
+        return None
+    conn = get_db()
+    user = conn.execute("SELECT * FROM users WHERE public_id = ?", (public_id,)).fetchone()
+    conn.close()
+    return dict(user) if user else None
 
 
 def login_user(email, password):
@@ -1109,10 +1163,12 @@ def login_or_create_social(name, email, provider, provider_id, avatar_url="", ro
         conn.close()
         return user_dict, None
     else:
+        import uuid as _uuid
+        public_id = str(_uuid.uuid4())
         conn.execute(
-            """INSERT INTO users (name, email, company, role, plan, provider, provider_id, avatar_url, token, token_expires_at, specialty)
-               VALUES (?, ?, '', ?, 'free_trial', ?, ?, ?, ?, ?, ?)""",
-            (name, email, role, provider, provider_id, avatar_url, token, expires, specialty),
+            """INSERT INTO users (name, email, company, role, plan, provider, provider_id, avatar_url, token, token_expires_at, specialty, public_id)
+               VALUES (?, ?, '', ?, 'free_trial', ?, ?, ?, ?, ?, ?, ?)""",
+            (name, email, role, provider, provider_id, avatar_url, token, expires, specialty, public_id),
         )
         conn.commit()
         user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
@@ -1206,6 +1262,7 @@ def user_to_public(user):
         "specialty": user.get("specialty", ""),
         "token_expires_at": user.get("token_expires_at", ""),
         "created_at": user["created_at"],
+        "public_id": user.get("public_id", ""),
     }
 
 
@@ -1238,6 +1295,30 @@ def save_company_info(user_id, data):
              data.get("emergency_info", ""), data.get("about", "")))
     conn.commit()
     conn.close()
+
+
+def save_customers_api_config(user_id, api_url, api_key):
+    """Save the external customers API endpoint and key for a given admin."""
+    conn = get_db()
+    existing = conn.execute("SELECT id FROM company_info WHERE user_id = ?", (user_id,)).fetchone()
+    if existing:
+        conn.execute("UPDATE company_info SET customers_api_url=?, customers_api_key=? WHERE user_id=?",
+                     (api_url, api_key, user_id))
+    else:
+        conn.execute("INSERT INTO company_info (user_id, customers_api_url, customers_api_key) VALUES (?,?,?)",
+                     (user_id, api_url, api_key))
+    conn.commit()
+    conn.close()
+
+
+def get_customers_api_config(user_id):
+    """Get the external customers API config for a given admin."""
+    conn = get_db()
+    row = conn.execute("SELECT customers_api_url, customers_api_key FROM company_info WHERE user_id = ?", (user_id,)).fetchone()
+    conn.close()
+    if row:
+        return {"customers_api_url": row["customers_api_url"] or "", "customers_api_key": row["customers_api_key"] or ""}
+    return {"customers_api_url": "", "customers_api_key": ""}
 
 
 # ══════════════════════════════════════════════

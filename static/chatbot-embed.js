@@ -5,10 +5,12 @@
     var cfg = window.ChatGeniusConfig || {};
     var ADMIN_ID = cfg.adminId || '';
     var SERVER = cfg.server || '';
-    var COLOR = cfg.color || '#0891b2';
+    var COLOR = cfg.color || '#8b5cf6';
     var TITLE = cfg.title || 'Chat with us';
     var WELCOME = cfg.welcome || 'Hello! How can I help you today?';
     var POSITION = cfg.position || 'right'; // 'right' or 'left'
+    var CUSTOMER_ID = cfg.customerId || '';
+    var CUSTOMER_API_URL = cfg.customerApiUrl || '';
 
     if (!ADMIN_ID || !SERVER) {
         console.warn('ChatGenius: adminId and server are required.');
@@ -26,79 +28,157 @@
     // ── Styles ──
     var css = document.createElement('style');
     css.textContent = [
-        '#cg-widget *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}',
-        '#cg-bubble{position:fixed;bottom:24px;' + POSITION + ':24px;width:60px;height:60px;border-radius:50%;background:' + COLOR + ';cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;z-index:999999;transition:transform .2s,box-shadow .2s}',
-        '#cg-bubble:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(0,0,0,0.35)}',
-        '#cg-bubble svg{width:28px;height:28px;fill:#fff}',
+        // Full reset inside Shadow DOM
+        '*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;border:none;outline:none;text-decoration:none;line-height:normal;letter-spacing:normal;font-style:normal;font-weight:400;text-transform:none;vertical-align:baseline;list-style:none;-webkit-font-smoothing:antialiased}',
+
+        // Bubble
+        '#cg-bubble{pointer-events:auto;position:fixed;bottom:24px;' + POSITION + ':24px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,' + COLOR + ',#6366f1);cursor:pointer;box-shadow:0 4px 24px rgba(139,92,246,0.4),0 0 0 0 rgba(139,92,246,0.3);display:flex;align-items:center;justify-content:center;z-index:999999;transition:all .3s cubic-bezier(.4,0,.2,1);animation:cgPulseRing 2.5s ease infinite}',
+        '#cg-bubble:hover{transform:scale(1.1);box-shadow:0 8px 32px rgba(139,92,246,0.5)}',
+        '#cg-bubble:active{transform:scale(0.95)}',
+        '#cg-bubble.open{animation:none;border-radius:16px;box-shadow:0 4px 24px rgba(139,92,246,0.3)}',
+        '#cg-bubble svg{width:24px;height:24px;fill:#fff;transition:transform .3s cubic-bezier(.4,0,.2,1)}',
         '#cg-bubble .cg-close{display:none}',
         '#cg-bubble.open .cg-chat-icon{display:none}',
-        '#cg-bubble.open .cg-close{display:block}',
-        '#cg-badge{position:absolute;top:-2px;right:-2px;background:#ef4444;color:#fff;font-size:11px;font-weight:700;width:20px;height:20px;border-radius:50%;display:none;align-items:center;justify-content:center}',
-        '#cg-window{position:fixed;bottom:100px;' + POSITION + ':24px;width:380px;max-width:calc(100vw - 32px);height:520px;max-height:calc(100vh - 140px);background:#0f1117;border:1px solid rgba(255,255,255,0.08);border-radius:16px;box-shadow:0 12px 48px rgba(0,0,0,0.5);z-index:999998;display:none;flex-direction:column;overflow:hidden}',
-        '#cg-window.open{display:flex}',
-        '#cg-header{background:' + COLOR + ';padding:16px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0}',
-        '#cg-header-avatar{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff}',
+        '#cg-bubble.open .cg-close{display:block;animation:cgSpin .3s ease}',
+        '@keyframes cgPulseRing{0%{box-shadow:0 4px 24px rgba(139,92,246,0.4),0 0 0 0 rgba(139,92,246,0.3)}70%{box-shadow:0 4px 24px rgba(139,92,246,0.4),0 0 0 12px rgba(139,92,246,0)}100%{box-shadow:0 4px 24px rgba(139,92,246,0.4),0 0 0 0 rgba(139,92,246,0)}}',
+        '@keyframes cgSpin{from{transform:rotate(-90deg) scale(0.5);opacity:0}to{transform:rotate(0) scale(1);opacity:1}}',
+
+        // Badge
+        '#cg-badge{position:absolute;top:-4px;right:-4px;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;font-size:10px;font-weight:700;width:20px;height:20px;border-radius:50%;display:none;align-items:center;justify-content:center;border:2px solid #fff;animation:cgBounceIn .4s cubic-bezier(.4,0,.2,1)}',
+        '@keyframes cgBounceIn{0%{transform:scale(0)}60%{transform:scale(1.2)}100%{transform:scale(1)}}',
+
+        // Window
+        '#cg-window{pointer-events:auto;position:fixed;bottom:92px;' + POSITION + ':24px;width:360px;max-width:calc(100vw - 32px);height:480px;max-height:calc(100vh - 120px);background:#0c0c18;border:1px solid rgba(139,92,246,0.15);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.5),0 0 40px rgba(139,92,246,0.08);z-index:999998;display:none;flex-direction:column;overflow:hidden;transform:translateY(16px) scale(0.96);opacity:0;transition:all .35s cubic-bezier(.4,0,.2,1)}',
+        '#cg-window.open{display:flex;transform:translateY(0) scale(1);opacity:1}',
+        '#cg-window.closing{transform:translateY(16px) scale(0.96);opacity:0}',
+
+        // Header
+        '#cg-header{background:linear-gradient(135deg,rgba(139,92,246,0.12),rgba(99,102,241,0.08));padding:16px 18px;display:flex;align-items:center;gap:12px;flex-shrink:0;border-bottom:1px solid rgba(139,92,246,0.1);backdrop-filter:blur(20px)}',
+        '#cg-header-avatar{width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,' + COLOR + ',#6366f1);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(139,92,246,0.3)}',
+        '#cg-header-avatar svg{width:18px;height:18px;fill:#fff}',
         '#cg-header-info{flex:1}',
-        '#cg-header-title{color:#fff;font-size:15px;font-weight:600}',
-        '#cg-header-sub{color:rgba(255,255,255,0.75);font-size:12px}',
-        '#cg-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.1) transparent}',
-        '#cg-messages::-webkit-scrollbar{width:4px}',
-        '#cg-messages::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:4px}',
-        '.cg-msg{max-width:82%;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.5;word-wrap:break-word;animation:cgFadeIn .25s ease}',
-        '.cg-msg a{color:' + COLOR + '}',
-        '.cg-msg-bot{align-self:flex-start;background:#1a1d27;color:#e2e8f0;border-bottom-left-radius:4px}',
-        '.cg-msg-user{align-self:flex-end;background:' + COLOR + ';color:#fff;border-bottom-right-radius:4px}',
-        '.cg-typing{align-self:flex-start;background:#1a1d27;color:#94a3b8;padding:10px 14px;border-radius:14px;font-size:13px;border-bottom-left-radius:4px}',
-        '.cg-typing span{display:inline-block;animation:cgDot 1.4s infinite both}',
-        '.cg-typing span:nth-child(2){animation-delay:.2s}',
-        '.cg-typing span:nth-child(3){animation-delay:.4s}',
-        '@keyframes cgDot{0%,80%,100%{opacity:.3}40%{opacity:1}}',
-        '@keyframes cgFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}',
-        '#cg-input-area{padding:12px 16px;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:8px;background:#0f1117;flex-shrink:0}',
-        '#cg-input{flex:1;background:#1a1d27;border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;color:#e2e8f0;font-size:13.5px;outline:none;resize:none;min-height:20px;max-height:80px}',
-        '#cg-input::placeholder{color:#64748b}',
-        '#cg-input:focus{border-color:' + COLOR + '}',
-        '#cg-send{background:' + COLOR + ';border:none;border-radius:10px;width:40px;height:40px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity .15s;flex-shrink:0}',
-        '#cg-send:hover{opacity:.85}',
-        '#cg-send:disabled{opacity:.4;cursor:default}',
-        '#cg-send svg{width:18px;height:18px;fill:#fff}',
-        '#cg-powered{text-align:center;padding:6px;font-size:10px;color:#475569;background:#0f1117}',
-        '#cg-powered a{color:#64748b;text-decoration:none}',
+        '#cg-header-title{color:#f1f5f9;font-size:14px;font-weight:600;letter-spacing:-0.01em}',
+        '#cg-header-sub{color:rgba(148,163,184,0.8);font-size:11px;display:flex;align-items:center;gap:5px;margin-top:2px}',
+        '#cg-reset{background:none;border:none;cursor:pointer;padding:4px;border-radius:6px;transition:background .2s;margin-left:auto}',
+        '#cg-reset:hover{background:rgba(255,255,255,0.1)}',
+        '#cg-reset svg{width:16px;height:16px;fill:rgba(148,163,184,0.7);transition:fill .2s}',
+        '#cg-reset:hover svg{fill:#f1f5f9}',
+        '#cg-header-dot{width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,0.5);animation:cgGlow 2s ease infinite}',
+        '@keyframes cgGlow{0%,100%{opacity:1}50%{opacity:0.5}}',
+
+        // Messages
+        '#cg-messages{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px;scrollbar-width:thin;scrollbar-color:rgba(139,92,246,0.15) transparent;scroll-behavior:smooth}',
+        '#cg-messages::-webkit-scrollbar{width:3px}',
+        '#cg-messages::-webkit-scrollbar-thumb{background:rgba(139,92,246,0.2);border-radius:3px}',
+        '#cg-messages::-webkit-scrollbar-track{background:transparent}',
+
+        // Messages
+        '.cg-msg{max-width:84%;padding:10px 14px;font-size:13px;line-height:1.55;word-wrap:break-word;animation:cgSlideUp .35s cubic-bezier(.4,0,.2,1) both}',
+        '.cg-msg a{color:' + COLOR + ';text-decoration:none;border-bottom:1px solid rgba(139,92,246,0.3);transition:border-color .2s}',
+        '.cg-msg a:hover{border-color:' + COLOR + '}',
+        '.cg-msg strong{color:#e2e8f0;font-weight:600}',
+        '.cg-msg-bot{align-self:flex-start;background:rgba(255,255,255,0.04);color:#cbd5e1;border-radius:2px 14px 14px 14px;border:1px solid rgba(255,255,255,0.04)}',
+        '.cg-msg-user{align-self:flex-end;background:linear-gradient(135deg,' + COLOR + ',#6366f1);color:#fff;border-radius:14px 14px 2px 14px;box-shadow:0 2px 12px rgba(139,92,246,0.25)}',
+        '@keyframes cgSlideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}',
+
+        // Typing indicator
+        '.cg-typing{align-self:flex-start;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.04);padding:12px 18px;border-radius:2px 14px 14px 14px;display:flex;gap:4px;align-items:center;animation:cgSlideUp .3s cubic-bezier(.4,0,.2,1) both}',
+        '.cg-typing span{width:6px;height:6px;border-radius:50%;background:' + COLOR + ';animation:cgTypingDot 1.4s ease infinite both}',
+        '.cg-typing span:nth-child(2){animation-delay:.15s}',
+        '.cg-typing span:nth-child(3){animation-delay:.3s}',
+        '@keyframes cgTypingDot{0%,60%,100%{transform:translateY(0);opacity:.3}30%{transform:translateY(-6px);opacity:1}}',
+
+        // Input area
+        '#cg-input-area{padding:12px 14px;border-top:1px solid rgba(139,92,246,0.08);display:flex;gap:8px;background:rgba(12,12,24,0.95);flex-shrink:0;backdrop-filter:blur(20px)}',
+        '#cg-input{flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(139,92,246,0.12);border-radius:12px;padding:10px 14px;color:#e2e8f0;font-size:13px;outline:none;resize:none;min-height:20px;max-height:80px;transition:all .2s ease}',
+        '#cg-input::placeholder{color:#475569}',
+        '#cg-input:focus{border-color:rgba(139,92,246,0.4);background:rgba(255,255,255,0.06);box-shadow:0 0 0 3px rgba(139,92,246,0.08)}',
+        '#cg-send{background:linear-gradient(135deg,' + COLOR + ',#6366f1);border:none;border-radius:12px;width:38px;height:38px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s cubic-bezier(.4,0,.2,1);flex-shrink:0;box-shadow:0 2px 8px rgba(139,92,246,0.25)}',
+        '#cg-send:hover{transform:scale(1.06);box-shadow:0 4px 16px rgba(139,92,246,0.35)}',
+        '#cg-send:active{transform:scale(0.95)}',
+        '#cg-send:disabled{opacity:.35;cursor:default;transform:none;box-shadow:none}',
+        '#cg-send svg{width:16px;height:16px;fill:#fff;transition:transform .15s}',
+
+        // Powered by
+        '#cg-powered{text-align:center;padding:6px;font-size:9px;color:#334155;background:#0c0c18;letter-spacing:0.02em}',
+        '#cg-powered a{color:#475569;text-decoration:none;transition:color .2s}',
         '#cg-powered a:hover{color:' + COLOR + '}',
-        /* Dropdown styles */
-        '.cg-dropdown-wrap{margin:4px 0;max-width:90%;align-self:flex-start}',
-        '.cg-dropdown-btn{background:#1a1d27;border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:8px 14px;color:#e2e8f0;font-size:13px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;width:100%;gap:8px}',
-        '.cg-dropdown-btn:hover{border-color:' + COLOR + '}',
-        '.cg-dropdown-list{display:none;margin-top:4px;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;background:#1a1d27}',
-        '.cg-dropdown-list.open{display:block}',
-        '.cg-dd-item{padding:10px 14px;cursor:pointer;font-size:13px;color:#e2e8f0;border-bottom:1px solid rgba(255,255,255,0.04);transition:background .15s}',
-        '.cg-dd-item:hover{background:rgba(255,255,255,0.05)}',
-        '.cg-dd-item:last-child{border-bottom:none}',
-        '.cg-dd-item.selected{background:' + COLOR + '22}',
-        /* Calendar styles */
-        '.cg-calendar{background:#1a1d27;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px;max-width:280px;align-self:flex-start;margin:4px 0}',
-        '.cg-cal-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}',
-        '.cg-cal-nav button{background:none;border:none;color:#e2e8f0;cursor:pointer;font-size:14px;padding:4px 8px;border-radius:6px}',
-        '.cg-cal-nav button:hover{background:rgba(255,255,255,0.05)}',
-        '.cg-cal-nav button:disabled{opacity:.3;cursor:default}',
-        '.cg-cal-nav span{font-size:13px;font-weight:600;color:#e2e8f0}',
-        '.cg-cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:11px;color:#64748b;margin-bottom:4px}',
+
+        // Option cards
+        '.cg-options-wrap{margin:4px 0;max-width:92%;align-self:flex-start;display:flex;flex-direction:column;gap:5px;animation:cgSlideUp .35s cubic-bezier(.4,0,.2,1) both}',
+        '.cg-options-label{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;padding:0 2px;margin-bottom:2px}',
+        '.cg-opt-card{position:relative;background:rgba(255,255,255,0.03);border:1px solid rgba(139,92,246,0.1);border-radius:10px;padding:8px 10px;color:#cbd5e1;font-size:11.5px;cursor:pointer;transition:all .2s cubic-bezier(.4,0,.2,1);display:flex;align-items:center;gap:8px;overflow:hidden}',
+        '.cg-opt-card::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(139,92,246,0.06),transparent);opacity:0;transition:opacity .2s}',
+        '.cg-opt-card:hover{border-color:rgba(139,92,246,0.35);transform:translateX(3px);background:rgba(139,92,246,0.05)}',
+        '.cg-opt-card:hover::before{opacity:1}',
+        '.cg-opt-card:active{transform:scale(0.98)}',
+        '.cg-opt-card.selected{border-color:' + COLOR + ';background:rgba(139,92,246,0.1);color:#e2e8f0}',
+        '.cg-opt-card.selected .cg-opt-check{opacity:1;transform:scale(1)}',
+        '.cg-opt-icon{width:28px;height:28px;min-width:28px;min-height:28px;border-radius:8px;background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(99,102,241,0.1));display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;line-height:1;color:' + COLOR + ';overflow:hidden}',
+        '.cg-opt-text{flex:1;position:relative;z-index:1}',
+        '.cg-opt-title{font-weight:500;color:#e2e8f0;font-size:11.5px;line-height:1.3}',
+        '.cg-opt-sub{font-size:9.5px;color:#64748b;margin-top:1px}',
+        '.cg-opt-check{position:absolute;right:8px;top:50%;transform:translateY(-50%) scale(0.5);width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,' + COLOR + ',#6366f1);display:flex;align-items:center;justify-content:center;opacity:0;transition:all .25s cubic-bezier(.4,0,.2,1)}',
+        '.cg-opt-check svg{width:9px;height:9px;fill:#fff}',
+        '.cg-opt-booked{opacity:0.45;cursor:default}',
+        '.cg-opt-booked:hover{transform:none;border-color:rgba(239,68,68,0.2);background:rgba(239,68,68,0.04)}',
+        '.cg-opt-booked .cg-opt-icon{background:rgba(239,68,68,0.1);color:#f87171}',
+
+        // Confirm buttons
+        '.cg-confirm-wrap{display:flex;gap:6px;margin:4px 0;align-self:flex-start;animation:cgSlideUp .35s cubic-bezier(.4,0,.2,1) both}',
+        '.cg-confirm-btn{padding:7px 16px;border-radius:10px;border:1px solid rgba(139,92,246,0.15);font-size:11.5px;font-weight:500;cursor:pointer;transition:all .2s cubic-bezier(.4,0,.2,1)}',
+        '.cg-confirm-yes{background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(34,197,94,0.06));color:#4ade80;border-color:rgba(34,197,94,0.2)}',
+        '.cg-confirm-yes:hover{background:rgba(34,197,94,0.18);border-color:rgba(34,197,94,0.4);transform:translateY(-1px)}',
+        '.cg-confirm-no{background:rgba(255,255,255,0.03);color:#94a3b8;border-color:rgba(255,255,255,0.06)}',
+        '.cg-confirm-no:hover{background:rgba(239,68,68,0.08);color:#f87171;border-color:rgba(239,68,68,0.2);transform:translateY(-1px)}',
+
+        // Calendar
+        '.cg-calendar{background:rgba(255,255,255,0.03);border:1px solid rgba(139,92,246,0.1);border-radius:14px;padding:10px;max-width:260px;align-self:flex-start;margin:4px 0;animation:cgSlideUp .3s cubic-bezier(.4,0,.2,1) both;box-shadow:0 4px 16px rgba(0,0,0,0.2)}',
+        '.cg-cal-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding:0 2px}',
+        '.cg-cal-nav button{background:none;border:1px solid rgba(139,92,246,0.12);color:#cbd5e1;cursor:pointer;font-size:12px;padding:4px 8px;border-radius:8px;transition:all .2s}',
+        '.cg-cal-nav button:hover{background:rgba(139,92,246,0.1);border-color:rgba(139,92,246,0.3)}',
+        '.cg-cal-nav button:disabled{opacity:.2;cursor:default}',
+        '.cg-cal-nav span{font-size:12px;font-weight:600;color:#e2e8f0}',
+        '.cg-cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:10px;color:#475569;margin-bottom:4px;font-weight:500}',
         '.cg-cal-days{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}',
-        '.cg-cal-day{background:none;border:none;color:#e2e8f0;font-size:12px;padding:6px;border-radius:8px;cursor:pointer;text-align:center}',
-        '.cg-cal-day:hover{background:' + COLOR + '33}',
-        '.cg-cal-day.today{border:1px solid ' + COLOR + '}',
-        '.cg-cal-day.disabled{color:#334155;cursor:default}',
-        '.cg-cal-day.disabled:hover{background:none}',
-        '.cg-cal-day.selected{background:' + COLOR + ';color:#fff}',
-        '.cg-cal-day.booked{background:#ef4444;color:#fff;font-weight:700}',
+        '.cg-cal-day{background:none;border:none;color:#cbd5e1;font-size:11px;padding:5px;border-radius:8px;cursor:pointer;text-align:center;transition:all .15s ease}',
+        '.cg-cal-day:hover:not(.disabled):not(.empty){background:rgba(139,92,246,0.15);color:#f1f5f9;transform:scale(1.1)}',
+        '.cg-cal-day.today{border:1px solid rgba(139,92,246,0.4);color:' + COLOR + ';font-weight:600}',
+        '.cg-cal-day.disabled{color:#1e293b;cursor:default}',
+        '.cg-cal-day.disabled:hover{background:none;transform:none}',
+        '.cg-cal-day.selected{background:linear-gradient(135deg,' + COLOR + ',#6366f1);color:#fff;font-weight:600;box-shadow:0 2px 8px rgba(139,92,246,0.3)}',
+        '.cg-cal-day.booked{background:rgba(239,68,68,0.15);color:#f87171;font-weight:600}',
         '.cg-cal-day.empty{cursor:default}',
-        '@media(max-width:480px){#cg-window{bottom:0;' + POSITION + ':0;width:100%;max-width:100%;height:100%;max-height:100%;border-radius:0}#cg-bubble{bottom:16px;' + POSITION + ':16px}}'
+
+        // Mobile responsive
+        '@media(max-width:480px){#cg-window{bottom:0;' + POSITION + ':0;width:100%;max-width:100%;height:100%;max-height:100%;border-radius:0;border:none}#cg-bubble{bottom:16px;' + POSITION + ':16px;width:52px;height:52px}}'
     ].join('\n');
-    document.head.appendChild(css);
+    // ── Load Inter font (must be on main document for Shadow DOM to inherit) ──
+    if (!document.querySelector('link[href*="fonts.googleapis.com/css2?family=Inter"]')) {
+        var font = document.createElement('link');
+        font.rel = 'stylesheet';
+        font.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
+        document.head.appendChild(font);
+    }
+
+    // ── Shadow DOM host ──
+    var shadowHost = document.createElement('div');
+    shadowHost.id = 'cg-shadow-host';
+    shadowHost.style.cssText = 'all:initial !important;position:fixed !important;z-index:999999 !important;bottom:0 !important;' + POSITION + ':0 !important;width:0 !important;height:0 !important;overflow:visible !important;pointer-events:none !important;';
+    document.body.appendChild(shadowHost);
+    var shadow = shadowHost.attachShadow({ mode: 'open' });
+
+    // Inject font into shadow DOM
+    var shadowFont = document.createElement('link');
+    shadowFont.rel = 'stylesheet';
+    shadowFont.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
+    shadow.appendChild(shadowFont);
+    shadow.appendChild(css);
 
     // ── Build widget HTML ──
     var widget = document.createElement('div');
     widget.id = 'cg-widget';
+    widget.style.cssText = 'all:initial !important;font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif !important;';
     widget.innerHTML = [
         '<div id="cg-bubble">',
         '  <svg class="cg-chat-icon" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>',
@@ -107,11 +187,12 @@
         '</div>',
         '<div id="cg-window">',
         '  <div id="cg-header">',
-        '    <div id="cg-header-avatar"><svg viewBox="0 0 24 24" width="22" height="22" fill="#fff"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg></div>',
+        '    <div id="cg-header-avatar"><svg viewBox="0 0 24 24" fill="#fff"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg></div>',
         '    <div id="cg-header-info">',
         '      <div id="cg-header-title">' + escapeHtml(TITLE) + '</div>',
-        '      <div id="cg-header-sub">Online — Typically replies instantly</div>',
+        '      <div id="cg-header-sub"><span id="cg-header-dot"></span>Online now</div>',
         '    </div>',
+        '    <button id="cg-reset" title="New Chat"><svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></button>',
         '  </div>',
         '  <div id="cg-messages"></div>',
         '  <div id="cg-input-area">',
@@ -121,28 +202,53 @@
         '  <div id="cg-powered">Powered by <a href="https://chatgenius.ai" target="_blank">ChatGenius</a></div>',
         '</div>'
     ].join('');
-    document.body.appendChild(widget);
+    shadow.appendChild(widget);
 
-    // ── Elements ──
-    var bubble = document.getElementById('cg-bubble');
-    var win = document.getElementById('cg-window');
-    var messages = document.getElementById('cg-messages');
-    var input = document.getElementById('cg-input');
-    var sendBtn = document.getElementById('cg-send');
-    var badge = document.getElementById('cg-badge');
+    // ── Elements (query inside shadow root) ──
+    var bubble = shadow.getElementById('cg-bubble');
+    var win = shadow.getElementById('cg-window');
+    var messages = shadow.getElementById('cg-messages');
+    var input = shadow.getElementById('cg-input');
+    var sendBtn = shadow.getElementById('cg-send');
+    var badge = shadow.getElementById('cg-badge');
+    var resetBtn = shadow.getElementById('cg-reset');
     var isOpen = false;
     var sending = false;
 
-    // ── Show welcome message ──
-    addMessage(WELCOME, false);
+    // ── Reset chat (new session) ──
+    resetBtn.addEventListener('click', function() {
+        sessionId = 'web_' + ADMIN_ID + '_' + Math.random().toString(36).substr(2, 12);
+        localStorage.setItem(SESSION_KEY, sessionId);
+        messages.innerHTML = '';
+        addMessage(WELCOME, false);
+    });
 
-    // ── Toggle ──
+    // ── Show welcome message with delay for natural feel ──
+    setTimeout(function() {
+        addMessage(WELCOME, false);
+    }, 400);
+
+    // ── Toggle with animation ──
     bubble.addEventListener('click', function() {
-        isOpen = !isOpen;
-        bubble.classList.toggle('open', isOpen);
-        win.classList.toggle('open', isOpen);
-        badge.style.display = 'none';
-        if (isOpen) input.focus();
+        if (!isOpen) {
+            isOpen = true;
+            bubble.classList.add('open');
+            win.style.display = 'flex';
+            // Trigger reflow then animate
+            void win.offsetWidth;
+            win.classList.add('open');
+            win.classList.remove('closing');
+            badge.style.display = 'none';
+            setTimeout(function() { input.focus(); }, 350);
+        } else {
+            isOpen = false;
+            bubble.classList.remove('open');
+            win.classList.add('closing');
+            win.classList.remove('open');
+            setTimeout(function() {
+                if (!isOpen) win.style.display = 'none';
+            }, 350);
+        }
     });
 
     // ── Send ──
@@ -162,14 +268,14 @@
         // Typing indicator
         var typing = document.createElement('div');
         typing.className = 'cg-typing';
-        typing.innerHTML = '<span>.</span><span>.</span><span>.</span>';
+        typing.innerHTML = '<span></span><span></span><span></span>';
         messages.appendChild(typing);
         messages.scrollTop = messages.scrollHeight;
 
         fetch(SERVER + '/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: text, session_id: sessionId, admin_id: parseInt(ADMIN_ID) })
+            body: JSON.stringify({ message: text, session_id: sessionId, admin_id: ADMIN_ID, customer_id: (window.ChatGeniusConfig || {}).customerId || CUSTOMER_ID, customer_api_url: (window.ChatGeniusConfig || {}).customerApiUrl || CUSTOMER_API_URL })
         })
         .then(function(r) { return r.json(); })
         .then(function(data) {
@@ -213,56 +319,91 @@
         var isCancel = type === 'cancel_bookings';
         var isDoctor = type === 'doctors';
         var isTime = type === 'timeslots';
+        var isCat = type === 'categories';
 
-        var label = isDoctor ? 'Select Doctor' : isTime ? 'Select Time' : isCancel ? 'Select Appointment' : isConfirm ? 'Confirm' : 'Select';
-
-        var wrap = document.createElement('div');
-        wrap.className = 'cg-dropdown-wrap';
-
-        var btn = document.createElement('button');
-        btn.className = 'cg-dropdown-btn';
-        btn.innerHTML = '<span>' + label + '</span><span style="font-size:10px">&#9660;</span>';
-        wrap.appendChild(btn);
-
-        var list = document.createElement('div');
-        list.className = 'cg-dropdown-list';
-
-        items.forEach(function(item) {
-            var row = document.createElement('div');
-            row.className = 'cg-dd-item';
-            var display = item.name;
-            if (isDoctor) display = 'Dr. ' + item.name + (item.specialty ? ' — ' + item.specialty : '');
-            if (isTime && item.booked) display = item.name + ' (Booked — Tap to join waitlist)';
-            row.textContent = display;
-
-            row.addEventListener('click', function() {
-                list.querySelectorAll('.cg-dd-item').forEach(function(r) { r.classList.remove('selected'); });
-                row.classList.add('selected');
-                btn.querySelector('span').textContent = item.name;
-                list.classList.remove('open');
-                btn.classList.remove('open');
-                setTimeout(function() {
-                    input.value = isConfirm ? item.value : (isCancel ? String(item.index) : item.name);
-                    send();
-                }, 200);
+        // Confirm: render as two side-by-side buttons
+        if (isConfirm) {
+            var confirmWrap = document.createElement('div');
+            confirmWrap.className = 'cg-confirm-wrap';
+            items.forEach(function(item) {
+                var btn = document.createElement('button');
+                btn.className = 'cg-confirm-btn ' + (item.value === 'yes' ? 'cg-confirm-yes' : 'cg-confirm-no');
+                btn.textContent = item.name;
+                btn.addEventListener('click', function() {
+                    confirmWrap.querySelectorAll('.cg-confirm-btn').forEach(function(b) { b.style.opacity = '0.4'; b.style.pointerEvents = 'none'; });
+                    btn.style.opacity = '1';
+                    setTimeout(function() { input.value = item.value; send(); }, 150);
+                });
+                confirmWrap.appendChild(btn);
             });
-            list.appendChild(row);
-        });
+            messages.appendChild(confirmWrap);
+            messages.scrollTop = messages.scrollHeight;
+            return;
+        }
 
-        wrap.appendChild(list);
-        btn.addEventListener('click', function() {
-            list.classList.toggle('open');
-            btn.classList.toggle('open');
+        // Cards for doctors, timeslots, categories, cancel bookings
+        var wrap = document.createElement('div');
+        wrap.className = 'cg-options-wrap';
+
+        items.forEach(function(item, idx) {
+            var card = document.createElement('div');
+            card.className = 'cg-opt-card';
+            var isBooked = isTime && item.booked;
+            if (isBooked) card.classList.add('cg-opt-booked');
+
+            // Staggered animation
+            card.style.animationDelay = (idx * 0.05) + 's';
+
+            // Icon (SVG)
+            var icon = document.createElement('div');
+            icon.className = 'cg-opt-icon';
+            if (isDoctor) icon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 11c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>';
+            else if (isTime) icon.innerHTML = isBooked ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+            else if (isCat) icon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>';
+            else if (isCancel) icon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+            else icon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>';
+            card.appendChild(icon);
+
+            // Text
+            var textWrap = document.createElement('div');
+            textWrap.className = 'cg-opt-text';
+
+            var title = document.createElement('div');
+            title.className = 'cg-opt-title';
+            if (isDoctor) title.textContent = 'Dr. ' + item.name;
+            else title.textContent = item.name;
+            textWrap.appendChild(title);
+
+            var sub = document.createElement('div');
+            sub.className = 'cg-opt-sub';
+            if (isDoctor && item.specialty) sub.textContent = item.specialty + (item.availability ? ' \u2022 ' + item.availability : '');
+            else if (isBooked) sub.textContent = 'Fully booked \u2014 tap to join waitlist';
+            else if (isTime) sub.textContent = 'Available';
+            else if (isCancel) sub.textContent = 'Tap to select';
+            if (sub.textContent) textWrap.appendChild(sub);
+
+            card.appendChild(textWrap);
+
+            // Checkmark
+            var check = document.createElement('div');
+            check.className = 'cg-opt-check';
+            check.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+            card.appendChild(check);
+
+            card.addEventListener('click', function() {
+                wrap.querySelectorAll('.cg-opt-card').forEach(function(c) { c.classList.remove('selected'); });
+                card.classList.add('selected');
+                setTimeout(function() {
+                    input.value = isCancel ? String(item.index) : item.name;
+                    send();
+                }, 250);
+            });
+
+            wrap.appendChild(card);
         });
 
         messages.appendChild(wrap);
         messages.scrollTop = messages.scrollHeight;
-
-        // Auto-open for small lists
-        if (items.length <= 8) {
-            list.classList.add('open');
-            btn.classList.add('open');
-        }
     }
 
     function renderCalendar(options) {

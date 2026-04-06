@@ -4,11 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Form Already Submitted</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f5f7fa; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-        .msg { text-align: center; padding: 2rem; }
-        .msg h2 { color: #059669; font-size: 1.3rem; }
-        .msg p { color: #666; margin-top: 0.5rem; }
+        body { font-family: 'Outfit','Inter',sans-serif; background: #06080d; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; color: #f1f5f9; }
+        body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.022;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+        .msg { text-align: center; padding: 3rem; background: rgba(255,255,255,0.035); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); box-shadow: 0 20px 60px rgba(0,0,0,0.4); max-width: 440px; width: 90%; position: relative; z-index: 1; }
+        .msg h2 { color: #8b5cf6; font-size: 1.3rem; }
+        .msg p { color: #8b95a8; margin-top: 0.5rem; }
     </style>
 </head>
 <body>
