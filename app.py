@@ -1778,15 +1778,8 @@ def handle_booking(session, user_message, corrected_message=None):
             if time_str_all in avail_names:
                 data["chosen_time"] = time_str_all
                 if "email" in data and "phone" in data:
-                    # Patient prefilled — skip to discount/finalize
-                    try:
-                        if promo.has_active_promotions(data.get("_admin_id", 1)):
-                            session["step"] = "ask_discount"
-                            return f"**{time_str_all}** on **{data['date_display']}** — great choice!\n\nDo you have a discount or promo code? (or say **skip**)"
-                    except Exception:
-                        pass
-                    session["step"] = "finalize_booking"
-                    return handle_booking(session, user_message, corrected)
+                    session["step"] = "ask_discount"
+                    return f"**{time_str_all}** on **{data['date_display']}** — great choice!\n\nDo you have a **promotion code** for a discount? If yes, type it now, or say **no** to continue."
                 session["step"] = "get_email"
                 return f"**{time_str_all}** on **{data['date_display']}** — great choice!\n\nWhat's your email address? (We'll send you a confirmation)"
 
@@ -1804,14 +1797,8 @@ def handle_booking(session, user_message, corrected_message=None):
                             f"**Yes** — add me to the waitlist\n**No** — show me other times")
             data["chosen_time"] = time_str
             if "email" in data and "phone" in data:
-                try:
-                    if promo.has_active_promotions(data.get("_admin_id", 1)):
-                        session["step"] = "ask_discount"
-                        return f"**{time_str}** on **{data['date_display']}** — great choice!\n\nDo you have a discount or promo code? (or say **skip**)"
-                except Exception:
-                    pass
-                session["step"] = "finalize_booking"
-                return handle_booking(session, user_message, corrected)
+                session["step"] = "ask_discount"
+                return f"**{time_str}** on **{data['date_display']}** — great choice!\n\nDo you have a **promotion code** for a discount? If yes, type it now, or say **no** to continue."
             session["step"] = "get_email"
             return f"**{time_str}** on **{data['date_display']}** — great choice!\n\nWhat's your email address? (We'll send you a confirmation)"
 
@@ -1944,37 +1931,55 @@ def handle_booking(session, user_message, corrected_message=None):
             return "No worries! What's your phone number instead?"
         return "I couldn't find a valid email in that. Could you type it out? Example: john@example.com\n\nOr say **skip** if you'd rather not provide one."
 
-    # Step 6a: Discount code step (Feature 12)
+    # Step 6a: Promotion code step
     if step == "ask_discount":
-        code = user_message.strip()
-        if _is_negative(code) or code.lower() in ('skip', 'none', 'لا', 'n/a', 'na'):
-            # Check if loyalty should be offered
-            patient_id = data.get("_patient_id") or session.get("patient_id")
-            if patient_id:
-                try:
-                    balance = loyalty.get_balance_value(patient_id, data.get("_admin_id", 1))
-                    if balance and balance.get("points", 0) > 0:
-                        data["_loyalty_balance"] = balance
-                        session["step"] = "ask_loyalty"
-                        lang = session.get("language", "en")
-                        return f"You have **{balance['points']}** loyalty points (worth **${balance.get('sar_value', 0):.2f}**). Would you like to use them for a discount? (yes/no)"
-                except Exception:
-                    pass
+        raw = user_message.strip()
+        lower_raw = raw.lower()
+        # Explicit "no" / skip → no code applied
+        if _is_negative(raw) or lower_raw in ('skip', 'none', 'لا', 'n/a', 'na'):
+            data["promotion_code"] = ""
             session["step"] = "finalize_booking"
             return handle_booking(session, user_message, corrected_message)
-        else:
-            try:
-                result = promo.validate_discount_code(data.get("_admin_id", 1), code)
-                if result.get("valid"):
-                    data["discount_code_id"] = result.get("code_id")
-                    data["discount_info"] = result
-                    session["step"] = "finalize_booking"
-                    return handle_booking(session, user_message, corrected_message)
-                else:
-                    return result.get("error", "Invalid discount code. Please try again or say **skip**.")
-            except Exception:
-                session["step"] = "finalize_booking"
-                return handle_booking(session, user_message, corrected_message)
+        # "yes" alone → ask for the code
+        if lower_raw in ('yes', 'y', 'yeah', 'yep', 'sure', 'نعم', 'اي'):
+            session["step"] = "ask_discount_code"
+            return "Great — please type your **promotion code**."
+        # "yes CODE" → strip leading yes
+        m = re.match(r'^(?:yes|yeah|yep|sure)[,\s]+(.+)$', raw, re.IGNORECASE)
+        code = m.group(1).strip() if m else raw
+        try:
+            result = promo.validate_discount_code(data.get("_admin_id", 1), code)
+        except Exception:
+            result = {"valid": False}
+        if result.get("valid"):
+            data["promotion_code"] = code
+            data["discount_code_id"] = result.get("code_id")
+            data["discount_info"] = result
+            session["step"] = "finalize_booking"
+            return handle_booking(session, user_message, corrected_message)
+        data["_invalid_code"] = code
+        session["step"] = "ask_discount_invalid"
+        return (f"The code **{code}** isn't valid. Would you like to **try another code**, or **continue** without a promotion code?\n\n"
+                f"Reply **retry** to enter a new code, or **continue** to book without one.")
+
+    # Step 6a-i: After invalid promo code
+    if step == "ask_discount_invalid":
+        lower_raw = user_message.strip().lower()
+        if lower_raw in ('continue', 'confirm', 'no', 'skip', 'book', 'proceed') or _is_negative(lower_raw):
+            data["promotion_code"] = ""
+            session["step"] = "finalize_booking"
+            return handle_booking(session, user_message, corrected_message)
+        if lower_raw in ('retry', 'try', 'again', 'yes') or _is_affirmative(lower_raw):
+            session["step"] = "ask_discount_code"
+            return "Please type your **promotion code**."
+        # Treat as a new code attempt
+        session["step"] = "ask_discount"
+        return handle_booking(session, user_message, corrected_message)
+
+    # Step 6a-ii: Waiting for the user to type the code after saying "yes"
+    if step == "ask_discount_code":
+        session["step"] = "ask_discount"
+        return handle_booking(session, user_message, corrected_message)
 
     # Step 6b: Loyalty redemption step (Feature 18)
     if step == "ask_loyalty":
@@ -2012,7 +2017,17 @@ def handle_booking(session, user_message, corrected_message=None):
             doctor_id=data.get("doctor_id", 0),
             doctor_name=data.get("doctor_name", ""),
             admin_id=data.get("_admin_id", 0),
+            promotion_code=data.get("promotion_code", ""),
         )
+        # Increment promotion usage counter
+        if data.get("promotion_code"):
+            try:
+                conn = db.get_db()
+                conn.execute("UPDATE promotions SET current_uses = current_uses + 1 WHERE code=? AND admin_id=?",
+                             (data["promotion_code"], data.get("_admin_id", 0)))
+                conn.commit(); conn.close()
+            except Exception:
+                pass
 
         # Mark chat session as booked for analytics
         if data.get("_session_id"):
@@ -2107,14 +2122,9 @@ def handle_booking(session, user_message, corrected_message=None):
 
         data["phone"] = extracted_phone
 
-        # Offer discount code before finalizing (Feature 12)
-        try:
-            promos_available = promo.has_active_promotions(data.get("_admin_id", 1))
-            if promos_available or data.get("_has_promo_code"):
-                session["step"] = "ask_discount"
-                return "Do you have a **discount code**? Enter it now, or say **skip** if you don't have one."
-        except Exception:
-            pass
+        # Always offer promotion code before finalizing
+        session["step"] = "ask_discount"
+        return "Do you have a **promotion code** for a discount? If yes, type it now, or say **no** to continue."
 
         time_str = data.get("chosen_time", "")
 
@@ -2136,7 +2146,17 @@ def handle_booking(session, user_message, corrected_message=None):
             doctor_id=data.get("doctor_id", 0),
             doctor_name=data.get("doctor_name", ""),
             admin_id=data.get("_admin_id", 0),
+            promotion_code=data.get("promotion_code", ""),
         )
+        # Increment promotion usage counter
+        if data.get("promotion_code"):
+            try:
+                conn = db.get_db()
+                conn.execute("UPDATE promotions SET current_uses = current_uses + 1 WHERE code=? AND admin_id=?",
+                             (data["promotion_code"], data.get("_admin_id", 0)))
+                conn.commit(); conn.close()
+            except Exception:
+                pass
 
         # Mark chat session as booked for analytics
         if data.get("_session_id"):

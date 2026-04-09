@@ -26,7 +26,7 @@ def validate_discount_code(admin_id, code, treatment=None, booking_value=None):
     conn = db.get_db()
 
     promo = conn.execute(
-        "SELECT * FROM promotions WHERE admin_id=? AND UPPER(code)=UPPER(?) LIMIT 1",
+        "SELECT * FROM promotions WHERE admin_id=? AND code=? LIMIT 1",
         (admin_id, code.strip())
     ).fetchone()
 
@@ -54,7 +54,7 @@ def validate_discount_code(admin_id, code, treatment=None, booking_value=None):
     if promo.get("max_uses") and promo.get("max_uses") > 0:
         if promo.get("current_uses", 0) >= promo["max_uses"]:
             conn.close()
-            return {"valid": False, "error": "This code has been fully redeemed and is no longer available."}
+            return {"valid": False, "error": "This promotion code has already been used the maximum number of times and is no longer available."}
 
     # Check applicable treatments
     if promo.get("applicable_treatments") and treatment:
@@ -198,7 +198,7 @@ def create_promotion(admin_id, code, discount_type, discount_value,
 
     # Check if code already exists for this admin
     existing = conn.execute(
-        "SELECT id FROM promotions WHERE admin_id=? AND UPPER(code)=UPPER(?)",
+        "SELECT id FROM promotions WHERE admin_id=? AND code=?",
         (admin_id, code.strip())
     ).fetchone()
     if existing:
@@ -211,13 +211,13 @@ def create_promotion(admin_id, code, discount_type, discount_value,
            (admin_id, code, discount_type, discount_value, applicable_treatments,
             expiry_date, max_uses, current_uses, min_booking_value, is_active, created_at)
            VALUES (?,?,?,?,?,?,?,0,?,1,?)""",
-        (admin_id, code.strip().upper(), discount_type, discount_value,
+        (admin_id, code.strip(), discount_type, discount_value,
          applicable_treatments, expiry_date, max_uses, min_booking_value, now)
     )
     conn.commit()
     new_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     conn.close()
-    return {"id": new_id, "code": code.strip().upper()}
+    return {"id": new_id, "code": code.strip()}
 
 
 def deactivate_promotion(promotion_id):

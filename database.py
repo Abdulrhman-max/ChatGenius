@@ -814,6 +814,8 @@ def init_db():
         # Feature 16: Real-time dashboard
         ("bookings", "checked_in", "INTEGER DEFAULT 0"),
         ("bookings", "checked_in_at", "TIMESTAMP DEFAULT ''"),
+        # Promotion code applied to booking (empty string = none)
+        ("bookings", "promotion_code", "TEXT DEFAULT ''"),
         # Feature 4: Missed calls
         ("company_info", "missed_call_enabled", "INTEGER DEFAULT 0"),
         ("company_info", "clinic_phone", "TEXT DEFAULT ''"),
@@ -924,13 +926,15 @@ def get_all_leads(admin_id=0):
 
 
 def save_booking(customer_name, customer_email, date, time, service="General Consultation",
-                 calendar_event_id="", customer_phone="", doctor_id=0, doctor_name="", admin_id=0, status="pending"):
+                 calendar_event_id="", customer_phone="", doctor_id=0, doctor_name="", admin_id=0,
+                 status="pending", promotion_code=""):
     conn = get_db()
     conn.execute(
         """INSERT INTO bookings (customer_name, customer_email, customer_phone, date, time,
-           service, calendar_event_id, doctor_id, doctor_name, admin_id, status) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+           service, calendar_event_id, doctor_id, doctor_name, admin_id, status, promotion_code)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
         (customer_name, customer_email, customer_phone, date, time, service,
-         calendar_event_id, doctor_id, doctor_name, admin_id, status),
+         calendar_event_id, doctor_id, doctor_name, admin_id, status, promotion_code),
     )
     conn.commit()
     conn.close()
@@ -2754,7 +2758,7 @@ def get_bookings_on_date(admin_id, date_str, doctor_id=None):
 def create_promotion(admin_id, code, discount_type, discount_value, applicable_treatments="all", expiry_date="", max_uses=0, min_booking_value=0):
     conn = get_db()
     conn.execute("INSERT INTO promotions (admin_id,code,discount_type,discount_value,applicable_treatments,expiry_date,max_uses,min_booking_value) VALUES (?,?,?,?,?,?,?,?)",
-                 (admin_id, code.upper(), discount_type, discount_value, applicable_treatments, expiry_date, max_uses, min_booking_value))
+                 (admin_id, code, discount_type, discount_value, applicable_treatments, expiry_date, max_uses, min_booking_value))
     conn.commit()
     pid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     conn.close()
@@ -2762,7 +2766,7 @@ def create_promotion(admin_id, code, discount_type, discount_value, applicable_t
 
 def validate_promotion(code, admin_id, treatment="", booking_value=0):
     conn = get_db()
-    row = conn.execute("SELECT * FROM promotions WHERE code=? AND admin_id=? AND is_active=1", (code.upper(), admin_id)).fetchone()
+    row = conn.execute("SELECT * FROM promotions WHERE code=? AND admin_id=? AND is_active=1", (code, admin_id)).fetchone()
     if not row:
         conn.close()
         return None, "Invalid discount code."

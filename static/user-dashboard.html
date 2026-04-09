@@ -436,22 +436,11 @@
             <li class="invited-admin-only" style="display:none"><a href="#" onclick="showPage('admin-requests')"><i data-lucide="mail" style="width:18px;height:18px"></i><span class="icon">&#128233;</span> Invitations <span class="notif-badge" id="adminRequestBadge" style="display:none">0</span></a></li>
             <li><a href="#" onclick="showPage('demo')"><i data-lucide="message-circle" style="width:18px;height:18px"></i><span class="icon">&#128172;</span> Try Demo</a></li>
             <li class="admin-doctor-only"><a href="#" onclick="showPage('waitlist')"><i data-lucide="clock" style="width:18px;height:18px"></i><span class="icon">&#128203;</span> Waitlist</a></li>
-            <li class="admin-only"><a href="#" onclick="showPage('patients')"><i data-lucide="file-text" style="width:18px;height:18px"></i><span class="icon">&#128100;</span> Patients</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('customers')"><i data-lucide="users" style="width:18px;height:18px"></i><span class="icon">&#128101;</span> Customers</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('schedule-blocks')"><i data-lucide="calendar-days" style="width:18px;height:18px"></i><span class="icon">&#128197;</span> Schedule & Holidays</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('promotions')"><i data-lucide="gift" style="width:18px;height:18px"></i><span class="icon">&#127873;</span> Promotions</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('recall')"><i data-lucide="rotate-ccw" style="width:18px;height:18px"></i><span class="icon">&#128276;</span> Recall & Retention</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('followups')"><i data-lucide="bell" style="width:18px;height:18px"></i><span class="icon">&#128221;</span> Follow-Ups</a></li>
-            <li class="admin-only"><a href="#" onclick="showPage('missed-calls')"><i data-lucide="phone-missed" style="width:18px;height:18px"></i><span class="icon">&#128222;</span> Missed Calls</a></li>
-            <li class="admin-only"><a href="#" onclick="showPage('gallery')"><i data-lucide="image" style="width:18px;height:18px"></i><span class="icon">&#128247;</span> Gallery</a></li>
-            <li class="admin-only"><a href="#" onclick="showPage('handoffs')"><i data-lucide="headphones" style="width:18px;height:18px"></i><span class="icon">&#128172;</span> Live Chat</a></li>
-            <li class="admin-only"><a href="#" onclick="showPage('ab-tests')"><i data-lucide="flask-conical" style="width:18px;height:18px"></i><span class="icon">&#128300;</span> A/B Tests</a></li>
-            <li class="admin-only"><a href="#" onclick="showPage('loyalty')"><i data-lucide="award" style="width:18px;height:18px"></i><span class="icon">&#11088;</span> Loyalty Program</a></li>
-            <li class="admin-only"><a href="#" onclick="showPage('referrals')"><i data-lucide="link" style="width:18px;height:18px"></i><span class="icon">&#128279;</span> Referrals</a></li>
-            <li class="admin-only"><a href="#" onclick="showPage('realtime')"><i data-lucide="activity" style="width:18px;height:18px"></i><span class="icon">&#128226;</span> Live Dashboard</a></li>
-            <li class="admin-only"><a href="#" onclick="showPage('benchmarks')"><i data-lucide="target" style="width:18px;height:18px"></i><span class="icon">&#128200;</span> Benchmarking</a></li>
-            <li class="admin-only"><a href="#" onclick="showPage('gmb')"><i data-lucide="trending-up" style="width:18px;height:18px"></i><span class="icon">&#127759;</span> Google Business</a></li>
-            <li class="admin-only"><a href="#" onclick="showPage('security')"><i data-lucide="shield" style="width:18px;height:18px"></i><span class="icon">&#128274;</span> Security (2FA)</a></li>
         </ul>
         <div class="sidebar-user">
             <div class="sidebar-user-info" onclick="toggleProfile()" style="cursor:pointer;border-radius:10px;padding:0.4rem;margin:-0.4rem;transition:background .2s" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
@@ -527,8 +516,8 @@
             <div class="main-header"><h1 id="bookingsTitle">Bookings</h1></div>
             <div class="section">
                 <table>
-                    <thead><tr><th>Customer</th><th>Doctor</th><th>Date</th><th>Time</th><th>Status</th></tr></thead>
-                    <tbody id="bookingsBody"><tr><td colspan="5" class="empty-msg">No bookings yet</td></tr></tbody>
+                    <thead><tr><th>Customer</th><th>Doctor</th><th>Date</th><th>Time</th><th>Promo</th><th>Status</th></tr></thead>
+                    <tbody id="bookingsBody"><tr><td colspan="6" class="empty-msg">No bookings yet</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -1459,12 +1448,13 @@
             // Bookings table
             const bBody = document.getElementById('bookingsBody');
             bBody.innerHTML = bookings.length === 0
-                ? '<tr><td colspan="5" class="empty-msg">No bookings yet</td></tr>'
+                ? '<tr><td colspan="6" class="empty-msg">No bookings yet</td></tr>'
                 : bookings.map(b => {
                     const isCancelled = b.status === 'cancelled';
                     const rowStyle = isCancelled ? 'style="text-decoration:line-through;opacity:0.5"' : '';
                     const badgeClass = b.status === 'cancelled' ? 'badge-red' : (b.status === 'confirmed' ? 'badge-green' : 'badge-yellow');
-                    return `<tr ${rowStyle}><td>${escapeHtml(b.customer_name)}</td><td>${b.doctor_name ? 'Dr. ' + escapeHtml(b.doctor_name) : '—'}</td><td>${escapeHtml(b.date)}</td><td>${escapeHtml(b.time)}</td><td><span class="badge ${badgeClass}">${escapeHtml(b.status)}</span></td></tr>`;
+                    const promo = b.promotion_code ? `<span class="badge badge-cyan">${escapeHtml(b.promotion_code)}</span>` : '<span style="color:var(--gray)">—</span>';
+                    return `<tr ${rowStyle}><td>${escapeHtml(b.customer_name)}</td><td>${b.doctor_name ? 'Dr. ' + escapeHtml(b.doctor_name) : '—'}</td><td>${escapeHtml(b.date)}</td><td>${escapeHtml(b.time)}</td><td>${promo}</td><td><span class="badge ${badgeClass}">${escapeHtml(b.status)}</span></td></tr>`;
                 }).join('');
 
             // Leads table
