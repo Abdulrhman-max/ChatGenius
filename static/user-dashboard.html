@@ -98,6 +98,32 @@
         .usage-bar-bg{height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;margin-top:0.5rem}
         .usage-bar{height:100%;border-radius:4px;background:var(--gradient);transition:width .5s var(--ease)}
 
+        /* Soft confirm modal */
+        .soft-confirm-backdrop{position:fixed;inset:0;background:rgba(10,10,20,0.55);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:9999;opacity:0;pointer-events:none;transition:opacity .25s ease}
+        .soft-confirm-backdrop.show{opacity:1;pointer-events:auto}
+        .soft-confirm{background:linear-gradient(180deg,rgba(30,30,46,0.95),rgba(20,20,32,0.95));border:1px solid rgba(139,92,246,0.25);border-radius:20px;padding:1.75rem 2rem;max-width:420px;width:90%;box-shadow:0 30px 80px -20px rgba(0,0,0,0.7),0 0 0 1px rgba(139,92,246,0.08);transform:translateY(12px) scale(.96);opacity:0;transition:transform .3s cubic-bezier(.2,.9,.2,1),opacity .25s ease;text-align:center}
+        .soft-confirm-backdrop.show .soft-confirm{transform:translateY(0) scale(1);opacity:1}
+        .soft-confirm-icon{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,rgba(248,113,113,0.2),rgba(248,113,113,0.08));display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;color:#fca5a5;font-size:1.6rem;border:1px solid rgba(248,113,113,0.3)}
+        .soft-confirm h3{margin:0 0 0.5rem;font-size:1.15rem;font-weight:700;color:#f5f5ff;letter-spacing:-0.01em}
+        .soft-confirm p{margin:0 0 1.5rem;color:rgba(220,220,235,0.7);font-size:0.9rem;line-height:1.5}
+        .soft-confirm-actions{display:flex;gap:0.6rem;justify-content:center}
+        .soft-confirm button{padding:0.65rem 1.4rem;border-radius:999px;border:none;cursor:pointer;font-weight:600;font-size:0.88rem;transition:transform .18s cubic-bezier(.2,.8,.2,1),box-shadow .25s,background .25s}
+        .soft-confirm button:hover{transform:translateY(-2px)}
+        .soft-confirm-cancel{background:rgba(255,255,255,0.06);color:#e5e5f0;border:1px solid rgba(255,255,255,0.1)!important}
+        .soft-confirm-cancel:hover{background:rgba(255,255,255,0.1);box-shadow:0 6px 18px rgba(0,0,0,0.3)}
+        .soft-confirm-ok{background:linear-gradient(135deg,#f87171,#ef4444);color:#fff;box-shadow:0 6px 18px rgba(239,68,68,0.35)}
+        .soft-confirm-ok:hover{box-shadow:0 12px 28px rgba(239,68,68,0.5)}
+
+        /* Company Info — button polish (colors + smooth hover animation) */
+        #page-company .btn,#page-company .btn-primary,#page-company .btn-danger{transition:transform .18s cubic-bezier(.2,.8,.2,1),box-shadow .25s ease,background .25s ease,border-color .25s ease}
+        #page-company .btn:hover,#page-company .btn-primary:hover,#page-company .btn-danger:hover{transform:translateY(-2px)}
+        #page-company .btn:active,#page-company .btn-primary:active,#page-company .btn-danger:active{transform:translateY(0) scale(.98)}
+        #page-company .btn-primary{background:linear-gradient(135deg,#8b5cf6,#6366f1);box-shadow:0 4px 16px rgba(99,102,241,0.3)}
+        #page-company .btn-primary:hover{box-shadow:0 10px 28px rgba(99,102,241,0.45)}
+        #page-company .btn{background:linear-gradient(135deg,rgba(139,92,246,0.18),rgba(99,102,241,0.18));color:#c4b5fd;border:1px solid rgba(139,92,246,0.35)}
+        #page-company .btn:hover{background:linear-gradient(135deg,rgba(139,92,246,0.28),rgba(99,102,241,0.28));border-color:rgba(139,92,246,0.6);box-shadow:0 8px 22px rgba(139,92,246,0.25)}
+        #page-company .btn-danger:hover{background:rgba(248,113,113,0.16);box-shadow:0 6px 18px rgba(248,113,113,0.25);border-color:rgba(248,113,113,0.55)}
+
         .form-group{margin-bottom:1.25rem}
         .form-label{display:block;font-size:0.82rem;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.4rem}
         .form-hint{font-size:0.78rem;color:var(--gray);margin-bottom:0.4rem}
@@ -549,7 +575,37 @@
                     <div class="form-group"><label class="form-label">Phone</label><input type="text" class="form-input" id="ci_phone" placeholder="(512) 555-0100"></div>
                 </div>
                 <div class="form-group"><label class="form-label">Business Hours</label><textarea class="form-textarea" id="ci_business_hours" placeholder="Mon-Fri: 9AM-5PM&#10;Sat: 10AM-2PM&#10;Sun: Closed"></textarea></div>
-                <div class="form-group"><label class="form-label">Services Offered</label><textarea class="form-textarea" id="ci_services" placeholder="Cleanings, Fillings, Whitening, Implants, Braces..."></textarea></div>
+                <div class="form-group">
+                    <label class="form-label">Services Offered</label>
+                    <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap">
+                        <input type="text" id="svc_new_name" class="form-input" placeholder="Service name" style="flex:1;min-width:160px">
+                        <input type="number" step="0.01" id="svc_new_price" class="form-input" placeholder="Price" style="width:120px">
+                        <span id="svc_currency_label" style="color:var(--gray);font-size:0.85rem">USD</span>
+                        <button type="button" class="btn" onclick="addService()">+ Add</button>
+                        <button type="button" class="btn btn-danger" onclick="clearAllServices()">Clear All</button>
+                    </div>
+                    <p style="color:var(--gray);font-size:0.78rem;margin:0 0 0.4rem">Tip: services with prices are auto-extracted from the main company info PDF upload above. Currency is auto-detected.</p>
+                    <div id="svc_list" style="display:flex;flex-direction:column;gap:0.35rem"></div>
+                    <p id="svc_status" style="color:var(--gray);font-size:0.8rem;margin-top:0.4rem"></p>
+                </div>
+                <div class="form-group"><label class="form-label">Currency</label>
+                    <select class="form-input" id="ci_currency" onchange="onCurrencyChange()">
+                        <option value="USD">USD — US Dollar</option>
+                        <option value="EUR">EUR — Euro</option>
+                        <option value="GBP">GBP — British Pound</option>
+                        <option value="SAR">SAR — Saudi Riyal</option>
+                        <option value="AED">AED — UAE Dirham</option>
+                        <option value="EGP">EGP — Egyptian Pound</option>
+                        <option value="JOD">JOD — Jordanian Dinar</option>
+                        <option value="KWD">KWD — Kuwaiti Dinar</option>
+                        <option value="QAR">QAR — Qatari Riyal</option>
+                        <option value="BHD">BHD — Bahraini Dinar</option>
+                        <option value="OMR">OMR — Omani Rial</option>
+                        <option value="TRY">TRY — Turkish Lira</option>
+                        <option value="CAD">CAD — Canadian Dollar</option>
+                        <option value="AUD">AUD — Australian Dollar</option>
+                    </select>
+                </div>
                 <div class="form-group"><label class="form-label">Pricing &amp; Insurance</label><textarea class="form-textarea" id="ci_pricing_insurance" placeholder="Cleaning: $75-$150&#10;Insurance: Delta Dental, Cigna, Aetna&#10;Payment: Cash, Credit, CareCredit"></textarea></div>
                 <div class="form-group"><label class="form-label">Emergency Info</label><textarea class="form-textarea" id="ci_emergency_info" placeholder="Emergency line: (512) 555-0199&#10;Walk-ins accepted for emergencies"></textarea></div>
                 <div class="form-group"><label class="form-label">About &amp; Credentials</label><textarea class="form-textarea" id="ci_about" placeholder="Serving Austin since 2005. ADA accredited..."></textarea></div>
@@ -1391,7 +1447,7 @@
 
             // Activity feed
             const activities = [];
-            bookings.forEach(b => activities.push({ type: 'Booking', name: b.customer_name, details: `${b.date} at ${b.time}${b.doctor_name ? ' — Dr. ' + b.doctor_name : ''}`, date: b.created_at, badge: 'badge-green' }));
+            bookings.forEach(b => activities.push({ type: 'Booking', name: b.customer_name, details: `${b.date} at ${b.time}${b.doctor_name ? ' — Dr. ' + b.doctor_name : ''}`, date: b.created_at, badge: b.status === 'cancelled' ? 'badge-red' : (b.status === 'confirmed' ? 'badge-green' : 'badge-yellow') }));
             if (isAdmin) leads.forEach(l => activities.push({ type: 'Lead', name: l.name, details: l.phone, date: l.created_at, badge: 'badge-cyan' }));
             activities.sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -1407,7 +1463,7 @@
                 : bookings.map(b => {
                     const isCancelled = b.status === 'cancelled';
                     const rowStyle = isCancelled ? 'style="text-decoration:line-through;opacity:0.5"' : '';
-                    const badgeClass = isCancelled ? 'badge-red' : 'badge-green';
+                    const badgeClass = b.status === 'cancelled' ? 'badge-red' : (b.status === 'confirmed' ? 'badge-green' : 'badge-yellow');
                     return `<tr ${rowStyle}><td>${escapeHtml(b.customer_name)}</td><td>${b.doctor_name ? 'Dr. ' + escapeHtml(b.doctor_name) : '—'}</td><td>${escapeHtml(b.date)}</td><td>${escapeHtml(b.time)}</td><td><span class="badge ${badgeClass}">${escapeHtml(b.status)}</span></td></tr>`;
                 }).join('');
 
@@ -1472,10 +1528,11 @@
             const res = await fetch('/api/company-info', { headers });
             const info = await res.json();
             if (info && !info.error) {
-                ['business_name','address','phone','business_hours','services','pricing_insurance','emergency_info','about'].forEach(f => {
+                ['business_name','address','phone','business_hours','pricing_insurance','emergency_info','about','currency'].forEach(f => {
                     const el = document.getElementById('ci_' + f);
-                    if (el && info[f]) el.value = info[f];
+                    if (el && info[f] != null) el.value = toText(info[f]);
                 });
+                loadCompanyServices();
                 // Pre-fill embed title with business name if available
                 if (info.business_name) {
                     var t = document.getElementById('embed_title');
@@ -1486,9 +1543,253 @@
         generateEmbedCode();
     }
 
+    // Soft confirm modal — replaces window.confirm with a styled prompt
+    function softConfirm(message, { title = 'Are you sure?', okText = 'Delete', cancelText = 'Cancel' } = {}) {
+        return new Promise(resolve => {
+            let backdrop = document.getElementById('softConfirmBackdrop');
+            if (!backdrop) {
+                backdrop = document.createElement('div');
+                backdrop.id = 'softConfirmBackdrop';
+                backdrop.className = 'soft-confirm-backdrop';
+                backdrop.innerHTML = `
+                    <div class="soft-confirm" role="dialog" aria-modal="true">
+                        <div class="soft-confirm-icon">!</div>
+                        <h3 id="softConfirmTitle"></h3>
+                        <p id="softConfirmMsg"></p>
+                        <div class="soft-confirm-actions">
+                            <button type="button" class="soft-confirm-cancel" id="softConfirmCancel"></button>
+                            <button type="button" class="soft-confirm-ok" id="softConfirmOk"></button>
+                        </div>
+                    </div>`;
+                document.body.appendChild(backdrop);
+            }
+            document.getElementById('softConfirmTitle').textContent = title;
+            document.getElementById('softConfirmMsg').textContent = message;
+            const okBtn = document.getElementById('softConfirmOk');
+            const cancelBtn = document.getElementById('softConfirmCancel');
+            okBtn.textContent = okText;
+            cancelBtn.textContent = cancelText;
+            const close = (result) => {
+                backdrop.classList.remove('show');
+                okBtn.onclick = null; cancelBtn.onclick = null; backdrop.onclick = null;
+                document.removeEventListener('keydown', onKey);
+                setTimeout(() => resolve(result), 200);
+            };
+            const onKey = (e) => { if (e.key === 'Escape') close(false); else if (e.key === 'Enter') close(true); };
+            okBtn.onclick = () => close(true);
+            cancelBtn.onclick = () => close(false);
+            backdrop.onclick = (e) => { if (e.target === backdrop) close(false); };
+            document.addEventListener('keydown', onKey);
+            requestAnimationFrame(() => backdrop.classList.add('show'));
+        });
+    }
+
+    // Defensive: coerce any server value to a safe, human-readable string (fixes [object Object])
+    function toText(v) {
+        if (v == null) return '';
+        if (typeof v === 'string') {
+            // If it's a JSON string of an object, re-format it
+            const trimmed = v.trim();
+            if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                try { return toText(JSON.parse(trimmed)); } catch(e) { return v; }
+            }
+            return v;
+        }
+        if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+        if (Array.isArray(v)) return v.map(x => toText(x)).join('\n');
+        if (typeof v === 'object') {
+            return Object.entries(v).map(([k, val]) => {
+                const label = String(k).replace(/[_\-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                const inner = (val && typeof val === 'object') ? toText(val) : String(val);
+                return `${label}: ${inner}`;
+            }).join('\n');
+        }
+        return '';
+    }
+
+    // ===== Company Services (structured list) =====
+    let __servicesCache = [];
+    let __servicesCurrency = 'USD';
+
+    async function loadCompanyServices() {
+        try {
+            const res = await fetch('/api/company-services', { headers });
+            const data = await res.json();
+            __servicesCache = data.services || [];
+            __servicesCurrency = data.currency || 'USD';
+            document.getElementById('svc_currency_label').textContent = __servicesCurrency;
+            renderServices();
+        } catch(e) { console.error('loadCompanyServices', e); }
+    }
+
+    function renderServices() {
+        const list = document.getElementById('svc_list');
+        if (!__servicesCache.length) {
+            list.innerHTML = '<p class="empty-msg" style="font-size:0.85rem">No services yet. Add manually or upload a PDF.</p>';
+            return;
+        }
+        list.innerHTML = __servicesCache.map(s => `
+            <div data-sid="${s.id}" style="display:flex;gap:0.5rem;align-items:center;padding:0.4rem 0.6rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px">
+                <input type="text" class="form-input svc-name" value="${escapeHtml(s.name)}" style="flex:1;padding:0.3rem 0.5rem;font-size:0.85rem">
+                <input type="number" step="0.01" class="form-input svc-price" value="${Number(s.price).toFixed(2)}" style="width:100px;padding:0.3rem 0.5rem;font-size:0.85rem">
+                <span style="color:var(--gray);font-size:0.8rem">${escapeHtml(s.currency || __servicesCurrency)}</span>
+                <span class="badge ${s.source === 'pdf' ? 'badge-cyan' : 'badge-gray'}" style="font-size:0.7rem">${s.source || 'manual'}</span>
+                <button type="button" class="btn" style="padding:0.25rem 0.6rem;font-size:0.8rem" onclick="saveServiceRow(${s.id}, this)">Save</button>
+                <button type="button" class="btn btn-danger" style="padding:0.25rem 0.6rem;font-size:0.8rem" onclick="deleteService(${s.id})">Delete</button>
+            </div>
+        `).join('');
+    }
+
+    async function saveServiceRow(id, btn) {
+        const row = btn.closest('[data-sid]');
+        const name = row.querySelector('.svc-name').value.trim();
+        const price = parseFloat(row.querySelector('.svc-price').value || '0');
+        if (!name) { showToast('Name required', 'error'); return; }
+        if (isNaN(price) || price < 0) { showToast('Invalid price', 'error'); return; }
+        try {
+            const res = await fetch('/api/company-services/' + id, {
+                method: 'PUT',
+                headers: { ...headers, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, price })
+            });
+            if (!res.ok) { showToast('Failed to save', 'error'); return; }
+            showToast('Saved', 'success');
+            await loadCompanyServices();
+        } catch(e) { showToast('Failed to save', 'error'); }
+    }
+
+    async function onCurrencyChange() {
+        const newCur = document.getElementById('ci_currency').value;
+        try {
+            const res = await fetch('/api/company-info/currency', {
+                method: 'POST',
+                headers: { ...headers, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currency: newCur })
+            });
+            if (!res.ok) { showToast('Failed to update currency', 'error'); return; }
+            await loadCompanyServices();
+            showToast('Currency updated', 'success');
+        } catch(e) { showToast('Failed to update currency', 'error'); }
+    }
+
+    async function addService() {
+        const name = (document.getElementById('svc_new_name').value || '').trim();
+        const price = parseFloat(document.getElementById('svc_new_price').value || '0');
+        if (!name) { showToast('Service name is required', 'error'); return; }
+        if (isNaN(price) || price < 0) { showToast('Invalid price', 'error'); return; }
+        try {
+            const res = await fetch('/api/company-services', {
+                method: 'POST',
+                headers: { ...headers, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, price })
+            });
+            const result = await res.json();
+            if (!res.ok) { showToast(result.error || 'Failed to add', 'error'); return; }
+            document.getElementById('svc_new_name').value = '';
+            document.getElementById('svc_new_price').value = '';
+            await loadCompanyServices();
+        } catch(e) { showToast('Failed to add service', 'error'); }
+    }
+
+    async function deleteService(id) {
+        if (!(await softConfirm('This service will be removed from your list.', { title: 'Delete service?', okText: 'Delete' }))) return;
+        try {
+            const res = await fetch('/api/company-services/' + id, { method: 'DELETE', headers });
+            if (!res.ok) { showToast('Failed to delete', 'error'); return; }
+            await loadCompanyServices();
+        } catch(e) { showToast('Failed to delete', 'error'); }
+    }
+
+    // Turn "composite_filling" → "Composite Filling"
+    function humanizeKey(k) {
+        return String(k).replace(/[_\-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
+    }
+
+    // Parse a price string like "SAR 250 – SAR 450 per tooth" → {price: 250, currency: 'SAR'}
+    function parsePriceString(s) {
+        if (s == null) return null;
+        if (typeof s === 'number') return { price: s, currency: null };
+        const str = String(s).replace(/[,]/g, '').replace(/[–—]/g, '-');
+        const curMatch = str.match(/\b(USD|EUR|GBP|SAR|AED|EGP|JOD|KWD|QAR|BHD|OMR|TRY|CAD|AUD|\$|€|£)\b/i);
+        const currency = curMatch ? curMatch[1].toUpperCase().replace('$','USD').replace('€','EUR').replace('£','GBP') : null;
+        const numMatch = str.match(/(\d+(?:\.\d+)?)/);
+        if (!numMatch) return null;
+        return { price: parseFloat(numMatch[1]), currency };
+    }
+
+    // Turn a pricing_insurance object/string into [{name, price, currency}]
+    function parsePricingInsuranceToServices(raw) {
+        if (!raw) return { services: [], currency: null };
+        let obj = raw;
+        if (typeof raw === 'string') {
+            try { obj = JSON.parse(raw); } catch(e) { return { services: [], currency: null }; }
+        }
+        if (typeof obj !== 'object' || Array.isArray(obj)) return { services: [], currency: null };
+        const services = [];
+        let detectedCurrency = null;
+        for (const key of Object.keys(obj)) {
+            const val = obj[key];
+            // Skip non-service keys (insurance lists, notes)
+            const lowerKey = key.toLowerCase();
+            if (lowerKey.includes('insurance') || lowerKey.includes('payment') || lowerKey.includes('note')) continue;
+            const parsed = parsePriceString(val);
+            if (!parsed || parsed.price <= 0) continue;
+            if (parsed.currency) detectedCurrency = parsed.currency;
+            services.push({
+                name: humanizeKey(key),
+                price: parsed.price,
+                currency: parsed.currency
+            });
+        }
+        return { services, currency: detectedCurrency };
+    }
+
+    async function clearAllServices() {
+        if (!(await softConfirm('All services will be permanently removed. This cannot be undone.', { title: 'Clear all services?', okText: 'Clear All' }))) return;
+        try {
+            const res = await fetch('/api/company-services/clear', {
+                method: 'POST',
+                headers: { ...headers, 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+            if (!res.ok) { showToast('Failed to clear', 'error'); return; }
+            await loadCompanyServices();
+        } catch(e) { showToast('Failed to clear', 'error'); }
+    }
+
+    async function uploadServicesPdf(input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const status = document.getElementById('svc_status');
+        status.textContent = 'Parsing PDF...';
+        status.style.color = 'var(--gray)';
+        try {
+            const fd = new FormData();
+            fd.append('file', file);
+            const res = await fetch('/api/company-services/upload-pdf', {
+                method: 'POST',
+                headers: { Authorization: headers.Authorization },
+                body: fd
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                status.textContent = data.error || 'Upload failed';
+                status.style.color = 'var(--red)';
+                return;
+            }
+            status.textContent = `Added ${data.added} services from PDF.`;
+            status.style.color = 'var(--green)';
+            input.value = '';
+            await loadCompanyServices();
+        } catch(e) {
+            status.textContent = 'Upload failed';
+            status.style.color = 'var(--red)';
+        }
+    }
+
     async function saveCompanyInfo() {
         const data = {};
-        ['business_name','address','phone','business_hours','services','pricing_insurance','emergency_info','about'].forEach(f => {
+        ['business_name','address','phone','business_hours','pricing_insurance','emergency_info','about','currency'].forEach(f => {
             const el = document.getElementById('ci_' + f);
             data[f] = el ? el.value.trim() : '';
         });
@@ -2925,10 +3226,55 @@
 
             // Populate form fields
             const fields = data.extracted || data;
-            ['business_name','address','phone','business_hours','services','pricing_insurance','emergency_info','about'].forEach(f => {
+            ['business_name','address','phone','business_hours','pricing_insurance','emergency_info','about'].forEach(f => {
                 const el = document.getElementById('ci_' + f);
-                if (el && fields[f]) el.value = fields[f];
+                if (el && fields[f] != null) el.value = toText(fields[f]);
             });
+
+            // Auto-extract services from the structured pricing_insurance field
+            try {
+                const { services: parsedServices, currency: detectedCurrency } =
+                    parsePricingInsuranceToServices(fields.pricing_insurance);
+                if (parsedServices.length) {
+                    // Strip extracted service entries from Pricing & Insurance to avoid duplication
+                    const piEl = document.getElementById('ci_pricing_insurance');
+                    if (piEl) {
+                        let raw = fields.pricing_insurance;
+                        try {
+                            let obj = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                            if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+                                const remaining = {};
+                                for (const k of Object.keys(obj)) {
+                                    const lk = k.toLowerCase();
+                                    if (lk.includes('insurance') || lk.includes('payment') || lk.includes('note') || lk.includes('policy')) {
+                                        remaining[k] = obj[k];
+                                    }
+                                }
+                                piEl.value = Object.keys(remaining).length ? toText(remaining) : '';
+                            }
+                        } catch(e) { /* leave as-is */ }
+                    }
+                    // Set currency dropdown if detected
+                    if (detectedCurrency) {
+                        const curEl = document.getElementById('ci_currency');
+                        if (curEl) curEl.value = detectedCurrency;
+                    }
+                    const sres = await fetch('/api/company-services/bulk', {
+                        method: 'POST',
+                        headers: { ...headers, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            services: parsedServices,
+                            currency: detectedCurrency || undefined,
+                            replace: true
+                        })
+                    });
+                    const sdata = await sres.json();
+                    if (sres.ok && sdata.added) {
+                        await loadCompanyServices();
+                        document.getElementById('uploadStatus').textContent += ` (${sdata.added} services added)`;
+                    }
+                }
+            } catch(e) { console.error('services extract', e); }
 
             setTimeout(() => {
                 document.getElementById('uploadProgress').style.display = 'none';

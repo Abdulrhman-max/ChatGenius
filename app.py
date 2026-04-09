@@ -3850,7 +3850,190 @@ def api_save_company_info():
     data = request.get_json()
     admin_id = get_effective_admin_id(user)
     db.save_company_info(admin_id, data)
+    # Propagate currency to all services of this admin
+    new_currency = (data.get("currency") or "").strip()
+    if new_currency:
+        db.set_all_services_currency(admin_id, new_currency)
     return jsonify({"ok": True})
+
+
+@app.route("/api/company-info/currency", methods=["POST"])
+def api_update_currency():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    if not is_admin_role(user):
+        return jsonify({"error": "Admin only"}), 403
+    data = request.get_json() or {}
+    currency = (data.get("currency") or "").strip()
+    if not currency:
+        return jsonify({"error": "Currency is required"}), 400
+    admin_id = get_effective_admin_id(user)
+    conn = db.get_db()
+    existing = conn.execute("SELECT id FROM company_info WHERE user_id=?", (admin_id,)).fetchone()
+    if existing:
+        conn.execute("UPDATE company_info SET currency=?, updated_at=CURRENT_TIMESTAMP WHERE user_id=?", (currency, admin_id))
+    else:
+        conn.execute("INSERT INTO company_info (user_id, currency) VALUES (?,?)", (admin_id, currency))
+    conn.commit()
+    conn.close()
+    db.set_all_services_currency(admin_id, currency)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/company-services", methods=["GET"])
+def api_list_company_services():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+    services = db.get_company_services(admin_id)
+    currency = db.get_company_currency(admin_id)
+    return jsonify({"services": services, "currency": currency})
+
+
+@app.route("/api/company-services", methods=["POST"])
+def api_add_company_service():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    if not is_admin_role(user):
+        return jsonify({"error": "Admin only"}), 403
+    data = request.get_json() or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "Service name is required"}), 400
+    try:
+        price = float(data.get("price") or 0)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid price"}), 400
+    admin_id = get_effective_admin_id(user)
+    currency = db.get_company_currency(admin_id)
+    sid = db.add_company_service(admin_id, name, price, currency, "manual")
+    return jsonify({"ok": True, "id": sid, "currency": currency})
+
+
+@app.route("/api/company-services/<int:service_id>", methods=["PUT"])
+def api_update_company_service(service_id):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    if not is_admin_role(user):
+        return jsonify({"error": "Admin only"}), 403
+    data = request.get_json() or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "Service name is required"}), 400
+    try:
+        price = float(data.get("price") or 0)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid price"}), 400
+    admin_id = get_effective_admin_id(user)
+    db.update_company_service(service_id, admin_id, name, price)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/company-services/<int:service_id>", methods=["DELETE"])
+def api_delete_company_service(service_id):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    if not is_admin_role(user):
+        return jsonify({"error": "Admin only"}), 403
+    admin_id = get_effective_admin_id(user)
+    db.delete_company_service(service_id, admin_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/company-services/bulk", methods=["POST"])
+def api_bulk_company_services():
+    """Bulk-insert services from structured JSON (e.g. parsed from pricing_insurance)."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    if not is_admin_role(user):
+        return jsonify({"error": "Admin only"}), 403
+    data = request.get_json() or {}
+    services = data.get("services") or []
+    if not isinstance(services, list) or not services:
+        return jsonify({"error": "services must be a non-empty list"}), 400
+    replace = bool(data.get("replace"))
+    admin_id = get_effective_admin_id(user)
+    currency = (data.get("currency") or "").strip() or db.get_company_currency(admin_id)
+    if replace:
+        db.delete_all_company_services(admin_id, source="pdf")
+    added = db.bulk_add_company_services(admin_id, services, currency, source="pdf")
+    return jsonify({"ok": True, "added": added, "currency": currency})
+
+
+@app.route("/api/company-services/clear", methods=["POST"])
+def api_clear_company_services():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    if not is_admin_role(user):
+        return jsonify({"error": "Admin only"}), 403
+    data = request.get_json() or {}
+    source = data.get("source")  # 'pdf' | 'manual' | None
+    admin_id = get_effective_admin_id(user)
+    db.delete_all_company_services(admin_id, source=source)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/company-services/upload-pdf", methods=["POST"])
+def api_upload_services_pdf():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    if not is_admin_role(user):
+        return jsonify({"error": "Admin only"}), 403
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+    f = request.files["file"]
+    if not f.filename.lower().endswith(".pdf"):
+        return jsonify({"error": "Only PDF files are allowed"}), 400
+    try:
+        from PyPDF2 import PdfReader
+        reader = PdfReader(f.stream)
+        text = "\n".join((p.extract_text() or "") for p in reader.pages)
+    except Exception as e:
+        return jsonify({"error": f"Failed to read PDF: {e}"}), 400
+
+    # Parse lines of form "<service name> ... <price>"
+    parsed = []
+    price_re = re.compile(r"([A-Za-z][A-Za-z0-9\s\-/&,'\.]{1,80}?)\s*[:\-\|\t ]+\s*([A-Z]{0,3}\s*[\$£€]?\s*\d{1,6}(?:[.,]\d{1,2})?)")
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        m = price_re.search(line)
+        if not m:
+            continue
+        name = m.group(1).strip(" -:|")
+        raw_price = m.group(2)
+        num = re.sub(r"[^0-9.]", "", raw_price.replace(",", "."))
+        try:
+            price_val = float(num) if num else 0
+        except ValueError:
+            price_val = 0
+        if name and price_val > 0:
+            parsed.append({"name": name, "price": price_val})
+
+    if not parsed:
+        return jsonify({"error": "No services with prices were detected in the PDF"}), 400
+
+    admin_id = get_effective_admin_id(user)
+    currency = db.get_company_currency(admin_id)
+    db.replace_company_services_from_pdf(admin_id, parsed, currency)
+    return jsonify({"ok": True, "added": len(parsed), "currency": currency, "services": parsed})
 
 
 @app.route("/api/customers-api-config", methods=["GET"])

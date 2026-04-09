@@ -856,6 +856,7 @@ def init_db():
         # Customer API integration — fetch customers from external database
         ("company_info", "customers_api_url", "TEXT DEFAULT ''"),
         ("company_info", "customers_api_key", "TEXT DEFAULT ''"),
+        ("company_info", "currency", "TEXT DEFAULT 'USD'"),
         # Public GUID for embed code (never expose numeric IDs)
         ("users", "public_id", "TEXT DEFAULT ''"),
     ]
@@ -1036,11 +1037,11 @@ def find_upcoming_bookings_for_customer(admin_id, name="", email="", phone=""):
 def get_all_bookings(admin_id=0, doctor_id=0):
     conn = get_db()
     if doctor_id:
-        rows = conn.execute("SELECT * FROM bookings WHERE doctor_id = ? AND status != 'cancelled' ORDER BY created_at DESC", (doctor_id,)).fetchall()
+        rows = conn.execute("SELECT * FROM bookings WHERE doctor_id = ? ORDER BY created_at DESC", (doctor_id,)).fetchall()
     elif admin_id:
-        rows = conn.execute("SELECT * FROM bookings WHERE admin_id = ? AND status != 'cancelled' ORDER BY created_at DESC", (admin_id,)).fetchall()
+        rows = conn.execute("SELECT * FROM bookings WHERE admin_id = ? ORDER BY created_at DESC", (admin_id,)).fetchall()
     else:
-        rows = conn.execute("SELECT * FROM bookings WHERE status != 'cancelled' ORDER BY created_at DESC").fetchall()
+        rows = conn.execute("SELECT * FROM bookings ORDER BY created_at DESC").fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
@@ -1282,17 +1283,17 @@ def save_company_info(user_id, data):
     existing = conn.execute("SELECT id FROM company_info WHERE user_id = ?", (user_id,)).fetchone()
     if existing:
         conn.execute("""UPDATE company_info SET business_name=?, address=?, phone=?, business_hours=?,
-            services=?, pricing_insurance=?, emergency_info=?, about=?, updated_at=CURRENT_TIMESTAMP
+            services=?, pricing_insurance=?, emergency_info=?, about=?, currency=?, updated_at=CURRENT_TIMESTAMP
             WHERE user_id=?""",
             (data.get("business_name", ""), data.get("address", ""), data.get("phone", ""),
              data.get("business_hours", ""), data.get("services", ""), data.get("pricing_insurance", ""),
-             data.get("emergency_info", ""), data.get("about", ""), user_id))
+             data.get("emergency_info", ""), data.get("about", ""), data.get("currency", "USD"), user_id))
     else:
         conn.execute("""INSERT INTO company_info (user_id, business_name, address, phone, business_hours,
-            services, pricing_insurance, emergency_info, about) VALUES (?,?,?,?,?,?,?,?,?)""",
+            services, pricing_insurance, emergency_info, about, currency) VALUES (?,?,?,?,?,?,?,?,?,?)""",
             (user_id, data.get("business_name", ""), data.get("address", ""), data.get("phone", ""),
              data.get("business_hours", ""), data.get("services", ""), data.get("pricing_insurance", ""),
-             data.get("emergency_info", ""), data.get("about", "")))
+             data.get("emergency_info", ""), data.get("about", ""), data.get("currency", "USD")))
     conn.commit()
     conn.close()
 
@@ -1319,6 +1320,129 @@ def get_customers_api_config(user_id):
     if row:
         return {"customers_api_url": row["customers_api_url"] or "", "customers_api_key": row["customers_api_key"] or ""}
     return {"customers_api_url": "", "customers_api_key": ""}
+
+
+# ══════════════════════════════════════════════
+#  Company Services (name + price)
+# ══════════════════════════════════════════════
+
+def _ensure_company_services_table():
+    conn = get_db()
+    conn.execute("""CREATE TABLE IF NOT EXISTS company_services (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        admin_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        price REAL NOT NULL DEFAULT 0,
+        currency TEXT DEFAULT 'USD',
+        source TEXT DEFAULT 'manual',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+    conn.close()
+
+_ensure_company_services_table()
+
+
+def get_company_currency(admin_id):
+    """Resolve currency from the head admin's company_info."""
+    conn = get_db()
+    # Walk up to the head admin if this user is linked
+    user = conn.execute("SELECT id, role, admin_id FROM users WHERE id=?", (admin_id,)).fetchone()
+    head_id = admin_id
+    if user and user["role"] != "head_admin" and user["admin_id"]:
+        head_id = user["admin_id"]
+    row = conn.execute("SELECT currency FROM company_info WHERE user_id=?", (head_id,)).fetchone()
+    conn.close()
+    return (row["currency"] if row and row["currency"] else "USD")
+
+
+def get_company_services(admin_id):
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM company_services WHERE admin_id=? ORDER BY name", (admin_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def add_company_service(admin_id, name, price, currency="USD", source="manual"):
+    conn = get_db()
+    cur = conn.execute(
+        "INSERT INTO company_services (admin_id, name, price, currency, source) VALUES (?,?,?,?,?)",
+        (admin_id, name, float(price or 0), currency, source),
+    )
+    conn.commit()
+    sid = cur.lastrowid
+    conn.close()
+    return sid
+
+
+def update_company_service(service_id, admin_id, name, price):
+    conn = get_db()
+    conn.execute(
+        "UPDATE company_services SET name=?, price=? WHERE id=? AND admin_id=?",
+        (name, float(price or 0), service_id, admin_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def delete_company_service(service_id, admin_id):
+    conn = get_db()
+    conn.execute("DELETE FROM company_services WHERE id=? AND admin_id=?", (service_id, admin_id))
+    conn.commit()
+    conn.close()
+
+
+def delete_all_company_services(admin_id, source=None):
+    conn = get_db()
+    if source:
+        conn.execute("DELETE FROM company_services WHERE admin_id=? AND source=?", (admin_id, source))
+    else:
+        conn.execute("DELETE FROM company_services WHERE admin_id=?", (admin_id,))
+    conn.commit()
+    conn.close()
+
+
+def set_all_services_currency(admin_id, currency):
+    conn = get_db()
+    conn.execute("UPDATE company_services SET currency=? WHERE admin_id=?", (currency, admin_id))
+    conn.commit()
+    conn.close()
+
+
+def bulk_add_company_services(admin_id, services, currency, source="pdf"):
+    conn = get_db()
+    added = 0
+    for s in services:
+        name = (s.get("name") or "").strip()
+        if not name:
+            continue
+        try:
+            price = float(s.get("price") or 0)
+        except (TypeError, ValueError):
+            price = 0
+        svc_cur = s.get("currency") or currency
+        conn.execute(
+            "INSERT INTO company_services (admin_id, name, price, currency, source) VALUES (?,?,?,?,?)",
+            (admin_id, name, price, svc_cur, source),
+        )
+        added += 1
+    conn.commit()
+    conn.close()
+    return added
+
+
+def replace_company_services_from_pdf(admin_id, services, currency):
+    """Bulk-insert services parsed from a PDF (does not delete existing manual ones)."""
+    conn = get_db()
+    for s in services:
+        conn.execute(
+            "INSERT INTO company_services (admin_id, name, price, currency, source) VALUES (?,?,?,?,?)",
+            (admin_id, s["name"], float(s.get("price") or 0), currency, "pdf"),
+        )
+    conn.commit()
+    conn.close()
 
 
 # ══════════════════════════════════════════════
