@@ -293,28 +293,24 @@ def get_available_slots(date_str):
     if not date_obj:
         return None, "I couldn't understand that date. Could you try a format like 'Monday', 'tomorrow', or '2026-04-10'?"
 
-    if date_obj.weekday() not in BUSINESS_HOURS["days"]:
-        return None, f"Sorry, we're closed on Fridays. Our business hours are Sunday to Thursday, {BUSINESS_HOURS['start']}AM to {BUSINESS_HOURS['end'] - 12}PM."
-
     now = datetime.now()
     if date_obj < now.date():
         return None, "That date has already passed. Could you pick a future date?"
+    # Note: per-doctor schedules are the single source of truth for bookable
+    # dates. No hardcoded weekday restriction here.
 
     slots = []
     for hour in range(BUSINESS_HOURS["start"], BUSINESS_HOURS["end"]):
         for minute in [0, 30]:
-            # Try Google first, fall back to local
             available = check_availability_google(date_obj, hour, minute)
             if available is None:
                 available = check_availability_local(date_obj, hour, minute)
-
             if available:
                 time_str = datetime.min.replace(hour=hour, minute=minute).strftime("%I:%M %p")
                 slots.append({"time": time_str, "hour": hour, "minute": minute})
 
-    if not slots:
-        return None, f"Sorry, no slots are available on {date_obj.strftime('%A, %B %d')}. Would you like to try a different date?"
-
+    # Always return the parsed date even if the generic fallback has no slots —
+    # callers use the doctor's real schedule instead.
     return {"date": date_obj, "date_display": date_obj.strftime("%A, %B %d, %Y"), "slots": slots}, None
 
 
@@ -332,9 +328,8 @@ def book_appointment(date_str, time_str, customer_name, customer_email=""):
     google_event_id = create_google_event(date_obj, hour, minute, customer_name, customer_email)
 
     if google_event_id is None:
-        # Use local fallback
-        if not check_availability_local(date_obj, hour, minute):
-            return None, "Sorry, that slot was just taken. Please pick another time."
+        # Local fallback — trust the caller's slot validation (doctor schedule
+        # + breaks + blocks + booked_times are the source of truth).
         book_local(date_obj, hour, minute)
         google_event_id = ""
 

@@ -809,6 +809,12 @@ def _generate_doctor_slots(doctor, breaks=None, selected_date=None):
     # Determine start/end times based on schedule type
     doc_start = doctor.get("start_time")
     doc_end = doctor.get("end_time")
+    # Fallback to 9 AM – 5 PM if the doctor has no working hours configured,
+    # so breaks and schedule blocks can still be applied.
+    if not doc_start or doc_start == "00:00 AM":
+        doc_start = "09:00 AM"
+    if not doc_end or doc_end == "00:00 AM":
+        doc_end = "05:00 PM"
 
     if doctor.get("schedule_type") == "flexible" and doctor.get("daily_hours") and selected_date:
         try:
@@ -992,6 +998,8 @@ def _extract_time(text, available_slots=None):
                 matched = _match_raw_time_to_slot(raw_time, available_slots)
                 if matched:
                     return matched
+                # Time parsed but not in available slots — don't accept it
+                return None
             return raw_time
 
     # If the whole message looks like a time (just a number with optional am/pm)
@@ -1008,6 +1016,7 @@ def _extract_time(text, available_slots=None):
             matched = _match_raw_time_to_slot(raw_time, available_slots)
             if matched:
                 return matched
+            return None
         return raw_time
 
     return None
@@ -1291,7 +1300,7 @@ def _init_fast_booking(session, extracted, doctors, admin_id):
         # Generate available slots
         doctor = db.get_doctor_by_id(data["doctor_id"])
         slots = []
-        if doctor and doctor.get("start_time") and doctor["start_time"] != "00:00 AM":
+        if doctor:
             doctor_breaks = db.get_doctor_breaks(data["doctor_id"])
             slots = _generate_doctor_slots(doctor, breaks=doctor_breaks, selected_date=data.get("date_iso"))
         booked_times = db.get_booked_times(data["doctor_id"], data["date_iso"])
@@ -1327,7 +1336,7 @@ def _init_fast_booking(session, extracted, doctors, admin_id):
         # Need time
         doctor = db.get_doctor_by_id(data["doctor_id"])
         slots = []
-        if doctor and doctor.get("start_time") and doctor["start_time"] != "00:00 AM":
+        if doctor:
             doctor_breaks = db.get_doctor_breaks(data["doctor_id"])
             slots = _generate_doctor_slots(doctor, breaks=doctor_breaks, selected_date=data.get("date_iso"))
         booked_times = db.get_booked_times(data["doctor_id"], data["date_iso"])
@@ -1702,7 +1711,7 @@ def handle_booking(session, user_message, corrected_message=None):
         doctor_has_schedule = False
         if doctor_id:
             doctor = db.get_doctor_by_id(doctor_id)
-            if doctor and doctor.get("start_time") and doctor["start_time"] != "00:00 AM":
+            if doctor:
                 doctor_has_schedule = True
                 doctor_breaks = db.get_doctor_breaks(doctor_id)
                 slots = _generate_doctor_slots(doctor, breaks=doctor_breaks, selected_date=data.get("date_iso"))
@@ -1822,11 +1831,22 @@ def handle_booking(session, user_message, corrected_message=None):
     # Step 4b: Waitlist offer response
     if step == "waitlist_offer":
         if _is_affirmative(user_message):
-            # Reuse name from booking flow if already provided
+            # Reuse name/email/phone from booking flow / customer data if available
             if data.get("name"):
                 data["waitlist_name"] = data["name"]
+            if data.get("email"):
+                data["waitlist_email"] = data["email"]
+            if data.get("phone"):
+                # Already have everything — add to waitlist directly
+                if data.get("waitlist_name"):
+                    session["step"] = "waitlist_get_phone"
+                    return handle_booking(session, data["phone"], corrected)
+            if data.get("waitlist_name") and data.get("waitlist_email"):
+                session["step"] = "waitlist_get_phone"
+                return f"I'll add you to the waitlist, {data['waitlist_name']}! What's your **phone number**?"
+            if data.get("waitlist_name"):
                 session["step"] = "waitlist_get_email"
-                return f"I'll add you to the waitlist, {data['name']}! What's your **email address**? (We'll send you a notification when a spot opens)"
+                return f"I'll add you to the waitlist, {data['waitlist_name']}! What's your **email address**? (We'll send you a notification when a spot opens)"
             session["step"] = "waitlist_get_name"
             return "I'll add you to the waitlist! First, what's your **full name**?"
         elif _is_negative(user_message):
@@ -2980,7 +3000,7 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
                 slots = []
                 if doctor_id:
                     doctor = db.get_doctor_by_id(doctor_id)
-                    if doctor and doctor.get("start_time") and doctor["start_time"] != "00:00 AM":
+                    if doctor:
                         doctor_breaks = db.get_doctor_breaks(doctor_id)
                         slots = _generate_doctor_slots(doctor, breaks=doctor_breaks, selected_date=data.get("date_iso"))
                 booked_times = []
@@ -3033,7 +3053,7 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
             if doctor_id and date_iso:
                 doctor = db.get_doctor_by_id(doctor_id)
                 slots = []
-                if doctor and doctor.get("start_time") and doctor["start_time"] != "00:00 AM":
+                if doctor:
                     doctor_breaks = db.get_doctor_breaks(doctor_id)
                     slots = _generate_doctor_slots(doctor, breaks=doctor_breaks, selected_date=date_iso)
                 booked_times = db.get_booked_times(doctor_id, date_iso)
