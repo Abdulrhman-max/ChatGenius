@@ -320,6 +320,8 @@
         var isDoctor = type === 'doctors';
         var isTime = type === 'timeslots';
         var isCat = type === 'categories';
+        var isBookingType = type === 'booking_type';
+        var isServices = type === 'services';
 
         // Confirm: render as two side-by-side buttons
         if (isConfirm) {
@@ -361,6 +363,8 @@
             else if (isTime) icon.innerHTML = isBooked ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
             else if (isCat) icon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>';
             else if (isCancel) icon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+            else if (isBookingType) icon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+            else if (isServices) icon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>';
             else icon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>';
             card.appendChild(icon);
 
@@ -380,6 +384,8 @@
             else if (isBooked) sub.textContent = 'Fully booked \u2014 tap to join waitlist';
             else if (isTime) sub.textContent = 'Available';
             else if (isCancel) sub.textContent = 'Tap to select';
+            else if (isBookingType) sub.textContent = item.value === 'service' ? 'Choose from available services' : 'Schedule a regular visit';
+            else if (isServices) sub.textContent = 'Tap to select';
             if (sub.textContent) textWrap.appendChild(sub);
 
             card.appendChild(textWrap);
@@ -394,7 +400,7 @@
                 wrap.querySelectorAll('.cg-opt-card').forEach(function(c) { c.classList.remove('selected'); });
                 card.classList.add('selected');
                 setTimeout(function() {
-                    input.value = isCancel ? String(item.index) : item.name;
+                    input.value = isCancel ? String(item.index) : (isBookingType && item.value ? item.value : item.name);
                     send();
                 }, 250);
             });

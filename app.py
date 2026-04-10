@@ -39,6 +39,7 @@ import treatment_followup_engine
 import missed_call_engine
 import gallery_engine
 import promotions_engine as promo
+import lead_engine
 import loyalty_engine as loyalty
 import ab_testing
 import two_factor_auth as tfa
@@ -1372,6 +1373,15 @@ def _init_fast_booking(session, extracted, doctors, admin_id):
         session["step"] = "get_phone"
         return "And your phone number? (In case we need to reach you)", None
 
+    # Service booking: collect patient type and notes if not already done
+    if data.get("_service_id") and "patient_type" not in data:
+        session["step"] = "get_patient_type"
+        return "Almost done! Are you a **new** or **returning** patient?", {"type": "confirm_yesno", "items": [{"name": "New patient", "value": "new"}, {"name": "Returning patient", "value": "returning"}]}
+
+    if data.get("_service_id") and "patient_notes" not in data:
+        session["step"] = "get_patient_notes"
+        return "Any notes or concerns for the doctor? (or say **skip**)", None
+
     # Everything provided — skip to discount or finalize
     try:
         promos_available = promo.has_active_promotions(data.get("_admin_id", 1))
@@ -1380,8 +1390,30 @@ def _init_fast_booking(session, extracted, doctors, admin_id):
             return "Do you have a discount or promo code? (or say **skip**)", None
     except Exception:
         pass
-    # All info collected — set finalize flag so next handle_booking call completes it
+
+    # Build booking summary
+    summary_parts = []
+    if data.get("service_name"):
+        summary_parts.append(f"**Service:** {data['service_name']}")
+    if data.get("doctor_name"):
+        summary_parts.append(f"**Doctor:** Dr. {data['doctor_name']}")
+    if data.get("date_display"):
+        summary_parts.append(f"**Date:** {data['date_display']}")
+    if data.get("chosen_time"):
+        summary_parts.append(f"**Time:** {data['chosen_time']}")
+    svc_data = data.get("_service_data", {})
+    if svc_data.get("duration_minutes"):
+        summary_parts.append(f"**Duration:** {svc_data['duration_minutes']} minutes")
+    if svc_data.get("price"):
+        summary_parts.append(f"**Price:** From {svc_data['price']} {svc_data.get('currency', 'SAR')}")
+    summary_parts.append(f"**Patient:** {data['name']}")
+    if data.get("email"):
+        summary_parts.append(f"**Email:** {data['email']}")
+
     session["step"] = "finalize_booking"
+    if summary_parts and data.get("_service_id"):
+        summary = "\n".join(summary_parts)
+        return f"Here's your booking summary:\n\n{summary}\n\nSay **confirm** to book it, or **edit** to make changes.", None
     conf = " | ".join(confirmations)
     return f"Perfect! {conf} for **{data['name']}**. Just say **confirm** to book it.", None
 
@@ -1458,7 +1490,7 @@ def handle_booking(session, user_message, corrected_message=None):
 
     # At any step (after doctor is selected), detect "change doctor" intent
     # Check both corrected and raw input for misspellings
-    if step and step not in ("get_doctor", "get_name", "get_category") and data.get("doctor_id"):
+    if step and step not in ("get_doctor", "get_name", "get_category", "get_booking_type", "get_service", "get_service_doctor") and data.get("doctor_id"):
         raw_lower = user_message.lower().strip()
         # Normalize common misspellings of "doctor" in both raw and corrected
         _doc_pattern = r'(doc(?:t(?:o|e)?r)?|dentist|dr\.?|d[oap]c[tk]?[oe]?r)'
@@ -1519,12 +1551,54 @@ def handle_booking(session, user_message, corrected_message=None):
 
     # Step 1: Ask for name (skip if patient is pre-filled)
     if step is None or step == "ask_name":
+        # Pre-detect service name from the user's initial booking message
+        # e.g. "I want to book Root Canal" → flag service for later skip
+        if not data.get("_detected_service"):
+            admin_id_check = data.get("_admin_id", 1)
+            try:
+                all_services = db.get_company_services(admin_id_check)
+                active_services = [s for s in all_services if s.get("is_active", 1)]
+                msg_lower_check = user_message.lower().strip()
+                for svc in active_services:
+                    svc_lower = svc["name"].lower()
+                    if svc_lower in msg_lower_check or any(w in msg_lower_check for w in svc_lower.split() if len(w) >= 5):
+                        data["_detected_service"] = svc
+                        break
+            except Exception:
+                pass
+
         if data.get("name") and session.get("_patient_prefilled"):
-            # Patient already known — skip name, go to doctor/category selection
+            # Patient already known — skip name
             admin_id = data.get("_admin_id", 1)
+
+            # If service was detected from initial message, skip straight to service flow
+            if data.get("_detected_service"):
+                svc = data.pop("_detected_service")
+                all_services = db.get_services_with_doctors(admin_id)
+                svc_full = next((s for s in all_services if s["id"] == svc["id"]), svc)
+                data["service_name"] = svc_full["name"]
+                data["_service_id"] = svc_full["id"]
+                data["_service_data"] = svc_full
+                data["_services"] = all_services
+                session["step"] = "get_service"
+                return handle_booking(session, svc_full["name"], svc_full["name"])
+
+            services = db.get_services_with_doctors(admin_id)
             all_doctors = db.get_doctors(admin_id)
             doctors = [d for d in all_doctors if d.get("status") == "active"]
-            if doctors:
+            if services and doctors:
+                data["_all_doctors"] = doctors
+                data["_services"] = services
+                session["step"] = "get_booking_type"
+                session["_ui_options"] = {
+                    "type": "booking_type",
+                    "items": [
+                        {"name": "Book a Service", "value": "service"},
+                        {"name": "Book an Appointment", "value": "appointment"},
+                    ]
+                }
+                return f"Hi {data['name']}! How would you like to book?"
+            elif doctors:
                 cat_set = set()
                 for d in doctors:
                     spec = d.get("specialty", "")
@@ -1558,12 +1632,40 @@ def handle_booking(session, user_message, corrected_message=None):
             return "I didn't quite catch your name. Could you tell me your full name?"
         data["name"] = name.title()
 
-        # Check if doctors are configured — if so, ask what type of doctor
+        # If service was pre-detected from the initial booking message, skip to service flow
+        if data.get("_detected_service"):
+            svc = data.pop("_detected_service")
+            admin_id = data.get("_admin_id", 1)
+            # Reload service with doctor info
+            all_services = db.get_services_with_doctors(admin_id)
+            svc_full = next((s for s in all_services if s["id"] == svc["id"]), svc)
+            data["service_name"] = svc_full["name"]
+            data["_service_id"] = svc_full["id"]
+            data["_service_data"] = svc_full
+            data["_services"] = all_services
+            session["step"] = "get_service"
+            return handle_booking(session, svc_full["name"], svc_full["name"])
+
+        # Check if services exist — if so, ask "Service or Appointment?"
         admin_id = data.get("_admin_id", 1)
+        services = db.get_services_with_doctors(admin_id)
         all_doctors = db.get_doctors(admin_id)
         doctors = [d for d in all_doctors if d.get("status") == "active"]
-        if doctors:
-            # Get unique categories from active doctors (support comma-separated multi-specialty)
+
+        if services and doctors:
+            data["_all_doctors"] = doctors
+            data["_services"] = services
+            session["step"] = "get_booking_type"
+            session["_ui_options"] = {
+                "type": "booking_type",
+                "items": [
+                    {"name": "Book a Service", "value": "service"},
+                    {"name": "Book an Appointment", "value": "appointment"},
+                ]
+            }
+            return f"Nice to meet you, {data['name']}! How would you like to book?"
+        elif doctors:
+            # No services configured — go straight to doctor selection
             cat_set = set()
             for d in doctors:
                 spec = d.get("specialty", "")
@@ -1580,7 +1682,6 @@ def handle_booking(session, user_message, corrected_message=None):
                 session["_ui_options"] = {"type": "categories", "items": [{"name": c} for c in categories]}
                 return f"Nice to meet you, {data['name']}! What type of doctor would you like to see?"
             else:
-                # Only one category or no categories — skip to doctor selection
                 data["_doctors"] = doctors
                 session["step"] = "get_doctor"
                 session["_ui_options"] = {"type": "doctors", "items": [{"name": d["name"], "specialty": d.get("specialty", "General"), "availability": d.get("availability", "Mon-Fri")} for d in doctors]}
@@ -1591,6 +1692,389 @@ def handle_booking(session, user_message, corrected_message=None):
                 return f"Nice to meet you, {data['name']}! When would you like to come in?"
             session["step"] = "get_email"
             return f"Nice to meet you, {data['name']}! What's your email address? (We'll send you a confirmation)"
+
+    # Step: Booking type choice (Service or Appointment)
+    if step == "get_booking_type":
+        chosen = None
+        # Check if user already mentioned a specific service name in conversation history or current message
+        services = data.get("_services", [])
+        if services:
+            # Check current message AND recent history for service name mentions
+            texts_to_check = [lower, user_message.lower().strip()]
+            for msg in session.get("history", [])[-4:]:
+                if msg.get("role") == "user":
+                    texts_to_check.append(msg.get("content", "").lower())
+            for svc in services:
+                svc_lower = svc["name"].lower()
+                for txt in texts_to_check:
+                    if svc_lower in txt or any(w in txt for w in svc_lower.split() if len(w) >= 5):
+                        # Service detected — skip directly to service selection
+                        data["service_name"] = svc["name"]
+                        data["_service_id"] = svc["id"]
+                        data["_service_data"] = svc
+                        # Simulate selecting this service by forwarding to get_service step
+                        session["step"] = "get_service"
+                        return handle_booking(session, svc["name"], corrected_message)
+
+        if "service" in lower:
+            chosen = "service"
+        elif "appointment" in lower:
+            chosen = "appointment"
+        else:
+            # Try matching by item name
+            for item in [{"name": "Book a Service", "value": "service"}, {"name": "Book an Appointment", "value": "appointment"}]:
+                if item["name"].lower() in lower or lower in item["name"].lower():
+                    chosen = item["value"]
+                    break
+            # Try number
+            if not chosen:
+                num_match = re.search(r'(\d+)', lower)
+                if num_match:
+                    idx = int(num_match.group(1)) - 1
+                    if idx == 0:
+                        chosen = "service"
+                    elif idx == 1:
+                        chosen = "appointment"
+
+        if chosen == "service":
+            services = data.get("_services", [])
+            if not services:
+                admin_id = data.get("_admin_id", 1)
+                services = db.get_services_with_doctors(admin_id)
+            # Filter to active services only
+            services = [s for s in services if s.get("is_active", 1)]
+            if not services:
+                # No services available — fall through to normal appointment
+                chosen = "appointment"
+            else:
+                data["_services"] = services
+                session["step"] = "get_service"
+                session["_ui_options"] = {
+                    "type": "services",
+                    "items": [{"name": s["name"], "id": s["id"]} for s in services]
+                }
+                return "Which service are you interested in?"
+
+        if chosen == "appointment":
+            # Normal appointment flow — go to category or doctor selection
+            all_doctors = data.get("_all_doctors", [])
+            if not all_doctors:
+                admin_id = data.get("_admin_id", 1)
+                all_doctors = db.get_doctors(admin_id)
+                all_doctors = [d for d in all_doctors if d.get("status") == "active"]
+            cat_set = set()
+            for d in all_doctors:
+                spec = d.get("specialty", "")
+                if spec:
+                    for s in spec.split(","):
+                        s = s.strip()
+                        if s:
+                            cat_set.add(s)
+            categories = sorted(cat_set)
+            if len(categories) > 1:
+                data["_all_doctors"] = all_doctors
+                data["_categories"] = categories
+                session["step"] = "get_category"
+                session["_ui_options"] = {"type": "categories", "items": [{"name": c} for c in categories]}
+                return "What type of doctor would you like to see?"
+            else:
+                data["_doctors"] = all_doctors
+                session["step"] = "get_doctor"
+                session["_ui_options"] = {"type": "doctors", "items": [{"name": d["name"], "specialty": d.get("specialty", "General"), "availability": d.get("availability", "Mon-Fri")} for d in all_doctors]}
+                return "Which doctor would you like to see?"
+
+        # Didn't understand — re-show
+        session["_ui_options"] = {
+            "type": "booking_type",
+            "items": [
+                {"name": "Book a Service", "value": "service"},
+                {"name": "Book an Appointment", "value": "appointment"},
+            ]
+        }
+        return "Please choose one of the options:"
+
+    # Step: Service selection
+    if step == "get_service":
+        services = data.get("_services", [])
+        chosen_svc = None
+
+        # Try exact match (dropdown sends exact name)
+        raw_lower = user_message.lower().strip()
+        for s in services:
+            if s["name"].lower() == raw_lower or s["name"].lower() == lower:
+                chosen_svc = s
+                break
+
+        # Try number selection
+        if not chosen_svc:
+            num_match = re.search(r'(\d+)', lower)
+            if num_match:
+                idx = int(num_match.group(1)) - 1
+                if 0 <= idx < len(services):
+                    chosen_svc = services[idx]
+
+        # Try partial match
+        if not chosen_svc:
+            for s in services:
+                if s["name"].lower() in lower or lower in s["name"].lower():
+                    chosen_svc = s
+                    break
+
+        if not chosen_svc:
+            session["_ui_options"] = {
+                "type": "services",
+                "items": [{"name": s["name"], "id": s["id"]} for s in services]
+            }
+            return "I didn't recognize that service. Please pick one from the list:"
+
+        data["service_name"] = chosen_svc["name"]
+        data["_service_id"] = chosen_svc["id"]
+        data["_service_data"] = chosen_svc
+
+        # Build service details message
+        svc_desc = chosen_svc.get("description", "")
+        svc_dur = chosen_svc.get("duration_minutes", 60)
+        svc_price = chosen_svc.get("price", 0)
+        svc_currency = chosen_svc.get("currency", "SAR")
+        detail_parts = [f"Great choice! **{chosen_svc['name']}**"]
+        if svc_desc:
+            detail_parts[0] += f" — {svc_desc}"
+        detail_parts[0] += "."
+        extras = []
+        if svc_dur:
+            extras.append(f"Sessions take about **{svc_dur} minutes**")
+        if svc_price:
+            extras.append(f"pricing starts from **{svc_price} {svc_currency}**")
+        if extras:
+            detail_parts.append(" and ".join(extras) + ".")
+        detail_parts.append("The doctor will walk you through everything at the consultation — no commitment needed.")
+        svc_detail_msg = " ".join(detail_parts)
+
+        # Get doctors assigned to this service
+        doctors = db.get_doctors_for_service(chosen_svc["id"])
+        if not doctors:
+            # No doctors for this service — offer to notify when one is assigned
+            session["step"] = "get_service_notify"
+            session["_ui_options"] = {
+                "type": "confirm_yesno",
+                "items": [
+                    {"name": "Yes, notify me", "value": "yes"},
+                    {"name": "No thanks", "value": "no"},
+                ]
+            }
+            return (f"We do offer **{chosen_svc['name']}**, but right now no doctors are assigned to this service. "
+                    f"Would you like to be notified when a doctor becomes available for it?")
+
+        data["_doctors"] = doctors
+        if len(doctors) == 1:
+            # Single doctor — show auto-confirm with Yes/Go back
+            d = doctors[0]
+            data["_auto_doctor"] = d
+            session["step"] = "confirm_service_doctor"
+            detail_bits = [d.get('specialty', 'General')]
+            if d.get("years_of_experience"):
+                detail_bits.append(f"{d['years_of_experience']} yrs experience")
+            if d.get("gender"):
+                detail_bits.append(d["gender"].capitalize())
+            detail_str = ", ".join(detail_bits)
+            session["_ui_options"] = {
+                "type": "confirm_yesno",
+                "items": [
+                    {"name": "Yes, continue", "value": "yes"},
+                    {"name": "Go back", "value": "no"},
+                ]
+            }
+            return (f"{svc_detail_msg}\n\nThis service is performed by **Dr. {d['name']}** "
+                    f"({detail_str}). Shall I proceed with them?")
+        else:
+            session["step"] = "get_service_doctor"
+            session["_ui_options"] = {
+                "type": "doctors",
+                "items": [{"name": d["name"], "specialty": d.get("specialty", "General"),
+                           "availability": d.get("availability", "Mon-Fri"),
+                           "years_of_experience": d.get("years_of_experience", 0),
+                           "gender": d.get("gender", "")} for d in doctors]
+            }
+            return f"{svc_detail_msg}\n\nWhich doctor would you prefer?"
+
+    # Step: Confirm single auto-selected doctor for a service
+    if step == "confirm_service_doctor":
+        raw_lower = user_message.lower().strip()
+        if raw_lower in ("yes", "y", "yeah", "yep", "sure", "ok", "okay", "yes, continue"):
+            d = data.get("_auto_doctor", {})
+            data["doctor_name"] = d["name"]
+            data["doctor_id"] = d["id"]
+            session["step"] = "get_date"
+            off_dates = _get_off_dates_with_blocks(d["id"], data.get("_admin_id", 0))
+            session["_ui_options"] = {"type": "calendar", "doctor_id": d["id"], "off_dates": off_dates}
+            return f"When would you like to come in for your **{data.get('service_name', '')}** appointment?"
+        else:
+            # Go back to service selection
+            services = data.get("_services", [])
+            services = [s for s in services if s.get("is_active", 1)]
+            session["step"] = "get_service"
+            session["_ui_options"] = {
+                "type": "services",
+                "items": [{"name": s["name"], "id": s["id"]} for s in services]
+            }
+            return "No problem! Which service would you like instead?"
+
+    # Step: User wants to be notified when a doctor is assigned to a service
+    if step == "get_service_notify":
+        raw_lower = user_message.lower().strip()
+        if raw_lower in ("yes", "y", "yeah", "yep", "sure", "ok", "okay", "please", "yes, notify me"):
+            # Need email to notify — check if we already have it
+            if data.get("email"):
+                # Save interest
+                db.add_service_interest(
+                    service_id=data.get("_service_id", 0),
+                    service_name=data.get("service_name", ""),
+                    patient_name=data.get("name", ""),
+                    patient_email=data.get("email", ""),
+                    patient_phone=data.get("phone", ""),
+                    admin_id=data.get("_admin_id", 0),
+                )
+                session["flow"] = None
+                session["step"] = None
+                return (f"Got it! We'll notify you at **{data['email']}** as soon as a doctor is available for "
+                        f"**{data.get('service_name', 'this service')}**. Is there anything else I can help with?")
+            else:
+                session["step"] = "get_service_notify_email"
+                return "Sure! What's your **email address** so we can notify you?"
+        else:
+            # User said no — show all active services except the one they just rejected
+            services = data.get("_services", [])
+            rejected_id = data.get("_service_id", 0)
+            remaining = [s for s in services if s.get("is_active", 1) and s["id"] != rejected_id]
+            if remaining:
+                data["_services"] = remaining
+                session["step"] = "get_service"
+                session["_ui_options"] = {
+                    "type": "services",
+                    "items": [{"name": s["name"], "id": s["id"]} for s in remaining]
+                }
+                return "No problem! Would you like to choose a different service?"
+            else:
+                session["flow"] = None
+                session["step"] = None
+                return "No problem! Is there anything else I can help with?"
+
+    # Step: Collect email for service notification
+    if step == "get_service_notify_email":
+        email = _extract_email(user_message)
+        if email:
+            data["email"] = email
+            db.add_service_interest(
+                service_id=data.get("_service_id", 0),
+                service_name=data.get("service_name", ""),
+                patient_name=data.get("name", ""),
+                patient_email=email,
+                patient_phone=data.get("phone", ""),
+                admin_id=data.get("_admin_id", 0),
+            )
+            session["flow"] = None
+            session["step"] = None
+            return (f"We'll notify you at **{email}** as soon as a doctor is available for "
+                    f"**{data.get('service_name', 'this service')}**. Is there anything else I can help with?")
+        else:
+            return "I didn't catch a valid email. Could you please type your **email address**?"
+
+    # Step: Doctor selection for a service
+    if step == "get_service_doctor":
+        doctors = data.get("_doctors", [])
+        chosen = None
+        raw_lower = user_message.lower().strip()
+
+        # Exact match (dropdown sends exact name)
+        for d in doctors:
+            if d["name"].lower() == raw_lower or d["name"].lower() == lower:
+                chosen = d
+                break
+
+        # Number selection
+        if not chosen:
+            num_match = re.search(r'(\d+)', lower)
+            if num_match:
+                idx = int(num_match.group(1)) - 1
+                if 0 <= idx < len(doctors):
+                    chosen = doctors[idx]
+
+        # Partial match
+        if not chosen:
+            for d in doctors:
+                if d["name"].lower() in lower or lower in d["name"].lower():
+                    chosen = d
+                    break
+            if not chosen:
+                for d in doctors:
+                    for word in lower.split():
+                        if len(word) >= 3 and word in d["name"].lower():
+                            chosen = d
+                            break
+
+        if not chosen:
+            session["_ui_options"] = {
+                "type": "doctors",
+                "items": [{"name": d["name"], "specialty": d.get("specialty", "General"), "availability": d.get("availability", "Mon-Fri")} for d in doctors]
+            }
+            return "I didn't recognize that doctor. Please pick one from the list:"
+
+        data["doctor_name"] = chosen["name"]
+        data["doctor_id"] = chosen["id"]
+        session["step"] = "get_date"
+        off_dates = _get_off_dates_with_blocks(chosen["id"], data.get("_admin_id", 0))
+        session["_ui_options"] = {"type": "calendar", "doctor_id": chosen["id"], "off_dates": off_dates}
+        svc_name = data.get("service_name", "")
+        return f"Great choice! **{svc_name}** with **Dr. {chosen['name']}**.\n\nWhen would you like to come in?"
+
+    # Step: Patient type (new/returning) for service bookings
+    if step == "get_patient_type":
+        raw_lower = user_message.lower().strip()
+        if any(w in raw_lower for w in ("new", "first", "never")):
+            data["patient_type"] = "new"
+        elif any(w in raw_lower for w in ("return", "existing", "been here", "been before", "coming back")):
+            data["patient_type"] = "returning"
+        else:
+            data["patient_type"] = raw_lower if raw_lower in ("new", "returning") else "new"
+        session["step"] = "get_patient_notes"
+        return "Any notes or concerns for the doctor? (or say **skip**)"
+
+    # Step: Patient notes for the doctor
+    if step == "get_patient_notes":
+        raw_lower = user_message.lower().strip()
+        if raw_lower in ("skip", "no", "none", "nope", "nothing", "n/a", "na"):
+            data["patient_notes"] = ""
+        else:
+            data["patient_notes"] = user_message.strip()
+        # Now check for discount or go to summary/finalize
+        try:
+            promos_available = promo.has_active_promotions(data.get("_admin_id", 1))
+            if promos_available:
+                session["step"] = "ask_discount"
+                return "Do you have a discount or promo code? (or say **skip**)"
+        except Exception:
+            pass
+        # Build service booking summary
+        summary_parts = []
+        if data.get("service_name"):
+            summary_parts.append(f"**Service:** {data['service_name']}")
+        if data.get("doctor_name"):
+            summary_parts.append(f"**Doctor:** Dr. {data['doctor_name']}")
+        if data.get("date_display"):
+            summary_parts.append(f"**Date:** {data['date_display']}")
+        if data.get("chosen_time"):
+            summary_parts.append(f"**Time:** {data['chosen_time']}")
+        svc_data = data.get("_service_data", {})
+        if svc_data.get("duration_minutes"):
+            summary_parts.append(f"**Duration:** {svc_data['duration_minutes']} minutes")
+        if svc_data.get("price"):
+            summary_parts.append(f"**Price:** From {svc_data['price']} {svc_data.get('currency', 'SAR')}")
+        summary_parts.append(f"**Patient:** {data['name']}")
+        if data.get("email"):
+            summary_parts.append(f"**Email:** {data['email']}")
+        session["step"] = "finalize_booking"
+        summary = "\n".join(summary_parts)
+        return f"Here's your booking summary:\n\n{summary}\n\nSay **confirm** to book it, or **edit** to make changes."
 
     # Step 2a: Got category choice, show doctors in that category
     if step == "get_category":
@@ -1769,11 +2253,16 @@ def handle_booking(session, user_message, corrected_message=None):
         data["booked_slot_names"] = booked_slot_names
         data["all_slots"] = slots
 
-        # Build dropdown — available slots are selectable, booked ones shown as read-only
+        # Build dropdown — for service bookings hide booked slots entirely (no waitlist),
+        # for regular appointments show booked slots as read-only with waitlist option
         dropdown_items = []
+        is_service_booking = bool(data.get("_service_id"))
         for s in slots:
+            is_booked = _is_booked_slot(s["time"], booked_times)
+            if is_booked and is_service_booking:
+                continue  # Hide booked slots for service bookings
             item = {"name": s["time"], "hour": s["hour"], "minute": s.get("minute", 0)}
-            if _is_booked_slot(s["time"], booked_times):
+            if is_booked:
                 item["booked"] = True
             dropdown_items.append(item)
 
@@ -1791,8 +2280,12 @@ def handle_booking(session, user_message, corrected_message=None):
         time_str_all = _extract_time(user_message, all_slots)
 
         if time_str_all:
-            # Check if this slot is booked -> offer waitlist
+            # Check if this slot is booked
             if time_str_all in booked_names:
+                # Service bookings: no waitlist, just ask to pick another time
+                if data.get("_service_id"):
+                    return (f"Unfortunately **{time_str_all}** on **{data['date_display']}** is fully booked.\n\n"
+                            f"Please pick another available time slot.")
                 data["waitlist_time"] = time_str_all
                 session["step"] = "waitlist_offer"
                 return (f"Unfortunately **{time_str_all}** on **{data['date_display']}** is fully booked.\n\n"
@@ -1815,6 +2308,10 @@ def handle_booking(session, user_message, corrected_message=None):
             # Safety check: make sure regex didn't match a booked slot's start time
             for bname in booked_names:
                 if time_str.lower() in bname.lower() or bname.lower().startswith(time_str.lower()):
+                    # Service bookings: no waitlist
+                    if data.get("_service_id"):
+                        return (f"Unfortunately **{bname}** on **{data['date_display']}** is fully booked.\n\n"
+                                f"Please pick another available time slot.")
                     data["waitlist_time"] = bname
                     session["step"] = "waitlist_offer"
                     return (f"Unfortunately **{bname}** on **{data['date_display']}** is fully booked.\n\n"
@@ -2072,8 +2569,43 @@ def handle_booking(session, user_message, corrected_message=None):
         session["step"] = "finalize_booking"
         return handle_booking(session, user_message, corrected_message)
 
+    # Step: edit_booking_choice — patient picked "edit" from summary
+    if step == "edit_booking_choice":
+        choice = lower.strip()
+        if choice in ("cancel", "start over", "restart"):
+            session["flow"] = None
+            session["step"] = None
+            session["data"] = {}
+            return "No problem! Your booking has been cancelled. How can I help you?"
+        has_service = bool(data.get("_service_id"))
+        if "service" in choice or choice == "1" and has_service:
+            session["step"] = "get_booking_type"
+            return handle_booking(session, "book a service", "book a service")
+        if "doctor" in choice or (choice == "2" and has_service) or (choice == "1" and not has_service):
+            # Re-show doctor selection for the current service
+            if data.get("_service_id"):
+                session["step"] = "get_service"
+                return handle_booking(session, data.get("service_name", ""), data.get("service_name", ""))
+            else:
+                session["step"] = "get_doctor"
+                return handle_booking(session, user_message, corrected_message)
+        if "date" in choice or "time" in choice or (choice == "3" and has_service) or (choice == "2" and not has_service):
+            session["step"] = "get_date"
+            return handle_booking(session, user_message, corrected_message)
+        return "Please pick a number (1, 2, 3) or say what you'd like to change."
+
     # Step: finalize_booking — after discount/loyalty, actually book
     if step == "finalize_booking":
+        # Handle "edit" request — let patient pick what to change
+        if lower.strip() in ("edit", "change", "modify", "go back", "back"):
+            edit_options = []
+            if data.get("_service_id"):
+                edit_options.append("1. Service")
+            edit_options.append(f"{'2' if data.get('_service_id') else '1'}. Doctor")
+            edit_options.append(f"{'3' if data.get('_service_id') else '2'}. Date & time")
+            session["step"] = "edit_booking_choice"
+            return "What would you like to change?\n\n" + "\n".join(edit_options) + "\n\nOr say **cancel** to start over."
+
         time_str = data.get("chosen_time", "")
 
         # Detect duplicate booking attempt: same customer, doctor, date, time
@@ -2113,17 +2645,21 @@ def handle_booking(session, user_message, corrected_message=None):
             return error + "\n\nPlease pick another time from the available slots."
 
         # Save to database
-        db.save_booking(
+        booking_id = db.save_booking(
             customer_name=data["name"],
             customer_email=data.get("email", ""),
             customer_phone=data.get("phone", ""),
             date=booking_result["date"],
             time=booking_result["time"],
+            service=data.get("service_name", "General Consultation"),
             calendar_event_id=booking_result.get("calendar_event_id", ""),
             doctor_id=data.get("doctor_id", 0),
             doctor_name=data.get("doctor_name", ""),
             admin_id=data.get("_admin_id", 0),
             promotion_code=data.get("promotion_code", ""),
+            service_id=data.get("_service_id", 0),
+            notes=data.get("patient_notes", ""),
+            patient_type=data.get("patient_type", ""),
         )
         # Increment promotion usage counter
         if data.get("promotion_code"):
@@ -2135,12 +2671,42 @@ def handle_booking(session, user_message, corrected_message=None):
             except Exception:
                 pass
 
+        # Send doctor notification email for service bookings
+        if data.get("_service_id") and data.get("doctor_id"):
+            try:
+                doctor = db.get_doctor_by_id(data["doctor_id"])
+                if doctor and doctor.get("email"):
+                    import email_service as email_svc
+                    email_svc.send_doctor_booking_notification(
+                        to_email=doctor["email"],
+                        doctor_name=data.get("doctor_name", ""),
+                        patient_name=data["name"],
+                        service_name=data.get("service_name", ""),
+                        date_display=data.get("date_display", booking_result["date"]),
+                        time_display=data.get("chosen_time", booking_result["time"]),
+                        patient_notes=data.get("patient_notes", ""),
+                    )
+            except Exception as e:
+                print(f"[booking] Failed to send doctor notification: {e}", flush=True)
+
         # Mark chat session as booked for analytics
         if data.get("_session_id"):
             try:
                 db.mark_session_booked(data["_session_id"])
             except Exception:
                 pass
+
+        # Convert lead if one exists for this session
+        try:
+            session_id = data.get("_session_id") or session.get("_session_id", "")
+            if session_id:
+                conn_b = db.get_db()
+                last_bid = conn_b.execute("SELECT id FROM bookings ORDER BY id DESC LIMIT 1").fetchone()
+                conn_b.close()
+                if last_bid:
+                    lead_engine.on_booking_completed(data.get("_admin_id", 0), session_id, last_bid[0])
+        except Exception:
+            pass
 
         # ── Patient profile + pre-visit form ──
         form_token = None
@@ -2217,6 +2783,12 @@ def handle_booking(session, user_message, corrected_message=None):
             confirmation += f"\n\n📋 **Complete your form now:** [Click here](/form/{form_token})"
         elif data.get("email"):
             confirmation += f"\nA confirmation email has been sent to **{data['email']}**."
+
+        # Add preparation instructions for service bookings
+        svc_data = data.get("_service_data", {})
+        if svc_data.get("preparation_instructions"):
+            confirmation += f"\n\n**Preparation instructions:**\n{svc_data['preparation_instructions']}"
+
         confirmation += "\n\nIs there anything else I can help you with?"
         return confirmation
 
@@ -2227,6 +2799,11 @@ def handle_booking(session, user_message, corrected_message=None):
             return "I couldn't find a valid phone number. Could you try again? Example: (555) 123-4567 or 5551234567"
 
         data["phone"] = extracted_phone
+
+        # For service bookings: ask patient type next
+        if data.get("_service_id"):
+            session["step"] = "get_patient_type"
+            return "Are you a **new patient** or a **returning patient**?"
 
         # Always offer promotion code before finalizing
         session["step"] = "ask_discount"
@@ -2242,17 +2819,21 @@ def handle_booking(session, user_message, corrected_message=None):
             return error + "\n\nPlease pick another time from the available slots."
 
         # Save to database
-        db.save_booking(
+        booking_id = db.save_booking(
             customer_name=data["name"],
             customer_email=data.get("email", ""),
             customer_phone=data["phone"],
             date=booking_result["date"],
             time=booking_result["time"],
+            service=data.get("service_name", "General Consultation"),
             calendar_event_id=booking_result.get("calendar_event_id", ""),
             doctor_id=data.get("doctor_id", 0),
             doctor_name=data.get("doctor_name", ""),
             admin_id=data.get("_admin_id", 0),
             promotion_code=data.get("promotion_code", ""),
+            service_id=data.get("_service_id", 0),
+            notes=data.get("patient_notes", ""),
+            patient_type=data.get("patient_type", ""),
         )
         # Increment promotion usage counter
         if data.get("promotion_code"):
@@ -2263,6 +2844,24 @@ def handle_booking(session, user_message, corrected_message=None):
                 conn.commit(); conn.close()
             except Exception:
                 pass
+
+        # Send doctor notification email for service bookings
+        if data.get("_service_id") and data.get("doctor_id"):
+            try:
+                doctor = db.get_doctor_by_id(data["doctor_id"])
+                if doctor and doctor.get("email"):
+                    import email_service as email_svc
+                    email_svc.send_doctor_booking_notification(
+                        to_email=doctor["email"],
+                        doctor_name=data.get("doctor_name", ""),
+                        patient_name=data["name"],
+                        service_name=data.get("service_name", ""),
+                        date_display=data.get("date_display", booking_result["date"]),
+                        time_display=data.get("chosen_time", booking_result["time"]),
+                        patient_notes=data.get("patient_notes", ""),
+                    )
+            except Exception as e:
+                print(f"[booking] Failed to send doctor notification: {e}", flush=True)
 
         # Mark chat session as booked for analytics
         if data.get("_session_id"):
@@ -2364,6 +2963,12 @@ def handle_booking(session, user_message, corrected_message=None):
             confirmation += f"\n\n📋 **Complete your form now:** [Click here](/form/{form_token})"
         elif data.get("email"):
             confirmation += f"\nA confirmation email has been sent to **{data['email']}**."
+
+        # Add preparation instructions for service bookings
+        svc_data = data.get("_service_data", {})
+        if svc_data.get("preparation_instructions"):
+            confirmation += f"\n\n**Preparation instructions:**\n{svc_data['preparation_instructions']}"
+
         confirmation += "\n\nIs there anything else I can help you with?"
         return confirmation
 
@@ -2578,7 +3183,8 @@ def handle_lead_capture(session, user_message):
 
     # If both name and phone are already known, skip the whole lead flow
     if data.get("name") and data.get("phone") and step in (None, "ask_name"):
-        db.save_lead(name=data["name"], phone=data["phone"])
+        admin_id = data.get("_admin_id") or session.get("_admin_id", 0)
+        lead_engine.capture_lead_from_session(session, admin_id, capture_trigger="lead_capture")
         session["flow"] = None
         session["step"] = None
         session["data"] = {}
@@ -2602,7 +3208,8 @@ def handle_lead_capture(session, user_message):
         data["name"] = user_message.strip().title()
         if data.get("phone"):
             # Phone already known from prefill — save and done
-            db.save_lead(name=data["name"], phone=data["phone"])
+            admin_id = data.get("_admin_id") or session.get("_admin_id", 0)
+            lead_engine.capture_lead_from_session(session, admin_id, capture_trigger="lead_capture")
             session["flow"] = None
             session["step"] = None
             session["data"] = {}
@@ -2620,8 +3227,9 @@ def handle_lead_capture(session, user_message):
         if len(re.sub(r'\D', '', phone)) >= 7:
             data["phone"] = phone
 
-            # Save to database
-            db.save_lead(name=data["name"], phone=data["phone"])
+            # Save to database (enriched)
+            admin_id = data.get("_admin_id") or session.get("_admin_id", 0)
+            lead_engine.capture_lead_from_session(session, admin_id, capture_trigger="lead_capture")
 
             # Owner notification disabled — only send to the customer's email
             # email.send_booking_notification_owner(
@@ -2659,6 +3267,34 @@ def _ask_ai_during_booking(user_message, session, admin_id=1):
     # Groq for everything else
     if message_interpreter.is_configured():
         company_info = db.get_company_info(admin_id)
+        # Inject structured services with pricing into company_info for AI context
+        try:
+            services_list = db.get_services_with_doctors(admin_id)
+            if services_list:
+                svc_lines = []
+                for s in services_list:
+                    line = f"- {s['name']}: {s.get('price','')} {s.get('currency','SAR')}"
+                    if s.get('description'):
+                        line += f" ({s['description']})"
+                    doc_ids = s.get('doctor_ids', [])
+                    if doc_ids:
+                        doc_names = []
+                        for did in doc_ids:
+                            for doc in active_doctors:
+                                if doc["id"] == did:
+                                    doc_names.append(f"Dr. {doc['name']}")
+                        if doc_names:
+                            line += f" [Available with: {', '.join(doc_names)}]"
+                    else:
+                        line += " [No doctor currently assigned — patients can request notification]"
+                    svc_lines.append(line)
+                services_text = "\n".join(svc_lines)
+                existing = company_info.get("pricing_insurance", "") if company_info else ""
+                if company_info is None:
+                    company_info = {}
+                company_info["pricing_insurance"] = (existing + "\n\nService Pricing:\n" + services_text).strip()
+        except Exception:
+            pass
         doctor_slots = {}
         for doc in active_doctors:
             doc_breaks = db.get_doctor_breaks(doc["id"])
@@ -3000,6 +3636,9 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
     # Check both raw and corrected message to catch cases where AI cleaner transforms "cancel"
     cancel_words = ("cancel", "nevermind", "never mind", "stop", "go back", "start over", "quit", "exit")
     is_cancel = raw_lower in cancel_words or lower in cancel_words
+    # "Go back" during certain booking steps means "go to previous step", not cancel
+    if is_cancel and raw_lower in ("go back", "back") and session.get("step") in ("confirm_service_doctor", "edit_booking_choice", "finalize_booking"):
+        is_cancel = False
 
     # When in a flow, be more generous with cancel detection
     # BUT: if the user says "cancel my appointment/booking", they want to cancel an EXISTING appointment,
@@ -3248,8 +3887,20 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
     except Exception:
         pass
 
+    # ── Doctor availability / schedule question guard (must run BEFORE restriction filter) ──
+    _avail_pattern = re.search(
+        r'\b(when|what\s+day|which\s+day|what\s+time|what\s+hour|work|schedule|available|availability|off\s+day|day\s+off)\b',
+        raw_lower
+    )
+    _avail_question = _avail_pattern and re.search(
+        r'\b(work|schedule|available|availability|off|day|hour|time)\b', raw_lower
+    ) and not re.search(r'\b(book|cancel|delete|remove|reserve)\b', raw_lower)
+    if _avail_question and not session.get("flow"):
+        intent = "qa"
+
     # Step 3: Restriction filter — block non-dental messages (only for Q&A, not booking/cancel)
-    if intent == "qa" and classified_raw not in ("greeting", "farewell"):
+    # Skip restriction filter for availability questions (already validated as dental-related above)
+    if intent == "qa" and classified_raw not in ("greeting", "farewell") and not _avail_question:
         is_blocked, blocked_response = restriction_filter.is_off_topic(
             corrected, sklearn_intent=sklearn_intent, sklearn_conf=sklearn_conf
         )
@@ -3331,7 +3982,8 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
         return _reply("I can help you cancel your appointment. What date is it on?")
 
     # Start booking flow (needs state management — must stay before AI)
-    if intent == "booking":
+    # Also trigger if has_booking_signal is True (user said "book" but classifier missed it)
+    if intent == "booking" or has_booking_signal:
         session["flow"] = "booking"
         session["step"] = None
         session["data"] = {"_admin_id": admin_id, "_session_id": session_id}
@@ -3893,7 +4545,52 @@ def api_leads():
     if user.get("role") == "doctor":
         return jsonify([])  # Doctors don't see leads
     admin_id = get_effective_admin_id(user)
-    return jsonify(db.get_all_leads(admin_id=admin_id))
+    leads = db.get_all_leads(admin_id=admin_id)
+    # Enrich with follow-up summary
+    for lead in leads:
+        try:
+            lead["followup"] = db.get_lead_followup_summary(lead["id"])
+        except Exception:
+            lead["followup"] = {"total": 0, "sent": 0, "pending": 0}
+    return jsonify(leads)
+
+
+@app.route("/api/leads/<int:lid>/stage", methods=["PATCH"])
+def api_update_lead_stage(lid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    payload = request.get_json(silent=True) or {}
+    stage = payload.get("stage", "").strip()
+    if stage not in ("new", "engaged", "warm", "cold", "converted"):
+        return jsonify({"error": "Invalid stage"}), 400
+    db.update_lead_stage(lid, stage)
+    if stage == "cold":
+        db.cancel_lead_followups(lid)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/leads/<int:lid>/score", methods=["PATCH"])
+def api_update_lead_score(lid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    payload = request.get_json(silent=True) or {}
+    score = int(payload.get("score", 0))
+    db.update_lead_score(lid, score)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/leads/<int:lid>/followups/cancel", methods=["POST"])
+def api_cancel_lead_followups(lid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    db.cancel_lead_followups(lid)
+    return jsonify({"ok": True})
 
 
 @app.route("/api/bookings", methods=["GET"])
@@ -4035,7 +4732,7 @@ def api_list_company_services():
     if not user:
         return jsonify({"error": "Not authenticated"}), 401
     admin_id = get_effective_admin_id(user)
-    services = db.get_company_services(admin_id)
+    services = db.get_services_with_doctors(admin_id)
     currency = db.get_company_currency(admin_id)
     return jsonify({"services": services, "currency": currency})
 
@@ -4058,7 +4755,14 @@ def api_add_company_service():
         return jsonify({"error": "Invalid price"}), 400
     admin_id = get_effective_admin_id(user)
     currency = db.get_company_currency(admin_id)
-    sid = db.add_company_service(admin_id, name, price, currency, "manual")
+    sid = db.add_company_service(
+        admin_id, name, price, currency, "manual",
+        category=data.get("category", ""),
+        duration_minutes=data.get("duration_minutes", 60),
+        description=data.get("description", ""),
+        preparation_instructions=data.get("preparation_instructions", ""),
+        is_active=data.get("is_active", 1),
+    )
     return jsonify({"ok": True, "id": sid, "currency": currency})
 
 
@@ -4079,7 +4783,14 @@ def api_update_company_service(service_id):
     except (TypeError, ValueError):
         return jsonify({"error": "Invalid price"}), 400
     admin_id = get_effective_admin_id(user)
-    db.update_company_service(service_id, admin_id, name, price)
+    db.update_company_service(
+        service_id, admin_id, name, price,
+        category=data.get("category"),
+        duration_minutes=data.get("duration_minutes"),
+        description=data.get("description"),
+        preparation_instructions=data.get("preparation_instructions"),
+        is_active=data.get("is_active"),
+    )
     return jsonify({"ok": True})
 
 
@@ -4093,6 +4804,46 @@ def api_delete_company_service(service_id):
         return jsonify({"error": "Admin only"}), 403
     admin_id = get_effective_admin_id(user)
     db.delete_company_service(service_id, admin_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/company-services/<int:service_id>/doctors", methods=["PUT"])
+def api_set_service_doctors(service_id):
+    """Set which doctors perform a given service. Body: {"doctor_ids": [1, 2, 3]}"""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    data = request.get_json() or {}
+    doctor_ids = data.get("doctor_ids", [])
+    db.set_service_doctors(service_id, doctor_ids, admin_id)
+
+    # If doctors were assigned, notify anyone waiting for this service
+    if doctor_ids:
+        try:
+            interests = db.get_waiting_service_interests(service_id)
+            if interests:
+                import email_service as email_svc
+                # Get service name and doctor names
+                doctors = db.get_doctors_for_service(service_id)
+                doctor_names = [f"Dr. {d['name']}" for d in doctors]
+                service_name = interests[0]["service_name"] if interests else ""
+                for interest in interests:
+                    if interest.get("patient_email"):
+                        try:
+                            email_svc.send_service_available_notification(
+                                to_email=interest["patient_email"],
+                                patient_name=interest["patient_name"],
+                                service_name=service_name,
+                                doctor_names=doctor_names,
+                            )
+                            db.mark_service_interest_notified(interest["id"])
+                        except Exception as e:
+                            print(f"[service_notify] Failed to email {interest['patient_email']}: {e}", flush=True)
+        except Exception as e:
+            print(f"[service_notify] Error processing interests: {e}", flush=True)
+
     return jsonify({"ok": True})
 
 
@@ -4330,7 +5081,9 @@ def api_update_doctor(doctor_id):
                      appointment_length=data.get("appointment_length"),
                      years_of_experience=data.get("years_of_experience"),
                      schedule_type=data.get("schedule_type"),
-                     daily_hours=data.get("daily_hours"))
+                     daily_hours=data.get("daily_hours"),
+                     gender=data.get("gender"),
+                     photo_url=data.get("photo_url"))
     return jsonify({"ok": True})
 
 
@@ -4348,6 +5101,39 @@ def api_delete_doctor(doctor_id):
         db.set_user_admin_id(doctor["user_id"], 0)
     db.delete_doctor(doctor_id, user["id"])
     return jsonify({"ok": True})
+
+
+# ── Doctor Photo Upload ──
+
+PHOTO_UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads", "doctor_photos")
+os.makedirs(PHOTO_UPLOAD_DIR, exist_ok=True)
+
+
+@app.route("/api/doctors/<int:doctor_id>/photo", methods=["POST"])
+def api_upload_doctor_photo(doctor_id):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    if not is_admin_role(user):
+        return jsonify({"error": "Only administrators can upload photos."}), 403
+    photo = request.files.get("photo")
+    if not photo or not photo.filename:
+        return jsonify({"error": "No photo provided"}), 400
+    ext = os.path.splitext(photo.filename)[1].lower()
+    if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+        return jsonify({"error": "Only JPG, PNG, and WebP images are allowed."}), 400
+    filename = f"doctor_{doctor_id}_{int(datetime.now().timestamp())}{ext}"
+    filepath = os.path.join(PHOTO_UPLOAD_DIR, filename)
+    photo.save(filepath)
+    photo_url = f"/uploads/doctor_photos/{filename}"
+    company_admin_id = get_effective_admin_id(user)
+    doctor = db.get_doctor_by_id(doctor_id)
+    if doctor:
+        db.update_doctor(doctor_id, company_admin_id, doctor["name"], doctor.get("specialty", ""),
+                         doctor.get("bio", ""), doctor.get("availability", "Mon-Fri"),
+                         photo_url=photo_url)
+    return jsonify({"ok": True, "photo_url": photo_url})
 
 
 # ── Doctor PDF Upload ──
@@ -4622,6 +5408,11 @@ def api_save_doctor_from_pdf():
 @app.route("/uploads/doctors/<path:filename>")
 def serve_doctor_pdf(filename):
     return send_from_directory(UPLOAD_DIR, filename)
+
+
+@app.route("/uploads/doctor_photos/<path:filename>")
+def serve_doctor_photo(filename):
+    return send_from_directory(PHOTO_UPLOAD_DIR, filename)
 
 
 # ── Doctor Breaks ──
@@ -5224,13 +6015,32 @@ def api_submit_form(token):
                     confirm_url = f"{base_url}/booking-confirmed/{form['booking_id']}"
                 except Exception:
                     confirm_url = ""
+                # Fetch service details for the email if service_id exists
+                _svc_name = ""
+                _svc_dur = 0
+                _svc_price = ""
+                _svc_prep = ""
+                if booking.get("service_id"):
+                    try:
+                        _svc = db.get_company_service_by_id(booking["service_id"])
+                        if _svc:
+                            _svc_name = _svc.get("name", "")
+                            _svc_dur = _svc.get("duration_minutes", 0)
+                            _svc_price = f"{_svc.get('price', '')} {_svc.get('currency', '')}".strip()
+                            _svc_prep = _svc.get("preparation_instructions", "")
+                    except Exception:
+                        pass
                 email.send_booking_confirmation_customer(
                     booking["customer_name"],
                     booking["customer_email"],
                     date_display,
                     booking["time"],
                     doctor_name=booking.get("doctor_name", ""),
-                    confirm_url=confirm_url
+                    confirm_url=confirm_url,
+                    service_name=_svc_name,
+                    duration_minutes=_svc_dur,
+                    price=_svc_price,
+                    preparation_instructions=_svc_prep,
                 )
 
             # Schedule appointment reminders now that booking is confirmed

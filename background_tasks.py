@@ -340,6 +340,25 @@ def start_background_tasks(app):
     except Exception as e:
         logger.warning(f"Could not register treatment follow-up job: {e}")
 
+    # Lead follow-up engine — daily processing + stage progression
+    try:
+        import lead_engine as _leads
+        _scheduler.add_job(
+            _leads.process_pending_followups,
+            "cron", hour=9, minute=15,
+            id="lead_followups", replace_existing=True,
+            name="Process pending lead follow-ups (daily 9:15am)",
+        )
+        _scheduler.add_job(
+            _leads.auto_progress_stages,
+            "cron", hour=10, minute=0,
+            id="lead_stage_progression", replace_existing=True,
+            name="Auto-progress lead stages (daily 10am)",
+        )
+        logger.info("Lead engine jobs registered")
+    except Exception as e:
+        logger.warning(f"Could not register lead engine jobs: {e}")
+
     # Benchmarking engine — daily metrics refresh
     try:
         import benchmarking_engine as _benchmarks

@@ -143,6 +143,16 @@ def send_reminder(reminder_id):
         db.update_reminder_status(reminder_id, "skipped")
         return False
 
+    # Fetch preparation instructions if this is a service booking
+    prep_instructions = ""
+    if booking.get("service_id"):
+        try:
+            svc = db.get_company_service_by_id(booking["service_id"])
+            if svc and svc.get("preparation_instructions"):
+                prep_instructions = svc["preparation_instructions"]
+        except Exception:
+            pass
+
     subject = f"Appointment Reminder — {date_display}"
     html = _build_reminder_email(
         customer_name=customer_name,
@@ -151,6 +161,7 @@ def send_reminder(reminder_id):
         time_display=time_display,
         confirm_url=confirm_url,
         cancel_url=cancel_url,
+        preparation_instructions=prep_instructions,
     )
 
     success = _send_email(customer_email, subject, html)
@@ -166,7 +177,7 @@ def send_reminder(reminder_id):
     return success
 
 
-def _build_reminder_email(customer_name, doctor_name, date_display, time_display, confirm_url, cancel_url):
+def _build_reminder_email(customer_name, doctor_name, date_display, time_display, confirm_url, cancel_url, preparation_instructions=""):
     """Return full HTML for the appointment-reminder email, matching the
     luxury style used throughout email_service.py."""
 
@@ -179,6 +190,19 @@ def _build_reminder_email(customer_name, doctor_name, date_display, time_display
                     <span style="color:#1a1a2e;font-size:18px;font-weight:700;">Dr. {doctor_name}</span>
                 </td>
             </tr>"""
+
+    prep_html = ""
+    if preparation_instructions:
+        prep_lines = preparation_instructions.strip().replace("\n", "<br>")
+        prep_html = f"""
+    <tr><td style="padding:0 40px 16px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border-radius:10px;border-left:4px solid #d4af37;">
+        <tr><td style="padding:20px 24px;">
+            <p style="color:#92400e;font-size:14px;font-weight:700;margin:0 0 8px;">&#9888; Preparation Instructions:</p>
+            <p style="color:#78350f;font-size:13px;line-height:1.8;margin:0;">{prep_lines}</p>
+        </td></tr>
+        </table>
+    </td></tr>"""
 
     content = f"""
     <!-- Gold accent bar -->
@@ -241,6 +265,7 @@ def _build_reminder_email(customer_name, doctor_name, date_display, time_display
         </tr>
         </table>
     </td></tr>
+    {prep_html}
     <!-- Bottom text -->
     <tr><td style="padding:28px 40px 36px;">
         <div style="border-top:1px solid #eee;padding-top:24px;text-align:center;">

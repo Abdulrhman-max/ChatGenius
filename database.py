@@ -861,6 +861,32 @@ def init_db():
         ("company_info", "currency", "TEXT DEFAULT 'USD'"),
         # Public GUID for embed code (never expose numeric IDs)
         ("users", "public_id", "TEXT DEFAULT ''"),
+        # Service-doctor mapping + description
+        ("company_services", "description", "TEXT DEFAULT ''"),
+        # Service enhancements
+        ("company_services", "category", "TEXT DEFAULT ''"),
+        ("company_services", "duration_minutes", "INTEGER DEFAULT 60"),
+        ("company_services", "preparation_instructions", "TEXT DEFAULT ''"),
+        ("company_services", "is_active", "INTEGER DEFAULT 1"),
+        # Doctor enhancements
+        ("doctors", "gender", "TEXT DEFAULT ''"),
+        ("doctors", "photo_url", "TEXT DEFAULT ''"),
+        # Booking enhancements for service flow
+        ("bookings", "notes", "TEXT DEFAULT ''"),
+        ("bookings", "patient_type", "TEXT DEFAULT ''"),
+        ("bookings", "service_id", "INTEGER DEFAULT 0"),
+        # Lead management enrichment
+        ("leads", "email", "TEXT DEFAULT ''"),
+        ("leads", "stage", "TEXT DEFAULT 'new'"),
+        ("leads", "score", "INTEGER DEFAULT 0"),
+        ("leads", "treatment_interest", "TEXT DEFAULT ''"),
+        ("leads", "is_returning", "INTEGER DEFAULT 0"),
+        ("leads", "preferred_time", "TEXT DEFAULT ''"),
+        ("leads", "capture_trigger", "TEXT DEFAULT 'manual'"),
+        ("leads", "session_id", "TEXT DEFAULT ''"),
+        ("leads", "last_activity_at", "TIMESTAMP DEFAULT ''"),
+        ("leads", "converted_at", "TIMESTAMP DEFAULT ''"),
+        ("leads", "converted_booking_id", "INTEGER DEFAULT 0"),
     ]
     for table, col, col_type in migrations:
         try:
@@ -885,6 +911,47 @@ def init_db():
         variant TEXT,
         converted INTEGER DEFAULT 0,
         created_at TEXT
+    )""")
+    conn.commit()
+
+    # Service-doctor mapping (which doctors perform which services)
+    conn.execute("""CREATE TABLE IF NOT EXISTS service_doctors (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        service_id INTEGER NOT NULL,
+        doctor_id INTEGER NOT NULL,
+        admin_id INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(service_id, doctor_id)
+    )""")
+    conn.commit()
+
+    # Service interest notifications — when user wants a service with no doctors yet
+    conn.execute("""CREATE TABLE IF NOT EXISTS service_interests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        service_id INTEGER NOT NULL,
+        service_name TEXT NOT NULL,
+        patient_name TEXT DEFAULT '',
+        patient_email TEXT DEFAULT '',
+        patient_phone TEXT DEFAULT '',
+        admin_id INTEGER NOT NULL,
+        status TEXT DEFAULT 'waiting',
+        notified_at TIMESTAMP DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    # Lead follow-up sequences
+    conn.execute("""CREATE TABLE IF NOT EXISTS lead_followups (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        lead_id INTEGER NOT NULL,
+        admin_id INTEGER NOT NULL,
+        day_number INTEGER NOT NULL,
+        status TEXT DEFAULT 'pending',
+        scheduled_at TIMESTAMP NOT NULL,
+        sent_at TIMESTAMP DEFAULT '',
+        cancelled_at TIMESTAMP DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
     )""")
     conn.commit()
 
@@ -915,6 +982,42 @@ def save_lead(name, phone, notes="", admin_id=0):
     conn.close()
 
 
+def save_lead_enriched(name, phone, email="", notes="", admin_id=0, source="chatbot",
+                       capture_trigger="manual", treatment_interest="", is_returning=0,
+                       preferred_time="", session_id=""):
+    """Save a lead with full enrichment data. Returns the new lead ID."""
+    from datetime import datetime
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute(
+        """INSERT INTO leads (name, phone, email, notes, admin_id, source, capture_trigger,
+           treatment_interest, is_returning, preferred_time, session_id, stage, last_activity_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,'new',?)""",
+        (name, phone, email, notes, admin_id, source, capture_trigger,
+         treatment_interest, is_returning, preferred_time, session_id, now),
+    )
+    conn.commit()
+    lead_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return lead_id
+
+
+def update_lead_stage(lead_id, stage):
+    from datetime import datetime
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("UPDATE leads SET stage=?, last_activity_at=? WHERE id=?", (stage, now, lead_id))
+    conn.commit()
+    conn.close()
+
+
+def update_lead_score(lead_id, score):
+    conn = get_db()
+    conn.execute("UPDATE leads SET score=? WHERE id=?", (min(10, max(0, score)), lead_id))
+    conn.commit()
+    conn.close()
+
+
 def get_all_leads(admin_id=0):
     conn = get_db()
     if admin_id:
@@ -925,19 +1028,121 @@ def get_all_leads(admin_id=0):
     return [dict(r) for r in rows]
 
 
-def save_booking(customer_name, customer_email, date, time, service="General Consultation",
-                 calendar_event_id="", customer_phone="", doctor_id=0, doctor_name="", admin_id=0,
-                 status="pending", promotion_code=""):
+def get_leads_by_stage(admin_id, stage):
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM leads WHERE admin_id=? AND stage=? ORDER BY score DESC, created_at DESC",
+                        (admin_id, stage)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_lead_by_session(session_id):
+    """Find an existing lead by chat session ID."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM leads WHERE session_id=? LIMIT 1", (session_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def convert_lead(lead_id, booking_id):
+    """Mark a lead as converted and cancel pending follow-ups."""
+    from datetime import datetime
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("UPDATE leads SET stage='converted', converted_at=?, converted_booking_id=? WHERE id=?",
+                 (now, booking_id, lead_id))
+    conn.execute("UPDATE lead_followups SET status='cancelled', cancelled_at=? WHERE lead_id=? AND status='pending'",
+                 (now, lead_id))
+    conn.commit()
+    conn.close()
+
+
+def create_lead_followup(lead_id, admin_id, day_number, scheduled_at):
     conn = get_db()
     conn.execute(
-        """INSERT INTO bookings (customer_name, customer_email, customer_phone, date, time,
-           service, calendar_event_id, doctor_id, doctor_name, admin_id, status, promotion_code)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-        (customer_name, customer_email, customer_phone, date, time, service,
-         calendar_event_id, doctor_id, doctor_name, admin_id, status, promotion_code),
+        "INSERT INTO lead_followups (lead_id, admin_id, day_number, scheduled_at) VALUES (?,?,?,?)",
+        (lead_id, admin_id, day_number, scheduled_at),
     )
     conn.commit()
     conn.close()
+
+
+def get_pending_lead_followups():
+    """Get all pending follow-ups that are due."""
+    from datetime import datetime
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    rows = conn.execute(
+        """SELECT lf.*, l.name, l.email, l.phone, l.treatment_interest, l.stage, l.admin_id AS lead_admin_id
+           FROM lead_followups lf
+           JOIN leads l ON l.id = lf.lead_id
+           WHERE lf.status='pending' AND lf.scheduled_at <= ?
+           ORDER BY lf.scheduled_at""", (now,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def mark_lead_followup_sent(followup_id):
+    from datetime import datetime
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("UPDATE lead_followups SET status='sent', sent_at=? WHERE id=?", (now, followup_id))
+    conn.commit()
+    conn.close()
+
+
+def cancel_lead_followups(lead_id):
+    from datetime import datetime
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("UPDATE lead_followups SET status='cancelled', cancelled_at=? WHERE lead_id=? AND status='pending'",
+                 (now, lead_id))
+    conn.commit()
+    conn.close()
+
+
+def get_lead_followup_summary(lead_id):
+    """Returns dict with total, sent, pending counts."""
+    conn = get_db()
+    total = conn.execute("SELECT COUNT(*) FROM lead_followups WHERE lead_id=?", (lead_id,)).fetchone()[0]
+    sent = conn.execute("SELECT COUNT(*) FROM lead_followups WHERE lead_id=? AND status='sent'", (lead_id,)).fetchone()[0]
+    pending = conn.execute("SELECT COUNT(*) FROM lead_followups WHERE lead_id=? AND status='pending'", (lead_id,)).fetchone()[0]
+    conn.close()
+    return {"total": total, "sent": sent, "pending": pending}
+
+
+def get_stale_leads(admin_id, hours=48):
+    """Find leads in 'new' or 'engaged' stage with no activity for N hours."""
+    from datetime import datetime, timedelta
+    conn = get_db()
+    cutoff = (datetime.now() - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
+    rows = conn.execute(
+        """SELECT * FROM leads WHERE admin_id=? AND stage IN ('new','engaged')
+           AND last_activity_at != '' AND last_activity_at < ?
+           ORDER BY last_activity_at""",
+        (admin_id, cutoff)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def save_booking(customer_name, customer_email, date, time, service="General Consultation",
+                 calendar_event_id="", customer_phone="", doctor_id=0, doctor_name="", admin_id=0,
+                 status="pending", promotion_code="", service_id=0, notes="", patient_type=""):
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO bookings (customer_name, customer_email, customer_phone, date, time,
+           service, calendar_event_id, doctor_id, doctor_name, admin_id, status, promotion_code,
+           service_id, notes, patient_type)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (customer_name, customer_email, customer_phone, date, time, service,
+         calendar_event_id, doctor_id, doctor_name, admin_id, status, promotion_code,
+         int(service_id or 0), notes or "", patient_type or ""),
+    )
+    booking_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit()
+    conn.close()
+    return booking_id
 
 
 def add_booking(customer_name, customer_email="", customer_phone="", date="", time="",
@@ -1369,11 +1574,23 @@ def get_company_services(admin_id):
     return [dict(r) for r in rows]
 
 
-def add_company_service(admin_id, name, price, currency="USD", source="manual"):
+def get_company_service_by_id(service_id):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM company_services WHERE id=?", (service_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def add_company_service(admin_id, name, price, currency="USD", source="manual",
+                        category="", duration_minutes=60, description="",
+                        preparation_instructions="", is_active=1):
     conn = get_db()
     cur = conn.execute(
-        "INSERT INTO company_services (admin_id, name, price, currency, source) VALUES (?,?,?,?,?)",
-        (admin_id, name, float(price or 0), currency, source),
+        """INSERT INTO company_services (admin_id, name, price, currency, source,
+           category, duration_minutes, description, preparation_instructions, is_active)
+           VALUES (?,?,?,?,?,?,?,?,?,?)""",
+        (admin_id, name, float(price or 0), currency, source,
+         category, int(duration_minutes or 60), description, preparation_instructions, int(is_active)),
     )
     conn.commit()
     sid = cur.lastrowid
@@ -1381,12 +1598,29 @@ def add_company_service(admin_id, name, price, currency="USD", source="manual"):
     return sid
 
 
-def update_company_service(service_id, admin_id, name, price):
+def update_company_service(service_id, admin_id, name, price, category=None,
+                           duration_minutes=None, description=None,
+                           preparation_instructions=None, is_active=None):
     conn = get_db()
     conn.execute(
         "UPDATE company_services SET name=?, price=? WHERE id=? AND admin_id=?",
         (name, float(price or 0), service_id, admin_id),
     )
+    if category is not None:
+        conn.execute("UPDATE company_services SET category=? WHERE id=? AND admin_id=?",
+                     (category, service_id, admin_id))
+    if duration_minutes is not None:
+        conn.execute("UPDATE company_services SET duration_minutes=? WHERE id=? AND admin_id=?",
+                     (int(duration_minutes), service_id, admin_id))
+    if description is not None:
+        conn.execute("UPDATE company_services SET description=? WHERE id=? AND admin_id=?",
+                     (description, service_id, admin_id))
+    if preparation_instructions is not None:
+        conn.execute("UPDATE company_services SET preparation_instructions=? WHERE id=? AND admin_id=?",
+                     (preparation_instructions, service_id, admin_id))
+    if is_active is not None:
+        conn.execute("UPDATE company_services SET is_active=? WHERE id=? AND admin_id=?",
+                     (1 if is_active else 0, service_id, admin_id))
     conn.commit()
     conn.close()
 
@@ -1411,6 +1645,96 @@ def delete_all_company_services(admin_id, source=None):
 def set_all_services_currency(admin_id, currency):
     conn = get_db()
     conn.execute("UPDATE company_services SET currency=? WHERE admin_id=?", (currency, admin_id))
+    conn.commit()
+    conn.close()
+
+
+# ── Service-Doctor Mapping ──
+
+def assign_doctor_to_service(service_id, doctor_id, admin_id):
+    conn = get_db()
+    try:
+        conn.execute("INSERT OR IGNORE INTO service_doctors (service_id, doctor_id, admin_id) VALUES (?,?,?)",
+                     (service_id, doctor_id, admin_id))
+        conn.commit()
+    except Exception:
+        pass
+    conn.close()
+
+
+def remove_doctor_from_service(service_id, doctor_id):
+    conn = get_db()
+    conn.execute("DELETE FROM service_doctors WHERE service_id=? AND doctor_id=?", (service_id, doctor_id))
+    conn.commit()
+    conn.close()
+
+
+def get_doctors_for_service(service_id):
+    """Get all doctors assigned to a service."""
+    conn = get_db()
+    rows = conn.execute(
+        """SELECT d.* FROM doctors d
+           JOIN service_doctors sd ON sd.doctor_id = d.id
+           WHERE sd.service_id=? AND d.is_active=1
+           ORDER BY d.name""",
+        (service_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_services_with_doctors(admin_id):
+    """Get all services with their assigned doctor IDs."""
+    services = get_company_services(admin_id)
+    conn = get_db()
+    for svc in services:
+        rows = conn.execute("SELECT doctor_id FROM service_doctors WHERE service_id=?", (svc["id"],)).fetchall()
+        svc["doctor_ids"] = [r["doctor_id"] for r in rows]
+    conn.close()
+    return services
+
+
+def set_service_doctors(service_id, doctor_ids, admin_id):
+    """Replace all doctor assignments for a service."""
+    conn = get_db()
+    conn.execute("DELETE FROM service_doctors WHERE service_id=?", (service_id,))
+    for did in doctor_ids:
+        conn.execute("INSERT INTO service_doctors (service_id, doctor_id, admin_id) VALUES (?,?,?)",
+                     (service_id, did, admin_id))
+    conn.commit()
+    conn.close()
+
+
+def add_service_interest(service_id, service_name, patient_name, patient_email, patient_phone, admin_id):
+    """Record that a patient wants to be notified when a doctor is assigned to a service."""
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO service_interests (service_id, service_name, patient_name, patient_email, patient_phone, admin_id)
+           VALUES (?,?,?,?,?,?)""",
+        (service_id, service_name, patient_name, patient_email, patient_phone, admin_id)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_waiting_service_interests(service_id):
+    """Get all patients waiting for notification about a service."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM service_interests WHERE service_id=? AND status='waiting'",
+        (service_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def mark_service_interest_notified(interest_id):
+    """Mark a service interest as notified."""
+    conn = get_db()
+    conn.execute(
+        "UPDATE service_interests SET status='notified', notified_at=CURRENT_TIMESTAMP WHERE id=?",
+        (interest_id,)
+    )
     conn.commit()
     conn.close()
 
@@ -1517,7 +1841,8 @@ def add_doctor_from_pdf(admin_id, name, email="", specialty="", bio="", availabi
 
 def update_doctor(doctor_id, admin_id, name, specialty="", bio="", availability="Mon-Fri",
                    start_time=None, end_time=None, is_active=None, appointment_length=None,
-                   years_of_experience=None, schedule_type=None, daily_hours=None):
+                   years_of_experience=None, schedule_type=None, daily_hours=None,
+                   gender=None, photo_url=None):
     name = _strip_dr_prefix(name)
     conn = get_db()
     conn.execute("UPDATE doctors SET name=?, specialty=?, bio=?, availability=? WHERE id=? AND admin_id=?",
@@ -1544,6 +1869,12 @@ def update_doctor(doctor_id, admin_id, name, specialty="", bio="", availability=
         conn.execute("UPDATE doctors SET daily_hours=? WHERE id=? AND admin_id=?",
                      (daily_hours if isinstance(daily_hours, str) else json.dumps(daily_hours),
                       doctor_id, admin_id))
+    if gender is not None:
+        conn.execute("UPDATE doctors SET gender=? WHERE id=? AND admin_id=?",
+                     (gender, doctor_id, admin_id))
+    if photo_url is not None:
+        conn.execute("UPDATE doctors SET photo_url=? WHERE id=? AND admin_id=?",
+                     (photo_url, doctor_id, admin_id))
     conn.commit()
     conn.close()
 

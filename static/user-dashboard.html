@@ -94,6 +94,9 @@
         .badge-cyan{background:rgba(139,92,246,0.15);color:var(--cyan);border-color:rgba(139,92,246,0.2)}
         .badge-yellow{background:rgba(251,191,36,0.15);color:var(--yellow);border-color:rgba(251,191,36,0.2)}
         .badge-red{background:rgba(248,113,113,0.15);color:var(--red);border-color:rgba(248,113,113,0.2)}
+        .badge-blue{background:rgba(59,130,246,0.15);color:#3b82f6;border-color:rgba(59,130,246,0.2)}
+        .badge-orange{background:rgba(249,115,22,0.15);color:#f97316;border-color:rgba(249,115,22,0.2)}
+        .badge-gray{background:rgba(156,163,175,0.15);color:#9ca3af;border-color:rgba(156,163,175,0.2)}
         .empty-msg{text-align:center;padding:2rem;color:var(--gray);font-size:0.9rem}
         .usage-bar-bg{height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;margin-top:0.5rem}
         .usage-bar{height:100%;border-radius:4px;background:var(--gradient);transition:width .5s var(--ease)}
@@ -524,11 +527,18 @@
 
         <!-- LEADS PAGE (admin only) -->
         <div id="page-leads" style="display:none">
-            <div class="main-header"><h1>Captured Leads</h1></div>
+            <div class="main-header"><h1>Lead Management</h1></div>
+            <div style="display:flex;gap:0.8rem;margin-bottom:1rem;flex-wrap:wrap">
+                <div class="stat-card" style="flex:1;min-width:120px"><div class="stat-label">Total</div><div class="stat-value" id="leadStatTotal">0</div></div>
+                <div class="stat-card" style="flex:1;min-width:120px"><div class="stat-label">New</div><div class="stat-value" style="color:#3b82f6" id="leadStatNew">0</div></div>
+                <div class="stat-card" style="flex:1;min-width:120px"><div class="stat-label">Engaged</div><div class="stat-value" style="color:#f59e0b" id="leadStatEngaged">0</div></div>
+                <div class="stat-card" style="flex:1;min-width:120px"><div class="stat-label">Warm</div><div class="stat-value" style="color:#f97316" id="leadStatWarm">0</div></div>
+                <div class="stat-card" style="flex:1;min-width:120px"><div class="stat-label">Converted</div><div class="stat-value" style="color:#10b981" id="leadStatConverted">0</div></div>
+            </div>
             <div class="section">
                 <table>
-                    <thead><tr><th>Name</th><th>Phone</th><th>Source</th><th>Captured</th></tr></thead>
-                    <tbody id="leadsBody"><tr><td colspan="4" class="empty-msg">No leads yet</td></tr></tbody>
+                    <thead><tr><th>Name</th><th>Contact</th><th>Interest</th><th>Stage</th><th>Score</th><th>Follow-ups</th><th>Captured</th><th>Actions</th></tr></thead>
+                    <tbody id="leadsBody"><tr><td colspan="8" class="empty-msg">No leads yet</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -1461,11 +1471,48 @@
             // Leads table
             if (isAdmin) {
                 const lBody = document.getElementById('leadsBody');
+                // Update lead stats
+                const stageCounts = { new: 0, engaged: 0, warm: 0, cold: 0, converted: 0 };
+                leads.forEach(l => { if (stageCounts[l.stage] !== undefined) stageCounts[l.stage]++; });
+                document.getElementById('leadStatTotal').textContent = leads.length;
+                document.getElementById('leadStatNew').textContent = stageCounts.new;
+                document.getElementById('leadStatEngaged').textContent = stageCounts.engaged;
+                document.getElementById('leadStatWarm').textContent = stageCounts.warm;
+                document.getElementById('leadStatConverted').textContent = stageCounts.converted;
+
+                const stageBadge = (s) => {
+                    const m = { new: 'badge-blue', engaged: 'badge-yellow', warm: 'badge-orange', cold: 'badge-gray', converted: 'badge-green' };
+                    return `<span class="badge ${m[s] || 'badge-cyan'}">${s || 'new'}</span>`;
+                };
+                const scoreColor = (s) => s >= 7 ? '#10b981' : s >= 4 ? '#f59e0b' : '#ef4444';
                 lBody.innerHTML = leads.length === 0
-                    ? '<tr><td colspan="4" class="empty-msg">No leads yet</td></tr>'
-                    : leads.map(l => `<tr><td>${escapeHtml(l.name)}</td><td>${escapeHtml(l.phone)}</td><td><span class="badge badge-cyan">${escapeHtml(l.source)}</span></td><td>${new Date(l.created_at).toLocaleString()}</td></tr>`).join('');
+                    ? '<tr><td colspan="8" class="empty-msg">No leads yet</td></tr>'
+                    : leads.map(l => {
+                        const contact = [l.phone, l.email].filter(Boolean).map(c => escapeHtml(c)).join('<br>');
+                        const fu = l.followup || { total: 0, sent: 0, pending: 0 };
+                        const fuText = fu.total ? `${fu.sent}/${fu.total} sent` : '<span style="color:var(--gray)">—</span>';
+                        const score = l.score || 0;
+                        const stageSelect = `<select class="form-input" style="width:100px;padding:4px 6px;font-size:11px" onchange="updateLeadStage(${l.id},this.value)">` +
+                            ['new','engaged','warm','cold','converted'].map(s => `<option value="${s}" ${l.stage===s?'selected':''}>${s}</option>`).join('') + '</select>';
+                        return `<tr>
+                            <td>${escapeHtml(l.name)}</td>
+                            <td style="font-size:0.8rem">${contact || '—'}</td>
+                            <td>${l.treatment_interest ? escapeHtml(l.treatment_interest) : '<span style="color:var(--gray)">—</span>'}</td>
+                            <td>${stageBadge(l.stage)}</td>
+                            <td><strong style="color:${scoreColor(score)}">${score}/10</strong></td>
+                            <td style="font-size:0.8rem">${fuText}</td>
+                            <td style="font-size:0.8rem">${new Date(l.created_at).toLocaleString()}</td>
+                            <td>${stageSelect}</td>
+                        </tr>`;
+                    }).join('');
             }
         } catch (e) { console.error('Failed to load data:', e); }
+    }
+
+    async function updateLeadStage(lid, stage) {
+        await fetch(`/api/leads/${lid}/stage`, { method: 'PATCH', headers, body: JSON.stringify({ stage }) });
+        showToast('Lead stage updated', 'success');
+        loadData();
     }
 
     function selectPlan(plan) {
@@ -1658,29 +1705,91 @@
             list.innerHTML = '<p class="empty-msg" style="font-size:0.85rem">No services yet. Add manually or upload a PDF.</p>';
             return;
         }
-        list.innerHTML = __servicesCache.map(s => `
-            <div data-sid="${s.id}" style="display:flex;gap:0.5rem;align-items:center;padding:0.4rem 0.6rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px">
-                <input type="text" class="form-input svc-name" value="${escapeHtml(s.name)}" style="flex:1;padding:0.3rem 0.5rem;font-size:0.85rem">
-                <input type="number" step="0.01" class="form-input svc-price" value="${Number(s.price).toFixed(2)}" style="width:100px;padding:0.3rem 0.5rem;font-size:0.85rem">
-                <span style="color:var(--gray);font-size:0.8rem">${escapeHtml(s.currency || __servicesCurrency)}</span>
-                <span class="badge ${s.source === 'pdf' ? 'badge-cyan' : 'badge-gray'}" style="font-size:0.7rem">${s.source || 'manual'}</span>
-                <button type="button" class="btn" style="padding:0.25rem 0.6rem;font-size:0.8rem" onclick="saveServiceRow(${s.id}, this)">Save</button>
-                <button type="button" class="btn btn-danger" style="padding:0.25rem 0.6rem;font-size:0.8rem" onclick="deleteService(${s.id})">Delete</button>
-            </div>
-        `).join('');
+        const docs = (typeof doctorsCache !== 'undefined' && doctorsCache) ? doctorsCache : [];
+        const categoryOptions = ['', 'Cosmetic', 'Restorative', 'Orthodontic', 'Preventive', 'Emergency', 'Surgical', 'Pediatric', 'Endodontic', 'Periodontic'].map(c =>
+            `<option value="${c}">${c || '— Category —'}</option>`
+        ).join('');
+        list.innerHTML = __servicesCache.map(s => {
+            const assignedIds = (s.doctor_ids || []);
+            const isInactive = s.is_active === 0;
+            const docCheckboxes = docs.length ? `
+                <div style="margin-top:0.4rem;display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center">
+                    <span style="color:var(--gray);font-size:0.75rem;white-space:nowrap">Doctors:</span>
+                    ${docs.map(d => `
+                        <label style="display:flex;align-items:center;gap:0.2rem;font-size:0.78rem;color:var(--text-secondary);cursor:pointer">
+                            <input type="checkbox" class="svc-doc-cb" data-doc-id="${d.id}" ${assignedIds.includes(d.id) ? 'checked' : ''} onchange="saveServiceDoctors(${s.id}, this)">
+                            Dr. ${escapeHtml(d.name)}
+                        </label>
+                    `).join('')}
+                </div>` : '';
+            return `
+            <div data-sid="${s.id}" style="padding:0.6rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;${isInactive ? 'opacity:0.5;' : ''}">
+                <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+                    <input type="text" class="form-input svc-name" value="${escapeHtml(s.name)}" style="flex:1;min-width:150px;padding:0.3rem 0.5rem;font-size:0.85rem" placeholder="Service name">
+                    <select class="form-input svc-category" style="padding:0.3rem 0.4rem;font-size:0.8rem;width:120px">${categoryOptions.replace(`value="${escapeHtml(s.category || '')}"`, `value="${escapeHtml(s.category || '')}" selected`)}</select>
+                    <input type="number" step="0.01" class="form-input svc-price" value="${Number(s.price).toFixed(2)}" style="width:90px;padding:0.3rem 0.5rem;font-size:0.85rem" placeholder="Price">
+                    <span style="color:var(--gray);font-size:0.8rem">${escapeHtml(s.currency || __servicesCurrency)}</span>
+                    <input type="number" class="form-input svc-duration" value="${s.duration_minutes || 60}" style="width:60px;padding:0.3rem 0.5rem;font-size:0.85rem" title="Duration (minutes)">
+                    <span style="color:var(--gray);font-size:0.75rem">min</span>
+                    <label style="display:flex;align-items:center;gap:0.2rem;font-size:0.78rem;color:var(--text-secondary);cursor:pointer" title="Active">
+                        <input type="checkbox" class="svc-active" ${s.is_active !== 0 ? 'checked' : ''}>
+                        Active
+                    </label>
+                    <button type="button" class="btn" style="padding:0.25rem 0.6rem;font-size:0.8rem" onclick="saveServiceRow(${s.id}, this)">Save</button>
+                    <button type="button" class="btn btn-danger" style="padding:0.25rem 0.6rem;font-size:0.8rem" onclick="deleteService(${s.id})">Delete</button>
+                </div>
+                <div style="display:flex;gap:0.5rem;margin-top:0.4rem;flex-wrap:wrap">
+                    <input type="text" class="form-input svc-description" value="${escapeHtml(s.description || '')}" style="flex:1;min-width:200px;padding:0.3rem 0.5rem;font-size:0.8rem" placeholder="Description (shown to patient)">
+                    <input type="text" class="form-input svc-prep" value="${escapeHtml(s.preparation_instructions || '')}" style="flex:1;min-width:200px;padding:0.3rem 0.5rem;font-size:0.8rem" placeholder="Preparation instructions">
+                </div>
+                ${docCheckboxes}
+            </div>`;
+        }).join('');
+        // Fix category dropdowns selection
+        __servicesCache.forEach(s => {
+            const row = list.querySelector('[data-sid="' + s.id + '"]');
+            if (row) {
+                const sel = row.querySelector('.svc-category');
+                if (sel) sel.value = s.category || '';
+            }
+        });
+    }
+
+    async function saveServiceDoctors(serviceId, checkbox) {
+        const row = checkbox.closest('[data-sid]');
+        const cbs = row.querySelectorAll('.svc-doc-cb');
+        const doctorIds = [];
+        cbs.forEach(cb => { if (cb.checked) doctorIds.push(parseInt(cb.dataset.docId)); });
+        try {
+            const res = await fetch('/api/company-services/' + serviceId + '/doctors', {
+                method: 'PUT',
+                headers: { ...headers, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ doctor_ids: doctorIds })
+            });
+            if (!res.ok) { showToast('Failed to update doctors', 'error'); return; }
+            showToast('Doctors updated', 'success');
+            // Update local cache
+            const svc = __servicesCache.find(s => s.id === serviceId);
+            if (svc) svc.doctor_ids = doctorIds;
+        } catch(e) { showToast('Failed to update doctors', 'error'); }
     }
 
     async function saveServiceRow(id, btn) {
         const row = btn.closest('[data-sid]');
         const name = row.querySelector('.svc-name').value.trim();
         const price = parseFloat(row.querySelector('.svc-price').value || '0');
+        const category = row.querySelector('.svc-category') ? row.querySelector('.svc-category').value : '';
+        const duration_minutes = parseInt(row.querySelector('.svc-duration') ? row.querySelector('.svc-duration').value : '60') || 60;
+        const description = row.querySelector('.svc-description') ? row.querySelector('.svc-description').value.trim() : '';
+        const preparation_instructions = row.querySelector('.svc-prep') ? row.querySelector('.svc-prep').value.trim() : '';
+        const is_active = row.querySelector('.svc-active') ? (row.querySelector('.svc-active').checked ? 1 : 0) : 1;
         if (!name) { showToast('Name required', 'error'); return; }
         if (isNaN(price) || price < 0) { showToast('Invalid price', 'error'); return; }
         try {
             const res = await fetch('/api/company-services/' + id, {
                 method: 'PUT',
                 headers: { ...headers, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, price })
+                body: JSON.stringify({ name, price, category, duration_minutes, description, preparation_instructions, is_active })
             });
             if (!res.ok) { showToast('Failed to save', 'error'); return; }
             showToast('Saved', 'success');
@@ -2495,6 +2604,29 @@
                     </div>
                 </div>
 
+                <!-- Gender & Photo -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+                    <div class="form-group" style="margin:0">
+                        <div class="time-label">Gender</div>
+                        <select class="form-input" id="gender_${d.id}" style="font-size:0.82rem;margin-top:0.3rem">
+                            <option value="" ${!d.gender ? 'selected' : ''}>Not specified</option>
+                            <option value="male" ${d.gender === 'male' ? 'selected' : ''}>Male</option>
+                            <option value="female" ${d.gender === 'female' ? 'selected' : ''}>Female</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin:0">
+                        <div class="time-label">Photo</div>
+                        <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.3rem">
+                            ${d.photo_url ? '<img src="' + escapeHtml(d.photo_url) + '" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--cyan)">' : ''}
+                            <label class="btn-small btn-edit" style="cursor:pointer;font-size:0.75rem;padding:0.3rem 0.6rem">
+                                ${d.photo_url ? 'Change' : 'Upload'}
+                                <input type="file" accept="image/*" onchange="uploadDoctorPhoto(${d.id}, this)" style="display:none">
+                            </label>
+                            ${d.photo_url ? '<button class="btn-small btn-delete" style="font-size:0.7rem;padding:0.25rem 0.5rem" onclick="removeDoctorPhoto(' + d.id + ')">Remove</button>' : ''}
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Bio & Experience -->
                 <div style="display:grid;grid-template-columns:1fr auto;gap:0.75rem;margin-bottom:0.75rem">
                     <div class="form-group" style="margin:0">
@@ -2761,15 +2893,51 @@
         if (!doc) return;
         const bio = document.getElementById('bio_' + id).value.trim();
         const exp = parseInt(document.getElementById('exp_' + id).value) || 0;
+        const gender = document.getElementById('gender_' + id).value;
         try {
             await fetch(`/api/doctors/${id}`, {
                 method: 'PUT', headers,
-                body: JSON.stringify({ name: doc.name, specialty: doc.specialty || '', bio, availability: doc.availability || 'Mon-Fri', years_of_experience: exp })
+                body: JSON.stringify({ name: doc.name, specialty: doc.specialty || '', bio, availability: doc.availability || 'Mon-Fri', years_of_experience: exp, gender })
             });
             doc.bio = bio;
             doc.years_of_experience = exp;
+            doc.gender = gender;
             showManageSuccess();
         } catch(e) { showToast('Failed to save profile.', 'error'); }
+    }
+
+    async function uploadDoctorPhoto(id, input) {
+        const file = input.files[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) { showToast('Photo must be under 5MB.', 'warning'); return; }
+        const formData = new FormData();
+        formData.append('photo', file);
+        try {
+            const res = await fetch(`/api/doctors/${id}/photo`, {
+                method: 'POST',
+                headers: { 'Authorization': headers['Authorization'] },
+                body: formData
+            });
+            const result = await res.json();
+            if (result.error) { showToast(result.error, 'error'); return; }
+            const doc = manageDoctors.find(d => d.id === id);
+            if (doc) doc.photo_url = result.photo_url;
+            renderManageDoctors(document.getElementById('manageDoctorSearch')?.value || '');
+            showToast('Photo uploaded!', 'success');
+        } catch(e) { showToast('Failed to upload photo.', 'error'); }
+    }
+
+    async function removeDoctorPhoto(id) {
+        try {
+            await fetch(`/api/doctors/${id}`, {
+                method: 'PUT', headers,
+                body: JSON.stringify({ photo_url: '' })
+            });
+            const doc = manageDoctors.find(d => d.id === id);
+            if (doc) doc.photo_url = '';
+            renderManageDoctors(document.getElementById('manageDoctorSearch')?.value || '');
+            showToast('Photo removed.', 'success');
+        } catch(e) { showToast('Failed to remove photo.', 'error'); }
     }
 
     // ── Doctor Requests (doctor role) ──

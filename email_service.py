@@ -74,7 +74,7 @@ def _wrap_luxury(content):
 
 # ── Booking Confirmation (Customer) ─────────────────────────────────────────
 
-def send_booking_confirmation_customer(customer_name, customer_email, date_display, time_display, doctor_name="", confirm_url=""):
+def send_booking_confirmation_customer(customer_name, customer_email, date_display, time_display, doctor_name="", confirm_url="", service_name="", duration_minutes=0, price="", preparation_instructions=""):
     """Send beautiful booking confirmation to the customer with a clickable link."""
     subject = f"Your Appointment is Confirmed — {date_display}"
 
@@ -85,6 +85,24 @@ def send_booking_confirmation_customer(customer_name, customer_email, date_displ
             <td style="padding:8px 0;border-bottom:1px solid #f0f0f0;">
                 <span style="color:#999;font-size:13px;text-transform:uppercase;letter-spacing:1px;">Doctor</span><br>
                 <span style="color:#1a1a2e;font-size:16px;font-weight:600;">Dr. {doctor_name}</span>
+            </td>
+        </tr>"""
+
+    service_row = ""
+    if service_name:
+        details = f'<span style="color:#1a1a2e;font-size:16px;font-weight:600;">{service_name}</span>'
+        extras = []
+        if duration_minutes:
+            extras.append(f"{duration_minutes} min")
+        if price:
+            extras.append(f"from {price}")
+        if extras:
+            details += f'<br><span style="color:#888;font-size:12px;">{" · ".join(extras)}</span>'
+        service_row = f"""
+        <tr>
+            <td style="padding:8px 0;border-bottom:1px solid #f0f0f0;">
+                <span style="color:#999;font-size:13px;text-transform:uppercase;letter-spacing:1px;">Service</span><br>
+                {details}
             </td>
         </tr>"""
 
@@ -100,6 +118,19 @@ def send_booking_confirmation_customer(customer_name, customer_email, date_displ
             </td></tr>
             </table>
         </td></tr>"""
+
+    prep_html = ""
+    if preparation_instructions:
+        prep_lines = preparation_instructions.strip().replace("\n", "<br>")
+        prep_html = f"""
+    <tr><td style="padding:0 40px 16px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border-radius:10px;border-left:4px solid #d4af37;">
+        <tr><td style="padding:20px 24px;">
+            <p style="color:#92400e;font-size:14px;font-weight:700;margin:0 0 8px;">&#9888; Preparation Instructions:</p>
+            <p style="color:#78350f;font-size:13px;line-height:1.8;margin:0;">{prep_lines}</p>
+        </td></tr>
+        </table>
+    </td></tr>"""
 
     content = f"""
     <!-- Gold accent bar -->
@@ -126,6 +157,7 @@ def send_booking_confirmation_customer(customer_name, customer_email, date_displ
         <table width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#fafaf5,#f5f3eb);border-radius:12px;border:1px solid #e8dfc5;overflow:hidden;">
         <tr><td style="padding:28px;">
             <table width="100%" cellpadding="0" cellspacing="0">
+            {service_row}
             <tr>
                 <td style="padding:8px 0;border-bottom:1px solid rgba(201,168,76,0.2);">
                     <span style="color:#999;font-size:12px;text-transform:uppercase;letter-spacing:1.5px;">Date</span><br>
@@ -144,6 +176,7 @@ def send_booking_confirmation_customer(customer_name, customer_email, date_displ
         </table>
     </td></tr>
     {btn_html}
+    {prep_html}
     <!-- Tips -->
     <tr><td style="padding:32px 40px;">
         <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9ff;border-radius:10px;border-left:4px solid #c9a84c;">
@@ -540,6 +573,149 @@ def send_booking_cancellation(to_email, customer_name, date_display, time_displa
             You're welcome to book a new appointment at any time that suits you.
         </p>
         <p style="color:#999;font-size:13px;margin:0;">Thank you for your understanding.<br><strong style="color:#c9a84c;">{BUSINESS_NAME}</strong></p>
+    </td></tr>
+    <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>"""
+
+    return _send_email(to_email, subject, _wrap_luxury(content))
+
+
+# ── Lead Follow-Up Email ──────────────────────────────────────────────────────
+
+def send_lead_followup(to_email, lead_name, treatment_interest="", day_number=1):
+    """Send a personalized follow-up email to a lead based on day number."""
+    first_name = (lead_name or "there").split()[0]
+    treatment = treatment_interest or "dental care"
+
+    if day_number <= 1:
+        subject = f"Thanks for your interest, {first_name}!"
+        heading = "We&#8217;d Love to Help You"
+        message = (f"Hi {first_name},<br><br>"
+            f"Thanks for reaching out to us about <strong>{treatment}</strong>! "
+            "We&#8217;d love to help you take the next step toward a healthier, brighter smile.<br><br>"
+            "If you have any questions &#8212; about the procedure, pricing, or what to expect &#8212; our team "
+            "is here to help. We also offer <strong>flexible payment plans</strong> to make treatment easy on your budget.<br><br>"
+            "Ready to get started? Book a consultation at your convenience &#8212; no commitment needed.")
+    elif day_number <= 3:
+        subject = f"Still thinking about {treatment}, {first_name}?"
+        heading = "Your Smile Journey Awaits"
+        message = (f"Hi {first_name},<br><br>"
+            f"We noticed you were interested in <strong>{treatment}</strong> and wanted to follow up.<br><br>"
+            "Many of our patients had questions before their first visit too &#8212; and they&#8217;re glad they took "
+            "the step! Our doctors take the time to explain everything and make sure you&#8217;re completely "
+            "comfortable before any treatment begins.<br><br>"
+            "Would you like to book a <strong>free consultation</strong>? It&#8217;s a great way to get all your "
+            "questions answered with zero pressure.")
+    else:
+        subject = f"We're here whenever you're ready, {first_name}"
+        heading = "One Last Thought"
+        message = (f"Hi {first_name},<br><br>"
+            f"Just a gentle follow-up about <strong>{treatment}</strong>. We know life gets busy, "
+            "so we wanted to let you know our door is always open.<br><br>"
+            "If timing or cost is a concern, we&#8217;d be happy to work with you on a plan that fits "
+            "your schedule and budget. Many patients are surprised at how affordable and quick the "
+            "process can be.<br><br>"
+            "Whenever you&#8217;re ready, we&#8217;d love to see you. No rush at all.")
+
+    content = f"""
+    <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>
+    <tr><td style="padding:40px 40px 20px;text-align:center;">
+        <h1 style="color:#1a1a2e;font-size:22px;margin:0;">{heading}</h1>
+    </td></tr>
+    <tr><td style="padding:10px 40px 30px;">
+        <p style="color:#555;font-size:15px;line-height:1.7;margin:0;">{message}</p>
+    </td></tr>
+    <tr><td style="padding:0 40px 30px;text-align:center;">
+        <p style="color:#999;font-size:13px;margin:0;">
+            We look forward to welcoming you.<br>
+            <strong style="color:#c9a84c;">{BUSINESS_NAME}</strong>
+        </p>
+    </td></tr>
+    <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>"""
+
+    return _send_email(to_email, subject, _wrap_luxury(content))
+
+
+def send_service_available_notification(to_email, patient_name, service_name, doctor_names=None):
+    """Notify a patient that a doctor is now available for a service they were interested in."""
+    subject = f"Great News — {service_name} Now Available!"
+    docs_text = ""
+    if doctor_names:
+        if len(doctor_names) == 1:
+            docs_text = f"<p style='color:#555;font-size:15px;line-height:1.7;margin:10px 0;'>Our specialist <strong style=\"color:#c9a84c;\">{doctor_names[0]}</strong> is now available to help you.</p>"
+        else:
+            names_list = ", ".join(doctor_names[:-1]) + f" and {doctor_names[-1]}"
+            docs_text = f"<p style='color:#555;font-size:15px;line-height:1.7;margin:10px 0;'>Our specialists <strong style=\"color:#c9a84c;\">{names_list}</strong> are now available to help you.</p>"
+
+    content = f"""
+    <tr><td style="padding:30px 40px 10px;">
+        <h2 style="color:#1a1a1a;font-size:22px;margin:0;">Great News, {patient_name}!</h2>
+    </td></tr>
+    <tr><td style="padding:10px 40px 20px;">
+        <p style="color:#555;font-size:15px;line-height:1.7;margin:0;">
+            You previously expressed interest in <strong style="color:#c9a84c;">{service_name}</strong>,
+            and we're happy to let you know that this service is now available at our clinic!
+        </p>
+        {docs_text}
+        <p style="color:#555;font-size:15px;line-height:1.7;margin:10px 0;">
+            We'd love to help you get started. Feel free to book your appointment at your convenience.
+        </p>
+    </td></tr>
+    <tr><td style="padding:0 40px 30px;text-align:center;">
+        <p style="color:#999;font-size:13px;margin:0;">
+            We look forward to seeing you!<br>
+            <strong style="color:#c9a84c;">{BUSINESS_NAME}</strong>
+        </p>
+    </td></tr>
+    <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>"""
+
+    return _send_email(to_email, subject, _wrap_luxury(content))
+
+
+def send_doctor_booking_notification(to_email, doctor_name, patient_name, service_name,
+                                     date_display, time_display, patient_notes=""):
+    """Notify doctor about a new service booking assigned to them."""
+    subject = f"New Service Booking — {service_name}"
+    notes_html = ""
+    if patient_notes:
+        notes_html = f"""
+        <tr><td style="padding:0 40px 20px;">
+            <div style="background:#f8f6f0;border-left:3px solid #c9a84c;padding:12px 16px;border-radius:4px;">
+                <p style="color:#888;font-size:12px;margin:0 0 4px;text-transform:uppercase;letter-spacing:0.5px;">Patient Notes</p>
+                <p style="color:#333;font-size:14px;margin:0;line-height:1.5;">{patient_notes}</p>
+            </div>
+        </td></tr>"""
+
+    content = f"""
+    <tr><td style="padding:30px 40px 10px;">
+        <h2 style="color:#1a1a1a;font-size:22px;margin:0;">New Service Booking</h2>
+    </td></tr>
+    <tr><td style="padding:10px 40px 20px;">
+        <p style="color:#555;font-size:15px;line-height:1.7;margin:0;">Hi Dr. {doctor_name},</p>
+        <p style="color:#555;font-size:15px;line-height:1.7;margin:10px 0;">A new appointment has been booked for you.</p>
+    </td></tr>
+    <tr><td style="padding:0 40px 20px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#faf8f3;border-radius:10px;padding:20px;">
+            <tr><td style="padding:10px 20px;border-bottom:1px solid rgba(201,168,76,0.15);">
+                <span style="color:#888;font-size:12px;">PATIENT</span><br>
+                <span style="color:#1a1a1a;font-size:15px;font-weight:600;">{patient_name}</span>
+            </td></tr>
+            <tr><td style="padding:10px 20px;border-bottom:1px solid rgba(201,168,76,0.15);">
+                <span style="color:#888;font-size:12px;">SERVICE</span><br>
+                <span style="color:#1a1a1a;font-size:15px;font-weight:600;">{service_name}</span>
+            </td></tr>
+            <tr><td style="padding:10px 20px;border-bottom:1px solid rgba(201,168,76,0.15);">
+                <span style="color:#888;font-size:12px;">DATE</span><br>
+                <span style="color:#1a1a1a;font-size:15px;">{date_display}</span>
+            </td></tr>
+            <tr><td style="padding:10px 20px;">
+                <span style="color:#888;font-size:12px;">TIME</span><br>
+                <span style="color:#1a1a1a;font-size:15px;">{time_display}</span>
+            </td></tr>
+        </table>
+    </td></tr>
+    {notes_html}
+    <tr><td style="padding:0 40px 30px;">
+        <p style="color:#555;font-size:14px;line-height:1.6;margin:0;">Please review and prepare accordingly.</p>
     </td></tr>
     <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>"""
 
