@@ -1456,6 +1456,32 @@ def handle_booking(session, user_message, corrected_message=None):
     if session.get("patient_id") and "_patient_id" not in data:
         data["_patient_id"] = session["patient_id"]
 
+    # At any step (after doctor is selected), detect "change doctor" intent
+    # Check both corrected and raw input for misspellings
+    if step and step not in ("get_doctor", "get_name", "get_category") and data.get("doctor_id"):
+        raw_lower = user_message.lower().strip()
+        # Normalize common misspellings of "doctor" in both raw and corrected
+        _doc_pattern = r'(doc(?:t(?:o|e)?r)?|dentist|dr\.?|d[oap]c[tk]?[oe]?r)'
+        _change_pattern = r'(change|switch|different|another|other|don.?t\s*want|not\s*this|swap)'
+        change_doc = re.search(_change_pattern + r'.*' + _doc_pattern, lower) or \
+                     re.search(_doc_pattern + r'.*' + _change_pattern, lower) or \
+                     re.search(_change_pattern + r'.*' + _doc_pattern, raw_lower) or \
+                     re.search(_doc_pattern + r'.*' + _change_pattern, raw_lower)
+        if change_doc:
+            admin_id_ctx = data.get("_admin_id", 0)
+            widget_id = data.get("_widget_id", "")
+            doctors = db.get_doctors(admin_id_ctx)
+            doc_list = [dict(d) for d in doctors] if doctors else []
+            session["step"] = "get_doctor"
+            session["data"] = {"_admin_id": admin_id_ctx, "_widget_id": widget_id, "_doctors": doc_list,
+                               "name": data.get("name", ""), "email": data.get("email", ""), "phone": data.get("phone", "")}
+            if doc_list:
+                session["_ui_options"] = {
+                    "type": "doctors",
+                    "items": [{"id": d["id"], "name": d["name"], "specialty": d.get("specialty", "")} for d in doc_list]
+                }
+            return "No problem! Which doctor would you like to see instead?"
+
     # At any step, detect promo/discount code intent and store for later
     if step and step not in (None, "ask_discount", "finalize_booking"):
         promo_match = re.search(r'\b(promo|promotion|discount|coupon|code|voucher)\b', lower)
@@ -1698,13 +1724,13 @@ def handle_booking(session, user_message, corrected_message=None):
             off_dates = _get_off_dates_with_blocks(doctor_id, admin_id)
             if data["date_iso"] in off_dates:
                 doctor = db.get_doctor_by_id(doctor_id)
-                doc_name = doctor["name"] if doctor else "The doctor"
+                doc_name = doctor["name"] if doctor else "The dentist"
                 session["_ui_options"] = {
                     "type": "calendar",
                     "doctor_id": doctor_id,
                     "off_dates": off_dates,
                 }
-                return f"Sorry, Dr. **{doc_name}** is not available on **{data['date_display']}**. Please pick another date:"
+                return f"Sorry, Dr. **{doc_name}** will have an off day on **{data['date_display']}**. Please choose another date:"
 
         # Generate slots from doctor's schedule
         slots = []
@@ -1720,11 +1746,11 @@ def handle_booking(session, user_message, corrected_message=None):
             # Only fall back to generic calendar slots if doctor has no schedule configured
             slots = result["slots"]
         elif not slots and doctor_has_schedule:
-            # Doctor has a schedule but no slots for this day (e.g. flexible off day)
-            doc_name = doctor["name"] if doctor else "The doctor"
+            # Doctor has a schedule but no slots for this day (e.g. flexible off day or holiday)
+            doc_name = doctor["name"] if doctor else "The dentist"
             off_dates = _get_off_dates_with_blocks(doctor_id, data.get("_admin_id", 0))
             session["_ui_options"] = {"type": "calendar", "doctor_id": doctor_id, "off_dates": off_dates}
-            return f"Sorry, Dr. **{doc_name}** is not available on **{data['date_display']}**. Please pick another date:"
+            return f"Sorry, Dr. **{doc_name}** will have an off day on **{data['date_display']}**. Please choose another date:"
 
         # Filter out already booked times for this doctor on this date
         booked_times = []
@@ -1837,12 +1863,19 @@ def handle_booking(session, user_message, corrected_message=None):
             session["step"] = "waitlist_get_name"
             return "I'll add you to the waitlist! First, what's your **full name**?"
         elif _is_negative(user_message):
-            session["step"] = "get_time"
-            avail = data.get("available_slots", [])
-            if avail:
-                times_list = ", ".join([s["time"] for s in avail[:6]])
-                return f"No problem! Here are the available times: {times_list}\n\nPick one that works for you."
-            return "Unfortunately there are no other slots available on this date. Would you like to try a different day?"
+            # Reset booking flow — start over from doctor selection
+            admin_id_ctx = data.get("_admin_id", 0)
+            widget_id = data.get("_widget_id", "")
+            doctors = db.get_doctors(admin_id_ctx)
+            doc_list = [dict(d) for d in doctors] if doctors else []
+            session["step"] = "get_doctor"
+            session["data"] = {"_admin_id": admin_id_ctx, "_widget_id": widget_id, "_doctors": doc_list}
+            if doc_list:
+                session["_ui_options"] = {
+                    "type": "doctors",
+                    "items": [{"id": d["id"], "name": d["name"], "specialty": d.get("specialty", "")} for d in doc_list]
+                }
+            return "No problem! Let's start fresh. Which doctor would you like to see?"
         return "Please say **yes** to join the waitlist or **no** to see other available times."
 
     # Step 4c: Waitlist — get name
@@ -1869,6 +1902,50 @@ def handle_booking(session, user_message, corrected_message=None):
         extracted_phone = _extract_phone(user_message)
         if not extracted_phone:
             return "I couldn't find a valid phone number. Could you try again? Example: (555) 123-4567"
+
+        # Detect duplicate: already booked OR already on waitlist for same slot
+        try:
+            admin_id_ctx = data.get("_admin_id", 0)
+            doctor_id = data.get("doctor_id", 0)
+            date_iso = data.get("date_iso", data.get("date_str", ""))
+            slot = data.get("waitlist_time", "")
+            email = (data.get("waitlist_email") or "").strip().lower()
+            name = (data.get("waitlist_name") or "").strip().lower()
+            if date_iso and doctor_id and slot:
+                conn = db.get_db()
+                existing_booking = conn.execute(
+                    """SELECT id FROM bookings
+                       WHERE admin_id=? AND doctor_id=? AND date=? AND time=?
+                             AND status != 'cancelled'
+                             AND (LOWER(customer_email)=? OR customer_phone=? OR LOWER(customer_name)=?)
+                       LIMIT 1""",
+                    (admin_id_ctx, doctor_id, date_iso, slot, email, extracted_phone, name)
+                ).fetchone()
+                existing_wait = conn.execute(
+                    """SELECT id FROM waitlist
+                       WHERE admin_id=? AND doctor_id=? AND date=? AND time_slot=?
+                             AND status IN ('waiting','notified')
+                             AND (LOWER(patient_email)=? OR patient_phone=? OR LOWER(patient_name)=?)
+                       LIMIT 1""",
+                    (admin_id_ctx, doctor_id, date_iso, slot, email, extracted_phone, name)
+                ).fetchone()
+                conn.close()
+                if existing_booking:
+                    session["flow"] = None
+                    session["step"] = None
+                    session["data"] = {}
+                    return (f"Oh! You already have an appointment with **Dr. {data.get('doctor_name','')}** "
+                            f"on **{data.get('date_display','')}** at **{slot}**.\n\n"
+                            f"Is there anything else I can help you with?")
+                if existing_wait:
+                    session["flow"] = None
+                    session["step"] = None
+                    session["data"] = {}
+                    return (f"Oh! You're already on the waitlist for **Dr. {data.get('doctor_name','')}** "
+                            f"on **{data.get('date_display','')}** at **{slot}**.\n\n"
+                            f"Is there anything else I can help you with?")
+        except Exception:
+            pass
 
         # Add to waitlist
         try:
@@ -1998,6 +2075,35 @@ def handle_booking(session, user_message, corrected_message=None):
     # Step: finalize_booking — after discount/loyalty, actually book
     if step == "finalize_booking":
         time_str = data.get("chosen_time", "")
+
+        # Detect duplicate booking attempt: same customer, doctor, date, time
+        try:
+            date_iso = data.get("date_iso", "")
+            doctor_id = data.get("doctor_id", 0)
+            admin_id_ctx = data.get("_admin_id", 0)
+            email = (data.get("email") or "").strip().lower()
+            phone = (data.get("phone") or "").strip()
+            name = (data.get("name") or "").strip().lower()
+            if date_iso and doctor_id and time_str:
+                conn = db.get_db()
+                existing = conn.execute(
+                    """SELECT id FROM bookings
+                       WHERE admin_id=? AND doctor_id=? AND date=? AND time=?
+                             AND status != 'cancelled'
+                             AND (LOWER(customer_email)=? OR customer_phone=? OR LOWER(customer_name)=?)
+                       LIMIT 1""",
+                    (admin_id_ctx, doctor_id, date_iso, time_str, email, phone, name)
+                ).fetchone()
+                conn.close()
+                if existing:
+                    session["flow"] = None
+                    session["step"] = None
+                    session["data"] = {}
+                    return (f"Oh! You already have an appointment with **Dr. {data.get('doctor_name','')}** "
+                            f"on **{data.get('date_display','')}** at **{time_str}**.\n\n"
+                            f"Is there anything else I can help you with?")
+        except Exception:
+            pass
 
         booking_result, error = cal.book_appointment(
             data.get("date_str", ""), time_str,
@@ -6639,17 +6745,45 @@ def api_cancel_booking(bid):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
+    payload = request.get_json(silent=True) or {}
+    reason = (payload.get("reason") or "").strip()
     conn = db.get_db()
     booking = conn.execute("SELECT * FROM bookings WHERE id=?", (bid,)).fetchone()
     if not booking:
         conn.close()
         return jsonify({"error": "Booking not found"}), 404
+    booking = dict(booking)
     conn.execute("UPDATE bookings SET status='cancelled' WHERE id=?", (bid,))
     # Track cancellation on patient profile
     if booking.get("patient_id"):
         conn.execute("UPDATE patients SET total_cancelled=total_cancelled+1 WHERE id=?", (booking["patient_id"],))
     conn.commit()
     conn.close()
+    # Send cancellation email to customer
+    try:
+        doctor_name = ""
+        if booking.get("doctor_id"):
+            dconn = db.get_db()
+            drow = dconn.execute("SELECT name FROM doctors WHERE id=?", (booking["doctor_id"],)).fetchone()
+            dconn.close()
+            if drow:
+                doctor_name = drow["name"]
+        date_display = booking.get("date", "")
+        try:
+            date_display = datetime.strptime(booking["date"], "%Y-%m-%d").strftime("%A, %B %d, %Y")
+        except Exception:
+            pass
+        if booking.get("customer_email"):
+            email.send_booking_cancellation(
+                booking["customer_email"],
+                booking.get("customer_name", ""),
+                date_display,
+                booking.get("time", ""),
+                doctor_name=doctor_name,
+                reason=reason,
+            )
+    except Exception as e:
+        logger.warning(f"Failed to send cancellation email: {e}")
     # ── Feature 16: Emit real-time cancellation event ──
     try:
         realtime.emit_booking_cancelled(booking["admin_id"], bid, booking["customer_name"])

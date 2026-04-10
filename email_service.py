@@ -482,3 +482,65 @@ def send_treatment_followup(to_email, patient_name, treatment_name, day_number, 
     <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>"""
 
     return _send_email(to_email, subject, _wrap_luxury(content))
+
+
+# ── Booking Cancellation (Customer) ─────────────────────────────────────────
+
+def send_booking_cancellation(to_email, customer_name, date_display, time_display, doctor_name="", reason=""):
+    """Notify the customer that their appointment has been cancelled by the clinic."""
+    subject = f"Your Appointment Has Been Cancelled — {date_display}"
+
+    doctor_row = ""
+    if doctor_name:
+        doctor_row = f"""
+        <tr><td style="padding:8px 0;border-bottom:1px solid #f0f0f0;">
+            <span style="color:#999;font-size:13px;text-transform:uppercase;letter-spacing:1px;">Doctor</span><br>
+            <span style="color:#1a1a2e;font-size:16px;font-weight:600;">Dr. {doctor_name}</span>
+        </td></tr>"""
+
+    reason_block = ""
+    if reason:
+        reason_block = f"""
+        <tr><td style="padding:20px 40px 0;">
+            <div style="background:#fff8e1;border-left:4px solid #c9a84c;padding:14px 18px;border-radius:6px;">
+                <div style="color:#999;font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Reason</div>
+                <div style="color:#1a1a2e;font-size:14px;line-height:1.5;">{reason}</div>
+            </div>
+        </td></tr>"""
+
+    content = f"""
+    <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>
+    <tr><td style="padding:40px 40px 16px;text-align:center;">
+        <h1 style="color:#1a1a2e;font-size:24px;margin:0 0 8px;font-weight:700;">Appointment Cancelled</h1>
+        <p style="color:#666;font-size:15px;margin:0;">Dear {customer_name},</p>
+    </td></tr>
+    <tr><td style="padding:16px 40px;">
+        <p style="color:#444;font-size:15px;line-height:1.6;margin:0;">
+            Unfortunately, we had to cancel your appointment scheduled for
+            <strong>{date_display}</strong> at <strong>{time_display}</strong>.
+            We sincerely apologize for any inconvenience this may cause.
+        </p>
+    </td></tr>
+    <tr><td style="padding:8px 40px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#fafafa;border-radius:10px;padding:20px;">
+            {doctor_row}
+            <tr><td style="padding:8px 0;border-bottom:1px solid #f0f0f0;">
+                <span style="color:#999;font-size:13px;text-transform:uppercase;letter-spacing:1px;">Date</span><br>
+                <span style="color:#1a1a2e;font-size:16px;font-weight:600;">{date_display}</span>
+            </td></tr>
+            <tr><td style="padding:8px 0;">
+                <span style="color:#999;font-size:13px;text-transform:uppercase;letter-spacing:1px;">Time</span><br>
+                <span style="color:#1a1a2e;font-size:16px;font-weight:600;">{time_display}</span>
+            </td></tr>
+        </table>
+    </td></tr>
+    {reason_block}
+    <tr><td style="padding:24px 40px 40px;text-align:center;">
+        <p style="color:#666;font-size:14px;line-height:1.6;margin:0 0 12px;">
+            You're welcome to book a new appointment at any time that suits you.
+        </p>
+        <p style="color:#999;font-size:13px;margin:0;">Thank you for your understanding.<br><strong style="color:#c9a84c;">{BUSINESS_NAME}</strong></p>
+    </td></tr>
+    <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>"""
+
+    return _send_email(to_email, subject, _wrap_luxury(content))

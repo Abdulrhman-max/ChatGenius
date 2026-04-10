@@ -2663,8 +2663,8 @@ def is_slot_blocked(admin_id, doctor_id, date_str, time_str=None):
         if btype == "single_date":
             matches_date = (block["start_date"] == date_str)
         elif btype == "date_range":
-            sd = block.get("start_date", "")
-            ed = block.get("end_date", sd)
+            sd = block["start_date"] or ""
+            ed = block["end_date"] or sd
             matches_date = (sd <= date_str <= ed)
         elif btype == "recurring":
             matches_date = _date_matches_recurring(date_obj, block)
@@ -2673,8 +2673,8 @@ def is_slot_blocked(admin_id, doctor_id, date_str, time_str=None):
             continue
 
         # Date matches — now check time
-        blk_start = block.get("start_time", "")
-        blk_end = block.get("end_time", "")
+        blk_start = block["start_time"] or ""
+        blk_end = block["end_time"] or ""
 
         if not blk_start and not blk_end:
             # Full-day block
@@ -2725,8 +2725,8 @@ def get_blocked_dates_for_calendar(admin_id, doctor_id, year, month):
             if btype == "single_date":
                 matched = (block["start_date"] == date_str)
             elif btype == "date_range":
-                sd = block.get("start_date", "")
-                ed = block.get("end_date", sd)
+                sd = block["start_date"] or ""
+                ed = block["end_date"] or sd
                 matched = (sd <= date_str <= ed)
             elif btype == "recurring":
                 matched = _date_matches_recurring(date_obj, block)

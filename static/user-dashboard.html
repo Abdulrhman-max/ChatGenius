@@ -437,7 +437,7 @@
             <li><a href="#" onclick="showPage('demo')"><i data-lucide="message-circle" style="width:18px;height:18px"></i><span class="icon">&#128172;</span> Try Demo</a></li>
             <li class="admin-doctor-only"><a href="#" onclick="showPage('waitlist')"><i data-lucide="clock" style="width:18px;height:18px"></i><span class="icon">&#128203;</span> Waitlist</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('customers')"><i data-lucide="users" style="width:18px;height:18px"></i><span class="icon">&#128101;</span> Customers</a></li>
-            <li class="admin-only"><a href="#" onclick="showPage('schedule-blocks')"><i data-lucide="calendar-days" style="width:18px;height:18px"></i><span class="icon">&#128197;</span> Schedule & Holidays</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('schedule-blocks')"><i data-lucide="calendar-days" style="width:18px;height:18px"></i><span class="icon">&#128197;</span> Doctor Holidays</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('promotions')"><i data-lucide="gift" style="width:18px;height:18px"></i><span class="icon">&#127873;</span> Promotions</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('recall')"><i data-lucide="rotate-ccw" style="width:18px;height:18px"></i><span class="icon">&#128276;</span> Recall & Retention</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('followups')"><i data-lucide="bell" style="width:18px;height:18px"></i><span class="icon">&#128221;</span> Follow-Ups</a></li>
@@ -516,8 +516,8 @@
             <div class="main-header"><h1 id="bookingsTitle">Bookings</h1></div>
             <div class="section">
                 <table>
-                    <thead><tr><th>Customer</th><th>Doctor</th><th>Date</th><th>Time</th><th>Promo</th><th>Status</th></tr></thead>
-                    <tbody id="bookingsBody"><tr><td colspan="6" class="empty-msg">No bookings yet</td></tr></tbody>
+                    <thead><tr><th>Customer</th><th>Doctor</th><th>Date</th><th>Time</th><th>Promo</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="bookingsBody"><tr><td colspan="7" class="empty-msg">No bookings yet</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -982,40 +982,31 @@
 
         <!-- Feature 11: Schedule Blocks -->
         <div id="page-schedule-blocks" style="display:none">
-            <h2 class="page-title">Schedule & Holidays</h2>
+            <h2 class="page-title">Doctor Holidays</h2>
             <div class="section">
-                <h3 style="font-size:0.95rem;margin-bottom:0.8rem">Add Block</h3>
-                <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;align-items:end">
-                    <div><div class="time-label">Type</div>
-                        <select id="blockType" class="form-input" style="width:150px" onchange="toggleBlockFields()">
-                            <option value="clinic">Clinic Holiday</option>
-                            <option value="doctor">Doctor Block</option>
-                            <option value="recurring">Recurring Block</option>
-                        </select>
+                <h3 style="font-size:0.95rem;margin-bottom:0.8rem">Add Holiday</h3>
+                <div style="display:flex;gap:0.5rem;margin-bottom:0.8rem;flex-wrap:wrap;align-items:end">
+                    <div><div class="time-label">Start Date *</div>
+                        <input type="date" id="blockStartDate" class="form-input" style="width:160px" required>
                     </div>
-                    <div id="blockDoctorWrap" style="display:none"><div class="time-label">Doctor</div>
-                        <select id="blockDoctor" class="form-input" style="width:160px"></select>
+                    <div><div class="time-label">End Date *</div>
+                        <input type="date" id="blockEndDate" class="form-input" style="width:160px" required>
                     </div>
-                    <div id="blockDateWrap"><div class="time-label">Date</div>
-                        <input type="date" id="blockDate" class="form-input" style="width:160px">
+                    <div><div class="time-label">Holiday Name</div>
+                        <input type="text" id="blockLabel" class="form-input" placeholder="e.g. Eid Al-Fitr" style="width:180px">
                     </div>
-                    <div id="blockDayWrap" style="display:none"><div class="time-label">Day</div>
-                        <select id="blockDay" class="form-input" style="width:130px">
-                            <option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
-                        </select>
-                    </div>
-                    <div><div class="time-label">Start (optional)</div>
-                        <input type="time" id="blockStart" class="form-input" style="width:120px">
-                    </div>
-                    <div><div class="time-label">End (optional)</div>
-                        <input type="time" id="blockEnd" class="form-input" style="width:120px">
-                    </div>
-                    <div><div class="time-label">Label</div>
-                        <input type="text" id="blockLabel" class="form-input" placeholder="e.g. Staff Training" style="width:150px">
-                    </div>
-                    <button class="manage-save-btn" onclick="addScheduleBlock()">+ Add</button>
                 </div>
-                <div id="blocksList"></div>
+                <div style="margin-bottom:0.8rem">
+                    <div class="time-label" style="margin-bottom:0.4rem">Doctors</div>
+                    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem">
+                        <label style="display:flex;align-items:center;gap:0.35rem;cursor:pointer;font-weight:600;font-size:0.85rem">
+                            <input type="checkbox" id="holidayAllDoctors" checked onchange="toggleAllHolidayDoctors()"> All Doctors
+                        </label>
+                    </div>
+                    <div id="holidayDoctorsList" style="display:flex;flex-wrap:wrap;gap:0.5rem 1rem"></div>
+                </div>
+                <button class="manage-save-btn" onclick="addScheduleBlock()">+ Add Holiday</button>
+                <div id="blocksList" style="margin-top:1rem"></div>
             </div>
         </div>
 
@@ -1393,7 +1384,16 @@
         applyRoleUI();
     }
 
+    const PLAN_GATED_PAGES = ['company', 'analytics', 'manage', 'promotions', 'waitlist'];
+    function hasActivePlan() {
+        const p = user && user.plan;
+        return !!(p && String(p).trim() && p !== 'none');
+    }
     function showPage(page) {
+        if (PLAN_GATED_PAGES.includes(page) && !hasActivePlan()) {
+            showToast('You need to have a subscription first to access this feature.', 'warning');
+            return;
+        }
         document.querySelectorAll('[id^="page-"]').forEach(p => p.style.display = 'none');
         document.getElementById('page-' + page).style.display = 'block';
         document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
@@ -1448,13 +1448,14 @@
             // Bookings table
             const bBody = document.getElementById('bookingsBody');
             bBody.innerHTML = bookings.length === 0
-                ? '<tr><td colspan="6" class="empty-msg">No bookings yet</td></tr>'
+                ? '<tr><td colspan="7" class="empty-msg">No bookings yet</td></tr>'
                 : bookings.map(b => {
                     const isCancelled = b.status === 'cancelled';
                     const rowStyle = isCancelled ? 'style="text-decoration:line-through;opacity:0.5"' : '';
                     const badgeClass = b.status === 'cancelled' ? 'badge-red' : (b.status === 'confirmed' ? 'badge-green' : 'badge-yellow');
                     const promo = b.promotion_code ? `<span class="badge badge-cyan">${escapeHtml(b.promotion_code)}</span>` : '<span style="color:var(--gray)">—</span>';
-                    return `<tr ${rowStyle}><td>${escapeHtml(b.customer_name)}</td><td>${b.doctor_name ? 'Dr. ' + escapeHtml(b.doctor_name) : '—'}</td><td>${escapeHtml(b.date)}</td><td>${escapeHtml(b.time)}</td><td>${promo}</td><td><span class="badge ${badgeClass}">${escapeHtml(b.status)}</span></td></tr>`;
+                    const actions = isCancelled ? '<span style="color:var(--gray)">—</span>' : `<button class="btn-danger" style="padding:6px 12px;font-size:12px" onclick="deleteBooking(${b.id})">Delete</button>`;
+                    return `<tr ${rowStyle}><td>${escapeHtml(b.customer_name)}</td><td>${b.doctor_name ? 'Dr. ' + escapeHtml(b.doctor_name) : '—'}</td><td>${escapeHtml(b.date)}</td><td>${escapeHtml(b.time)}</td><td>${promo}</td><td><span class="badge ${badgeClass}">${escapeHtml(b.status)}</span></td><td>${actions}</td></tr>`;
                 }).join('');
 
             // Leads table
@@ -1572,6 +1573,45 @@
             document.addEventListener('keydown', onKey);
             requestAnimationFrame(() => backdrop.classList.add('show'));
         });
+    }
+
+    // Delete booking with confirmation modal + optional reason
+    async function deleteBooking(bid) {
+        let backdrop = document.getElementById('deleteBookingBackdrop');
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.id = 'deleteBookingBackdrop';
+            backdrop.className = 'soft-confirm-backdrop';
+            backdrop.innerHTML = `
+                <div class="soft-confirm" role="dialog" aria-modal="true" style="max-width:460px">
+                    <div class="soft-confirm-icon">!</div>
+                    <h3>Delete Appointment?</h3>
+                    <p>Are you sure you want to delete this appointment? The customer will be notified by email.</p>
+                    <textarea id="deleteBookingReason" placeholder="Reason (optional) — will be shared with the customer" style="width:100%;min-height:80px;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;margin:8px 0 12px"></textarea>
+                    <div class="soft-confirm-actions">
+                        <button type="button" class="soft-confirm-cancel" id="deleteBookingCancel">Cancel</button>
+                        <button type="button" class="soft-confirm-ok" id="deleteBookingOk">Delete</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(backdrop);
+        }
+        document.getElementById('deleteBookingReason').value = '';
+        const okBtn = document.getElementById('deleteBookingOk');
+        const cancelBtn = document.getElementById('deleteBookingCancel');
+        const close = () => { backdrop.classList.remove('show'); okBtn.onclick = null; cancelBtn.onclick = null; backdrop.onclick = null; };
+        cancelBtn.onclick = close;
+        backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
+        okBtn.onclick = async () => {
+            const reason = document.getElementById('deleteBookingReason').value.trim();
+            close();
+            try {
+                const res = await fetch(`/api/bookings/${bid}/cancel`, { method: 'POST', headers, body: JSON.stringify({ reason }) });
+                const data = await res.json();
+                if (data.ok) { showToast('Appointment cancelled — customer notified.', 'success'); loadData(); }
+                else { showToast(data.error || 'Failed to cancel.', 'error'); }
+            } catch (e) { showToast('Failed to cancel.', 'error'); }
+        };
+        requestAnimationFrame(() => backdrop.classList.add('show'));
     }
 
     // Defensive: coerce any server value to a safe, human-readable string (fixes [object Object])
@@ -3916,31 +3956,87 @@
 
     // ═══════ Feature 11: Schedule Blocks ═══════
     async function loadScheduleBlocks() {
+        // Populate doctor checkboxes
+        if (doctorsCache.length === 0) {
+            try { const r = await fetch('/api/doctors', {headers}); doctorsCache = await r.json(); } catch(e) {}
+        }
+        renderHolidayDoctors();
+
         const res = await fetch('/api/schedule-blocks', {headers});
         const data = await res.json();
         const c = document.getElementById('blocksList');
-        if (!data.length) { c.innerHTML = '<span class="empty-msg">No schedule blocks.</span>'; return; }
-        c.innerHTML = '<table style="width:100%;font-size:0.82rem;border-collapse:collapse"><thead><tr style="text-align:left;color:var(--gray);border-bottom:1px solid rgba(255,255,255,0.1)"><th style="padding:0.4rem">Label</th><th>Type</th><th>Date/Day</th><th>Time</th><th></th></tr></thead><tbody>' +
-            data.map(b => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:0.4rem">${escapeHtml(b.label)}</td><td>${b.is_recurring?'Recurring':escapeHtml(b.block_type)}</td><td>${b.is_recurring?escapeHtml(b.recurrence_day):escapeHtml(b.block_date)}</td><td>${b.start_time?escapeHtml(b.start_time)+' - '+escapeHtml(b.end_time):'Full Day'}</td><td><button onclick="deleteBlock(${b.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.75rem">Delete</button></td></tr>`).join('') + '</tbody></table>';
+        if (!data.length) { c.innerHTML = '<span class="empty-msg">No holidays yet.</span>'; return; }
+        const doctorMap = {};
+        doctorsCache.forEach(d => { doctorMap[d.id] = d.name; });
+        c.innerHTML = '<table style="width:100%;font-size:0.82rem;border-collapse:collapse"><thead><tr style="text-align:left;color:var(--gray);border-bottom:1px solid rgba(255,255,255,0.1)"><th style="padding:0.4rem">Holiday</th><th>Dates</th><th>Doctors</th><th></th></tr></thead><tbody>' +
+            data.map(b => {
+                let dateCol = '';
+                if (b.block_type === 'date_range' && b.end_date && b.end_date !== b.start_date) dateCol = escapeHtml(b.start_date) + ' &rarr; ' + escapeHtml(b.end_date);
+                else dateCol = escapeHtml(b.start_date || '');
+                const docName = b.doctor_id ? ('Dr. ' + escapeHtml(doctorMap[b.doctor_id] || '#' + b.doctor_id)) : '<span class="badge badge-cyan">All Doctors</span>';
+                return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:0.4rem">${escapeHtml(b.label || 'Holiday')}</td><td>${dateCol}</td><td>${docName}</td><td><button onclick="deleteBlock(${b.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.75rem">Delete</button></td></tr>`;
+            }).join('') + '</tbody></table>';
     }
 
-    function toggleBlockFields() {
-        const t = document.getElementById('blockType').value;
-        document.getElementById('blockDoctorWrap').style.display = t==='doctor'?'':'none';
-        document.getElementById('blockDateWrap').style.display = t!=='recurring'?'':'none';
-        document.getElementById('blockDayWrap').style.display = t==='recurring'?'':'none';
+    function renderHolidayDoctors() {
+        const container = document.getElementById('holidayDoctorsList');
+        if (!container) return;
+        const allChecked = document.getElementById('holidayAllDoctors').checked;
+        container.innerHTML = doctorsCache.map(d =>
+            `<label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer;font-size:0.83rem">
+                <input type="checkbox" class="holiday-doc-cb" value="${d.id}" ${allChecked ? 'checked' : ''} onchange="onHolidayDocChange()"> Dr. ${escapeHtml(d.name)}
+            </label>`
+        ).join('');
+    }
+
+    function toggleAllHolidayDoctors() {
+        const allChecked = document.getElementById('holidayAllDoctors').checked;
+        document.querySelectorAll('.holiday-doc-cb').forEach(cb => { cb.checked = allChecked; });
+    }
+
+    function onHolidayDocChange() {
+        const cbs = document.querySelectorAll('.holiday-doc-cb');
+        const allChecked = Array.from(cbs).every(cb => cb.checked);
+        document.getElementById('holidayAllDoctors').checked = allChecked;
     }
 
     async function addScheduleBlock() {
-        const t = document.getElementById('blockType').value;
-        const body = {block_type:t,label:document.getElementById('blockLabel').value||'Blocked'};
-        if (t==='doctor') body.doctor_id = parseInt(document.getElementById('blockDoctor').value)||0;
-        if (t==='recurring') { body.is_recurring = true; body.recurrence_day = document.getElementById('blockDay').value; }
-        else body.block_date = document.getElementById('blockDate').value;
-        body.start_time = document.getElementById('blockStart').value;
-        body.end_time = document.getElementById('blockEnd').value;
-        await fetch('/api/schedule-blocks', {method:'POST',headers,body:JSON.stringify(body)});
-        showToast('Block added','success');
+        const startDate = document.getElementById('blockStartDate').value;
+        const endDate = document.getElementById('blockEndDate').value;
+        if (!startDate || !endDate) { showToast('Start date and end date are required.', 'error'); return; }
+        if (endDate < startDate) { showToast('End date cannot be before start date.', 'error'); return; }
+
+        const label = document.getElementById('blockLabel').value || 'Holiday';
+        const blockType = startDate === endDate ? 'single_date' : 'date_range';
+
+        const allCheckbox = document.getElementById('holidayAllDoctors');
+        const checkedDocs = Array.from(document.querySelectorAll('.holiday-doc-cb:checked')).map(cb => parseInt(cb.value));
+        const allChecked = allCheckbox.checked;
+
+        if (!allChecked && checkedDocs.length === 0) { showToast('Please select at least one doctor.', 'error'); return; }
+
+        let hasWarning = false;
+        if (allChecked) {
+            const res = await fetch('/api/schedule-blocks', {method:'POST',headers,body:JSON.stringify({
+                block_type: blockType, start_date: startDate, end_date: endDate, label: label
+            })});
+            const d = await res.json();
+            if (d.warning) { showToast(d.warning, 'warning'); hasWarning = true; }
+        } else {
+            for (const docId of checkedDocs) {
+                const res = await fetch('/api/schedule-blocks', {method:'POST',headers,body:JSON.stringify({
+                    block_type: blockType, start_date: startDate, end_date: endDate, label: label, doctor_id: docId
+                })});
+                const d = await res.json();
+                if (d.warning) { showToast(d.warning, 'warning'); hasWarning = true; }
+            }
+        }
+        if (!hasWarning) showToast('Holiday added', 'success');
+        document.getElementById('blockStartDate').value = '';
+        document.getElementById('blockEndDate').value = '';
+        document.getElementById('blockLabel').value = '';
+        document.getElementById('holidayAllDoctors').checked = true;
+        toggleAllHolidayDoctors();
         loadScheduleBlocks();
     }
 
