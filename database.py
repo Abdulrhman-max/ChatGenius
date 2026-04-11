@@ -1453,6 +1453,29 @@ def update_user_plan(user_id, plan):
     conn.close()
 
 
+def save_payment_method(user_id, card_last4="", card_brand="", cardholder_name="", expiry=""):
+    """Save or update a user's payment method (card last 4, brand, etc.)."""
+    conn = get_db()
+    conn.execute("""CREATE TABLE IF NOT EXISTS payment_methods (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        card_last4 TEXT DEFAULT '',
+        card_brand TEXT DEFAULT '',
+        cardholder_name TEXT DEFAULT '',
+        expiry TEXT DEFAULT '',
+        is_default INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )""")
+    # Deactivate old default payment methods
+    conn.execute("UPDATE payment_methods SET is_default = 0 WHERE user_id = ?", (user_id,))
+    conn.execute(
+        "INSERT INTO payment_methods (user_id, card_last4, card_brand, cardholder_name, expiry) VALUES (?,?,?,?,?)",
+        (user_id, card_last4, card_brand, cardholder_name, expiry))
+    conn.commit()
+    conn.close()
+
+
 def user_to_public(user):
     """Return safe user dict (no password hash)."""
     # Admins and doctors inherit the plan from their head_admin
@@ -2533,6 +2556,14 @@ def get_waitlist_entry(waitlist_id):
     row = conn.execute("SELECT * FROM waitlist WHERE id=?", (waitlist_id,)).fetchone()
     conn.close()
     return dict(row) if row else None
+
+
+def delete_waitlist_entry(waitlist_id):
+    """Remove a waitlist entry entirely."""
+    conn = get_db()
+    conn.execute("DELETE FROM waitlist WHERE id=?", (waitlist_id,))
+    conn.commit()
+    conn.close()
 
 
 # Legacy aliases for backward compatibility

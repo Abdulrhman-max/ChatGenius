@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout — ChatGenius</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #06080d;
+            color: #f1f5f9;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(ellipse at 30% 20%, rgba(139,92,246,0.06) 0%, transparent 60%),
+                        radial-gradient(ellipse at 70% 80%, rgba(59,130,246,0.04) 0%, transparent 60%);
+            pointer-events: none;
+        }
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.022;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        }
+
+        .checkout-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 960px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            border-radius: 28px;
+            overflow: hidden;
+            border: 1px solid rgba(139,92,246,0.15);
+            box-shadow: 0 30px 100px rgba(0,0,0,0.5), 0 0 80px rgba(139,92,246,0.06);
+        }
+        @media (max-width: 700px) {
+            .checkout-container { grid-template-columns: 1fr; max-width: 440px; }
+        }
+
+        /* Left — Order Summary */
+        .order-summary {
+            background: rgba(139,92,246,0.04);
+            padding: 2.5rem;
+            border-right: 1px solid rgba(255,255,255,0.04);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .order-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            color: #8b95a8;
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            transition: color .2s;
+        }
+        .order-back:hover { color: #f1f5f9; }
+        .order-logo {
+            font-size: 1.1rem;
+            font-weight: 800;
+            margin-bottom: 2rem;
+        }
+        .order-logo span {
+            background: linear-gradient(135deg, #8b5cf6, #6366f1, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .order-plan-badge {
+            display: inline-block;
+            padding: 0.3rem 0.9rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: rgba(139,92,246,0.15);
+            color: #a78bfa;
+            margin-bottom: 0.6rem;
+        }
+        .order-plan-name {
+            font-size: 1.6rem;
+            font-weight: 900;
+            margin-bottom: 0.3rem;
+        }
+        .order-price {
+            font-size: 2.8rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.1;
+        }
+        .order-price small {
+            font-size: 1rem;
+            font-weight: 500;
+            -webkit-text-fill-color: #8b95a8;
+        }
+        .order-features {
+            list-style: none;
+            margin-top: 1.5rem;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            padding-top: 1.2rem;
+        }
+        .order-features li {
+            padding: 0.35rem 0;
+            font-size: 0.88rem;
+            color: #c4cad6;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .order-features li::before {
+            content: '';
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: rgba(52,211,153,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='8' fill='none'%3E%3Cpath d='M1 4l2.5 2.5L9 1' stroke='%2334d399' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        .order-guarantee {
+            margin-top: 1.5rem;
+            padding: 0.8rem;
+            background: rgba(52,211,153,0.06);
+            border: 1px solid rgba(52,211,153,0.1);
+            border-radius: 12px;
+            font-size: 0.78rem;
+            color: #34d399;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        /* Right — Payment Form */
+        .payment-form-side {
+            background: rgba(255,255,255,0.02);
+            padding: 2.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .payment-title {
+            font-size: 1.15rem;
+            font-weight: 800;
+            margin-bottom: 1.5rem;
+        }
+        .form-group { margin-bottom: 1.1rem; }
+        .form-group label {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #8b95a8;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.4rem;
+        }
+        .form-input {
+            width: 100%;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 0.8rem 1rem;
+            color: #f1f5f9;
+            font-size: 0.95rem;
+            font-family: 'Outfit', sans-serif;
+            transition: border-color .2s, box-shadow .2s;
+            outline: none;
+        }
+        .form-input:focus {
+            border-color: rgba(139,92,246,0.5);
+            box-shadow: 0 0 0 3px rgba(139,92,246,0.1);
+        }
+        .form-input::placeholder { color: rgba(255,255,255,0.18); }
+        .form-input.invalid {
+            border-color: #ff6b6b;
+            box-shadow: 0 0 0 3px rgba(255,107,107,0.1);
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.8rem;
+        }
+        .card-icons {
+            display: flex;
+            gap: 0.4rem;
+            align-items: center;
+            margin-top: 0.4rem;
+        }
+        .card-icon {
+            padding: 0.2rem 0.5rem;
+            border-radius: 5px;
+            background: rgba(255,255,255,0.06);
+            font-size: 0.62rem;
+            font-weight: 800;
+            color: #5a6275;
+            letter-spacing: 0.3px;
+            transition: all .2s;
+            border: 1px solid transparent;
+        }
+        .card-icon.active {
+            color: #a78bfa;
+            background: rgba(139,92,246,0.1);
+            border-color: rgba(139,92,246,0.3);
+        }
+        .pay-btn {
+            width: 100%;
+            padding: 0.95rem;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #8b5cf6, #6366f1, #3b82f6);
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 800;
+            font-family: 'Outfit', sans-serif;
+            cursor: pointer;
+            margin-top: 0.5rem;
+            transition: transform .2s, box-shadow .2s;
+            box-shadow: 0 6px 30px rgba(139,92,246,0.35);
+        }
+        .pay-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(139,92,246,0.45);
+        }
+        .pay-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .pay-error {
+            color: #ff6b6b;
+            font-size: 0.82rem;
+            margin-top: 0.6rem;
+            text-align: center;
+            display: none;
+        }
+        .secure-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            margin-top: 1rem;
+            font-size: 0.75rem;
+            color: #5a6275;
+        }
+        .secure-badge svg { opacity: 0.6; }
+    </style>
+</head>
+<body>
+
+<div class="checkout-container">
+    <!-- Left: Order Summary -->
+    <div class="order-summary">
+        <a href="/user-dashboard" class="order-back">&larr; Back to Dashboard</a>
+        <div class="order-logo">Chat<span>Genius</span></div>
+        <div class="order-plan-badge" id="planBadge">PRO PLAN</div>
+        <div class="order-plan-name" id="planName">Pro</div>
+        <div class="order-price" id="planPrice">$149<small>/mo</small></div>
+        <ul class="order-features" id="planFeatures">
+            <li>Loading...</li>
+        </ul>
+        <div class="order-guarantee">30-day money-back guarantee</div>
+    </div>
+
+    <!-- Right: Payment Form -->
+    <div class="payment-form-side">
+        <div class="payment-title">Payment Details</div>
+
+        <div class="form-group">
+            <label>Cardholder Name</label>
+            <input class="form-input" id="cardName" type="text" placeholder="Full name on card" autocomplete="cc-name">
+        </div>
+
+        <div class="form-group">
+            <label>Card Number</label>
+            <input class="form-input" id="cardNumber" type="text" placeholder="1234 5678 9012 3456" maxlength="19" inputmode="numeric" autocomplete="cc-number">
+            <div class="card-icons">
+                <span class="card-icon" id="iVisa">VISA</span>
+                <span class="card-icon" id="iMC">MC</span>
+                <span class="card-icon" id="iAmex">AMEX</span>
+                <span class="card-icon" id="iMada">mada</span>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Expiry Date</label>
+                <input class="form-input" id="cardExpiry" type="text" placeholder="MM / YY" maxlength="7" inputmode="numeric" autocomplete="cc-exp">
+            </div>
+            <div class="form-group">
+                <label>CVC</label>
+                <input class="form-input" id="cardCVC" type="text" placeholder="123" maxlength="4" inputmode="numeric" autocomplete="cc-csc">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Email (for receipt)</label>
+            <input class="form-input" id="cardEmail" type="email" placeholder="you@example.com" autocomplete="email">
+        </div>
+
+        <div class="pay-error" id="payError"></div>
+        <button class="pay-btn" id="payBtn" onclick="submitPayment()">Pay & Upgrade</button>
+
+        <div class="secure-badge">
+            <svg width="12" height="14" viewBox="0 0 12 14" fill="none"><path d="M10 5H9V3.5C9 1.57 7.43 0 5.5 0S2 1.57 2 3.5V5H1C0.45 5 0 5.45 0 6V13C0 13.55 0.45 14 1 14H10C10.55 14 11 13.55 11 13V6C11 5.45 10.55 5 10 5ZM5.5 10.5C4.95 10.5 4.5 10.05 4.5 9.5S4.95 8.5 5.5 8.5 6.5 8.95 6.5 9.5 6.05 10.5 5.5 10.5ZM7.5 5H3.5V3.5C3.5 2.4 4.4 1.5 5.5 1.5S7.5 2.4 7.5 3.5V5Z" fill="currentColor"/></svg>
+            Secured with 256-bit SSL encryption. We never store your full card number.
+        </div>
+    </div>
+</div>
+
+<script>
+    const PLANS = {
+        basic: { name: 'Basic', badge: 'BASIC PLAN', price: '$49', features: ['500 conversations/month', '1 chatbot', 'Email support', 'Basic analytics'] },
+        pro: { name: 'Pro', badge: 'PRO PLAN', price: '$149', features: ['5,000 conversations/month', '3 chatbots', 'Appointment booking', 'Priority support', 'Advanced analytics'] },
+        agency: { name: 'Agency', badge: 'AGENCY PLAN', price: '$299', features: ['Unlimited conversations', 'Unlimited chatbots', 'White-label branding', 'Dedicated account manager', 'API access'] }
+    };
+
+    // Get plan from URL
+    const path = window.location.pathname;
+    const planKey = path.split('/').pop();
+    const plan = PLANS[planKey];
+
+    if (!plan) {
+        window.location.href = '/user-dashboard';
+    } else {
+        document.getElementById('planBadge').textContent = plan.badge;
+        document.getElementById('planName').textContent = plan.name;
+        document.getElementById('planPrice').innerHTML = plan.price + '<small>/mo</small>';
+        document.getElementById('planFeatures').innerHTML = plan.features.map(f => '<li>' + f + '</li>').join('');
+        document.getElementById('payBtn').textContent = 'Pay ' + plan.price + '/mo & Upgrade';
+        document.title = 'Checkout — ' + plan.name + ' Plan — ChatGenius';
+    }
+
+    // Pre-fill email from localStorage
+    try {
+        const u = JSON.parse(localStorage.getItem('user') || '{}');
+        if (u.email) document.getElementById('cardEmail').value = u.email;
+    } catch(e) {}
+
+    // Card number formatting + brand detection
+    document.getElementById('cardNumber').addEventListener('input', function() {
+        let v = this.value.replace(/\D/g, '').substring(0, 16);
+        this.value = v.replace(/(.{4})/g, '$1 ').trim();
+        document.getElementById('iVisa').classList.toggle('active', /^4/.test(v));
+        document.getElementById('iMC').classList.toggle('active', /^5[1-5]|^2[2-7]/.test(v));
+        document.getElementById('iAmex').classList.toggle('active', /^3[47]/.test(v));
+        document.getElementById('iMada').classList.toggle('active', /^(588845|440647|440795|446404|457865|968208|968211|968212|543357|566002|968201|588848|468540|468541|468542|468543|417633|446393|636120)/.test(v));
+        this.classList.remove('invalid');
+    });
+
+    // Expiry formatting
+    document.getElementById('cardExpiry').addEventListener('input', function() {
+        let v = this.value.replace(/\D/g, '').substring(0, 4);
+        if (v.length >= 3) v = v.substring(0, 2) + ' / ' + v.substring(2);
+        this.value = v;
+        this.classList.remove('invalid');
+    });
+
+    // CVC
+    document.getElementById('cardCVC').addEventListener('input', function() {
+        this.value = this.value.replace(/\D/g, '').substring(0, 4);
+        this.classList.remove('invalid');
+    });
+
+    // Clear invalid on input
+    ['cardName', 'cardEmail'].forEach(id => {
+        document.getElementById(id).addEventListener('input', function() { this.classList.remove('invalid'); });
+    });
+
+    function luhnCheck(num) {
+        let sum = 0, alt = false;
+        for (let i = num.length - 1; i >= 0; i--) {
+            let n = parseInt(num[i]);
+            if (alt) { n *= 2; if (n > 9) n -= 9; }
+            sum += n;
+            alt = !alt;
+        }
+        return sum % 10 === 0;
+    }
+
+    function detectBrand(num) {
+        if (/^4/.test(num)) return 'visa';
+        if (/^5[1-5]|^2[2-7]/.test(num)) return 'mastercard';
+        if (/^3[47]/.test(num)) return 'amex';
+        if (/^(588845|440647|440795|446404|457865|968208|968211|968212|543357|566002|968201|588848)/.test(num)) return 'mada';
+        return 'unknown';
+    }
+
+    function submitPayment() {
+        const name = document.getElementById('cardName').value.trim();
+        const number = document.getElementById('cardNumber').value.replace(/\s/g, '');
+        const expiry = document.getElementById('cardExpiry').value.replace(/\s/g, '');
+        const cvc = document.getElementById('cardCVC').value.trim();
+        const email = document.getElementById('cardEmail').value.trim();
+        const errEl = document.getElementById('payError');
+        const btn = document.getElementById('payBtn');
+        let valid = true;
+
+        if (!name || name.length < 2) { document.getElementById('cardName').classList.add('invalid'); valid = false; }
+        if (!number || number.length < 13 || number.length > 16 || !luhnCheck(number)) { document.getElementById('cardNumber').classList.add('invalid'); valid = false; }
+
+        const exParts = expiry.split('/');
+        if (exParts.length !== 2 || parseInt(exParts[0]) < 1 || parseInt(exParts[0]) > 12) {
+            document.getElementById('cardExpiry').classList.add('invalid'); valid = false;
+        } else {
+            const now = new Date();
+            if (parseInt('20' + exParts[1]) < now.getFullYear() ||
+                (parseInt('20' + exParts[1]) === now.getFullYear() && parseInt(exParts[0]) < now.getMonth() + 1)) {
+                document.getElementById('cardExpiry').classList.add('invalid'); valid = false;
+            }
+        }
+        if (!cvc || cvc.length < 3) { document.getElementById('cardCVC').classList.add('invalid'); valid = false; }
+        if (!email || !email.includes('@')) { document.getElementById('cardEmail').classList.add('invalid'); valid = false; }
+
+        if (!valid) {
+            errEl.textContent = 'Please check your details and try again.';
+            errEl.style.display = 'block';
+            return;
+        }
+
+        errEl.style.display = 'none';
+        btn.disabled = true;
+        btn.textContent = 'Processing...';
+
+        const token = localStorage.getItem('token') || '';
+
+        fetch('/auth/update-plan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({
+                plan: planKey,
+                payment: {
+                    cardholder_name: name,
+                    card_last4: number.slice(-4),
+                    card_brand: detectBrand(number),
+                    expiry: expiry,
+                    email: email
+                }
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                errEl.textContent = data.error;
+                errEl.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = 'Pay ' + plan.price + '/mo & Upgrade';
+                return;
+            }
+            // Update local storage
+            try {
+                const u = JSON.parse(localStorage.getItem('user') || '{}');
+                u.plan = planKey;
+                localStorage.setItem('user', JSON.stringify(u));
+            } catch(e) {}
+            // Redirect to success
+            window.location.href = '/checkout/success?plan=' + planKey;
+        })
+        .catch(() => {
+            errEl.textContent = 'Payment failed. Please try again.';
+            errEl.style.display = 'block';
+            btn.disabled = false;
+            btn.textContent = 'Pay ' + plan.price + '/mo & Upgrade';
+        });
+    }
+</script>
+</body>
+</html>

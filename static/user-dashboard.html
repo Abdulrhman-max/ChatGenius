@@ -1538,15 +1538,7 @@
 
     function selectPlan(plan) {
         if (user.plan === plan) return;
-        fetch('/auth/update-plan', { method: 'POST', headers, body: JSON.stringify({ plan }) })
-        .then(r => r.json()).then(data => {
-            if (!data.error) {
-                user.plan = plan;
-                localStorage.setItem('user', JSON.stringify(user));
-                initUI();
-                showToast('Plan updated to ' + PLAN_LABELS[plan] + '!', 'success');
-            }
-        });
+        window.location.href = '/checkout/' + plan;
     }
 
     function logout() {
@@ -4249,9 +4241,19 @@
             const data = await res.json();
             const c = document.getElementById('waitlistContainer');
             if (!data.length) { c.innerHTML = '<span class="empty-msg">No waitlist entries.</span>'; return; }
-            c.innerHTML = '<table style="width:100%;font-size:0.82rem;border-collapse:collapse"><thead><tr style="text-align:left;color:var(--gray);border-bottom:1px solid rgba(255,255,255,0.1)"><th style="padding:0.4rem">Patient</th><th>Date</th><th>Slot</th><th>Position</th><th>Status</th><th>Deadline</th></tr></thead><tbody>' +
-                data.map(w => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:0.4rem">${escapeHtml(w.patient_name)}</td><td>${escapeHtml(w.date)}</td><td>${escapeHtml(w.time_slot)}</td><td>#${w.position}</td><td><span class="badge ${w.status==='confirmed'?'badge-green':w.status==='notified'?'badge-yellow':'badge-gray'}">${escapeHtml(w.status)}</span></td><td>${escapeHtml(w.confirm_deadline)||'-'}</td></tr>`).join('') + '</tbody></table>';
+            c.innerHTML = '<table style="width:100%;font-size:0.82rem;border-collapse:collapse"><thead><tr style="text-align:left;color:var(--gray);border-bottom:1px solid rgba(255,255,255,0.1)"><th style="padding:0.4rem">Patient</th><th>Date</th><th>Slot</th><th>Position</th><th>Status</th><th>Deadline</th><th></th></tr></thead><tbody>' +
+                data.map(w => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:0.4rem">${escapeHtml(w.patient_name)}</td><td>${escapeHtml(w.date)}</td><td>${escapeHtml(w.time_slot)}</td><td>#${w.position}</td><td><span class="badge ${w.status==='confirmed'?'badge-green':w.status==='notified'?'badge-yellow':'badge-gray'}">${escapeHtml(w.status)}</span></td><td>${escapeHtml(w.confirm_deadline)||'-'}</td><td><button onclick="removeFromWaitlist(${w.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.75rem" title="Remove from waitlist">✕ Remove</button></td></tr>`).join('') + '</tbody></table>';
         } catch(e) { console.error(e); }
+    }
+
+    async function removeFromWaitlist(wid) {
+        if (!confirm('Remove this patient from the waitlist?')) return;
+        try {
+            const res = await fetch(`/api/waitlist/${wid}`, {method:'DELETE', headers});
+            const data = await res.json();
+            if (data.ok) { showToast('Removed from waitlist','success'); loadWaitlist(); }
+            else { showToast(data.error || 'Failed to remove','error'); }
+        } catch(e) { showToast('Failed to remove','error'); }
     }
 
     // ═══════ Feature 3: Recall ═══════

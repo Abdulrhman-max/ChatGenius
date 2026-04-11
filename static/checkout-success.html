@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Successful — ChatGenius</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #06080d;
+            color: #f1f5f9;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(ellipse at 50% 40%, rgba(52,211,153,0.08) 0%, transparent 60%);
+            pointer-events: none;
+        }
+        .success-card {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            max-width: 480px;
+            width: 100%;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(52,211,153,0.15);
+            border-radius: 28px;
+            padding: 3rem 2.5rem;
+            box-shadow: 0 30px 100px rgba(0,0,0,0.4), 0 0 60px rgba(52,211,153,0.05);
+        }
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(52,211,153,0.1);
+            border: 2px solid rgba(52,211,153,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            animation: popIn 0.5s ease;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            60% { transform: scale(1.15); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .success-icon svg { width: 36px; height: 36px; }
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 900;
+            margin-bottom: 0.5rem;
+            color: #34d399;
+        }
+        .success-text {
+            font-size: 0.95rem;
+            color: #8b95a8;
+            margin-bottom: 0.5rem;
+            line-height: 1.5;
+        }
+        .success-plan {
+            display: inline-block;
+            padding: 0.4rem 1.2rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(59,130,246,0.15));
+            color: #a78bfa;
+            margin: 1rem 0;
+        }
+        .success-btn {
+            display: inline-block;
+            padding: 0.8rem 2rem;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #8b5cf6, #6366f1, #3b82f6);
+            color: #fff;
+            font-size: 0.95rem;
+            font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+            text-decoration: none;
+            margin-top: 1rem;
+            transition: transform .2s, box-shadow .2s;
+            box-shadow: 0 4px 25px rgba(139,92,246,0.3);
+        }
+        .success-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 35px rgba(139,92,246,0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="success-card">
+        <div class="success-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+        </div>
+        <h1>Payment Successful!</h1>
+        <p class="success-text">Your plan has been upgraded. All premium features are now unlocked.</p>
+        <div class="success-plan" id="planBadge">Loading...</div>
+        <br>
+        <a href="/user-dashboard" class="success-btn">Go to Dashboard</a>
+    </div>
+
+    <script>
+        const PLAN_LABELS = { basic: 'Basic Plan', pro: 'Pro Plan', agency: 'Agency Plan' };
+        const params = new URLSearchParams(window.location.search);
+        const plan = params.get('plan');
+        if (plan && PLAN_LABELS[plan]) {
+            document.getElementById('planBadge').textContent = PLAN_LABELS[plan];
+        } else {
+            document.getElementById('planBadge').textContent = 'Plan Upgraded';
+        }
+    </script>
+</body>
+</html>

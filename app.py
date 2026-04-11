@@ -4606,6 +4606,18 @@ def user_dashboard():
     return send_from_directory("static", "user-dashboard.html")
 
 
+@app.route("/checkout/<plan>")
+def checkout_page(plan):
+    if plan not in ("basic", "pro", "agency"):
+        return redirect("/user-dashboard")
+    return send_from_directory("static", "checkout.html")
+
+
+@app.route("/checkout/success")
+def checkout_success():
+    return send_from_directory("static", "checkout-success.html")
+
+
 @app.route("/privacy")
 def privacy():
     return send_from_directory("static", "privacy.html")
@@ -4799,6 +4811,21 @@ def auth_update_plan():
     plan = data.get("plan", "")
     if plan not in ("basic", "pro", "agency"):
         return jsonify({"error": "Invalid plan"}), 400
+
+    # Store payment info (card last4, brand, expiry) for future billing
+    payment = data.get("payment", {})
+    if payment:
+        try:
+            db.save_payment_method(
+                user_id=user["id"],
+                card_last4=payment.get("card_last4", ""),
+                card_brand=payment.get("card_brand", ""),
+                cardholder_name=payment.get("cardholder_name", ""),
+                expiry=payment.get("expiry", ""),
+            )
+            print(f"[billing] Payment method saved for user #{user['id']}: {payment.get('card_brand','')} ****{payment.get('card_last4','')}", flush=True)
+        except Exception as e:
+            print(f"[billing] Failed to save payment method: {e}", flush=True)
 
     db.update_user_plan(user["id"], plan)
     user["plan"] = plan
@@ -6500,6 +6527,27 @@ def api_confirm_waitlist(wid):
         "booking_id": booking_id,
         "form_token": form_token
     })
+
+
+@app.route("/api/waitlist/<int:wid>", methods=["DELETE"])
+def api_delete_waitlist(wid):
+    """Remove a patient from the waitlist (admin/doctor/head_admin only)."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if user.get("role") not in ("admin", "head_admin", "doctor"):
+        return jsonify({"error": "Permission denied"}), 403
+    entry = db.get_waitlist_entry(wid)
+    if not entry:
+        return jsonify({"error": "Waitlist entry not found"}), 404
+    # Doctors can only remove from their own waitlist
+    if user.get("role") == "doctor":
+        doc = db.get_doctor_by_user_id(user["id"])
+        if not doc or doc["id"] != entry["doctor_id"]:
+            return jsonify({"error": "Permission denied"}), 403
+    db.delete_waitlist_entry(wid)
+    return jsonify({"ok": True, "message": "Removed from waitlist"})
 
 
 # ══════════════════════════════════════════════════════════════════
