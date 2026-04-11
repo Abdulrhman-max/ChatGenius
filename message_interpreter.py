@@ -138,13 +138,27 @@ def think_and_respond(user_message, company_info=None, doctors=None,
         if doctors:
             doc_lines = []
             for d in doctors:
-                line = f"- Dr. {d['name']} (Specialty: {d.get('specialty', 'General')}, Available: {d.get('availability', 'Mon-Fri')})"
-                # Add time slots if available
-                if doctor_slots and d['name'] in doctor_slots:
-                    slots = doctor_slots[d['name']]
-                    line += f"\n  Time slots: {', '.join(slots[:10])}"
-                    if len(slots) > 10:
-                        line += f" and {len(slots) - 10} more"
+                # Derive working days from daily_hours (flexible) or availability (fixed)
+                working_days_str = d.get('availability', 'Mon-Fri')
+                if d.get('schedule_type') == 'flexible' and d.get('daily_hours'):
+                    try:
+                        import json as _json
+                        daily = d['daily_hours']
+                        if isinstance(daily, str):
+                            daily = _json.loads(daily)
+                        day_order = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+                        working = [day for day in day_order if day in daily and not daily[day].get("off")]
+                        if working:
+                            working_days_str = ", ".join(working)
+                            # Add hours per day
+                            hours_parts = []
+                            for day in working:
+                                h = daily[day]
+                                hours_parts.append(f"{day}: {h.get('from','?')} - {h.get('to','?')}")
+                            working_days_str += " | Hours: " + "; ".join(hours_parts)
+                    except Exception:
+                        pass
+                line = f"- Dr. {d['name']} (Specialty: {d.get('specialty', 'General')}, Works on: {working_days_str})"
                 doc_lines.append(line)
             context_parts.append("Available doctors:\n" + "\n".join(doc_lines))
 
@@ -172,7 +186,9 @@ HOW TO RESPOND:
    → If matching doctors exist, mention them BY NAME
 
 3. DENTAL OFFICE INFO — hours, location, services, pricing
-   → Answer using the context above. If info is missing, say so honestly
+   → Answer using ONLY the data from the CONTEXT above. NEVER guess or make up prices.
+   → For pricing questions, look up the exact service price from the "Pricing/Insurance" section above
+   → If the service is listed with a price, quote THAT exact price. Do NOT invent price ranges.
 
 4. DOCTOR LISTING — who are the doctors, what specialists
    → List doctors with specialties from context above
@@ -183,8 +199,11 @@ HOW TO RESPOND:
 6. FAREWELLS — bye, thanks
    → Warm farewell
 
-7. GENERAL DENTAL QUESTIONS — procedures, costs, advice
-   → Answer helpfully with dental knowledge
+7. SERVICE QUESTIONS — when patient asks about a specific service/treatment
+   → Check if the service is listed in the "Pricing/Insurance" or "Services" section in the CONTEXT above
+   → If we OFFER it: answer about it, quote the price, and offer to book
+   → If we do NOT offer it: say "We don't currently offer [service] at {biz_name}." and suggest similar services we DO offer, or recommend they call for more info
+   → NEVER describe a service as if we offer it when it's not in our list
 
 8. REFUSAL/NO — user says no, doesn't want something
    → Acknowledge politely, ask how else you can help
@@ -201,7 +220,9 @@ CRITICAL RULES:
 - You are the AI assistant for **{biz_name}** — when asked "what is the dentist name" or "what is the company name", answer with: **{biz_name}**
 - NEVER say "I'm a large language model" or comment about improving your responses
 - NEVER break character — you ARE the dental office assistant, not a generic AI
-- Stay focused on the patient's question — answer it directly"""
+- Stay focused on the patient's question — answer it directly
+- PRICING: When asked about service costs/prices, you MUST quote the EXACT price from the Pricing/Insurance section in the CONTEXT above. Do NOT estimate, guess, or provide ranges. Use the exact number listed. If a service is not in the list, say you don't have pricing info for it.
+- SERVICES: You can ONLY discuss services that are listed in the CONTEXT above. If a patient asks about a service we don't offer (not in the list), clearly tell them "We don't currently offer that service." and suggest our available services instead. NEVER give general dental advice about services we don't provide."""
 
         if extra_context:
             system_prompt += f"\n\nADDITIONAL CONTEXT:\n{extra_context}"

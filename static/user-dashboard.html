@@ -519,9 +519,17 @@
             <div class="main-header"><h1 id="bookingsTitle">Bookings</h1></div>
             <div class="section">
                 <table>
-                    <thead><tr><th>Customer</th><th>Doctor</th><th>Date</th><th>Time</th><th>Promo</th><th>Status</th><th>Actions</th></tr></thead>
-                    <tbody id="bookingsBody"><tr><td colspan="7" class="empty-msg">No bookings yet</td></tr></tbody>
+                    <thead><tr><th>Customer</th><th>Type</th><th>Doctor</th><th>Date</th><th>Time</th><th>Promo</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="bookingsBody"><tr><td colspan="8" class="empty-msg">No bookings yet</td></tr></tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- Booking Detail Modal -->
+        <div id="bookingDetailModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;justify-content:center;align-items:center;backdrop-filter:blur(4px)">
+            <div style="background:#111827;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:2rem;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;position:relative;box-shadow:0 25px 60px rgba(0,0,0,0.5)">
+                <button onclick="closeBookingDetail()" style="position:absolute;top:12px;right:16px;background:rgba(255,255,255,0.06);border:none;font-size:1.2rem;color:#94a3b8;cursor:pointer;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:background .2s" onmouseover="this.style.background='rgba(255,255,255,0.12)'" onmouseout="this.style.background='rgba(255,255,255,0.06)'">&times;</button>
+                <div id="bookingDetailContent">Loading...</div>
             </div>
         </div>
 
@@ -798,10 +806,10 @@
 
             <!-- Metric cards container -->
             <div id="analyticsCards" style="display:grid;gap:1.25rem">
-                <!-- Card 1: Leads -->
+                <!-- Card 1: Chat Sessions -->
                 <div class="analytics-card" id="card-leads">
                     <div class="analytics-card-header">
-                        <h3>Leads Per Day</h3>
+                        <h3>Chat Sessions Per Day</h3>
                         <div class="analytics-toggle" data-metric="leads">
                             <button class="active" onclick="toggleView('leads','graph',this)">Graph</button>
                             <button onclick="toggleView('leads','table',this)">Table</button>
@@ -1407,7 +1415,12 @@
         document.querySelectorAll('[id^="page-"]').forEach(p => p.style.display = 'none');
         document.getElementById('page-' + page).style.display = 'block';
         document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
+        // Highlight the correct sidebar link
+        const links = document.querySelectorAll('.sidebar-nav a');
+        links.forEach(a => { if (a.getAttribute('onclick') === `showPage('${page}')`) a.classList.add('active'); });
         if (event && event.currentTarget) event.currentTarget.classList.add('active');
+        // Remember current page
+        try { localStorage.setItem('cg_current_page', page); } catch(e) {}
         if (page === 'manage') loadManageDoctors();
         if (page === 'admins') loadAdminManagement();
         if (page === 'admin-requests') loadAdminRequests();
@@ -1458,14 +1471,22 @@
             // Bookings table
             const bBody = document.getElementById('bookingsBody');
             bBody.innerHTML = bookings.length === 0
-                ? '<tr><td colspan="7" class="empty-msg">No bookings yet</td></tr>'
+                ? '<tr><td colspan="8" class="empty-msg">No bookings yet</td></tr>'
                 : bookings.map(b => {
-                    const isCancelled = b.status === 'cancelled';
-                    const rowStyle = isCancelled ? 'style="text-decoration:line-through;opacity:0.5"' : '';
-                    const badgeClass = b.status === 'cancelled' ? 'badge-red' : (b.status === 'confirmed' ? 'badge-green' : 'badge-yellow');
+                    const isDone = b.status === 'cancelled' || b.status === 'no_show';
+                    const rowStyle = isDone ? 'style="text-decoration:line-through;opacity:0.5;cursor:pointer"' : 'style="cursor:pointer"';
+                    const badgeClass = b.status === 'cancelled' ? 'badge-red' : b.status === 'no_show' ? 'badge-red' : (b.status === 'confirmed' ? 'badge-green' : 'badge-yellow');
                     const promo = b.promotion_code ? `<span class="badge badge-cyan">${escapeHtml(b.promotion_code)}</span>` : '<span style="color:var(--gray)">—</span>';
-                    const actions = isCancelled ? '<span style="color:var(--gray)">—</span>' : `<button class="btn-danger" style="padding:6px 12px;font-size:12px" onclick="deleteBooking(${b.id})">Delete</button>`;
-                    return `<tr ${rowStyle}><td>${escapeHtml(b.customer_name)}</td><td>${b.doctor_name ? 'Dr. ' + escapeHtml(b.doctor_name) : '—'}</td><td>${escapeHtml(b.date)}</td><td>${escapeHtml(b.time)}</td><td>${promo}</td><td><span class="badge ${badgeClass}">${escapeHtml(b.status)}</span></td><td>${actions}</td></tr>`;
+                    let actBtns = '';
+                    if (!isDone) {
+                        actBtns = `<button class="btn-danger" style="padding:6px 12px;font-size:12px" onclick="event.stopPropagation();deleteBooking(${b.id})">Delete</button>`;
+                        actBtns += ` <button style="padding:6px 12px;font-size:12px;background:#f59e0b;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600" onclick="event.stopPropagation();markNoShow(${b.id})">Non-Attended</button>`;
+                    } else {
+                        actBtns = '<span style="color:var(--gray)">—</span>';
+                    }
+                    const bType = b.service_id ? 'Service' : 'Appointment';
+                    const typeBadge = b.service_id ? `<span class="badge badge-cyan">${escapeHtml(b.service || bType)}</span>` : `<span class="badge badge-blue">${bType}</span>`;
+                    return `<tr ${rowStyle} onclick="openBookingDetail(${b.id})"><td>${escapeHtml(b.customer_name)}</td><td>${typeBadge}</td><td>${b.doctor_name ? 'Dr. ' + escapeHtml(b.doctor_name) : '—'}</td><td>${escapeHtml(b.date)}</td><td>${escapeHtml(b.time)}</td><td>${promo}</td><td><span class="badge ${badgeClass}">${escapeHtml(b.status)}</span></td><td>${actBtns}</td></tr>`;
                 }).join('');
 
             // Leads table
@@ -1661,6 +1682,123 @@
         requestAnimationFrame(() => backdrop.classList.add('show'));
     }
 
+    // Mark booking as non-attended
+    async function markNoShow(bid) {
+        if (!confirm('Mark this appointment as non-attended? An email will be sent to the patient asking for their reason.')) return;
+        try {
+            const res = await fetch(`/api/bookings/${bid}/noshow`, { method: 'POST', headers });
+            const data = await res.json();
+            if (data.ok) {
+                showToast('Marked as non-attended — patient notified.', 'success');
+                loadData();
+            } else {
+                showToast(data.error || 'Failed to mark as non-attended.', 'error');
+            }
+        } catch (e) { showToast('Failed to mark as non-attended.', 'error'); }
+    }
+
+    // Booking detail modal
+    async function openBookingDetail(bid) {
+        const modal = document.getElementById('bookingDetailModal');
+        const content = document.getElementById('bookingDetailContent');
+        modal.style.display = 'flex';
+        content.innerHTML = '<p style="text-align:center;color:#8b95a8">Loading...</p>';
+        try {
+            const res = await fetch(`/api/bookings/${bid}/full`, { headers });
+            if (!res.ok) throw new Error('Failed to load');
+            const d = await res.json();
+
+            const typeBadge = d.booking_type === 'Service'
+                ? `<span class="badge badge-cyan">${escapeHtml(d.service_name)}</span>`
+                : `<span class="badge badge-blue">Appointment</span>`;
+            const statusBadge = d.status === 'cancelled' ? 'badge-red' : d.status === 'confirmed' ? 'badge-green' : 'badge-yellow';
+            const formBadge = d.form_status === 'submitted' ? '<span class="badge badge-green">Submitted</span>'
+                : d.form_status === 'pending' ? '<span class="badge badge-yellow">Pending</span>'
+                : '<span style="color:#8b95a8;font-size:0.8rem">No Form</span>';
+
+            let svcHtml = '';
+            if (d.service_info) {
+                const si = d.service_info;
+                svcHtml = `<div style="background:rgba(255,255,255,0.04);padding:14px 16px;border-radius:10px;margin:12px 0;border:1px solid rgba(255,255,255,0.06)">
+                    <div style="font-weight:600;font-size:0.85rem;color:#a78bfa;margin-bottom:6px">Service Details</div>
+                    ${si.description ? `<div style="color:#94a3b8;font-size:0.85rem;margin-bottom:6px">${escapeHtml(si.description)}</div>` : ''}
+                    <div style="display:flex;gap:16px;font-size:0.88rem">
+                        ${si.price ? `<span>Price: <strong style="color:#34d399">${si.price} ${si.currency || 'SAR'}</strong></span>` : ''}
+                        ${si.duration_minutes ? `<span>Duration: <strong>${si.duration_minutes} min</strong></span>` : ''}
+                    </div>
+                </div>`;
+            }
+
+            let formHtml = '';
+            if (d.form_data && d.form_data.submitted_at) {
+                const f = d.form_data;
+                formHtml = `<div style="background:rgba(255,255,255,0.04);padding:14px 16px;border-radius:10px;margin:12px 0;border:1px solid rgba(255,255,255,0.06)">
+                    <div style="font-weight:600;font-size:0.85rem;color:#34d399;margin-bottom:6px">Pre-Visit Form</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:0.85rem">
+                        ${f.date_of_birth ? `<span style="color:#8b95a8">DOB:</span><span>${escapeHtml(f.date_of_birth)}</span>` : ''}
+                        ${f.gender ? `<span style="color:#8b95a8">Gender:</span><span>${escapeHtml(f.gender)}</span>` : ''}
+                        ${f.medical_history ? `<span style="color:#8b95a8">Medical History:</span><span>${escapeHtml(f.medical_history)}</span>` : ''}
+                        ${f.medications ? `<span style="color:#8b95a8">Medications:</span><span>${escapeHtml(f.medications)}</span>` : ''}
+                        ${f.allergies ? `<span style="color:#8b95a8">Allergies:</span><span>${escapeHtml(f.allergies)}</span>` : ''}
+                        ${f.insurance_provider ? `<span style="color:#8b95a8">Insurance:</span><span>${escapeHtml(f.insurance_provider)}${f.insurance_policy ? ' (' + escapeHtml(f.insurance_policy) + ')' : ''}</span>` : ''}
+                    </div>
+                </div>`;
+            } else if (d.form_status === 'pending') {
+                formHtml = `<div style="background:rgba(251,191,36,0.06);padding:14px 16px;border-radius:10px;margin:12px 0;border:1px solid rgba(251,191,36,0.15)">
+                    <div style="font-weight:600;font-size:0.85rem;color:#fbbf24;margin-bottom:4px">Pre-Visit Form</div>
+                    <div style="color:#94a3b8;font-size:0.85rem">Sent to patient — not yet filled.</div>
+                </div>`;
+            }
+
+            let profileHtml = '';
+            if (d.patient_profile) {
+                const p = d.patient_profile;
+                const hasData = p.medical_history || p.allergies || p.medications;
+                if (hasData) {
+                    profileHtml = `<div style="background:rgba(255,255,255,0.04);padding:14px 16px;border-radius:10px;margin:12px 0;border:1px solid rgba(255,255,255,0.06)">
+                        <div style="font-weight:600;font-size:0.85rem;color:#60a5fa;margin-bottom:6px">Medical Profile</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:0.85rem">
+                            ${p.medical_history ? `<span style="color:#8b95a8">History:</span><span>${escapeHtml(p.medical_history)}</span>` : ''}
+                            ${p.allergies ? `<span style="color:#8b95a8">Allergies:</span><span>${escapeHtml(p.allergies)}</span>` : ''}
+                            ${p.medications ? `<span style="color:#8b95a8">Medications:</span><span>${escapeHtml(p.medications)}</span>` : ''}
+                        </div>
+                    </div>`;
+                }
+            }
+
+            content.innerHTML = `
+                <h2 style="margin:0 0 6px;color:#f1f5f9;font-size:1.3rem">${escapeHtml(d.customer_name)}</h2>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:18px">
+                    ${typeBadge}
+                    <span class="badge ${statusBadge}">${escapeHtml(d.status)}</span>
+                    ${d.visit_count > 1 ? `<span class="badge badge-blue">${d.visit_count} visits</span>` : d.visit_count === 1 ? '<span class="badge badge-yellow">First visit</span>' : ''}
+                    ${formBadge}
+                </div>
+                <div style="background:rgba(255,255,255,0.04);padding:14px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
+                    <table style="width:100%;border-collapse:collapse;font-size:0.88rem">
+                        <tr><td style="padding:5px 12px 5px 0;color:#8b95a8;width:110px;white-space:nowrap">Email</td><td style="color:#e2e8f0">${escapeHtml(d.customer_email) || '<span style="color:#4b5563">—</span>'}</td></tr>
+                        <tr><td style="padding:5px 12px 5px 0;color:#8b95a8">Phone</td><td style="color:#e2e8f0">${escapeHtml(d.customer_phone) || '<span style="color:#4b5563">—</span>'}</td></tr>
+                        <tr><td style="padding:5px 12px 5px 0;color:#8b95a8">Doctor</td><td style="color:#e2e8f0">${d.doctor_name ? 'Dr. ' + escapeHtml(d.doctor_name) : '<span style="color:#4b5563">—</span>'}</td></tr>
+                        <tr><td style="padding:5px 12px 5px 0;color:#8b95a8">Date & Time</td><td style="color:#e2e8f0">${escapeHtml(d.date)} at ${escapeHtml(d.time)}</td></tr>
+                        ${d.patient_type ? `<tr><td style="padding:5px 12px 5px 0;color:#8b95a8">Patient Type</td><td style="color:#e2e8f0">${escapeHtml(d.patient_type)}</td></tr>` : ''}
+                        ${d.notes ? `<tr><td style="padding:5px 12px 5px 0;color:#8b95a8">Notes</td><td style="color:#e2e8f0">${escapeHtml(d.notes)}</td></tr>` : ''}
+                        ${d.promotion_code ? `<tr><td style="padding:5px 12px 5px 0;color:#8b95a8">Promo Code</td><td style="color:#e2e8f0">${escapeHtml(d.promotion_code)}</td></tr>` : ''}
+                    </table>
+                </div>
+                ${svcHtml}${formHtml}${profileHtml}
+                <p style="color:#4b5563;font-size:0.78rem;margin-top:14px">Booked on ${new Date(d.created_at).toLocaleString()}</p>
+            `;
+        } catch (e) {
+            content.innerHTML = '<p style="color:#f87171;text-align:center">Failed to load booking details.</p>';
+        }
+    }
+    function closeBookingDetail() {
+        document.getElementById('bookingDetailModal').style.display = 'none';
+    }
+    document.getElementById('bookingDetailModal').addEventListener('click', function(e) {
+        if (e.target === this) closeBookingDetail();
+    });
+
     // Defensive: coerce any server value to a safe, human-readable string (fixes [object Object])
     function toText(v) {
         if (v == null) return '';
@@ -1727,8 +1865,10 @@
                 <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
                     <input type="text" class="form-input svc-name" value="${escapeHtml(s.name)}" style="flex:1;min-width:150px;padding:0.3rem 0.5rem;font-size:0.85rem" placeholder="Service name">
                     <select class="form-input svc-category" style="padding:0.3rem 0.4rem;font-size:0.8rem;width:120px">${categoryOptions.replace(`value="${escapeHtml(s.category || '')}"`, `value="${escapeHtml(s.category || '')}" selected`)}</select>
+                    <span style="color:var(--gray);font-size:0.7rem">Price:</span>
                     <input type="number" step="0.01" class="form-input svc-price" value="${Number(s.price).toFixed(2)}" style="width:90px;padding:0.3rem 0.5rem;font-size:0.85rem" placeholder="Price">
                     <span style="color:var(--gray);font-size:0.8rem">${escapeHtml(s.currency || __servicesCurrency)}</span>
+                    <span style="color:var(--gray);font-size:0.7rem;margin-left:0.3rem">Duration:</span>
                     <input type="number" class="form-input svc-duration" value="${s.duration_minutes || 60}" style="width:60px;padding:0.3rem 0.5rem;font-size:0.85rem" title="Duration (minutes)">
                     <span style="color:var(--gray);font-size:0.75rem">min</span>
                     <label style="display:flex;align-items:center;gap:0.2rem;font-size:0.78rem;color:var(--text-secondary);cursor:pointer" title="Active">
@@ -2128,7 +2268,7 @@
                 <div class="doctor-info">
                     <div class="doctor-name">Dr. ${escapeHtml(d.name)} ${statusBadge}</div>
                     <div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin:0.25rem 0">${catTags}</div>
-                    <div class="doctor-availability">Email: ${escapeHtml(d.email) || '—'} | ${escapeHtml(d.availability) || 'Mon-Fri'}${expText}</div>
+                    <div class="doctor-availability">Email: ${escapeHtml(d.email) || '—'} | ${(() => { try { const dh = typeof d.daily_hours === 'string' ? JSON.parse(d.daily_hours || '{}') : (d.daily_hours || {}); const days = Object.keys(dh).filter(day => !dh[day].off); return days.length ? days.join(', ') : (d.availability || 'Mon-Fri'); } catch(e) { return d.availability || 'Mon-Fri'; } })()}${expText}</div>
                     ${d.bio ? '<div style="color:var(--gray);font-size:0.8rem;margin-top:0.3rem;line-height:1.4">' + escapeHtml(d.bio.substring(0, 120)) + (d.bio.length > 120 ? '...' : '') + '</div>' : ''}
                 </div>
                 <div class="doctor-actions">
@@ -2464,7 +2604,9 @@
             const isOff = dh.off === true;
             const from = parseTime(dh.from || d.start_time);
             const to = parseTime(dh.to || d.end_time);
-            return `<div class="flex-day-row" id="flex-row-${d.id}-${day}" style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.35rem;flex-wrap:wrap">
+            const dayApptLen = dh.appointment_length || d.appointment_length || 60;
+            return `<div class="flex-day-block" style="margin-bottom:0.75rem;border-bottom:1px solid rgba(255,255,255,0.04);padding-bottom:0.6rem">
+                <div class="flex-day-row" id="flex-row-${d.id}-${day}" style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.25rem;flex-wrap:wrap">
                 <span style="width:80px;font-size:0.8rem;color:${isOff ? 'var(--gray)' : 'var(--accent)'};font-weight:600;${isOff ? 'text-decoration:line-through' : ''}">${day}</span>
                 <div id="flex-inputs-${d.id}-${day}" style="display:${isOff ? 'none' : 'flex'};align-items:center;gap:0.4rem;flex-wrap:wrap">
                     <div class="time-group">
@@ -2489,6 +2631,28 @@
                 </div>
                 <span id="flex-off-label-${d.id}-${day}" style="display:${isOff ? 'inline' : 'none'};color:#ff6b6b;font-size:0.75rem;font-weight:600">OFF</span>
                 <button onclick="toggleDayOff(${d.id},'${day}')" title="${isOff ? 'Mark as working' : 'Mark as off'}" id="flex-off-btn-${d.id}-${day}" style="background:${isOff ? '#4ecdc4' : 'rgba(255,107,107,0.15)'};border:1px solid ${isOff ? '#4ecdc4' : 'rgba(255,107,107,0.4)'};color:${isOff ? '#fff' : '#ff6b6b'};border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.7rem;padding:0;flex-shrink:0">${isOff ? '&#10003;' : '&#10005;'}</button>
+                </div>
+                <div id="day-breaks-wrapper-${d.id}-${day}" style="display:${isOff ? 'none' : 'block'};margin-left:80px;margin-top:0.2rem">
+                    <div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.3rem">
+                        <span style="font-size:0.7rem;color:var(--gray)">Appt Length:</span>
+                        <select id="day-al-${d.id}-${day}" class="time-ampm" style="border-radius:6px;padding:0.15rem 0.3rem;font-size:0.72rem;border:1px solid rgba(255,255,255,0.1);min-width:70px">
+                            <option value="15" ${dayApptLen === 15 ? 'selected' : ''}>15 min</option>
+                            <option value="30" ${dayApptLen === 30 ? 'selected' : ''}>30 min</option>
+                            <option value="45" ${dayApptLen === 45 ? 'selected' : ''}>45 min</option>
+                            <option value="60" ${dayApptLen === 60 ? 'selected' : ''}>1 hour</option>
+                            <option value="90" ${dayApptLen === 90 ? 'selected' : ''}>1.5 hrs</option>
+                            <option value="120" ${dayApptLen === 120 ? 'selected' : ''}>2 hrs</option>
+                        </select>
+                    </div>
+                    <div id="day-breaks-list-${d.id}-${day}" style="margin-bottom:0.2rem"></div>
+                    <div style="display:flex;align-items:center;gap:0.3rem;flex-wrap:wrap">
+                        <span style="font-size:0.7rem;color:var(--gray)">+ Break:</span>
+                        <input type="time" id="day-brk-start-${d.id}-${day}" style="width:95px;font-size:0.75rem;padding:0.2rem 0.3rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#f1f5f9">
+                        <span style="color:var(--gray);font-size:0.7rem">to</span>
+                        <input type="time" id="day-brk-end-${d.id}-${day}" style="width:95px;font-size:0.75rem;padding:0.2rem 0.3rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#f1f5f9">
+                        <button onclick="addDayBreak(${d.id},'${day}')" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:#a78bfa;border-radius:8px;padding:0.15rem 0.5rem;cursor:pointer;font-size:0.7rem;font-weight:600">Add</button>
+                    </div>
+                </div>
             </div>`;
         }).join('');
     }
@@ -2502,10 +2666,12 @@
 
         const isCurrentlyOff = inputsEl.style.display === 'none';
 
+        const breakWrapper = document.getElementById('day-breaks-wrapper-' + docId + '-' + day);
         if (isCurrentlyOff) {
             // Turn back on
             inputsEl.style.display = 'flex';
             offLabel.style.display = 'none';
+            if (breakWrapper) breakWrapper.style.display = 'block';
             btn.innerHTML = '&#10005;';
             btn.style.background = 'rgba(255,107,107,0.15)';
             btn.style.borderColor = 'rgba(255,107,107,0.4)';
@@ -2516,6 +2682,7 @@
             // Mark as off
             inputsEl.style.display = 'none';
             offLabel.style.display = 'inline';
+            if (breakWrapper) breakWrapper.style.display = 'none';
             btn.innerHTML = '&#10003;';
             btn.style.background = '#4ecdc4';
             btn.style.borderColor = '#4ecdc4';
@@ -2530,6 +2697,13 @@
         document.getElementById('sched-flex-' + id).classList.toggle('active', type === 'flexible');
         document.getElementById('fixed-hours-' + id).style.display = type === 'fixed' ? 'block' : 'none';
         document.getElementById('flex-hours-' + id).style.display = type === 'flexible' ? 'block' : 'none';
+        // Show global breaks + global appt length only for fixed
+        const globalBreaks = document.getElementById('global-breaks-section-' + id);
+        if (globalBreaks) globalBreaks.style.display = type === 'fixed' ? 'block' : 'none';
+        const globalApptLen = document.getElementById('global-appt-length-' + id);
+        if (globalApptLen) globalApptLen.style.display = type === 'fixed' ? 'flex' : 'none';
+        // Load per-day breaks when switching to flexible
+        if (type === 'flexible') loadDayBreaks(id);
         // Store on the doc object for saving
         const doc = manageDoctors.find(d => d.id === id);
         if (doc) doc._scheduleType = type;
@@ -2679,7 +2853,7 @@
                     <div id="flex-hours-${d.id}" style="display:${d.schedule_type === 'flexible' ? 'block' : 'none'}">
                         ${renderFlexibleHours(d)}
                     </div>
-                    <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.65rem">
+                    <div id="global-appt-length-${d.id}" style="display:${d.schedule_type === 'flexible' ? 'none' : 'flex'};align-items:center;gap:0.5rem;margin-top:0.65rem">
                         <div class="time-label" style="margin:0">Appointment Length</div>
                         <select id="al_${d.id}" class="time-ampm" style="border-radius:8px;padding:0.4rem 0.5rem;border:1px solid rgba(255,255,255,0.1);min-width:90px">
                             <option value="15" ${apptLen === 15 ? 'selected' : ''}>15 min</option>
@@ -2694,8 +2868,8 @@
                     <div class="manage-error" id="manage-err-${d.id}"></div>
                 </div>
 
-                <!-- Breaks Section -->
-                <div class="manage-subsection">
+                <!-- Breaks Section (only shown for fixed schedule) -->
+                <div class="manage-subsection" id="global-breaks-section-${d.id}" style="display:${d.schedule_type === 'flexible' ? 'none' : 'block'}">
                     <div class="manage-subsection-title">Breaks</div>
                     <div id="breaks-list-${d.id}"><span style="color:var(--gray);font-size:0.78rem">Loading...</span></div>
                     <div class="add-break-form">
@@ -2722,6 +2896,7 @@
         // Load breaks and off days for each doctor
         filtered.forEach(d => {
             loadBreaks(d.id);
+            loadDayBreaks(d.id);
             loadOffDays(d.id);
         });
     }
@@ -2795,7 +2970,8 @@
                     errEl.style.display = 'block';
                     return;
                 }
-                dailyHours[day] = { from: formatTime(fsh, fsm, fsa), to: formatTime(feh, fem, fea) };
+                const dayApptLen = parseInt(document.getElementById('day-al-' + id + '-' + day)?.value) || 60;
+                dailyHours[day] = { from: formatTime(fsh, fsm, fsa), to: formatTime(feh, fem, fea), appointment_length: dayApptLen };
             }
             // Use first non-off day's hours as the default start/end
             const firstWorkDay = days.find(d => !dailyHours[d]?.off) || days[0];
@@ -3330,8 +3506,58 @@
         try {
             await fetch(`/api/doctors/${doctorId}/breaks/${breakId}`, { method: 'DELETE', headers });
             loadBreaks(doctorId);
+            loadDayBreaks(doctorId);
             showManageSuccess();
         } catch(e) {}
+    }
+
+    // ── Per-Day Breaks (Flexible Schedule) ──
+    async function loadDayBreaks(doctorId) {
+        try {
+            const res = await fetch(`/api/doctors/${doctorId}/breaks`, { headers });
+            const breaks = await res.json();
+            const doc = manageDoctors.find(d => d.id === doctorId);
+            if (!doc) return;
+            const days = getWorkingDays(doc.availability);
+            days.forEach(day => {
+                const container = document.getElementById('day-breaks-list-' + doctorId + '-' + day);
+                if (!container) return;
+                const dayBreaks = breaks.filter(b => b.day_of_week === day);
+                if (!dayBreaks.length) {
+                    container.innerHTML = '';
+                    return;
+                }
+                container.innerHTML = dayBreaks.map(b => `
+                    <div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.15rem">
+                        <span style="font-size:0.72rem;color:#fbbf24;background:rgba(251,191,36,0.1);padding:0.1rem 0.5rem;border-radius:6px">Break ${b.start_time} - ${b.end_time}</span>
+                        <button onclick="deleteBreak(${doctorId},${b.id})" style="background:none;border:none;color:#ff6b6b;cursor:pointer;font-size:0.8rem;padding:0" title="Remove">&times;</button>
+                    </div>
+                `).join('');
+            });
+        } catch(e) { console.error(e); }
+    }
+
+    async function addDayBreak(doctorId, day) {
+        const startEl = document.getElementById('day-brk-start-' + doctorId + '-' + day);
+        const endEl = document.getElementById('day-brk-end-' + doctorId + '-' + day);
+        if (!startEl.value || !endEl.value) { showToast('Set break start and end times.', 'warning'); return; }
+        function to12h(t) {
+            const [h, m] = t.split(':').map(Number);
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            const hh = h % 12 || 12;
+            return String(hh).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ' ' + ampm;
+        }
+        try {
+            const res = await fetch(`/api/doctors/${doctorId}/breaks`, {
+                method: 'POST', headers,
+                body: JSON.stringify({ start_time: to12h(startEl.value), end_time: to12h(endEl.value), day_of_week: day })
+            });
+            const result = await res.json();
+            if (result.error) { showToast(result.error, 'error'); return; }
+            startEl.value = ''; endEl.value = '';
+            loadDayBreaks(doctorId);
+            showToast(`Break added for ${day}.`, 'success');
+        } catch(e) { showToast('Failed to add break.', 'error'); }
     }
 
     // ── Off Days CRUD ──
@@ -3873,7 +4099,7 @@
         if (!analyticsData) return;
         const d = analyticsData;
 
-        // ── 1. Leads Per Day (Line) ──
+        // ── 1. Chat Sessions Per Day (Line) ──
         const leadsEl = document.getElementById('chart-leads');
         leadsEl.innerHTML = '<canvas id="canvas-leads"></canvas>';
         _destroyChart('leads');
@@ -3881,14 +4107,14 @@
             type: 'line',
             data: {
                 labels: d.leads_per_day.map(r => r.date),
-                datasets: [{ label: 'Leads', data: d.leads_per_day.map(r => r.count),
+                datasets: [{ label: 'Sessions', data: d.leads_per_day.map(r => r.count),
                     borderColor: _chartColors.cyan, backgroundColor: _chartColors.cyanBg,
                     fill: true, tension: 0.3, pointRadius: 3 }]
             },
             options: { ..._chartDefaults, plugins: { ...(_chartDefaults.plugins),
                 title: { display: true, text: 'Total Sessions: ' + _fmtNum(d.total_sessions), color: '#888', font: { size: 12 } } } }
         });
-        _buildTable('leads', ['Date', 'Leads'],
+        _buildTable('leads', ['Date', 'Sessions'],
             d.leads_per_day.map(r => [r.date, _fmtNum(r.count)]));
 
         // ── 2. Bookings Per Day (Bar) ──
@@ -3991,6 +4217,11 @@
     checkTokenExpiry();
     verifySession();
     loadData();
+    // Restore last visited page on refresh
+    try {
+        const savedPage = localStorage.getItem('cg_current_page');
+        if (savedPage && document.getElementById('page-' + savedPage)) showPage(savedPage);
+    } catch(e) {}
     loadCompanyInfo();
     loadCustomersApiConfig();
     loadDoctors();

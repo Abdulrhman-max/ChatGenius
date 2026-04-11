@@ -155,6 +155,14 @@ tr:hover{background:rgba(139,92,246,0.04);}
 </div>
 </div>
 
+<!-- Booking Detail Modal -->
+<div id="bookingDetailModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;justify-content:center;align-items:center">
+    <div style="background:#1e293b;border-radius:12px;padding:2rem;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+        <button onclick="closeBookingDetail()" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:1.4rem;color:#94a3b8;cursor:pointer">&times;</button>
+        <div id="bookingDetailContent">Loading...</div>
+    </div>
+</div>
+
 <script>
 let TOKEN = localStorage.getItem('doctor_token') || '';
 
@@ -259,11 +267,14 @@ async function loadSchedule() {
 async function loadBookings() {
     const bookings = await api('/api/doctor-portal/bookings');
     if (!bookings.length) { document.getElementById('bookingsList').innerHTML = '<div class="empty">No upcoming bookings</div>'; return; }
-    let html = '<table><thead><tr><th>Date</th><th>Time</th><th>Patient</th><th>Service</th><th>Status</th></tr></thead><tbody>';
+    let html = '<table><thead><tr><th>Date</th><th>Time</th><th>Patient</th><th>Type</th><th>Service</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
     bookings.forEach(b => {
+        const isDone = b.status === 'cancelled' || b.status === 'no_show' || b.status === 'completed';
         const badge = b.status === 'confirmed' ? 'badge-green' : b.status === 'completed' ? 'badge-blue' : b.status === 'no_show' ? 'badge-red' : 'badge-yellow';
-        html += `<tr><td>${esc(b.date)}</td><td>${esc(b.time)}</td><td>${esc(b.customer_name)}</td>
-            <td>${esc(b.service)}</td><td><span class="badge ${badge}">${esc(b.status)}</span></td></tr>`;
+        const bType = b.service_id ? '<span class="badge" style="background:#06b6d4;color:#fff">Service</span>' : '<span class="badge" style="background:#3b82f6;color:#fff">Appointment</span>';
+        const noshowBtn = isDone ? '<span style="color:#64748b">—</span>' : `<button style="padding:5px 10px;font-size:12px;background:#f59e0b;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600" onclick="event.stopPropagation();markNoShow(${b.id})">Non-Attended</button>`;
+        html += `<tr style="cursor:pointer${isDone ? ';opacity:0.5' : ''}" onclick="openBookingDetail(${b.id})"><td>${esc(b.date)}</td><td>${esc(b.time)}</td><td>${esc(b.customer_name)}</td>
+            <td>${bType}</td><td>${esc(b.service)}</td><td><span class="badge ${badge}">${esc(b.status)}</span></td><td>${noshowBtn}</td></tr>`;
     });
     html += '</tbody></table>';
     document.getElementById('bookingsList').innerHTML = html;
@@ -322,6 +333,84 @@ async function saveStatusMsg() {
     await api('/api/doctor-portal/status-message', { method: 'POST', body: { message: msg } });
     alert('Status updated!');
 }
+
+async function markNoShow(bid) {
+    if (!confirm('Mark this appointment as non-attended? An email will be sent to the patient asking for their reason.')) return;
+    try {
+        const d = await api(`/api/bookings/${bid}/noshow`, { method: 'POST' });
+        if (d.ok) { alert('Marked as non-attended — patient notified.'); loadBookings(); }
+        else { alert(d.error || 'Failed to mark as non-attended.'); }
+    } catch (e) { alert('Failed to mark as non-attended.'); }
+}
+
+async function openBookingDetail(bid) {
+    const modal = document.getElementById('bookingDetailModal');
+    const content = document.getElementById('bookingDetailContent');
+    modal.style.display = 'flex';
+    content.innerHTML = '<p style="text-align:center;color:#94a3b8">Loading...</p>';
+    try {
+        const d = await api(`/api/bookings/${bid}/full`);
+        if (d.error) throw new Error(d.error);
+        const typeBadge = d.booking_type === 'Service'
+            ? `<span class="badge" style="background:#06b6d4;color:#fff">${esc(d.service_name)}</span>`
+            : `<span class="badge" style="background:#3b82f6;color:#fff">Appointment</span>`;
+        const statusBadge = d.status === 'cancelled' ? 'badge-red' : d.status === 'confirmed' ? 'badge-green' : 'badge-yellow';
+        const formBadge = d.form_status === 'submitted' ? '<span class="badge badge-green">Form Submitted</span>'
+            : d.form_status === 'pending' ? '<span class="badge badge-yellow">Form Pending</span>'
+            : '<span style="color:#94a3b8">No Form</span>';
+
+        let formHtml = '';
+        if (d.form_data && d.form_data.submitted_at) {
+            const f = d.form_data;
+            formHtml = `<div style="background:#0f172a;padding:12px;border-radius:8px;margin:8px 0">
+                <strong>Pre-Visit Form</strong><br>
+                ${f.date_of_birth ? `DOB: ${esc(f.date_of_birth)} &nbsp;` : ''}
+                ${f.gender ? `Gender: ${esc(f.gender)}<br>` : ''}
+                ${f.medical_history ? `Medical History: ${esc(f.medical_history)}<br>` : ''}
+                ${f.medications ? `Medications: ${esc(f.medications)}<br>` : ''}
+                ${f.allergies ? `Allergies: ${esc(f.allergies)}<br>` : ''}
+                ${f.insurance_provider ? `Insurance: ${esc(f.insurance_provider)}<br>` : ''}
+            </div>`;
+        } else if (d.form_status === 'pending') {
+            formHtml = '<div style="background:#0f172a;padding:12px;border-radius:8px;margin:8px 0;color:#94a3b8"><strong>Pre-Visit Form</strong><br>Sent but not yet filled.</div>';
+        }
+
+        let profileHtml = '';
+        if (d.patient_profile) {
+            const p = d.patient_profile;
+            if (p.medical_history || p.allergies || p.medications) {
+                profileHtml = `<div style="background:#0f172a;padding:12px;border-radius:8px;margin:8px 0">
+                    <strong>Medical Profile</strong><br>
+                    ${p.medical_history ? `History: ${esc(p.medical_history)}<br>` : ''}
+                    ${p.allergies ? `Allergies: ${esc(p.allergies)}<br>` : ''}
+                    ${p.medications ? `Medications: ${esc(p.medications)}<br>` : ''}
+                </div>`;
+            }
+        }
+
+        content.innerHTML = `
+            <h2 style="margin:0 0 4px;color:#f8fafc">${esc(d.customer_name)}</h2>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+                ${typeBadge} <span class="badge ${statusBadge}">${esc(d.status)}</span>
+                ${d.visit_count > 1 ? `<span class="badge badge-blue">${d.visit_count} visits</span>` : d.visit_count === 1 ? '<span class="badge badge-yellow">First visit</span>' : ''}
+                ${formBadge}
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:0.9rem;color:#e2e8f0">
+                <tr><td style="padding:6px 0;color:#94a3b8;width:120px">Email</td><td>${esc(d.customer_email) || '—'}</td></tr>
+                <tr><td style="padding:6px 0;color:#94a3b8">Phone</td><td>${esc(d.customer_phone) || '—'}</td></tr>
+                <tr><td style="padding:6px 0;color:#94a3b8">Date & Time</td><td>${esc(d.date)} at ${esc(d.time)}</td></tr>
+                ${d.patient_type ? `<tr><td style="padding:6px 0;color:#94a3b8">Patient Type</td><td>${esc(d.patient_type)}</td></tr>` : ''}
+                ${d.notes ? `<tr><td style="padding:6px 0;color:#94a3b8">Notes</td><td>${esc(d.notes)}</td></tr>` : ''}
+            </table>
+            ${formHtml}${profileHtml}
+            <p style="color:#94a3b8;font-size:0.8rem;margin-top:12px">Booked on ${new Date(d.created_at).toLocaleString()}</p>
+        `;
+    } catch (e) {
+        content.innerHTML = '<p style="color:#ef4444">Failed to load booking details.</p>';
+    }
+}
+function closeBookingDetail() { document.getElementById('bookingDetailModal').style.display = 'none'; }
+document.getElementById('bookingDetailModal').addEventListener('click', function(e) { if (e.target === this) closeBookingDetail(); });
 
 // Auto-login if token exists
 if (TOKEN) { initPortal(); }

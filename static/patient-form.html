@@ -760,6 +760,9 @@
                 // Show form
                 showState(stateForm);
 
+                // Re-init signature canvas now that form is visible
+                setTimeout(function() { resizeCanvas(); }, 50);
+
                 // Pre-fill name
                 if (data.full_name) {
                     document.getElementById('fullName').value = data.full_name;

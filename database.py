@@ -110,6 +110,7 @@ def init_db():
             break_name TEXT DEFAULT 'Break',
             start_time TEXT NOT NULL,
             end_time TEXT NOT NULL,
+            day_of_week TEXT DEFAULT '',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON DELETE CASCADE
         );
@@ -887,6 +888,7 @@ def init_db():
         ("leads", "last_activity_at", "TIMESTAMP DEFAULT ''"),
         ("leads", "converted_at", "TIMESTAMP DEFAULT ''"),
         ("leads", "converted_booking_id", "INTEGER DEFAULT 0"),
+        ("doctor_breaks", "day_of_week", "TEXT DEFAULT ''"),
     ]
     for table, col, col_type in migrations:
         try:
@@ -1045,14 +1047,17 @@ def get_lead_by_session(session_id):
 
 
 def convert_lead(lead_id, booking_id):
-    """Mark a lead as converted and cancel pending follow-ups."""
+    """Delete a lead when converted to booking — remove from leads entirely."""
     from datetime import datetime
     conn = get_db()
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    conn.execute("UPDATE leads SET stage='converted', converted_at=?, converted_booking_id=? WHERE id=?",
-                 (now, booking_id, lead_id))
+    # Cancel pending follow-ups first
     conn.execute("UPDATE lead_followups SET status='cancelled', cancelled_at=? WHERE lead_id=? AND status='pending'",
                  (now, lead_id))
+    # Delete the lead — they're now a booking
+    conn.execute("DELETE FROM leads WHERE id=?", (lead_id,))
+    # Clean up follow-ups too
+    conn.execute("DELETE FROM lead_followups WHERE lead_id=?", (lead_id,))
     conn.commit()
     conn.close()
 
@@ -1898,18 +1903,23 @@ def link_doctor_to_user(doctor_id, user_id):
 #  Doctor Breaks
 # ══════════════════════════════════════════════
 
-def get_doctor_breaks(doctor_id):
+def get_doctor_breaks(doctor_id, day_of_week=None):
     conn = get_db()
-    rows = conn.execute("SELECT * FROM doctor_breaks WHERE doctor_id = ? ORDER BY start_time", (doctor_id,)).fetchall()
+    if day_of_week:
+        rows = conn.execute(
+            "SELECT * FROM doctor_breaks WHERE doctor_id = ? AND (day_of_week = ? OR day_of_week = '' OR day_of_week IS NULL) ORDER BY start_time",
+            (doctor_id, day_of_week)).fetchall()
+    else:
+        rows = conn.execute("SELECT * FROM doctor_breaks WHERE doctor_id = ? ORDER BY day_of_week, start_time", (doctor_id,)).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
 
-def add_doctor_break(doctor_id, break_name, start_time, end_time):
+def add_doctor_break(doctor_id, break_name, start_time, end_time, day_of_week=""):
     conn = get_db()
     conn.execute(
-        "INSERT INTO doctor_breaks (doctor_id, break_name, start_time, end_time) VALUES (?,?,?,?)",
-        (doctor_id, break_name, start_time, end_time))
+        "INSERT INTO doctor_breaks (doctor_id, break_name, start_time, end_time, day_of_week) VALUES (?,?,?,?,?)",
+        (doctor_id, break_name, start_time, end_time, day_of_week))
     conn.commit()
     break_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     conn.close()

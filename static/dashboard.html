@@ -102,8 +102,8 @@
 
     <div id="bookingsTable" style="display:none;">
         <table>
-            <thead><tr><th>Customer</th><th>Email</th><th>Phone</th><th>Date</th><th>Time</th><th>Status</th></tr></thead>
-            <tbody id="bookingsBody"><tr><td colspan="6" class="empty">No bookings yet</td></tr></tbody>
+            <thead><tr><th>Customer</th><th>Type</th><th>Email</th><th>Phone</th><th>Date</th><th>Time</th><th>Status</th></tr></thead>
+            <tbody id="bookingsBody"><tr><td colspan="7" class="empty">No bookings yet</td></tr></tbody>
         </table>
     </div>
 </div>
@@ -150,18 +150,21 @@
 
             const bookingsBody = document.getElementById('bookingsBody');
             if (bookings.length === 0) {
-                bookingsBody.innerHTML = '<tr><td colspan="6" class="empty">No bookings yet — they\'ll appear here when visitors book through the chatbot.</td></tr>';
+                bookingsBody.innerHTML = '<tr><td colspan="7" class="empty">No bookings yet — they\'ll appear here when visitors book through the chatbot.</td></tr>';
             } else {
-                bookingsBody.innerHTML = bookings.map(b => `
-                    <tr>
+                bookingsBody.innerHTML = bookings.map(b => {
+                    const bType = b.service_id ? `<span class="badge badge-cyan">${escapeHtml(b.service || 'Service')}</span>` : '<span class="badge badge-blue">Appointment</span>';
+                    const badgeClass = b.status === 'cancelled' ? 'badge-red' : b.status === 'no_show' ? 'badge-red' : b.status === 'confirmed' ? 'badge-green' : 'badge-yellow';
+                    return `<tr${(b.status === 'cancelled' || b.status === 'no_show') ? ' style="opacity:0.5"' : ''}>
                         <td><strong>${escapeHtml(b.customer_name)}</strong></td>
+                        <td>${bType}</td>
                         <td>${escapeHtml(b.customer_email) || '—'}</td>
                         <td>${escapeHtml(b.customer_phone) || '—'}</td>
                         <td>${escapeHtml(b.date)}</td>
                         <td>${escapeHtml(b.time)}</td>
-                        <td><span class="badge badge-green">${escapeHtml(b.status)}</span></td>
-                    </tr>
-                `).join('');
+                        <td><span class="badge ${badgeClass}">${escapeHtml(b.status)}</span></td>
+                    </tr>`;
+                }).join('');
             }
         } catch (e) {
             console.error('Failed to load dashboard data:', e);

@@ -720,3 +720,101 @@ def send_doctor_booking_notification(to_email, doctor_name, patient_name, servic
     <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>"""
 
     return _send_email(to_email, subject, _wrap_luxury(content))
+
+
+# ── No-Show Email (Patient) ──────────────────────────────────────────────────
+
+def send_noshow_email(to_email, patient_name, date_display, time_display, doctor_name="", reason_url=""):
+    """Ask patient why they missed their appointment, with a link to provide a reason."""
+    subject = f"We Missed You — {date_display}"
+
+    doctor_row = ""
+    if doctor_name:
+        doctor_row = f"""
+        <tr><td style="padding:8px 0;border-bottom:1px solid #f0f0f0;">
+            <span style="color:#999;font-size:13px;text-transform:uppercase;letter-spacing:1px;">Doctor</span><br>
+            <span style="color:#1a1a2e;font-size:16px;font-weight:600;">Dr. {doctor_name}</span>
+        </td></tr>"""
+
+    reason_btn = ""
+    if reason_url:
+        reason_btn = f"""
+        <tr><td style="padding:24px 40px 0;text-align:center;">
+            <a href="{reason_url}" style="display:inline-block;background:linear-gradient(135deg,#c9a84c,#d4af37);color:#fff;
+            text-decoration:none;padding:14px 32px;border-radius:30px;font-weight:700;font-size:15px;">
+            Let Us Know Why</a>
+        </td></tr>"""
+
+    content = f"""
+    <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>
+    <tr><td style="padding:40px 40px 16px;text-align:center;">
+        <h1 style="color:#1a1a2e;font-size:24px;margin:0 0 8px;font-weight:700;">We Missed You!</h1>
+        <p style="color:#666;font-size:15px;margin:0;">Dear {patient_name},</p>
+    </td></tr>
+    <tr><td style="padding:16px 40px;">
+        <p style="color:#444;font-size:15px;line-height:1.6;margin:0;">
+            We noticed you weren't able to make it to your appointment on
+            <strong>{date_display}</strong> at <strong>{time_display}</strong>.
+            We hope everything is okay!
+        </p>
+    </td></tr>
+    <tr><td style="padding:8px 40px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#fafafa;border-radius:10px;padding:20px;">
+            {doctor_row}
+            <tr><td style="padding:8px 0;border-bottom:1px solid #f0f0f0;">
+                <span style="color:#999;font-size:13px;text-transform:uppercase;letter-spacing:1px;">Date</span><br>
+                <span style="color:#1a1a2e;font-size:16px;font-weight:600;">{date_display}</span>
+            </td></tr>
+            <tr><td style="padding:8px 0;">
+                <span style="color:#999;font-size:13px;text-transform:uppercase;letter-spacing:1px;">Time</span><br>
+                <span style="color:#1a1a2e;font-size:16px;font-weight:600;">{time_display}</span>
+            </td></tr>
+        </table>
+    </td></tr>
+    <tr><td style="padding:16px 40px;">
+        <p style="color:#444;font-size:15px;line-height:1.6;margin:0;">
+            We'd love to understand what happened so we can serve you better.
+            Could you take a moment to let us know?
+        </p>
+    </td></tr>
+    {reason_btn}
+    <tr><td style="padding:24px 40px 40px;text-align:center;">
+        <p style="color:#666;font-size:14px;line-height:1.6;margin:0 0 12px;">
+            If you'd like to reschedule, we're happy to find a time that works for you.
+        </p>
+        <p style="color:#999;font-size:13px;margin:0;">We care about your health.<br><strong style="color:#c9a84c;">{BUSINESS_NAME}</strong></p>
+    </td></tr>
+    <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>"""
+
+    return _send_email(to_email, subject, _wrap_luxury(content))
+
+
+# ── No-Show Reason → Doctor Notification ─────────────────────────────────────
+
+def send_noshow_reason_to_doctor(to_email, doctor_name, patient_name, date_display, time_display, reason=""):
+    """Forward the patient's no-show reason to the doctor."""
+    subject = f"No-Show Reason from {patient_name} — {date_display}"
+
+    content = f"""
+    <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>
+    <tr><td style="padding:40px 40px 16px;text-align:center;">
+        <h1 style="color:#1a1a2e;font-size:24px;margin:0 0 8px;font-weight:700;">No-Show Reason Received</h1>
+        <p style="color:#666;font-size:15px;margin:0;">Dr. {doctor_name},</p>
+    </td></tr>
+    <tr><td style="padding:16px 40px;">
+        <p style="color:#444;font-size:15px;line-height:1.6;margin:0;">
+            <strong>{patient_name}</strong> provided a reason for missing their appointment
+            on <strong>{date_display}</strong> at <strong>{time_display}</strong>:
+        </p>
+    </td></tr>
+    <tr><td style="padding:8px 40px;">
+        <div style="background:#fafafa;border-left:4px solid #c9a84c;padding:16px 20px;border-radius:6px;">
+            <div style="color:#1a1a2e;font-size:15px;line-height:1.6;">{reason}</div>
+        </div>
+    </td></tr>
+    <tr><td style="padding:24px 40px 40px;text-align:center;">
+        <p style="color:#999;font-size:13px;margin:0;"><strong style="color:#c9a84c;">{BUSINESS_NAME}</strong></p>
+    </td></tr>
+    <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>"""
+
+    return _send_email(to_email, subject, _wrap_luxury(content))

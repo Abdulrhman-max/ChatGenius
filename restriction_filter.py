@@ -94,6 +94,28 @@ _DENTAL_KEYWORDS = [
     "analytics", "dashboard", "report", "metrics",
     "multi-location", "dso", "branch", "location",
     "multilingual", "arabic", "language",
+    # Pricing & payment related (no dental words but still on-topic)
+    "expensive", "cheap", "afford", "cost", "price", "pay", "cash",
+    "credit card", "visa", "mastercard", "charge", "fee", "bill",
+    "refund", "money", "sar", "riyal", "budget", "invoice",
+    "receipt", "insurance", "coverage", "claim", "copay", "deductible",
+    "installment", "plan", "finance", "emi", "bnpl",
+    # Clinic logistics (often no dental words)
+    "locat", "address", "direction", "parking", "transport", "metro",
+    "bus", "map", "gps", "where", "find you", "get to you",
+    "open", "close", "friday", "saturday", "weekend", "holiday",
+    "waiting area", "waiting room", "companion", "wheelchair", "accessible",
+    "wifi", "play area", "children", "contact", "phone", "email",
+    "whatsapp", "reception",
+    # Patient concerns & edge cases
+    "trust", "ai", "chatbot", "misunderstand", "prescription",
+    "data", "delete", "privacy", "complain", "complaint", "feedback",
+    "refund", "follow up", "follow-up", "inquir", "loyalty", "points",
+    "reward", "earn", "waitlist", "wait list", "late", "reschedule",
+    "visit", "aftercare", "post", "recover", "heal", "swell",
+    "care", "advice", "recommend", "suggest", "help",
+    "service", "treatment", "procedure", "option", "result",
+    "before", "after", "photo", "review", "experience",
 ]
 
 
@@ -128,7 +150,9 @@ def is_off_topic(message, sklearn_intent=None, sklearn_conf=0.0):
         return True, BLOCKED_RESPONSE
 
     # Low confidence on sklearn + no dental keywords = likely off-topic
-    if sklearn_conf < 0.3:
+    # But only block if message is very short AND contains off-topic signals
+    # Long messages are more likely to be legitimate patient questions
+    if sklearn_conf < 0.15 and len(lower.split()) < 6:
         return True, BLOCKED_RESPONSE
 
     return False, None
