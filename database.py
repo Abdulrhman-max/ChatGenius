@@ -747,6 +747,16 @@ def init_db():
             FOREIGN KEY (conversation_id) REFERENCES channel_conversations(id)
         );
 
+        -- Feature Configuration (toggles for emails, auto-features, etc.)
+        CREATE TABLE IF NOT EXISTS feature_config (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER NOT NULL,
+            feature_key TEXT NOT NULL,
+            enabled INTEGER DEFAULT 1,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(admin_id, feature_key)
+        );
+
         -- White-Label Configuration
         CREATE TABLE IF NOT EXISTS whitelabel_config (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2575,6 +2585,68 @@ def expire_waitlist(waitlist_id):
 
 def get_next_waiting(admin_id, doctor_id, date, time_slot):
     return get_next_waiting_patient(admin_id, doctor_id, date, time_slot)
+
+
+# ═══════════════ Feature Configuration ═══════════════
+
+# All known feature keys with their default state (1=enabled, 0=disabled)
+FEATURE_DEFAULTS = {
+    # Email notifications
+    "email_booking_confirmation": 1,
+    "email_booking_cancellation": 1,
+    "email_previsit_form": 1,
+    "email_noshow_patient": 1,
+    "email_noshow_reason_doctor": 1,
+    "email_otp": 1,
+    # Feature toggles
+    "auto_lead_capture": 1,
+    "missed_call_autoreply": 1,
+    "auto_surveys": 1,
+    "auto_invoices": 1,
+    "auto_reports": 1,
+    "auto_noshow_recovery": 1,
+    "loyalty_program": 1,
+    "auto_recall": 1,
+    "auto_followups": 1,
+    "auto_reminders": 1,
+}
+
+
+def get_feature_config(admin_id):
+    """Return dict of all feature toggles for an admin, with defaults applied."""
+    conn = get_db()
+    rows = conn.execute("SELECT feature_key, enabled FROM feature_config WHERE admin_id=?", (admin_id,)).fetchall()
+    conn.close()
+    result = dict(FEATURE_DEFAULTS)  # start with defaults
+    for r in rows:
+        result[r["feature_key"]] = r["enabled"]
+    return result
+
+
+def is_feature_enabled(admin_id, feature_key):
+    """Check if a specific feature is enabled for an admin."""
+    conn = get_db()
+    row = conn.execute("SELECT enabled FROM feature_config WHERE admin_id=? AND feature_key=?",
+                       (admin_id, feature_key)).fetchone()
+    conn.close()
+    if row:
+        return bool(row["enabled"])
+    return bool(FEATURE_DEFAULTS.get(feature_key, 1))
+
+
+def save_feature_config(admin_id, config_dict):
+    """Save multiple feature toggles at once. config_dict = {feature_key: 0|1}."""
+    conn = get_db()
+    for key, enabled in config_dict.items():
+        if key not in FEATURE_DEFAULTS:
+            continue
+        conn.execute(
+            "INSERT INTO feature_config (admin_id, feature_key, enabled, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) "
+            "ON CONFLICT(admin_id, feature_key) DO UPDATE SET enabled=excluded.enabled, updated_at=CURRENT_TIMESTAMP",
+            (admin_id, key, int(bool(enabled)))
+        )
+    conn.commit()
+    conn.close()
 
 
 # ═══════════════ Feature 2: Patient Forms ═══════════════

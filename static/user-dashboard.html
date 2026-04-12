@@ -127,6 +127,17 @@
         #page-company .btn:hover{background:linear-gradient(135deg,rgba(139,92,246,0.28),rgba(99,102,241,0.28));border-color:rgba(139,92,246,0.6);box-shadow:0 8px 22px rgba(139,92,246,0.25)}
         #page-company .btn-danger:hover{background:rgba(248,113,113,0.16);box-shadow:0 6px 18px rgba(248,113,113,0.25);border-color:rgba(248,113,113,0.55)}
 
+        /* Config toggle switches */
+        .config-toggle{display:flex;align-items:center;gap:0.9rem;padding:0.7rem 1rem;border-radius:12px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);cursor:pointer;transition:background .2s,border-color .2s}
+        .config-toggle:hover{background:rgba(255,255,255,0.04);border-color:rgba(139,92,246,0.2)}
+        .config-toggle input{display:none}
+        .config-slider{position:relative;width:44px;height:24px;min-width:44px;border-radius:12px;background:rgba(255,255,255,0.1);transition:background .3s}
+        .config-slider::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#64748b;transition:transform .3s,background .3s}
+        .config-toggle input:checked+.config-slider{background:rgba(52,211,153,0.3)}
+        .config-toggle input:checked+.config-slider::after{transform:translateX(20px);background:#34d399}
+        .config-toggle strong{font-size:0.88rem;color:var(--white);font-weight:600;display:block}
+        .config-desc{font-size:0.78rem;color:var(--gray);display:block;margin-top:0.15rem}
+
         .form-group{margin-bottom:1.25rem}
         .form-label{display:block;font-size:0.82rem;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.4rem}
         .form-hint{font-size:0.78rem;color:var(--gray);margin-bottom:0.4rem}
@@ -444,6 +455,7 @@
             <li class="admin-only"><a href="#" onclick="showPage('promotions')"><i data-lucide="gift" style="width:18px;height:18px"></i><span class="icon">&#127873;</span> Promotions</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('recall')"><i data-lucide="rotate-ccw" style="width:18px;height:18px"></i><span class="icon">&#128276;</span> Recall & Retention</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('followups')"><i data-lucide="bell" style="width:18px;height:18px"></i><span class="icon">&#128221;</span> Follow-Ups</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('config')"><i data-lucide="sliders" style="width:18px;height:18px"></i><span class="icon">&#9881;</span> Configuration</a></li>
         </ul>
         <div class="sidebar-user">
             <div class="sidebar-user-info" onclick="toggleProfile()" style="cursor:pointer;border-radius:10px;padding:0.4rem;margin:-0.4rem;transition:background .2s" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
@@ -1233,6 +1245,51 @@
             </div>
         </div>
 
+        <!-- CONFIGURATION PAGE -->
+        <div id="page-config" style="display:none">
+            <div class="main-header"><h1>Configuration</h1></div>
+            <p style="color:var(--gray);font-size:0.9rem;margin-bottom:1.5rem">Toggle features and email notifications on or off. Changes apply immediately.</p>
+
+            <!-- Email Notifications -->
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-header"><div class="section-title">Email Notifications</div></div>
+                <div style="display:flex;flex-direction:column;gap:0.6rem;padding:0.5rem 0">
+                    <label class="config-toggle"><input type="checkbox" id="cfg_email_booking_confirmation" onchange="saveFeatureConfig()"><span class="config-slider"></span><div><strong>Booking Confirmation</strong><span class="config-desc">Send confirmation email to patient after booking</span></div></label>
+                    <label class="config-toggle"><input type="checkbox" id="cfg_email_booking_cancellation" onchange="saveFeatureConfig()"><span class="config-slider"></span><div><strong>Booking Cancellation</strong><span class="config-desc">Send cancellation email to patient when appointment is cancelled</span></div></label>
+                    <label class="config-toggle"><input type="checkbox" id="cfg_email_previsit_form" onchange="saveFeatureConfig()"><span class="config-slider"></span><div><strong>Pre-Visit Form Email</strong><span class="config-desc">Send pre-visit form link to patient before appointment</span></div></label>
+                    <label class="config-toggle"><input type="checkbox" id="cfg_email_noshow_patient" onchange="saveFeatureConfig()"><span class="config-slider"></span><div><strong>No-Show Email (Patient)</strong><span class="config-desc">Send email to patient when marked as no-show</span></div></label>
+                    <label class="config-toggle"><input type="checkbox" id="cfg_email_noshow_reason_doctor" onchange="saveFeatureConfig()"><span class="config-slider"></span><div><strong>No-Show Reason to Doctor</strong><span class="config-desc">Forward patient's no-show reason to the doctor</span></div></label>
+                    <label class="config-toggle"><input type="checkbox" id="cfg_email_otp" onchange="saveFeatureConfig()"><span class="config-slider"></span><div><strong>OTP / 2FA Emails</strong><span class="config-desc">Send one-time password emails for two-factor authentication</span></div></label>
+                </div>
+            </div>
+
+            <!-- Automation Features -->
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-header"><div class="section-title">Automation</div></div>
+                <div style="display:flex;flex-direction:column;gap:0.6rem;padding:0.5rem 0">
+                    <label class="config-toggle"><input type="checkbox" id="cfg_auto_lead_capture" onchange="saveFeatureConfig()"><span class="config-slider"></span><div><strong>Auto Lead Capture</strong><span class="config-desc">Automatically record interested users as leads based on conversation scoring</span></div></label>
+                    <label class="config-toggle"><input type="checkbox" id="cfg_auto_reminders" onchange="saveFeatureConfig()"><span class="config-slider"></span><div><strong>Appointment Reminders</strong><span class="config-desc">Automatically send 48h, 24h, and 2h reminders before appointments</span></div></label>
+                    <label class="config-toggle"><input type="checkbox" id="cfg_auto_recall" onchange="saveFeatureConfig()"><span class="config-slider"></span><div><strong>Auto Recall</strong><span class="config-desc">Automatically send recall emails based on treatment rules</span></div></label>
+                    <label class="config-toggle"><input type="checkbox" id="cfg_auto_followups" onchange="saveFeatureConfig()"><span class="config-slider"></span><div><strong>Auto Follow-Ups</strong><span class="config-desc">Automatically send treatment follow-up sequences</span></div></label>
+                    <label class="config-toggle"><input type="checkbox" id="cfg_auto_surveys" onchange="saveFeatureConfig()"><span class="config-slider"></span><div><strong>Auto Surveys</strong><span class="config-desc">Automatically send satisfaction surveys after appointments</span></div></label>
+                    <label class="config-toggle"><input type="checkbox" id="cfg_auto_noshow_recovery" onchange="saveFeatureConfig()"><span class="config-slider"></span><div><strong>No-Show Recovery</strong><span class="config-desc">Automatically send recovery messages to no-show patients</span></div></label>
+                    <label class="config-toggle"><input type="checkbox" id="cfg_missed_call_autoreply" onchange="saveFeatureConfig()"><span class="config-slider"></span><div><strong>Missed Call Auto-Reply</strong><span class="config-desc">Automatically reply to missed calls via WhatsApp/SMS</span></div></label>
+                </div>
+            </div>
+
+            <!-- Programs -->
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-header"><div class="section-title">Programs</div></div>
+                <div style="display:flex;flex-direction:column;gap:0.6rem;padding:0.5rem 0">
+                    <label class="config-toggle"><input type="checkbox" id="cfg_loyalty_program" onchange="saveFeatureConfig()"><span class="config-slider"></span><div><strong>Loyalty Program</strong><span class="config-desc">Award points to patients for appointments, referrals, and reviews</span></div></label>
+                    <label class="config-toggle"><input type="checkbox" id="cfg_auto_invoices" onchange="saveFeatureConfig()"><span class="config-slider"></span><div><strong>Auto Invoices</strong><span class="config-desc">Automatically generate invoices for completed appointments</span></div></label>
+                    <label class="config-toggle"><input type="checkbox" id="cfg_auto_reports" onchange="saveFeatureConfig()"><span class="config-slider"></span><div><strong>Auto Monthly Reports</strong><span class="config-desc">Automatically generate and email monthly performance reports</span></div></label>
+                </div>
+            </div>
+
+            <span class="save-msg" id="configSaveMsg" style="display:none">Saved!</span>
+        </div>
+
     </main>
 </div>
 
@@ -1442,6 +1499,7 @@
         if (page === 'benchmarks') loadBenchmarks();
         if (page === 'gmb') loadGmb();
         if (page === 'security') loadSecurity();
+        if (page === 'config') loadFeatureConfig();
     }
 
     async function loadData() {
@@ -4254,6 +4312,47 @@
             if (data.ok) { showToast('Removed from waitlist','success'); loadWaitlist(); }
             else { showToast(data.error || 'Failed to remove','error'); }
         } catch(e) { showToast('Failed to remove','error'); }
+    }
+
+    // ═══════ Feature Configuration ═══════
+    const FEATURE_KEYS = [
+        'email_booking_confirmation', 'email_booking_cancellation', 'email_previsit_form',
+        'email_noshow_patient', 'email_noshow_reason_doctor', 'email_otp',
+        'auto_lead_capture', 'auto_reminders', 'auto_recall', 'auto_followups',
+        'auto_surveys', 'auto_noshow_recovery', 'missed_call_autoreply',
+        'loyalty_program', 'auto_invoices', 'auto_reports'
+    ];
+    let _configSaveTimer = null;
+
+    async function loadFeatureConfig() {
+        try {
+            const res = await fetch('/api/feature-config', {headers});
+            const cfg = await res.json();
+            FEATURE_KEYS.forEach(k => {
+                const el = document.getElementById('cfg_' + k);
+                if (el) el.checked = cfg[k] !== 0;
+            });
+        } catch(e) { console.error(e); }
+    }
+
+    function saveFeatureConfig() {
+        clearTimeout(_configSaveTimer);
+        _configSaveTimer = setTimeout(async () => {
+            const payload = {};
+            FEATURE_KEYS.forEach(k => {
+                const el = document.getElementById('cfg_' + k);
+                if (el) payload[k] = el.checked ? 1 : 0;
+            });
+            try {
+                const res = await fetch('/api/feature-config', {method:'POST', headers, body: JSON.stringify(payload)});
+                const data = await res.json();
+                if (data.ok) {
+                    const msg = document.getElementById('configSaveMsg');
+                    msg.style.display = 'inline';
+                    setTimeout(() => msg.style.display = 'none', 2000);
+                }
+            } catch(e) { showToast('Failed to save configuration','error'); }
+        }, 400);
     }
 
     // ═══════ Feature 3: Recall ═══════

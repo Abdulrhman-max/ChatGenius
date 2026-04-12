@@ -2866,7 +2866,8 @@ def handle_booking(session, user_message, corrected_message=None):
             form_token = None
 
         # Send pre-visit form email to patient
-        if data.get("email") and form_token:
+        _bk_admin = data.get("_admin_id") or session.get("_admin_id", 0)
+        if data.get("email") and form_token and db.is_feature_enabled(_bk_admin, "email_previsit_form"):
             try:
                 base_url = request.host_url.rstrip("/")
                 form_url = f"{base_url}/form/{form_token}"
@@ -3068,7 +3069,8 @@ def handle_booking(session, user_message, corrected_message=None):
             pass
 
         # Send pre-visit form email to patient
-        if data.get("email") and form_token:
+        _bks_admin = data.get("_admin_id") or session.get("_admin_id", 0)
+        if data.get("email") and form_token and db.is_feature_enabled(_bks_admin, "email_previsit_form"):
             try:
                 base_url = request.host_url.rstrip("/")
                 form_url = f"{base_url}/form/{form_token}"
@@ -4143,7 +4145,7 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
             print(f"[lead] Score: +{_msg_score} = {_lead_score} (threshold: 7)", flush=True)
 
         # Threshold reached → capture lead silently
-        if _lead_score >= 7:
+        if _lead_score >= 7 and db.is_feature_enabled(admin_id, "auto_lead_capture"):
             try:
                 lead_id = lead_engine.capture_lead_from_session(
                     session, admin_id, capture_trigger="auto_interest"
@@ -5168,7 +5170,7 @@ def api_mark_noshow(booking_id):
     conn.close()
 
     # Send no-show email to patient
-    if booking.get("customer_email"):
+    if booking.get("customer_email") and db.is_feature_enabled(admin_id, "email_noshow_patient"):
         try:
             dt = datetime.strptime(booking["date"], "%Y-%m-%d")
             date_display = dt.strftime("%A, %B %d, %Y")
@@ -6499,7 +6501,7 @@ def api_confirm_waitlist(wid):
     except Exception:
         pass
 
-    if entry.get("patient_email") and form_token:
+    if entry.get("patient_email") and form_token and db.is_feature_enabled(entry["admin_id"], "email_previsit_form"):
         try:
             base_url = os.getenv("BASE_URL", request.host_url.rstrip("/"))
             form_url = f"{base_url}/form/{form_token}"
@@ -6548,6 +6550,37 @@ def api_delete_waitlist(wid):
             return jsonify({"error": "Permission denied"}), 403
     db.delete_waitlist_entry(wid)
     return jsonify({"ok": True, "message": "Removed from waitlist"})
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Feature Configuration (toggle emails, auto-features, etc.)
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/feature-config", methods=["GET"])
+def api_get_feature_config():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if user.get("role") not in ("admin", "head_admin"):
+        return jsonify({"error": "Permission denied"}), 403
+    admin_id = get_effective_admin_id(user)
+    config = db.get_feature_config(admin_id)
+    return jsonify(config)
+
+
+@app.route("/api/feature-config", methods=["POST"])
+def api_save_feature_config():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if user.get("role") not in ("admin", "head_admin"):
+        return jsonify({"error": "Permission denied"}), 403
+    admin_id = get_effective_admin_id(user)
+    data = request.get_json() or {}
+    db.save_feature_config(admin_id, data)
+    return jsonify({"ok": True})
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -6600,7 +6633,7 @@ def api_submit_form(token):
             db.confirm_booking_by_id(form["booking_id"])
 
             # Send confirmation email
-            if booking.get("customer_email"):
+            if booking.get("customer_email") and db.is_feature_enabled(booking.get("admin_id", 0), "email_booking_confirmation"):
                 try:
                     dt = datetime.strptime(booking["date"], "%Y-%m-%d")
                     date_display = dt.strftime("%A, %B %d, %Y")
@@ -6640,10 +6673,11 @@ def api_submit_form(token):
                 )
 
             # Schedule appointment reminders now that booking is confirmed
-            try:
-                reminder_eng.schedule_reminders(form["booking_id"], booking.get("admin_id", 0))
-            except Exception:
-                pass
+            if db.is_feature_enabled(booking.get("admin_id", 0), "auto_reminders"):
+                try:
+                    reminder_eng.schedule_reminders(form["booking_id"], booking.get("admin_id", 0))
+                except Exception:
+                    pass
 
             # If this was a waitlist booking, confirm the waitlist entry too
             if booking.get("waitlist_id"):
@@ -6750,7 +6784,7 @@ def api_submit_noshow_reason(token):
     except (ValueError, TypeError):
         date_display = booking.get("date", "")
 
-    if booking.get("doctor_id"):
+    if booking.get("doctor_id") and db.is_feature_enabled(booking.get("admin_id", 0), "email_noshow_reason_doctor"):
         try:
             doctor = db.get_doctor_by_id(booking["doctor_id"])
             if doctor and doctor.get("email"):
@@ -8395,7 +8429,7 @@ def api_cancel_booking(bid):
             date_display = datetime.strptime(booking["date"], "%Y-%m-%d").strftime("%A, %B %d, %Y")
         except Exception:
             pass
-        if booking.get("customer_email"):
+        if booking.get("customer_email") and db.is_feature_enabled(booking["admin_id"], "email_booking_cancellation"):
             email.send_booking_cancellation(
                 booking["customer_email"],
                 booking.get("customer_name", ""),
