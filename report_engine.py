@@ -424,6 +424,9 @@ def generate_all_monthly_reports():
     count = 0
     for admin in admins:
         admin_id = admin["id"]
+        # Check feature flag first
+        if not db.is_feature_enabled(admin_id, "auto_reports"):
+            continue
         # Check if auto-generate is enabled
         config = db.get_report_config(admin_id)
         if config and not config.get("auto_generate", 1):

@@ -70,6 +70,9 @@ def process_pending_followups():
     ).fetchall()
 
     for fu in pending:
+        # Check if auto_followups feature is enabled for this admin
+        if not db.is_feature_enabled(fu["admin_id"], "auto_followups"):
+            continue
         fu = dict(fu)
         try:
             recommended = datetime.strptime(fu["recommended_date"], "%Y-%m-%d %H:%M:%S")

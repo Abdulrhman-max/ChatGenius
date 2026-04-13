@@ -82,9 +82,19 @@ def process_recall_campaigns(admin_id=None):
 
     # Get all active recall rules (optionally filtered by admin)
     if admin_id:
+        if not db.is_feature_enabled(admin_id, "auto_recall"):
+            conn.close()
+            return
         rules = conn.execute("SELECT * FROM recall_rules WHERE admin_id=? AND is_active=1", (admin_id,)).fetchall()
     else:
-        rules = conn.execute("SELECT * FROM recall_rules WHERE is_active=1").fetchall()
+        # Process all admins - filter by feature flag
+        all_admins = conn.execute("SELECT DISTINCT admin_id FROM recall_rules WHERE is_active=1").fetchall()
+        rules = []
+        for admin_row in all_admins:
+            a_id = admin_row["admin_id"]
+            if db.is_feature_enabled(a_id, "auto_recall"):
+                admin_rules = conn.execute("SELECT * FROM recall_rules WHERE admin_id=? AND is_active=1", (a_id,)).fetchall()
+                rules.extend(admin_rules)
 
     today = datetime.now().strftime("%Y-%m-%d")
 

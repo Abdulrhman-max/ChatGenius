@@ -225,12 +225,13 @@ def _process_noshow_detection():
                         conn.execute("UPDATE patients SET total_no_shows=total_no_shows+1 WHERE id=?", (row["patient_id"],))
                     conn.commit()
                     logger.info(f"No-show detected: booking {row['id']} for {row['customer_name']}")
-                    # Trigger no-show recovery
-                    try:
-                        import noshow_recovery_engine
-                        noshow_recovery_engine.on_noshow_detected(row["id"])
-                    except Exception as e:
-                        logger.warning(f"No-show recovery trigger failed for booking {row['id']}: {e}")
+                    # Trigger no-show recovery if feature is enabled
+                    if db.is_feature_enabled(row.get("admin_id", 0), "auto_noshow_recovery"):
+                        try:
+                            import noshow_recovery_engine
+                            noshow_recovery_engine.on_noshow_detected(row["id"])
+                        except Exception as e:
+                            logger.warning(f"No-show recovery trigger failed for booking {row['id']}: {e}")
             except (ValueError, IndexError):
                 pass
     finally:

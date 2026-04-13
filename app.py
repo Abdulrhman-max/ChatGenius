@@ -3761,19 +3761,20 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
             break
 
     # ── Feature 18: Loyalty balance check in chat ──
-    try:
-        loyalty_keywords = ['points', 'loyalty', 'نقاط', 'مكافآت', 'how many points']
-        if any(kw in msg_lower_raw for kw in loyalty_keywords):
-            patient_id = session.get("patient_id") or (session.get("_patient", {}) or {}).get("id")
-            if patient_id:
-                balance = loyalty.get_balance_value(patient_id, admin_id)
-                lang = session.get("language", "en")
-                session["history"].append({"role": "user", "content": user_message})
-                response = tr.t('loyalty_balance', lang, points=balance["points"], value=balance["sar_value"])
-                session["history"].append({"role": "assistant", "content": response})
-                return response
-    except Exception:
-        pass
+    if db.is_feature_enabled(admin_id, "loyalty_program"):
+        try:
+            loyalty_keywords = ['points', 'loyalty', 'نقاط', 'مكافآت', 'how many points']
+            if any(kw in msg_lower_raw for kw in loyalty_keywords):
+                patient_id = session.get("patient_id") or (session.get("_patient", {}) or {}).get("id")
+                if patient_id:
+                    balance = loyalty.get_balance_value(patient_id, admin_id)
+                    lang = session.get("language", "en")
+                    session["history"].append({"role": "user", "content": user_message})
+                    response = tr.t('loyalty_balance', lang, points=balance["points"], value=balance["sar_value"])
+                    session["history"].append({"role": "assistant", "content": response})
+                    return response
+        except Exception:
+            pass
 
     # Step 0+1: AI spell-correction — only ONE Groq call needed (cleaner & interpreter do the same thing)
     # Skip very short messages (greetings, yes/no) — no need to waste an API call
@@ -6687,7 +6688,7 @@ def api_submit_form(token):
                     pass
 
     # Award loyalty points for form completion
-    if form and form.get("admin_id"):
+    if form and form.get("admin_id") and db.is_feature_enabled(form["admin_id"], "loyalty_program"):
         booking = db.get_booking_by_id(form["booking_id"]) if form.get("booking_id") else None
         if booking:
             try:
@@ -7034,6 +7035,8 @@ def api_missed_call_webhook():
     caller = data.get("From") or data.get("caller_number", "")
     if not caller:
         return jsonify({"error": "No caller number"}), 400
+    if not db.is_feature_enabled(admin_id, "missed_call_autoreply"):
+        return jsonify({"ok": False, "reason": "Feature disabled"})
     try:
         result = missed_call_engine.handle_missed_call(admin_id, caller)
         return jsonify(result)
@@ -8210,6 +8213,8 @@ def api_redeem_points():
     """Patient redeems loyalty points during booking (called from chatbot)."""
     data = request.get_json()
     admin_id = data.get("admin_id", 1)
+    if not db.is_feature_enabled(admin_id, "loyalty_program"):
+        return jsonify({"error": "Loyalty program is disabled"}), 403
     patient_email = data.get("email", "")
     patient_phone = data.get("phone", "")
     points = int(data.get("points", 0))
@@ -8385,10 +8390,11 @@ def api_complete_booking(bid):
                           (datetime.now().strftime("%Y-%m-%d"), data.get("treatment_type", ""), patient["id"]))
             conn2.commit()
             conn2.close()
-            config = db.get_loyalty_config(admin_id)
-            if config and config.get("is_active"):
-                db.add_loyalty_points(patient["id"], admin_id, config.get("points_per_appointment", 100),
-                                      "appointment_completed", f"Completed appointment on {booking['date']}", bid)
+            if db.is_feature_enabled(admin_id, "loyalty_program"):
+                config = db.get_loyalty_config(admin_id)
+                if config and config.get("is_active"):
+                    db.add_loyalty_points(patient["id"], admin_id, config.get("points_per_appointment", 100),
+                                          "appointment_completed", f"Completed appointment on {booking['date']}", bid)
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -8851,6 +8857,8 @@ def api_invoice_generate():
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
     admin_id = user["admin_id"] or user["id"]
+    if not db.is_feature_enabled(admin_id, "auto_invoices"):
+        return jsonify({"error": "Auto-invoices feature is disabled"}), 403
     data = request.get_json() or {}
     booking_id = data.get("booking_id")
     if not booking_id:
@@ -9218,4 +9226,5 @@ def health():
 if __name__ == "__main__":
     load_model()
     background_tasks.start_background_tasks(app)
-    app.run(debug=False, port=8080)
+    port = int(os.environ.get("PORT", 8080))
+    app.run(debug=False, port=port)
