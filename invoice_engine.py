@@ -273,7 +273,7 @@ def generate_invoice_html(invoice_id):
             <span class="status-badge" style="background:{status_color};">{status_label}</span>
             <div style="margin-top:10px;font-size:13px;opacity:0.85;">
                 Date: {invoice.get('created_at','')[:10]}<br>
-                Currency: {invoice.get('currency','SAR')}
+                Currency: {invoice.get('currency','USD')}
             </div>
         </div>
     </div>
@@ -312,9 +312,9 @@ def generate_invoice_html(invoice_id):
         </table>
 
         <table class="totals" style="width:100%;">
-            <tr><td></td><td style="color:#666;">Subtotal:</td><td style="width:120px;">{invoice['subtotal']:.2f} {invoice.get('currency','SAR')}</td></tr>
-            <tr><td></td><td style="color:#666;">VAT ({invoice['tax_rate']:.0f}%):</td><td>{invoice['tax_amount']:.2f} {invoice.get('currency','SAR')}</td></tr>
-            <tr class="total-row"><td></td><td>Total:</td><td>{invoice['total']:.2f} {invoice.get('currency','SAR')}</td></tr>
+            <tr><td></td><td style="color:#666;">Subtotal:</td><td style="width:120px;">{invoice['subtotal']:.2f} {invoice.get('currency','USD')}</td></tr>
+            <tr><td></td><td style="color:#666;">VAT ({invoice['tax_rate']:.0f}%):</td><td>{invoice['tax_amount']:.2f} {invoice.get('currency','USD')}</td></tr>
+            <tr class="total-row"><td></td><td>Total:</td><td>{invoice['total']:.2f} {invoice.get('currency','USD')}</td></tr>
         </table>
 
         {f'<div style="margin-top:15px;color:#666;font-size:13px;">Payment Method: {invoice["payment_method"]}</div>' if invoice.get('payment_method') else ''}
@@ -365,7 +365,7 @@ def send_invoice_email(invoice_id):
     if not html:
         return False
 
-    subject = f"Invoice {invoice['invoice_number']} — {invoice['total']:.2f} {invoice.get('currency', 'SAR')}"
+    subject = f"Invoice {invoice['invoice_number']} — {invoice['total']:.2f} {invoice.get('currency', 'USD')}"
     try:
         return email_svc._send_email(booking["customer_email"], subject, html)
     except Exception as e:

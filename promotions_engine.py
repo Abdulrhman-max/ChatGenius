@@ -68,7 +68,8 @@ def validate_discount_code(admin_id, code, treatment=None, booking_value=None):
     if promo.get("min_booking_value") and booking_value is not None:
         if booking_value < promo["min_booking_value"]:
             conn.close()
-            return {"valid": False, "error": f"This code requires a minimum booking value of {promo['min_booking_value']} SAR."}
+            currency = db.get_company_currency(admin_id)
+            return {"valid": False, "error": f"This code requires a minimum booking value of {promo['min_booking_value']} {currency}."}
 
     conn.close()
     return {
@@ -81,7 +82,7 @@ def validate_discount_code(admin_id, code, treatment=None, booking_value=None):
     }
 
 
-def apply_discount(code_id, original_amount):
+def apply_discount(code_id, original_amount, admin_id=0):
     """
     Calculate the discounted amount.
     Returns: {"new_total": 160, "savings": 40, "discount_description": "20% off"}
@@ -95,6 +96,7 @@ def apply_discount(code_id, original_amount):
         return {"new_total": original_amount, "savings": 0, "discount_description": ""}
 
     promo = dict(promo)
+    currency = db.get_company_currency(admin_id) if admin_id else "USD"
 
     if promo["discount_type"] == "percentage":
         savings = round(original_amount * promo["discount_value"] / 100, 2)
@@ -103,7 +105,7 @@ def apply_discount(code_id, original_amount):
     elif promo["discount_type"] == "fixed":
         savings = min(promo["discount_value"], original_amount)
         new_total = round(original_amount - savings, 2)
-        description = f"{savings} SAR off"
+        description = f"{savings} {currency} off"
     else:
         savings = 0
         new_total = original_amount

@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Agent - ChatGenius</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #8b5cf6;
+            --primary-dark: #7c3aed;
+            --bg-dark: #0f0f1a;
+            --bg-card: rgba(255,255,255,0.03);
+            --border: rgba(255,255,255,0.08);
+            --text: #f1f5f9;
+            --text-muted: #64748b;
+            --success: #34d399;
+            --danger: #ef4444;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .header h1 {
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+        .header h1 span { color: var(--primary); }
+        .back-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            text-decoration: none;
+        }
+        .back-btn:hover { background: rgba(255,255,255,0.06); }
+        
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        
+        .call-container {
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 2rem;
+        }
+        
+        .caller-id {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .caller-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), #6366f1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-size: 2rem;
+        }
+        .caller-name {
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+        .caller-status {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+        
+        .call-button {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin: 0 auto 2rem;
+            transition: all 0.3s ease;
+        }
+        .call-button.call {
+            background: var(--success);
+            box-shadow: 0 0 30px rgba(52,211,153,0.3);
+        }
+        .call-button.call:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 40px rgba(52,211,153,0.5);
+        }
+        .call-button.end {
+            background: var(--danger);
+            box-shadow: 0 0 30px rgba(239,68,68,0.3);
+        }
+        .call-button.end:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 40px rgba(239,68,68,0.5);
+        }
+        .call-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .transcript-container {
+            background: rgba(0,0,0,0.3);
+            border-radius: 16px;
+            padding: 1.5rem;
+            height: 300px;
+            overflow-y: auto;
+            margin-bottom: 1.5rem;
+        }
+        .transcript-container::-webkit-scrollbar { width: 6px; }
+        .transcript-container::-webkit-scrollbar-track { background: transparent; }
+        .transcript-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        
+        .transcript-empty {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 2rem;
+        }
+        
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            max-width: 85%;
+        }
+        .message.user {
+            background: var(--primary);
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+        .message.ai {
+            background: rgba(255,255,255,0.08);
+            border-bottom-left-radius: 4px;
+        }
+        .message-time {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+        .message.user .message-time { text-align: right; }
+        
+        .waveform {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            height: 30px;
+            margin-bottom: 1rem;
+        }
+        .waveform-bar {
+            width: 4px;
+            background: var(--primary);
+            border-radius: 2px;
+            animation: wave 1s ease-in-out infinite;
+        }
+        .waveform-bar:nth-child(2) { animation-delay: 0.1s; }
+        .waveform-bar:nth-child(3) { animation-delay: 0.2s; }
+        .waveform-bar:nth-child(4) { animation-delay: 0.3s; }
+        .waveform-bar:nth-child(5) { animation-delay: 0.4s; }
+        @keyframes wave {
+            0%, 100% { height: 10px; }
+            50% { height: 30px; }
+        }
+        .waveform.listening .waveform-bar { animation-play-state: running; }
+        .waveform.idle .waveform-bar { animation-play-state: paused; height: 10px; }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .control-btn.mute {
+            background: rgba(255,255,255,0.1);
+            color: var(--text);
+        }
+        .control-btn.mute.active {
+            background: var(--danger);
+        }
+        .control-btn.speaker {
+            background: rgba(255,255,255,0.1);
+            color: var(--text);
+        }
+        .control-btn.speaker.active {
+            background: var(--primary);
+        }
+        
+        .booking-card {
+            background: rgba(52,211,153,0.1);
+            border: 1px solid rgba(52,211,153,0.3);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-top: 1rem;
+            display: none;
+        }
+        .booking-card.show { display: block; }
+        .booking-card h4 {
+            color: var(--success);
+            margin-bottom: 0.5rem;
+        }
+        .booking-info {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+        .booking-info strong { color: var(--text); }
+        
+        .recording-indicator {
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--danger);
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+            justify-content: center;
+        }
+        .recording-indicator.show { display: flex; }
+        .recording-dot {
+            width: 10px;
+            height: 10px;
+            background: var(--danger);
+            border-radius: 50%;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/user-dashboard" class="back-btn">Back to Dashboard</a>
+        <h1>Voice <span>Agent</span></h1>
+    </div>
+    
+    <div class="container">
+        <div class="call-container">
+            <div class="caller-id">
+                <div class="caller-avatar">🦷</div>
+                <div class="caller-name">BrightSmile Dental</div>
+                <div class="caller-status" id="callStatus">Ready to call</div>
+            </div>
+            
+            <button class="call-button call" id="callButton" onclick="toggleCall()">
+                📞
+            </button>
+            
+            <div class="waveform idle" id="waveform">
+                <div class="waveform-bar"></div>
+                <div class="waveform-bar"></div>
+                <div class="waveform-bar"></div>
+                <div class="waveform-bar"></div>
+                <div class="waveform-bar"></div>
+            </div>
+            
+            <div class="recording-indicator" id="recordingIndicator">
+                <div class="recording-dot"></div>
+                <span>Recording...</span>
+            </div>
+            
+            <div class="transcript-container" id="transcriptContainer">
+                <div class="transcript-empty" id="transcriptEmpty">
+                    Start a call to begin conversation
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button class="control-btn mute" id="muteButton" onclick="toggleMute()" title="Mute">🎤</button>
+                <button class="control-btn speaker" id="speakerButton" onclick="toggleSpeaker()" title="TTS">🔊</button>
+            </div>
+            
+            <div class="booking-card" id="bookingCard">
+                <h4>📅 Booking Extracted</h4>
+                <div class="booking-info" id="bookingInfo"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let isCallActive = false;
+        let isMuted = false;
+        let isSpeakerOn = true;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recognition = null;
+        let synthesis = window.speechSynthesis;
+        let currentTranscript = [];
+        
+        function toggleCall() {
+            if (isCallActive) {
+                endCall();
+            } else {
+                startCall();
+            }
+        }
+        
+        async function startCall() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                isCallActive = true;
+                document.getElementById('callButton').textContent = '📴';
+                document.getElementById('callButton').classList.remove('call');
+                document.getElementById('callButton').classList.add('end');
+                document.getElementById('callStatus').textContent = 'Connected - Listening...';
+                document.getElementById('waveform').classList.remove('idle');
+                document.getElementById('waveform').classList.add('listening');
+                document.getElementById('recordingIndicator').classList.add('show');
+                document.getElementById('transcriptEmpty').style.display = 'none';
+                
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = async (e) => {
+                    audioChunks.push(e.data);
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    await processAudio(audioBlob);
+                };
+                
+                mediaRecorder.start();
+                
+                startSpeechRecognition();
+                
+            } catch (err) {
+                console.error('Error accessing microphone:', err);
+                alert('Please allow microphone access to use the voice agent.');
+            }
+        }
+        
+        function endCall() {
+            isCallActive = false;
+            
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            
+            if (recognition) {
+                recognition.stop();
+            }
+            
+            document.getElementById('callButton').textContent = '📞';
+            document.getElementById('callButton').classList.remove('end');
+            document.getElementById('callButton').classList.add('call');
+            document.getElementById('callStatus').textContent = 'Call ended';
+            document.getElementById('waveform').classList.remove('listening');
+            document.getElementById('waveform').classList.add('idle');
+            document.getElementById('recordingIndicator').classList.remove('show');
+            
+            const stream = mediaRecorder ? mediaRecorder.stream : null;
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        }
+        
+        function startSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                console.log('Speech recognition not supported, using audio upload');
+                return;
+            }
+            
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+            
+            recognition.onresult = async (event) => {
+                const result = event.results[event.results.length - 1];
+                if (result.isFinal) {
+                    const transcript = result[0].transcript.trim();
+                    if (transcript) {
+                        await sendToAI(transcript);
+                    }
+                }
+            };
+            
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+            };
+            
+            recognition.onend = () => {
+                if (isCallActive) {
+                    setTimeout(() => recognition.start(), 100);
+                }
+            };
+            
+            recognition.start();
+        }
+        
+        async function processAudio(audioBlob) {
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'recording.webm');
+            formData.append('admin_id', '1');
+            
+            try {
+                const response = await fetch('/api/voice/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                if (data.text) {
+                    await sendToAI(data.text);
+                }
+            } catch (err) {
+                console.error('Transcription error:', err);
+            }
+        }
+        
+        async function sendToAI(text) {
+            addMessage('user', text);
+            
+            document.getElementById('callStatus').textContent = 'AI is thinking...';
+            
+            try {
+                const response = await fetch('/api/voice/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: text,
+                        admin_id: 1,
+                        voice_mode: true
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.response) {
+                    addMessage('ai', data.response);
+                    speakText(data.response);
+                    
+                    if (data.booking) {
+                        showBookingCard(data.booking);
+                    }
+                }
+                
+            } catch (err) {
+                console.error('AI error:', err);
+                addMessage('ai', 'Sorry, I encountered an error. Please try again.');
+                speakText('Sorry, I encountered an error. Please try again.');
+            }
+            
+            document.getElementById('callStatus').textContent = 'Connected - Listening...';
+        }
+        
+        function addMessage(role, text) {
+            currentTranscript.push({ role, text, time: new Date() });
+            
+            const container = document.getElementById('transcriptContainer');
+            const empty = document.getElementById('transcriptEmpty');
+            if (empty) empty.style.display = 'none';
+            
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${role}`;
+            
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            msgDiv.innerHTML = `
+                <div class="message-text">${escapeHtml(text)}</div>
+                <div class="message-time">${time}</div>
+            `;
+            
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function speakText(text) {
+            if (!isSpeakerOn) return;
+            
+            synthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1;
+            utterance.pitch = 1;
+            utterance.volume = 1;
+            
+            const voices = synthesis.getVoices();
+            const englishVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
+            if (englishVoice) utterance.voice = englishVoice;
+            
+            synthesis.speak(utterance);
+        }
+        
+        function showBookingCard(booking) {
+            const card = document.getElementById('bookingCard');
+            const info = document.getElementById('bookingInfo');
+            
+            info.innerHTML = `
+                <p><strong>Service:</strong> ${booking.service || 'General Consultation'}</p>
+                <p><strong>Doctor:</strong> ${booking.doctor || 'Any available'}</p>
+                <p><strong>Date:</strong> ${booking.date}</p>
+                <p><strong>Time:</strong> ${booking.time}</p>
+                <p><strong>Patient:</strong> ${booking.name}</p>
+            `;
+            
+            card.classList.add('show');
+        }
+        
+        function toggleMute() {
+            isMuted = !isMuted;
+            const btn = document.getElementById('muteButton');
+            btn.classList.toggle('active', isMuted);
+            btn.textContent = isMuted ? '🔇' : '🎤';
+        }
+        
+        function toggleSpeaker() {
+            isSpeakerOn = !isSpeakerOn;
+            const btn = document.getElementById('speakerButton');
+            btn.classList.toggle('active', isSpeakerOn);
+            if (!isSpeakerOn) synthesis.cancel();
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        if (synthesis.onvoiceschanged !== undefined) {
+            synthesis.onvoiceschanged = () => {};
+        }
+    </script>
+</body>
+</html>

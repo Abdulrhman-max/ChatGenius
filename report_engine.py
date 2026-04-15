@@ -128,6 +128,9 @@ def generate_monthly_report(admin_id, year, month):
     finally:
         conn.close()
 
+    # Get company currency
+    company_currency = db.get_company_currency(admin_id)
+
     # Compile report data
     report_data = {
         "admin_id": admin_id,
@@ -145,6 +148,7 @@ def generate_monthly_report(admin_id, year, month):
             "new_patients": new_patients,
             "revenue": revenue,
             "paid_invoices": paid_invoices,
+            "currency": company_currency,
             "completion_rate": round(completed / total_bookings * 100, 1) if total_bookings > 0 else 0,
             "noshow_rate": round(no_shows / total_bookings * 100, 1) if total_bookings > 0 else 0,
             "cancellation_rate": round(cancelled / total_bookings * 100, 1) if total_bookings > 0 else 0,
@@ -206,7 +210,7 @@ def generate_report_html(report_id):
         ("No-Shows", summary.get("no_shows", 0), "#dc3545"),
         ("Cancelled", summary.get("cancelled", 0), "#f0ad4e"),
         ("New Patients", summary.get("new_patients", 0), "#17a2b8"),
-        ("Revenue", f"{summary.get('revenue', 0):,.2f} SAR", "#6f42c1"),
+        ("Revenue", f"{summary.get('revenue', 0):,.2f} {summary.get('currency', 'USD')}", "#6f42c1"),
     ]
 
     cards_html = ""

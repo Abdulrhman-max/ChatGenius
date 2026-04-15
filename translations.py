@@ -326,17 +326,17 @@ TRANSLATIONS = {
     },
 
     'loyalty_balance': {
-        'en': "You currently have {points} loyalty points worth {value} SAR.",
-        'ar': "لديك حالياً {points} نقطة ولاء بقيمة {value} ريال سعودي.",
-        'ur': "آپ کے پاس اس وقت {points} لائلٹی پوائنٹس ہیں جن کی مالیت {value} سعودی ریال ہے۔",
-        'tl': "Mayroon kang {points} loyalty points na nagkakahalaga ng {value} SAR."
+        'en': "You currently have {points} loyalty points worth {value} {currency}.",
+        'ar': "لديك حالياً {points} نقطة ولاء بقيمة {value} {currency}.",
+        'ur': "آپ کے پاس اس وقت {points} لائلٹی پوائنٹس ہیں جن کی مالیت {value} {currency} ہے۔",
+        'tl': "Mayroon kang {points} loyalty points na nagkakahalaga ng {value} {currency}."
     },
 
     'discount_applied': {
-        'en': "Code applied! Your total is {new_total} SAR instead of {original} SAR ({percent}% off).",
-        'ar': "تم تطبيق الكود! إجمالي المبلغ {new_total} ريال بدلاً من {original} ريال (خصم {percent}%).",
-        'ur': "کوڈ لاگو ہو گیا! آپ کی کل رقم {original} سعودی ریال کے بجائے {new_total} سعودی ریال ہے ({percent}% چھوٹ)۔",
-        'tl': "Na-apply na ang code! Ang total mo ay {new_total} SAR sa halip na {original} SAR ({percent}% off)."
+        'en': "Code applied! Your total is {new_total} {currency} instead of {original} {currency} ({percent}% off).",
+        'ar': "تم تطبيق الكود! إجمالي المبلغ {new_total} {currency} بدلاً من {original} {currency} (خصم {percent}%).",
+        'ur': "کوڈ لاگو ہو گیا! آپ کی کل رقم {original} {currency} کے بجائے {new_total} {currency} ہے ({percent}% چھوٹ)۔",
+        'tl': "Na-apply na ang code! Ang total mo ay {new_total} {currency} sa halip na {original} {currency} ({percent}% off)."
     },
 
     'discount_invalid': {

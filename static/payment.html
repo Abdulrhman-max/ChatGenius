@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment - ChatGenius</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .card {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px;
+            padding: 2.5rem;
+            max-width: 500px;
+            width: 100%;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .icon { font-size: 3rem; margin-bottom: 1rem; }
+        h1 { font-size: 1.5rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; }
+        .subtitle { color: rgba(255,255,255,0.6); font-size: 0.9rem; }
+        
+        .amount-display {
+            background: rgba(139,92,246,0.15);
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        .amount-label { font-size: 0.85rem; color: rgba(255,255,255,0.6); margin-bottom: 0.5rem; }
+        .amount { font-size: 2.5rem; font-weight: 800; color: #8b5cf6; }
+        .currency { font-size: 1.2rem; }
+        
+        .description {
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        .payment-methods {
+            margin-bottom: 1.5rem;
+        }
+        .payment-methods h3 {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 1rem;
+        }
+        .method {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            background: rgba(0,0,0,0.2);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .method:hover { border-color: rgba(139,92,246,0.5); }
+        .method.selected { border-color: #8b5cf6; background: rgba(139,92,246,0.1); }
+        .method-icon { font-size: 1.5rem; margin-right: 1rem; }
+        .method-name { font-weight: 600; color: #fff; }
+        .method-desc { font-size: 0.8rem; color: rgba(255,255,255,0.5); }
+        
+        .btn {
+            width: 100%;
+            padding: 1rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 1rem;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(139,92,246,0.4);
+        }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        
+        .result {
+            text-align: center;
+            padding: 2rem 0;
+            display: none;
+        }
+        .result.show { display: block; }
+        .result-icon { font-size: 4rem; margin-bottom: 1rem; }
+        .result-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .result-message { color: rgba(255,255,255,0.7); }
+        .success .result-title { color: #34d399; }
+        .error .result-title { color: #ef4444; }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 2rem 0;
+        }
+        .loading.show { display: block; }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(139,92,246,0.3);
+            border-top-color: #8b5cf6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div id="paymentForm">
+            <div class="header">
+                <div class="icon">💳</div>
+                <h1>Complete Payment</h1>
+                <p class="subtitle">Secure payment simulation</p>
+            </div>
+            
+            <div class="amount-display">
+                <div class="amount-label">Amount Due</div>
+                <div class="amount"><span id="amount">0</span> <span class="currency" id="currency">USD</span></div>
+            </div>
+            
+            <div class="description" id="description">Payment for dental services</div>
+            
+            <div class="payment-methods">
+                <h3>Select Payment Method</h3>
+                <div class="method selected" onclick="selectMethod('card', this)">
+                    <div class="method-icon">💳</div>
+                    <div>
+                        <div class="method-name">Credit/Debit Card</div>
+                        <div class="method-desc">Visa, Mastercard, Amex</div>
+                    </div>
+                </div>
+                <div class="method" onclick="selectMethod('apple_pay', this)">
+                    <div class="method-icon">🍎</div>
+                    <div>
+                        <div class="method-name">Apple Pay</div>
+                        <div class="method-desc">Quick & secure</div>
+                    </div>
+                </div>
+                <div class="method" onclick="selectMethod('google_pay', this)">
+                    <div class="method-icon">🟢</div>
+                    <div>
+                        <div class="method-name">Google Pay</div>
+                        <div class="method-desc">Fast checkout</div>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="btn btn-primary" id="payButton" onclick="processPayment()">
+                Pay <span id="payAmount">0</span> <span id="payCurrency">USD</span>
+            </button>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="color: rgba(255,255,255,0.7);">Processing payment...</p>
+        </div>
+        
+        <div class="result success" id="successResult">
+            <div class="result-icon">✅</div>
+            <div class="result-title">Payment Successful!</div>
+            <div class="result-message">Your payment has been processed.</div>
+            <button class="btn btn-primary" onclick="window.close()" style="margin-top: 1.5rem;">Done</button>
+        </div>
+        
+        <div class="result error" id="errorResult">
+            <div class="result-icon">❌</div>
+            <div class="result-title">Payment Failed</div>
+            <div class="result-message" id="errorMessage">Something went wrong.</div>
+            <button class="btn btn-primary" onclick="retryPayment()" style="margin-top: 1.5rem;">Try Again</button>
+        </div>
+    </div>
+    
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        let selectedMethod = 'card';
+        
+        async function loadPayment() {
+            try {
+                const res = await fetch(`/api/payment/${token}`);
+                const payment = await res.json();
+                
+                if (payment.error) {
+                    showError(payment.error);
+                    return;
+                }
+                
+                document.getElementById('amount').textContent = payment.amount;
+                document.getElementById('currency').textContent = payment.currency;
+                document.getElementById('payAmount').textContent = payment.amount;
+                document.getElementById('payCurrency').textContent = payment.currency;
+                document.getElementById('description').textContent = payment.description || 'Payment for services';
+                
+                if (payment.status === 'paid') {
+                    showSuccess();
+                } else if (payment.status !== 'pending') {
+                    showError(`Payment status: ${payment.status}`);
+                }
+            } catch (e) {
+                showError('Failed to load payment');
+            }
+        }
+        
+        function selectMethod(method, el) {
+            selectedMethod = method;
+            document.querySelectorAll('.method').forEach(m => m.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+        
+        async function processPayment() {
+            document.getElementById('paymentForm').style.display = 'none';
+            document.getElementById('loading').classList.add('show');
+            
+            setTimeout(async () => {
+                try {
+                    const res = await fetch(`/api/payment/${token}/pay`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ method: selectedMethod })
+                    });
+                    const result = await res.json();
+                    
+                    document.getElementById('loading').classList.remove('show');
+                    
+                    if (result.success) {
+                        showSuccess();
+                    } else {
+                        showError(result.error || 'Payment failed');
+                    }
+                } catch (e) {
+                    document.getElementById('loading').classList.remove('show');
+                    showError('Network error');
+                }
+            }, 2000);
+        }
+        
+        function showSuccess() {
+            document.getElementById('paymentForm').style.display = 'none';
+            document.getElementById('successResult').classList.add('show');
+        }
+        
+        function showError(message) {
+            document.getElementById('paymentForm').style.display = 'none';
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorResult').classList.add('show');
+        }
+        
+        function retryPayment() {
+            document.getElementById('errorResult').classList.remove('show');
+            document.getElementById('paymentForm').style.display = 'block';
+        }
+        
+        if (token) {
+            loadPayment();
+        } else {
+            showError('Invalid payment link');
+        }
+    </script>
+</body>
+</html>

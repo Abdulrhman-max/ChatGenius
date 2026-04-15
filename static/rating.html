@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rate Your Experience</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .card {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px;
+            padding: 2.5rem;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        .clinic-logo {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: #fff;
+        }
+        .subtitle {
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+        }
+        .stars {
+            display: flex;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-bottom: 2rem;
+        }
+        .star {
+            font-size: 2.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: rgba(255,255,255,0.2);
+        }
+        .star:hover, .star.active {
+            color: #fbbf24;
+            transform: scale(1.1);
+        }
+        .feedback-form {
+            display: none;
+            text-align: left;
+        }
+        .feedback-form.show { display: block; }
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 0.5rem;
+        }
+        textarea {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 0.95rem;
+            resize: vertical;
+            min-height: 100px;
+            font-family: inherit;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #8b5cf6;
+        }
+        .btn {
+            width: 100%;
+            padding: 1rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 1rem;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(139,92,246,0.4);
+        }
+        .thank-you {
+            display: none;
+            padding: 2rem 0;
+        }
+        .thank-you.show { display: block; }
+        .thank-you-icon { font-size: 4rem; margin-bottom: 1rem; }
+        .rating-display {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        .stars-display {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .stars-display .star { cursor: default; }
+        .rating-high { color: #34d399; }
+        .rating-low { color: #fbbf24; }
+        .hidden { display: none !important; }
+        .review-link {
+            display: inline-block;
+            margin-top: 1rem;
+            padding: 0.75rem 1.5rem;
+            background: rgba(52,211,153,0.15);
+            border: 1px solid rgba(52,211,153,0.3);
+            border-radius: 12px;
+            color: #34d399;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .review-link:hover { background: rgba(52,211,153,0.25); }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div id="ratingSection">
+            <div class="clinic-logo">🦷</div>
+            <h1>How was your visit?</h1>
+            <p class="subtitle">Your feedback helps us serve you better</p>
+            
+            <div class="stars" id="starsContainer">
+                <span class="star" data-rating="1">☆</span>
+                <span class="star" data-rating="2">☆</span>
+                <span class="star" data-rating="3">☆</span>
+                <span class="star" data-rating="4">☆</span>
+                <span class="star" data-rating="5">☆</span>
+            </div>
+            <p id="ratingText" style="color: rgba(255,255,255,0.5); font-size: 0.9rem; min-height: 1.5rem;"></p>
+            
+            <div class="feedback-form" id="feedbackForm">
+                <label for="feedback">Share more details (optional):</label>
+                <textarea id="feedback" placeholder="What could we improve?"></textarea>
+                <button class="btn btn-primary" onclick="submitRating()">Submit Feedback</button>
+            </div>
+        </div>
+        
+        <div class="thank-you" id="thankYou">
+            <div class="thank-you-icon" id="thankIcon">🎉</div>
+            <h2 id="thankTitle">Thank You!</h2>
+            <p class="subtitle" id="thankMessage">Your feedback helps us improve.</p>
+            <div id="reviewPrompt" class="hidden">
+                <p style="color: #34d399; margin-bottom: 1rem;">Would you like to share your experience publicly?</p>
+                <a href="#" class="review-link" id="googleReviewLink" target="_blank">
+                    ⭐ Leave a Google Review
+                </a>
+            </div>
+            <button class="btn btn-primary" onclick="window.close()" style="margin-top: 1.5rem;">Done</button>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        let currentRating = 0;
+        
+        const stars = document.querySelectorAll('.star');
+        const ratingText = document.getElementById('ratingText');
+        const feedbackForm = document.getElementById('feedbackForm');
+        
+        const ratingMessages = {
+            1: "We're sorry to hear that. We'll work to improve.",
+            2: "Thanks for your feedback. We'll do better.",
+            3: "Thanks! We'll strive to provide a better experience.",
+            4: "Great! We're glad you had a good experience.",
+            5: "Excellent! Thank you for your wonderful feedback!"
+        };
+        
+        stars.forEach((star, index) => {
+            star.addEventListener('click', () => {
+                currentRating = index + 1;
+                updateStars();
+                
+                if (currentRating >= 4) {
+                    submitRating();
+                } else {
+                    feedbackForm.classList.add('show');
+                    ratingText.textContent = ratingMessages[currentRating];
+                }
+            });
+            
+            star.addEventListener('mouseenter', () => {
+                highlightStars(index + 1);
+            });
+        });
+        
+        document.getElementById('starsContainer').addEventListener('mouseleave', () => {
+            updateStars();
+        });
+        
+        function highlightStars(count) {
+            stars.forEach((star, index) => {
+                star.textContent = index < count ? '★' : '☆';
+            });
+        }
+        
+        function updateStars() {
+            stars.forEach((star, index) => {
+                star.textContent = index < currentRating ? '★' : '☆';
+                star.classList.toggle('active', index < currentRating);
+            });
+        }
+        
+        async function submitRating() {
+            const feedback = document.getElementById('feedback').value;
+            
+            document.getElementById('ratingSection').classList.add('hidden');
+            document.getElementById('thankYou').classList.add('show');
+            
+            const starsDisplay = document.createElement('div');
+            starsDisplay.className = 'stars-display';
+            for (let i = 0; i < 5; i++) {
+                starsDisplay.innerHTML += `<span class="star ${i < currentRating ? 'active rating-' + (currentRating >= 4 ? 'high' : 'low') : ''}">${i < currentRating ? '★' : '☆'}</span>`;
+            }
+            
+            const ratingDisplay = document.getElementById('thankYou');
+            ratingDisplay.insertBefore(starsDisplay, document.getElementById('thankIcon').nextSibling);
+            
+            if (currentRating >= 4) {
+                document.getElementById('reviewPrompt').classList.remove('hidden');
+                document.getElementById('thankIcon').textContent = '🌟';
+                document.getElementById('thankTitle').textContent = 'Amazing!';
+                document.getElementById('thankMessage').textContent = 'Thanks for your positive feedback!';
+            }
+            
+            if (token) {
+                try {
+                    await fetch(`/api/rating/submit`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token, rating: currentRating, feedback })
+                    });
+                } catch (e) {
+                    console.error('Failed to submit rating:', e);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

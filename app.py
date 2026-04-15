@@ -1514,7 +1514,7 @@ def _init_fast_booking(session, extracted, doctors, admin_id):
     if svc_data.get("duration_minutes"):
         summary_parts.append(f"**Duration:** {svc_data['duration_minutes']} minutes")
     if svc_data.get("price"):
-        summary_parts.append(f"**Price:** From {svc_data['price']} {svc_data.get('currency', 'SAR')}")
+        summary_parts.append(f"**Price:** From {svc_data['price']} {db.get_company_currency(data.get('_admin_id', 0))}")
     summary_parts.append(f"**Patient:** {data['name']}")
     if data.get("email"):
         summary_parts.append(f"**Email:** {data['email']}")
@@ -1967,7 +1967,7 @@ def handle_booking(session, user_message, corrected_message=None):
         svc_desc = chosen_svc.get("description", "")
         svc_dur = chosen_svc.get("duration_minutes", 60)
         svc_price = chosen_svc.get("price", 0)
-        svc_currency = chosen_svc.get("currency", "SAR")
+        svc_currency = db.get_company_currency(data.get("_admin_id", 0))
         detail_parts = [f"Great choice! **{chosen_svc['name']}**"]
         if svc_desc:
             detail_parts[0] += f" — {svc_desc}"
@@ -2198,7 +2198,7 @@ def handle_booking(session, user_message, corrected_message=None):
         if svc_data.get("duration_minutes"):
             summary_parts.append(f"**Duration:** {svc_data['duration_minutes']} minutes")
         if svc_data.get("price"):
-            summary_parts.append(f"**Price:** From {svc_data['price']} {svc_data.get('currency', 'SAR')}")
+            summary_parts.append(f"**Price:** From {svc_data['price']} {db.get_company_currency(data.get('_admin_id', 0))}")
         summary_parts.append(f"**Patient:** {data['name']}")
         if data.get("email"):
             summary_parts.append(f"**Email:** {data['email']}")
@@ -2386,14 +2386,10 @@ def handle_booking(session, user_message, corrected_message=None):
         data["booked_slot_names"] = booked_slot_names
         data["all_slots"] = slots
 
-        # Build dropdown — for service bookings hide booked slots entirely (no waitlist),
-        # for regular appointments show booked slots as read-only with waitlist option
+        # Build dropdown — show all slots, mark booked ones for waitlist option
         dropdown_items = []
-        is_service_booking = bool(data.get("_service_id"))
         for s in slots:
             is_booked = _is_booked_slot(s["time"], booked_times)
-            if is_booked and is_service_booking:
-                continue  # Hide booked slots for service bookings
             item = {"name": s["time"], "hour": s["hour"], "minute": s.get("minute", 0)}
             if is_booked:
                 item["booked"] = True
@@ -2413,12 +2409,8 @@ def handle_booking(session, user_message, corrected_message=None):
         time_str_all = _extract_time(user_message, all_slots)
 
         if time_str_all:
-            # Check if this slot is booked
+            # Check if this slot is booked — offer waitlist
             if time_str_all in booked_names:
-                # Service bookings: no waitlist, just ask to pick another time
-                if data.get("_service_id"):
-                    return (f"Unfortunately **{time_str_all}** on **{data['date_display']}** is fully booked.\n\n"
-                            f"Please pick another available time slot.")
                 data["waitlist_time"] = time_str_all
                 session["step"] = "waitlist_offer"
                 return (f"Unfortunately **{time_str_all}** on **{data['date_display']}** is fully booked.\n\n"
@@ -2441,10 +2433,6 @@ def handle_booking(session, user_message, corrected_message=None):
             # Safety check: make sure regex didn't match a booked slot's start time
             for bname in booked_names:
                 if time_str.lower() in bname.lower() or bname.lower().startswith(time_str.lower()):
-                    # Service bookings: no waitlist
-                    if data.get("_service_id"):
-                        return (f"Unfortunately **{bname}** on **{data['date_display']}** is fully booked.\n\n"
-                                f"Please pick another available time slot.")
                     data["waitlist_time"] = bname
                     session["step"] = "waitlist_offer"
                     return (f"Unfortunately **{bname}** on **{data['date_display']}** is fully booked.\n\n"
@@ -2794,6 +2782,8 @@ def handle_booking(session, user_message, corrected_message=None):
             notes=data.get("patient_notes", ""),
             patient_type=data.get("patient_type", ""),
         )
+
+
         # Increment promotion usage counter
         if data.get("promotion_code"):
             try:
@@ -2805,7 +2795,7 @@ def handle_booking(session, user_message, corrected_message=None):
                 pass
 
         # Send doctor notification email for service bookings
-        if data.get("_service_id") and data.get("doctor_id"):
+        if data.get("_service_id") and data.get("doctor_id") and db.is_feature_enabled(_admin_id, "email_booking_confirmation"):
             try:
                 doctor = db.get_doctor_by_id(data["doctor_id"])
                 if doctor and doctor.get("email"):
@@ -2843,6 +2833,7 @@ def handle_booking(session, user_message, corrected_message=None):
 
         # ── Patient profile + pre-visit form ──
         form_token = None
+        _auto_confirmed = False
         try:
             patient = db.get_or_create_patient(
                 data.get("_admin_id", 0),
@@ -2854,8 +2845,43 @@ def handle_booking(session, user_message, corrected_message=None):
                 if last_booking:
                     conn.execute("UPDATE bookings SET patient_id=? WHERE id=?", (patient["id"], last_booking["id"]))
                     conn.commit()
-                    form_token = db.create_previsit_form(last_booking["id"], data.get("_admin_id", 0), patient_name=data["name"])
-                    print(f"[booking] Pre-visit form created: token={form_token[:20]}... booking_id={last_booking['id']}", flush=True)
+
+                    # Check if returning patient already has a submitted form
+                    _admin_id = data.get("_admin_id", 0)
+                    existing_form = db.get_patient_submitted_form(
+                        _admin_id, email=data.get("email", ""), phone=data.get("phone", ""))
+
+                    if existing_form:
+                        # Returning patient — clone old form, auto-confirm, add ROI revenue
+                        form_token = db.clone_form_for_booking(existing_form, last_booking["id"], _admin_id, patient_name=data["name"])
+                        db.confirm_booking_by_id(last_booking["id"])
+                        _auto_confirmed = True
+                        # ROI: track revenue on auto-confirm
+                        try:
+                            revenue = 0
+                            svc_data_roi = data.get("_service_data", {})
+                            if svc_data_roi and svc_data_roi.get("price"):
+                                revenue = float(svc_data_roi["price"])
+                            elif data.get("doctor_id"):
+                                doc_roi = db.get_doctor_by_id(data["doctor_id"])
+                                if doc_roi:
+                                    revenue = float(doc_roi.get("avg_appointment_price", 20) or 20)
+                            if not revenue:
+                                revenue = 20.0
+                            db.add_booking_revenue(last_booking["id"], revenue)
+                        except Exception:
+                            pass
+                        # Schedule reminders
+                        if db.is_feature_enabled(_admin_id, "auto_reminders"):
+                            try:
+                                reminder_eng.schedule_reminders(last_booking["id"], _admin_id)
+                            except Exception:
+                                pass
+                        print(f"[booking] Returning patient auto-confirmed booking_id={last_booking['id']}", flush=True)
+                    else:
+                        # New patient — create fresh form
+                        form_token = db.create_previsit_form(last_booking["id"], _admin_id, patient_name=data["name"])
+                        print(f"[booking] Pre-visit form created: token={form_token[:20]}... booking_id={last_booking['id']}", flush=True)
                 else:
                     print(f"[booking] WARNING: No booking found for name={data['name']} date={booking_result['date']}", flush=True)
                 conn.close()
@@ -2865,9 +2891,9 @@ def handle_booking(session, user_message, corrected_message=None):
             print(f"[booking] ERROR creating form: {e}", flush=True)
             form_token = None
 
-        # Send pre-visit form email to patient
+        # Send pre-visit form email only for NEW patients (not returning)
         _bk_admin = data.get("_admin_id") or session.get("_admin_id", 0)
-        if data.get("email") and form_token and db.is_feature_enabled(_bk_admin, "email_previsit_form"):
+        if not _auto_confirmed and data.get("email") and form_token and db.is_feature_enabled(_bk_admin, "email_previsit_form"):
             try:
                 base_url = request.host_url.rstrip("/")
                 form_url = f"{base_url}/form/{form_token}"
@@ -2879,10 +2905,10 @@ def handle_booking(session, user_message, corrected_message=None):
                 print(f"[booking] Pre-visit form email sent to {data['email']}", flush=True)
             except Exception as e:
                 print(f"[booking] ERROR sending form email: {e}", flush=True)
+        elif _auto_confirmed:
+            print(f"[booking] Returning patient — skipped form email, auto-confirmed", flush=True)
         elif not form_token:
             print(f"[booking] WARNING: No form token — skipping form email", flush=True)
-
-        # NOTE: Confirmation email is sent AFTER patient submits the pre-visit form (see api_submit_form)
 
         # A/B test + real-time event
         try:
@@ -2918,7 +2944,9 @@ def handle_booking(session, user_message, corrected_message=None):
             confirmation += f"**Discount:** {data['discount_info'].get('description', 'Applied')}\n"
         if data.get("loyalty_points_used"):
             confirmation += f"**Loyalty Points Used:** {data['loyalty_points_used']}\n"
-        if data.get("email") and form_token:
+        if _auto_confirmed:
+            confirmation += f"\nWelcome back! Your appointment is **automatically confirmed**."
+        elif data.get("email") and form_token:
             confirmation += (
                 f"\nA **pre-visit form** has been sent to **{data['email']}**.\n"
                 f"Please check your email and fill it out to **confirm your appointment**."
@@ -2930,6 +2958,17 @@ def handle_booking(session, user_message, corrected_message=None):
         svc_data = data.get("_service_data", {})
         if svc_data.get("preparation_instructions"):
             confirmation += f"\n\n**Preparation instructions:**\n{svc_data['preparation_instructions']}"
+
+        # Show average appointment price for non-service bookings
+        if not data.get("_service_id") and data.get("doctor_id"):
+            try:
+                _appt_doc = db.get_doctor_by_id(data["doctor_id"])
+                if _appt_doc:
+                    _appt_price = _appt_doc.get("avg_appointment_price", 20) or 20
+                    _appt_curr = db.get_company_currency(data.get("_admin_id", 0))
+                    confirmation += f"\n\nThe average appointment price is **{_appt_price} {_appt_curr}**."
+            except Exception:
+                pass
 
         confirmation += "\n\nIs there anything else I can help you with?"
         return confirmation
@@ -2977,6 +3016,8 @@ def handle_booking(session, user_message, corrected_message=None):
             notes=data.get("patient_notes", ""),
             patient_type=data.get("patient_type", ""),
         )
+
+
         # Increment promotion usage counter
         if data.get("promotion_code"):
             try:
@@ -2988,7 +3029,7 @@ def handle_booking(session, user_message, corrected_message=None):
                 pass
 
         # Send doctor notification email for service bookings
-        if data.get("_service_id") and data.get("doctor_id"):
+        if data.get("_service_id") and data.get("doctor_id") and db.is_feature_enabled(_admin_id, "email_booking_confirmation"):
             try:
                 doctor = db.get_doctor_by_id(data["doctor_id"])
                 if doctor and doctor.get("email"):
@@ -3014,6 +3055,7 @@ def handle_booking(session, user_message, corrected_message=None):
 
         # ── Patient profile + pre-visit form ──
         form_token = None
+        _auto_confirmed = False
         try:
             patient = db.get_or_create_patient(
                 data.get("_admin_id", 0),
@@ -3025,8 +3067,43 @@ def handle_booking(session, user_message, corrected_message=None):
                 if last_booking:
                     conn.execute("UPDATE bookings SET patient_id=? WHERE id=?", (patient["id"], last_booking["id"]))
                     conn.commit()
-                    form_token = db.create_previsit_form(last_booking["id"], data.get("_admin_id", 0), patient_name=data["name"])
-                    print(f"[booking-svc] Pre-visit form created: token={form_token[:20]}... booking_id={last_booking['id']}", flush=True)
+
+                    # Check if returning patient already has a submitted form
+                    _admin_id = data.get("_admin_id", 0)
+                    existing_form = db.get_patient_submitted_form(
+                        _admin_id, email=data.get("email", ""), phone=data.get("phone", ""))
+
+                    if existing_form:
+                        # Returning patient — clone old form, auto-confirm, add ROI revenue
+                        form_token = db.clone_form_for_booking(existing_form, last_booking["id"], _admin_id, patient_name=data["name"])
+                        db.confirm_booking_by_id(last_booking["id"])
+                        _auto_confirmed = True
+                        # ROI: track revenue on auto-confirm
+                        try:
+                            revenue = 0
+                            svc_data_roi = data.get("_service_data", {})
+                            if svc_data_roi and svc_data_roi.get("price"):
+                                revenue = float(svc_data_roi["price"])
+                            elif data.get("doctor_id"):
+                                doc_roi = db.get_doctor_by_id(data["doctor_id"])
+                                if doc_roi:
+                                    revenue = float(doc_roi.get("avg_appointment_price", 20) or 20)
+                            if not revenue:
+                                revenue = 20.0
+                            db.add_booking_revenue(last_booking["id"], revenue)
+                        except Exception:
+                            pass
+                        # Schedule reminders
+                        if db.is_feature_enabled(_admin_id, "auto_reminders"):
+                            try:
+                                reminder_eng.schedule_reminders(last_booking["id"], _admin_id)
+                            except Exception:
+                                pass
+                        print(f"[booking-svc] Returning patient auto-confirmed booking_id={last_booking['id']}", flush=True)
+                    else:
+                        # New patient — create fresh form
+                        form_token = db.create_previsit_form(last_booking["id"], _admin_id, patient_name=data["name"])
+                        print(f"[booking-svc] Pre-visit form created: token={form_token[:20]}... booking_id={last_booking['id']}", flush=True)
                 else:
                     print(f"[booking-svc] WARNING: No booking found for name={data['name']} date={booking_result['date']}", flush=True)
                 conn.close()
@@ -3068,9 +3145,9 @@ def handle_booking(session, user_message, corrected_message=None):
         except Exception:
             pass
 
-        # Send pre-visit form email to patient
+        # Send pre-visit form email only for NEW patients (not returning)
         _bks_admin = data.get("_admin_id") or session.get("_admin_id", 0)
-        if data.get("email") and form_token and db.is_feature_enabled(_bks_admin, "email_previsit_form"):
+        if not _auto_confirmed and data.get("email") and form_token and db.is_feature_enabled(_bks_admin, "email_previsit_form"):
             try:
                 base_url = request.host_url.rstrip("/")
                 form_url = f"{base_url}/form/{form_token}"
@@ -3082,10 +3159,10 @@ def handle_booking(session, user_message, corrected_message=None):
                 print(f"[booking-svc] Pre-visit form email sent to {data['email']}", flush=True)
             except Exception as e:
                 print(f"[booking-svc] ERROR sending form email: {e}", flush=True)
+        elif _auto_confirmed:
+            print(f"[booking-svc] Returning patient — skipped form email, auto-confirmed", flush=True)
         elif not form_token:
             print(f"[booking-svc] WARNING: No form token — skipping form email", flush=True)
-
-        # NOTE: Confirmation email is sent AFTER patient submits the pre-visit form (see api_submit_form)
 
         # Convert/remove lead now that booking is confirmed
         try:
@@ -3108,7 +3185,9 @@ def handle_booking(session, user_message, corrected_message=None):
             f"**Date:** {booking_result['date_display']}\n"
             f"**Time:** {booking_result['time']}\n"
         )
-        if data.get("email") and form_token:
+        if _auto_confirmed:
+            confirmation += f"\nWelcome back! Your appointment is **automatically confirmed**."
+        elif data.get("email") and form_token:
             confirmation += (
                 f"\nA **pre-visit form** has been sent to **{data['email']}**.\n"
                 f"Please check your email and fill it out to **confirm your appointment**."
@@ -3120,6 +3199,17 @@ def handle_booking(session, user_message, corrected_message=None):
         svc_data = data.get("_service_data", {})
         if svc_data.get("preparation_instructions"):
             confirmation += f"\n\n**Preparation instructions:**\n{svc_data['preparation_instructions']}"
+
+        # Show average appointment price for non-service bookings
+        if not data.get("_service_id") and data.get("doctor_id"):
+            try:
+                _appt_doc = db.get_doctor_by_id(data["doctor_id"])
+                if _appt_doc:
+                    _appt_price = _appt_doc.get("avg_appointment_price", 20) or 20
+                    _appt_curr = db.get_company_currency(data.get("_admin_id", 0))
+                    confirmation += f"\n\nThe average appointment price is **{_appt_price} {_appt_curr}**."
+            except Exception:
+                pass
 
         confirmation += "\n\nIs there anything else I can help you with?"
         return confirmation
@@ -3275,6 +3365,15 @@ def handle_cancel_appointment(session, user_message, admin_id):
             booking = data.get("_booking_to_cancel")
             if booking:
                 db.cancel_booking(booking["id"])
+                # Increment patient cancellation count
+                if booking.get("patient_id"):
+                    try:
+                        _conn = db.get_db()
+                        _conn.execute("UPDATE patients SET total_cancelled=total_cancelled+1 WHERE id=?", (booking["patient_id"],))
+                        _conn.commit()
+                        _conn.close()
+                    except Exception:
+                        pass
                 # Trigger waitlist cascade — notify next waiting patient
                 if booking.get("doctor_id") and booking.get("date") and booking.get("time"):
                     try:
@@ -3425,7 +3524,7 @@ def _ask_ai_during_booking(user_message, session, admin_id=1):
             if services_list:
                 svc_lines = []
                 for s in services_list:
-                    line = f"- {s['name']}: {s.get('price','')} {s.get('currency','SAR')}"
+                    line = f"- {s['name']}: {s.get('price','')} {db.get_company_currency(admin_id)}"
                     if s.get('description'):
                         line += f" ({s['description']})"
                     doc_ids = s.get('doctor_ids', [])
@@ -4807,8 +4906,6 @@ def auth_update_plan():
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Not authenticated"}), 401
-    if user.get("role") != "head_admin":
-        return jsonify({"error": "Only head administrators can change the plan."}), 403
 
     data = request.get_json()
     plan = data.get("plan", "")
@@ -4830,7 +4927,11 @@ def auth_update_plan():
         except Exception as e:
             print(f"[billing] Failed to save payment method: {e}", flush=True)
 
-    db.update_user_plan(user["id"], plan)
+    # Update plan for the effective admin (company owner) so all linked users benefit
+    target_user_id = user["id"]
+    if user.get("admin_id") and user["admin_id"] != 0:
+        target_user_id = user["admin_id"]
+    db.update_user_plan(target_user_id, plan)
     user["plan"] = plan
     return jsonify({"ok": True, "user": db.user_to_public(user)})
 
@@ -5059,9 +5160,9 @@ def api_bookings():
         admin_id = get_effective_admin_id(user)
         bookings = db.get_all_bookings(admin_id=admin_id)
 
-    # Auto-delete past bookings whose date+time has fully passed
+    # Auto-complete past bookings whose date+time has passed
     now = datetime.now()
-    ids_to_delete = []
+    ids_to_complete = []
     filtered = []
     for b in bookings:
         try:
@@ -5069,16 +5170,38 @@ def api_bookings():
             end_time_str = time_parts[-1].strip() if len(time_parts) > 1 else time_parts[0].strip()
             booking_end = datetime.strptime(f"{b['date']} {end_time_str}", "%Y-%m-%d %I:%M %p")
             if booking_end < now and b.get("status") not in ("no_show", "cancelled", "completed"):
-                ids_to_delete.append(b["id"])
+                ids_to_complete.append(b["id"])
                 continue
         except (ValueError, KeyError, IndexError):
             pass
-        filtered.append(b)
+        # Only return active bookings (pending/confirmed)
+        if b.get("status") in ("pending", "confirmed"):
+            filtered.append(b)
 
-    # Delete past bookings from DB
-    if ids_to_delete:
+    # Mark expired bookings as completed and update patient last_visit_date
+    if ids_to_complete:
         conn = db.get_db()
-        conn.execute(f"DELETE FROM bookings WHERE id IN ({','.join('?' * len(ids_to_delete))})", ids_to_delete)
+        for bid in ids_to_complete:
+            conn.execute("UPDATE bookings SET status='completed' WHERE id=?", (bid,))
+            # Update patient's last_visit_date
+            bk = conn.execute("SELECT * FROM bookings WHERE id=?", (bid,)).fetchone()
+            if bk and bk["patient_id"]:
+                conn.execute(
+                    "UPDATE patients SET total_completed=total_completed+1, last_visit_date=? WHERE id=? AND (last_visit_date IS NULL OR last_visit_date < ?)",
+                    (bk["date"], bk["patient_id"], bk["date"])
+                )
+            elif bk:
+                # Try to find patient by email/phone and update
+                pat = None
+                if bk.get("customer_email"):
+                    pat = conn.execute("SELECT id FROM patients WHERE admin_id=? AND email=?", (bk["admin_id"], bk["customer_email"])).fetchone()
+                if not pat and bk.get("customer_phone"):
+                    pat = conn.execute("SELECT id FROM patients WHERE admin_id=? AND phone=?", (bk["admin_id"], bk["customer_phone"])).fetchone()
+                if pat:
+                    conn.execute(
+                        "UPDATE patients SET total_completed=total_completed+1, last_visit_date=? WHERE id=? AND (last_visit_date IS NULL OR last_visit_date < ?)",
+                        (bk["date"], pat["id"], bk["date"])
+                    )
         conn.commit()
         conn.close()
 
@@ -5098,6 +5221,44 @@ def api_bookings():
     filtered.sort(key=_booking_sort_key)
 
     return jsonify(filtered)
+
+
+@app.route("/api/bookings/previous", methods=["GET"])
+def api_previous_bookings():
+    """Return completed, cancelled, and no-show bookings."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    if user.get("role") == "doctor":
+        doctor = db.get_doctor_by_user_id(user["id"])
+        if doctor:
+            bookings = db.get_all_bookings(doctor_id=doctor["id"])
+        else:
+            bookings = []
+    else:
+        admin_id = get_effective_admin_id(user)
+        bookings = db.get_all_bookings(admin_id=admin_id)
+
+    # Only return past/finished bookings
+    previous = [b for b in bookings if b.get("status") in ("completed", "cancelled", "no_show")]
+
+    # Sort by date descending (most recent first)
+    def _sort_key(b):
+        try:
+            date_str = b.get("date", "")
+            time_str = b.get("time", "").split(" - ")[0].strip()
+            for fmt in ("%Y-%m-%d %I:%M %p", "%Y-%m-%d %I:%M%p", "%Y-%m-%d %H:%M"):
+                try:
+                    return datetime.strptime(f"{date_str} {time_str}", fmt)
+                except ValueError:
+                    continue
+            return datetime.strptime(date_str, "%Y-%m-%d")
+        except (ValueError, KeyError, IndexError):
+            return datetime.min
+    previous.sort(key=_sort_key, reverse=True)
+
+    return jsonify(previous)
 
 
 @app.route("/api/stats", methods=["GET"])
@@ -5127,6 +5288,19 @@ def api_analytics():
     date_from = request.args.get("from", (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d"))
     date_to = request.args.get("to", datetime.now().strftime("%Y-%m-%d"))
     data = db.get_analytics(admin_id, date_from, date_to)
+    return jsonify(data)
+
+
+@app.route("/api/roi", methods=["GET"])
+def api_roi():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    if user.get("role") not in ("admin", "head_admin"):
+        return jsonify({"error": "Access denied"}), 403
+    admin_id = get_effective_admin_id(user)
+    data = db.get_roi_data(admin_id)
     return jsonify(data)
 
 
@@ -5162,7 +5336,10 @@ def api_mark_noshow(booking_id):
     # Generate a unique token for the no-show reason form
     import secrets
     noshow_token = secrets.token_urlsafe(32)
-    conn.execute("UPDATE bookings SET status='no_show' WHERE id=?", (booking_id,))
+    conn.execute("UPDATE bookings SET status='no_show', revenue_amount=0 WHERE id=?", (booking_id,))
+    # Increment patient no-show/cancellation count
+    if booking.get("patient_id"):
+        conn.execute("UPDATE patients SET total_no_shows=total_no_shows+1, total_cancelled=total_cancelled+1 WHERE id=?", (booking["patient_id"],))
     # Store the noshow token in booking notes for lookup
     existing_notes = booking.get("notes", "") or ""
     conn.execute("UPDATE bookings SET notes=? WHERE id=?",
@@ -5359,7 +5536,7 @@ def api_set_service_doctors(service_id):
     db.set_service_doctors(service_id, doctor_ids, admin_id)
 
     # If doctors were assigned, notify anyone waiting for this service
-    if doctor_ids:
+    if doctor_ids and db.is_feature_enabled(admin_id, "email_booking_confirmation"):
         try:
             interests = db.get_waiting_service_interests(service_id)
             if interests:
@@ -5622,7 +5799,9 @@ def api_update_doctor(doctor_id):
                      schedule_type=data.get("schedule_type"),
                      daily_hours=data.get("daily_hours"),
                      gender=data.get("gender"),
-                     photo_url=data.get("photo_url"))
+                     photo_url=data.get("photo_url"),
+                     avg_appointment_price=data.get("avg_appointment_price"),
+                     avg_appointment_currency=data.get("avg_appointment_currency"))
     return jsonify({"ok": True})
 
 
@@ -6633,6 +6812,23 @@ def api_submit_form(token):
         if booking and booking.get("status") == "pending":
             db.confirm_booking_by_id(form["booking_id"])
 
+            # ── ROI: Track revenue on confirmation ──
+            try:
+                revenue = 0
+                if booking.get("service_id"):
+                    svc = db.get_company_service_by_id(booking["service_id"])
+                    if svc and svc.get("price"):
+                        revenue = float(svc["price"])
+                if not revenue and booking.get("doctor_id"):
+                    doc = db.get_doctor_by_id(booking["doctor_id"])
+                    if doc:
+                        revenue = float(doc.get("avg_appointment_price", 20) or 20)
+                if not revenue:
+                    revenue = 20.0
+                db.add_booking_revenue(form["booking_id"], revenue)
+            except Exception as e:
+                print(f"[form-confirm] ROI revenue error: {e}", flush=True)
+
             # Send confirmation email
             if booking.get("customer_email") and db.is_feature_enabled(booking.get("admin_id", 0), "email_booking_confirmation"):
                 try:
@@ -6656,7 +6852,7 @@ def api_submit_form(token):
                         if _svc:
                             _svc_name = _svc.get("name", "")
                             _svc_dur = _svc.get("duration_minutes", 0)
-                            _svc_price = f"{_svc.get('price', '')} {_svc.get('currency', '')}".strip()
+                            _svc_price = f"{_svc.get('price', '')} {db.get_company_currency(booking.get('admin_id', 0))}".strip()
                             _svc_prep = _svc.get("preparation_instructions", "")
                     except Exception:
                         pass
@@ -6986,6 +7182,8 @@ def api_add_recall_rule():
         return jsonify({"error": "Unauthorized"}), 401
     data = request.get_json()
     admin_id = get_effective_admin_id(user)
+    if not db.is_feature_enabled(admin_id, "auto_recall"):
+        return jsonify({"error": "Recall feature is disabled"}), 403
     try:
         recall_engine.add_recall_rule(admin_id, data["treatment_type"], data.get("recall_days", 180), data.get("message_template", ""))
     except Exception:
@@ -7083,6 +7281,8 @@ def api_create_followup():
         return jsonify({"error": "Unauthorized"}), 401
     data = request.get_json()
     admin_id = get_effective_admin_id(user)
+    if not db.is_feature_enabled(admin_id, "auto_followups"):
+        return jsonify({"error": "Follow-ups feature is disabled"}), 403
     try:
         result = treatment_followup_engine.create_followup(
             admin_id=admin_id,
@@ -7838,9 +8038,11 @@ def api_customers_export():
         "Name", "Email", "Phone", "Date of Birth", "Gender", "Language",
         "Medical History", "Medications", "Allergies",
         "Insurance Provider", "Insurance Policy",
-        "Loyalty Points", "Total Bookings", "Last Visit", "Joined"
+        "Loyalty Points", "Total Bookings", "Last Visit", "Joined",
+        "Visit History"
     ]
     rows = []
+    conn_export = db.get_db()
     for p in patients:
         # Get latest submitted form for this patient
         form_data = {}
@@ -7872,6 +8074,28 @@ def api_customers_export():
             except Exception:
                 pass
 
+        # Build visit history string from all bookings for this patient
+        visit_history = ""
+        try:
+            visit_bookings = conn_export.execute(
+                "SELECT date, time, doctor_name, service, status FROM bookings WHERE patient_id=? ORDER BY date DESC, time DESC",
+                (p["id"],)
+            ).fetchall()
+            if not visit_bookings and p.get("email"):
+                visit_bookings = conn_export.execute(
+                    "SELECT date, time, doctor_name, service, status FROM bookings WHERE admin_id=? AND customer_email=? ORDER BY date DESC, time DESC",
+                    (admin_id, p["email"])
+                ).fetchall()
+            visits = []
+            for v in visit_bookings:
+                v = dict(v)
+                doctor = f"Dr. {v['doctor_name']}" if v.get("doctor_name") else "N/A"
+                service = v.get("service") or "Appointment"
+                visits.append(f"{v['date']} {v['time']} | {doctor} | {service} | {v['status']}")
+            visit_history = "\n".join(visits)
+        except Exception:
+            pass
+
         rows.append([
             p.get("name", ""),
             p.get("email", ""),
@@ -7888,7 +8112,9 @@ def api_customers_export():
             str(p.get("total_bookings", 0)),
             p.get("last_visit_date", ""),
             str(p.get("created_at", "")).split(" ")[0] if p.get("created_at") else "",
+            visit_history,
         ])
+    conn_export.close()
 
     if fmt == "excel":
         try:
@@ -8415,7 +8641,7 @@ def api_cancel_booking(bid):
         conn.close()
         return jsonify({"error": "Booking not found"}), 404
     booking = dict(booking)
-    conn.execute("UPDATE bookings SET status='cancelled' WHERE id=?", (bid,))
+    conn.execute("UPDATE bookings SET status='cancelled', revenue_amount=0 WHERE id=?", (bid,))
     # Track cancellation on patient profile
     if booking.get("patient_id"):
         conn.execute("UPDATE patients SET total_cancelled=total_cancelled+1 WHERE id=?", (booking["patient_id"],))
@@ -8903,6 +9129,8 @@ def api_report_generate():
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
     admin_id = user["admin_id"] or user["id"]
+    if not db.is_feature_enabled(admin_id, "auto_reports"):
+        return jsonify({"error": "Reports feature is disabled"}), 403
     data = request.get_json() or {}
     year = data.get("year", datetime.now().year)
     month = data.get("month", datetime.now().month)

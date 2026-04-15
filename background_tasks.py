@@ -144,6 +144,25 @@ def _notify_next_patient(admin_id, doctor_id, date, time_slot):
 
 # ── Scheduled jobs ───────────────────────────────────────────────────────────
 
+def _cleanup_past_date_waitlist():
+    """Remove waitlist entries whose appointment date has already passed."""
+    import database as db
+    try:
+        today = datetime.now().strftime("%Y-%m-%d")
+        conn = db.get_db()
+        result = conn.execute(
+            "UPDATE waitlist SET status='expired', expired_at=? WHERE date < ? AND status IN ('waiting','notified')",
+            (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), today)
+        )
+        changed = result.rowcount
+        conn.commit()
+        conn.close()
+        if changed:
+            logger.info(f"Waitlist: expired {changed} past-date entries")
+    except Exception as e:
+        logger.error(f"Waitlist past-date cleanup error: {e}")
+
+
 def _process_expired_waitlist_notifications():
     """Check for expired waitlist notifications and cascade to next patient.
     Runs every 30 seconds via APScheduler."""
@@ -151,6 +170,9 @@ def _process_expired_waitlist_notifications():
     import email_service as email_svc
 
     try:
+        # First clean up any waitlist entries whose date has passed
+        _cleanup_past_date_waitlist()
+
         expired = db.get_active_waitlist_notifications()
         if not expired:
             return

@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROI Dashboard - ChatGenius</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #8b5cf6;
+            --primary-light: #a78bfa;
+            --success: #34d399;
+            --success-bg: rgba(52, 211, 153, 0.1);
+            --warning: #fbbf24;
+            --warning-bg: rgba(251, 191, 36, 0.1);
+            --danger: #ef4444;
+            --bg: #0f0f1a;
+            --bg-light: #1a1a2e;
+            --card: rgba(255,255,255,0.03);
+            --card-hover: rgba(255,255,255,0.06);
+            --border: rgba(255,255,255,0.08);
+            --text: #f1f5f9;
+            --text-muted: #64748b;
+            --text-secondary: #94a3b8;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+        .header {
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: var(--bg);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header h1 { font-size: 1.2rem; font-weight: 700; }
+        .header h1 span { color: var(--primary); }
+        .back-btn {
+            background: var(--card);
+            border: 1px solid var(--border);
+            color: #fff;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: background 0.2s;
+        }
+        .back-btn:hover { background: var(--card-hover); }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+
+        /* Date Filter */
+        .date-filter {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .date-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-muted);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .date-btn:hover { border-color: var(--primary); color: var(--text); }
+        .date-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+        /* ROI Hero Section */
+        .roi-hero {
+            background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
+            border-radius: 20px;
+            padding: 2.5rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .roi-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            opacity: 0.3;
+        }
+        .roi-multiple {
+            font-size: 4rem;
+            font-weight: 800;
+            color: #fff;
+            position: relative;
+        }
+        .roi-multiple .x { font-size: 2rem; opacity: 0.8; }
+        .roi-subtitle {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.1rem;
+            margin-top: 0.5rem;
+            position: relative;
+        }
+        .roi-detail {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1.5rem;
+            position: relative;
+        }
+        .roi-detail-item {
+            text-align: center;
+        }
+        .roi-detail-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fff;
+        }
+        .roi-detail-label {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.7);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Revenue Grid */
+        .revenue-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .revenue-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: all 0.2s;
+        }
+        .revenue-card:hover { border-color: var(--primary); }
+        .revenue-card.primary {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%);
+            border-color: rgba(139, 92, 246, 0.3);
+        }
+        .revenue-card .label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+        .revenue-card .value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--text);
+        }
+        .revenue-card.primary .value { color: var(--primary-light); }
+        .revenue-card .change {
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        .revenue-card .change.up { color: var(--success); }
+        .revenue-card .change.down { color: var(--danger); }
+        .revenue-card .subtext {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        /* Section Headers */
+        .section {
+            margin-bottom: 2rem;
+        }
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .section-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+        .section-icon.revenue { background: rgba(52, 211, 153, 0.15); color: var(--success); }
+        .section-icon.savings { background: rgba(251, 191, 36, 0.15); color: var(--warning); }
+        .section-icon.automation { background: rgba(139, 92, 246, 0.15); color: var(--primary); }
+        .section-icon.funnel { background: rgba(99, 102, 241, 0.15); color: #6366f1; }
+        .section-icon.insights { background: rgba(236, 72, 153, 0.15); color: #ec4899; }
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        /* Savings Grid */
+        .savings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .savings-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.25rem;
+        }
+        .savings-card .label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+        .savings-card .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--warning);
+        }
+        .savings-card .detail {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        /* Automation Stats */
+        .automation-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+        }
+        .auto-stat {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+        }
+        .auto-stat .label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+        .auto-stat .value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--primary-light);
+        }
+        .auto-stat .pct {
+            font-size: 0.8rem;
+            color: var(--success);
+            font-weight: 500;
+        }
+        .auto-stat .subtext {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        /* Funnel */
+        .funnel-container {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+        }
+        .funnel-stage {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+        }
+        .funnel-stage:last-child { margin-bottom: 0; }
+        .stage-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            min-width: 140px;
+        }
+        .stage-bar {
+            height: 32px;
+            background: linear-gradient(90deg, var(--primary) 0%, #6366f1 100%);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 0.75rem;
+            min-width: 60px;
+            transition: width 0.5s ease;
+        }
+        .stage-bar .count {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #fff;
+        }
+        .stage-rate {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--success);
+            min-width: 50px;
+            text-align: right;
+        }
+        .stage-rate.na { color: var(--text-muted); }
+        .funnel-stage.revenue-stage .stage-bar {
+            background: linear-gradient(90deg, var(--success) 0%, #10b981 100%);
+        }
+
+        /* Insights Grid */
+        .insights-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .insight-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+        .insight-card .label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+        .insight-card .value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+        .insight-card .detail {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+        .insight-card .detail.positive { color: var(--success); }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            .roi-multiple { font-size: 3rem; }
+            .roi-detail { flex-direction: column; gap: 1rem; }
+            .revenue-grid { grid-template-columns: 1fr; }
+            .funnel-stage { flex-wrap: wrap; }
+            .stage-label { min-width: 100%; }
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+        .loading::after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--primary);
+            border-top-color: transparent;
+            border-radius: 50%;
+            margin-left: 0.5rem;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* No Data */
+        .no-data {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/user-dashboard" class="back-btn">← Back to Dashboard</a>
+        <h1>ROI <span>Dashboard</span></h1>
+    </div>
+
+    <div class="container">
+        <!-- Date Filter -->
+        <div class="date-filter">
+            <button class="date-btn" onclick="setDateRange('today')">Today</button>
+            <button class="date-btn" onclick="setDateRange('week')">This Week</button>
+            <button class="date-btn active" onclick="setDateRange('month')">This Month</button>
+            <button class="date-btn" onclick="setDateRange('year')">This Year</button>
+        </div>
+
+        <!-- ROI Hero -->
+        <div class="roi-hero">
+            <div class="roi-multiple" id="roiMultiple">
+                <span id="roiValue">--</span><span class="x">x</span>
+            </div>
+            <div class="roi-subtitle">Return on Investment — Every $1 spent returns $<span id="roiReturn">--</span></div>
+            <div class="roi-detail">
+                <div class="roi-detail-item">
+                    <div class="roi-detail-value" id="monthlyCost">$--</div>
+                    <div class="roi-detail-label">Monthly Cost</div>
+                </div>
+                <div class="roi-detail-item">
+                    <div class="roi-detail-value" id="revenueGenerated">$--</div>
+                    <div class="roi-detail-label">Revenue Generated</div>
+                </div>
+                <div class="roi-detail-item">
+                    <div class="roi-detail-value" id="savingsTotal">$--</div>
+                    <div class="roi-detail-label">Cost Savings</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Revenue Section -->
+        <section class="section">
+            <div class="section-header">
+                <div class="section-icon revenue">$</div>
+                <h2 class="section-title">Revenue Generated</h2>
+            </div>
+            <div class="revenue-grid">
+                <div class="revenue-card primary">
+                    <div class="label">Total Revenue</div>
+                    <div class="value" id="totalRevenue">$0</div>
+                    <div class="change up" id="revenueChange">+0% vs last period</div>
+                </div>
+                <div class="revenue-card">
+                    <div class="label">From ChatGenius</div>
+                    <div class="value" id="chatbotRevenue">$0</div>
+                    <div class="subtext">Automated bookings</div>
+                </div>
+                <div class="revenue-card">
+                    <div class="label">Avg Booking Value</div>
+                    <div class="value" id="avgBookingValue">$0</div>
+                    <div class="subtext">Per appointment</div>
+                </div>
+                <div class="revenue-card">
+                    <div class="label">Total Bookings</div>
+                    <div class="value" id="totalBookings">0</div>
+                    <div class="change" id="bookingsChange">+0% vs last period</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Cost Savings Section -->
+        <section class="section">
+            <div class="section-header">
+                <div class="section-icon savings">⚡</div>
+                <h2 class="section-title">Cost Savings</h2>
+            </div>
+            <div class="savings-grid">
+                <div class="savings-card">
+                    <div class="label">No-Show Recovery</div>
+                    <div class="value" id="noshowRecovery">$0</div>
+                    <div class="detail"><span id="noshowCount">0</span> appointments recovered</div>
+                </div>
+                <div class="savings-card">
+                    <div class="label">Missed Call Recovery</div>
+                    <div class="value" id="missedCallRecovery">$0</div>
+                    <div class="detail"><span id="missedCallCount">0</span> calls converted</div>
+                </div>
+                <div class="savings-card">
+                    <div class="label">Staff Time Saved</div>
+                    <div class="value" id="staffTimeSaved">0 hrs</div>
+                    <div class="detail">Automated customer interactions</div>
+                </div>
+                <div class="savings-card">
+                    <div class="label">No-Show Rate</div>
+                    <div class="value" id="noshowRate">0%</div>
+                    <div class="detail"><span id="noshowReduction">0%</span> below industry avg</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Automation Impact Section -->
+        <section class="section">
+            <div class="section-header">
+                <div class="section-icon automation">🤖</div>
+                <h2 class="section-title">Automation Impact</h2>
+            </div>
+            <div class="automation-grid">
+                <div class="auto-stat">
+                    <div class="label">Automated Bookings</div>
+                    <div class="value" id="automatedBookings">0</div>
+                    <div class="pct" id="automationPct">0% of total</div>
+                </div>
+                <div class="auto-stat">
+                    <div class="label">Reminders Sent</div>
+                    <div class="value" id="remindersSent">0</div>
+                    <div class="subtext">Auto-reminders</div>
+                </div>
+                <div class="auto-stat">
+                    <div class="label">Lead Conversions</div>
+                    <div class="value" id="leadConversions">0</div>
+                    <div class="subtext">From chatbot</div>
+                </div>
+                <div class="auto-stat">
+                    <div class="label">Human Handoff</div>
+                    <div class="value" id="humanHandoff">0%</div>
+                    <div class="subtext">Required staff help</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Conversion Funnel -->
+        <section class="section">
+            <div class="section-header">
+                <div class="section-icon funnel">📊</div>
+                <h2 class="section-title">Patient Conversion Funnel</h2>
+            </div>
+            <div class="funnel-container">
+                <div class="funnel-stage">
+                    <div class="stage-label">Website Visitors</div>
+                    <div class="stage-bar" id="visitorsBar" style="width: 100%">
+                        <span class="count" id="visitorsCount">0</span>
+                    </div>
+                    <div class="stage-rate na">—</div>
+                </div>
+                <div class="funnel-stage">
+                    <div class="stage-label">Chat Started</div>
+                    <div class="stage-bar" id="chatStartedBar" style="width: 0%">
+                        <span class="count" id="chatStartedCount">0</span>
+                    </div>
+                    <div class="stage-rate" id="chatStartRate">0%</div>
+                </div>
+                <div class="funnel-stage">
+                    <div class="stage-label">Qualified Leads</div>
+                    <div class="stage-bar" id="qualifiedBar" style="width: 0%">
+                        <span class="count" id="qualifiedCount">0</span>
+                    </div>
+                    <div class="stage-rate" id="qualRate">0%</div>
+                </div>
+                <div class="funnel-stage">
+                    <div class="stage-label">Bookings Made</div>
+                    <div class="stage-bar" id="bookingsBar" style="width: 0%">
+                        <span class="count" id="bookingsFunnelCount">0</span>
+                    </div>
+                    <div class="stage-rate" id="bookingRate">0%</div>
+                </div>
+                <div class="funnel-stage">
+                    <div class="stage-label">Completed Visits</div>
+                    <div class="stage-bar" id="completedBar" style="width: 0%">
+                        <span class="count" id="completedCount">0</span>
+                    </div>
+                    <div class="stage-rate" id="completionRate">0%</div>
+                </div>
+                <div class="funnel-stage revenue-stage">
+                    <div class="stage-label">Revenue</div>
+                    <div class="stage-bar" style="width: 100%">
+                        <span class="count" id="funnelRevenue">$0</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Clinic Intelligence -->
+        <section class="section">
+            <div class="section-header">
+                <div class="section-icon insights">💡</div>
+                <h2 class="section-title">Clinic Intelligence</h2>
+            </div>
+            <div class="insights-grid">
+                <div class="insight-card">
+                    <div class="label">Top Service</div>
+                    <div class="value" id="topService">N/A</div>
+                    <div class="detail" id="topServiceRevenue">$0 revenue</div>
+                </div>
+                <div class="insight-card">
+                    <div class="label">Peak Hours</div>
+                    <div class="value" id="peakHours">N/A</div>
+                    <div class="detail" id="peakHoursPct">0% of bookings</div>
+                </div>
+                <div class="insight-card">
+                    <div class="label">No-Show Risk</div>
+                    <div class="value" id="noshowRisk">0%</div>
+                    <div class="detail positive" id="noshowRiskDetail">vs industry avg</div>
+                </div>
+                <div class="insight-card">
+                    <div class="label">Top Channel</div>
+                    <div class="value" id="topChannel">N/A</div>
+                    <div class="detail" id="topChannelPct">0% of bookings</div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        const headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+        let currentRange = 'month';
+
+        async function loadROI() {
+            try {
+                const res = await fetch(`/api/roi/stats?range=${currentRange}`, { headers });
+                const data = await res.json();
+
+                // ROI Hero
+                document.getElementById('roiValue').textContent = data.roi?.multiple?.toFixed(1) || '0.0';
+                document.getElementById('roiReturn').textContent = data.roi?.multiple?.toFixed(2) || '0.00';
+                document.getElementById('monthlyCost').textContent = '$' + (data.roi?.monthly_cost || 0);
+                document.getElementById('revenueGenerated').textContent = formatCurrency(data.revenue?.total_generated || 0);
+                document.getElementById('savingsTotal').textContent = formatCurrency(data.roi?.savings_total || 0);
+
+                // Revenue Section
+                document.getElementById('totalRevenue').textContent = formatCurrency(data.revenue?.total_generated || 0);
+                document.getElementById('chatbotRevenue').textContent = formatCurrency(data.revenue?.chatbot_revenue || 0);
+                document.getElementById('avgBookingValue').textContent = formatCurrency(data.revenue?.avg_booking_value || 0);
+                document.getElementById('totalBookings').textContent = (data.revenue?.total_bookings || 0).toLocaleString();
+
+                const revChange = data.period_comparison?.revenue_change_pct || 0;
+                const revChangeEl = document.getElementById('revenueChange');
+                revChangeEl.textContent = (revChange >= 0 ? '+' : '') + revChange.toFixed(1) + '% vs last period';
+                revChangeEl.className = 'change ' + (revChange >= 0 ? 'up' : 'down');
+
+                const bkChange = data.period_comparison?.bookings_change_pct || 0;
+                const bkChangeEl = document.getElementById('bookingsChange');
+                bkChangeEl.textContent = (bkChange >= 0 ? '+' : '') + bkChange.toFixed(1) + '% vs last period';
+                bkChangeEl.className = 'change ' + (bkChange >= 0 ? 'up' : 'down');
+
+                // Savings Section
+                document.getElementById('noshowRecovery').textContent = formatCurrency(data.savings?.noshow_recovery_value || 0);
+                document.getElementById('noshowCount').textContent = data.savings?.noshow_recovery_count || 0;
+                document.getElementById('missedCallRecovery').textContent = formatCurrency(data.savings?.missed_call_recovery_value || 0);
+                document.getElementById('missedCallCount').textContent = data.savings?.missed_call_recovery_count || 0;
+                document.getElementById('staffTimeSaved').textContent = (data.savings?.staff_time_saved_hours || 0) + ' hrs';
+                document.getElementById('noshowRate').textContent = (data.savings?.noshow_rate || 0) + '%';
+                document.getElementById('noshowReduction').textContent = (data.savings?.noshow_risk_reduction || 0) + '%';
+
+                // Automation Section
+                document.getElementById('automatedBookings').textContent = data.automation?.automated_bookings || 0;
+                document.getElementById('automationPct').textContent = (data.automation?.automation_rate || 0) + '% of total';
+                document.getElementById('remindersSent').textContent = data.automation?.reminders_sent || 0;
+                document.getElementById('leadConversions').textContent = data.automation?.lead_conversions || 0;
+                document.getElementById('humanHandoff').textContent = (data.automation?.human_handoff_rate || 0) + '%';
+
+                // Funnel
+                const funnel = data.funnel || {};
+                const maxVisitors = Math.max(funnel.visitors || 1, 1);
+
+                updateFunnelStage('visitors', funnel.visitors || 0, 100, null);
+                updateFunnelStage('chatStarted', funnel.chat_started || 0, (funnel.chat_started || 0) / maxVisitors * 100, funnel.conversion_rates?.chat_start_rate);
+                updateFunnelStage('qualified', funnel.qualified_leads || 0, (funnel.qualified_leads || 0) / maxVisitors * 100, funnel.conversion_rates?.lead_qual_rate);
+                updateFunnelStage('bookingsFunnel', funnel.bookings || 0, (funnel.bookings || 0) / maxVisitors * 100, funnel.conversion_rates?.booking_rate);
+                updateFunnelStage('completed', funnel.completed_visits || 0, (funnel.completed_visits || 0) / maxVisitors * 100, funnel.conversion_rates?.completion_rate);
+                document.getElementById('funnelRevenue').textContent = formatCurrency(funnel.revenue || 0);
+
+                // Insights
+                const insights = data.insights || {};
+                document.getElementById('topService').textContent = insights.top_service?.name || 'N/A';
+                document.getElementById('topServiceRevenue').textContent = formatCurrency(insights.top_service?.revenue || 0) + ' revenue';
+
+                const peakHours = insights.peak_booking_hours || [];
+                if (peakHours.length > 0) {
+                    const hoursStr = peakHours.slice(0, 2).map(h => h.hour).join(', ');
+                    document.getElementById('peakHours').textContent = hoursStr;
+                    const topHour = peakHours[0];
+                    const totalBookings = data.automation?.total_bookings || 1;
+                    document.getElementById('peakHoursPct').textContent = ((topHour?.count || 0) / totalBookings * 100).toFixed(0) + '% of bookings';
+                }
+
+                const reduction = insights.noshow_risk_reduction || data.savings?.noshow_risk_reduction || 0;
+                document.getElementById('noshowRisk').textContent = (reduction > 0 ? '-' : '') + Math.abs(reduction) + '%';
+                document.getElementById('noshowRiskDetail').textContent = reduction >= 0 ? 'below industry avg' : 'above industry avg';
+                document.getElementById('noshowRiskDetail').className = 'detail ' + (reduction >= 0 ? 'positive' : '');
+
+                document.getElementById('topChannel').textContent = formatChannel(insights.top_channel || 'N/A');
+                document.getElementById('topChannelPct').textContent = (insights.top_channel_pct || 0) + '% of bookings';
+
+            } catch (e) {
+                console.error('Failed to load ROI:', e);
+            }
+        }
+
+        function updateFunnelStage(name, count, widthPct, rate) {
+            document.getElementById(name + 'Count').textContent = count.toLocaleString();
+            document.getElementById(name + 'Bar').style.width = Math.max(widthPct, 5) + '%';
+            if (rate !== null) {
+                document.getElementById(name.replace('Funnel', '') + 'Rate').textContent = rate.toFixed(1) + '%';
+            }
+        }
+
+        function formatCurrency(value) {
+            if (value === null || value === undefined) return '$0';
+            return '$' + value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        }
+
+        function formatChannel(channel) {
+            if (!channel || channel === 'N/A') return 'N/A';
+            return channel.charAt(0).toUpperCase() + channel.slice(1);
+        }
+
+        function setDateRange(range) {
+            currentRange = range;
+            document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            loadROI();
+        }
+
+        // Initial load
+        loadROI();
+
+        // Auto-refresh every 30 seconds
+        setInterval(loadROI, 30000);
+    </script>
+</body>
+</html>

@@ -899,6 +899,11 @@ def init_db():
         ("leads", "converted_at", "TIMESTAMP DEFAULT ''"),
         ("leads", "converted_booking_id", "INTEGER DEFAULT 0"),
         ("doctor_breaks", "day_of_week", "TEXT DEFAULT ''"),
+        # ROI: average appointment price per doctor
+        ("doctors", "avg_appointment_price", "REAL DEFAULT 20.0"),
+        ("doctors", "avg_appointment_currency", "TEXT DEFAULT 'USD'"),
+        # ROI: revenue amount tracked per booking
+        ("bookings", "revenue_amount", "REAL DEFAULT 0"),
     ]
     for table, col, col_type in migrations:
         try:
@@ -964,6 +969,17 @@ def init_db():
         cancelled_at TIMESTAMP DEFAULT '',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
+    )""")
+    conn.commit()
+
+    # Plan history — track plan changes for ROI cost calculation
+    conn.execute("""CREATE TABLE IF NOT EXISTS plan_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        plan TEXT NOT NULL,
+        monthly_cost REAL NOT NULL DEFAULT 0,
+        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
     )""")
     conn.commit()
 
@@ -1224,7 +1240,7 @@ def get_booking_dates(admin_id):
 def cancel_booking(booking_id):
     """Cancel a booking by setting its status to 'cancelled'."""
     conn = get_db()
-    conn.execute("UPDATE bookings SET status = 'cancelled' WHERE id = ?", (booking_id,))
+    conn.execute("UPDATE bookings SET status = 'cancelled', revenue_amount = 0 WHERE id = ?", (booking_id,))
     conn.commit()
     conn.close()
 
@@ -1290,6 +1306,136 @@ def get_stats(admin_id=0, doctor_id=0):
         "total_leads": lead_count,
         "total_bookings": booking_count,
         "today_bookings": today_bookings,
+    }
+
+
+# ══════════════════════════════════════════════
+#  ROI Tracking
+# ══════════════════════════════════════════════
+
+def add_booking_revenue(booking_id, amount):
+    """Set revenue_amount on a booking for ROI tracking."""
+    conn = get_db()
+    conn.execute("UPDATE bookings SET revenue_amount=? WHERE id=?", (float(amount), booking_id))
+    conn.commit()
+    conn.close()
+
+
+def get_roi_data(admin_id):
+    """Get ROI metrics for a company."""
+    conn = get_db()
+    # Total money generated from bookings with revenue
+    row = conn.execute(
+        "SELECT COALESCE(SUM(revenue_amount), 0) as total_revenue, COUNT(*) as total_bookings "
+        "FROM bookings WHERE admin_id=? AND status != 'cancelled'",
+        (admin_id,)
+    ).fetchone()
+    total_revenue = row["total_revenue"]
+    total_bookings = row["total_bookings"]
+
+    # Chat sessions
+    sessions_row = conn.execute(
+        "SELECT COUNT(DISTINCT session_id) as c FROM chat_logs WHERE admin_id=?",
+        (admin_id,)
+    ).fetchone()
+    total_sessions = sessions_row["c"] if sessions_row else 0
+
+    # Get current plan
+    plan_row = conn.execute(
+        "SELECT plan FROM users WHERE id=?", (admin_id,)
+    ).fetchone()
+    plan = plan_row["plan"] if plan_row else "free_trial"
+    current_plan_cost = PLAN_COSTS.get(plan, 0)
+
+    # Calculate total historical cost from plan_history
+    # Each row = one month at that plan's cost
+    history_rows = conn.execute(
+        "SELECT plan, monthly_cost, started_at FROM plan_history WHERE user_id=? ORDER BY started_at",
+        (admin_id,)
+    ).fetchall()
+
+    total_cost = 0
+    if history_rows:
+        from datetime import datetime as _dt
+        for i, h in enumerate(history_rows):
+            start = _dt.strptime(h["started_at"][:19], "%Y-%m-%d %H:%M:%S") if h["started_at"] else _dt.now()
+            if i + 1 < len(history_rows):
+                end = _dt.strptime(history_rows[i + 1]["started_at"][:19], "%Y-%m-%d %H:%M:%S")
+            else:
+                end = _dt.now()
+            # Calculate months between start and end (at least 1 if any time passed)
+            months = max(1, (end.year - start.year) * 12 + end.month - start.month)
+            total_cost += h["monthly_cost"] * months
+    elif current_plan_cost > 0:
+        # No history yet — assume at least 1 month on current plan
+        total_cost = current_plan_cost
+
+    conn.close()
+
+    # Get company currency and convert USD plan costs
+    company_currency = get_company_currency(admin_id)
+
+    # Currency symbol map
+    CURRENCY_SYMBOLS = {
+        "USD": "$", "EUR": "€", "GBP": "£", "SAR": "﷼", "AED": "د.إ",
+        "EGP": "E£", "JOD": "JD", "KWD": "د.ك", "BHD": "BD", "QAR": "﷼",
+        "OMR": "﷼", "TRY": "₺", "INR": "₹", "PKR": "₨", "JPY": "¥",
+        "CNY": "¥", "KRW": "₩", "BRL": "R$", "MXN": "$", "CAD": "C$",
+        "AUD": "A$", "NZD": "NZ$", "ZAR": "R", "NGN": "₦", "KES": "KSh",
+        "MAD": "MAD", "IQD": "ع.د", "LBP": "ل.ل", "THB": "฿", "MYR": "RM",
+        "SGD": "S$", "PHP": "₱", "IDR": "Rp", "VND": "₫", "CHF": "CHF",
+        "SEK": "kr", "NOK": "kr", "DKK": "kr", "PLN": "zł", "CZK": "Kč",
+        "HUF": "Ft", "RON": "lei", "BGN": "лв", "HRK": "kn", "RUB": "₽",
+        "UAH": "₴", "ILS": "₪", "CLP": "$", "COP": "$", "PEN": "S/.",
+        "ARS": "$", "TWD": "NT$", "HKD": "HK$",
+    }
+    currency_symbol = CURRENCY_SYMBOLS.get(company_currency, company_currency)
+
+    # Approximate USD exchange rates (USD → target currency)
+    USD_RATES = {
+        "USD": 1.0, "EUR": 0.92, "GBP": 0.79, "SAR": 3.75, "AED": 3.67,
+        "EGP": 50.0, "JOD": 0.71, "KWD": 0.31, "BHD": 0.38, "QAR": 3.64,
+        "OMR": 0.38, "TRY": 32.0, "INR": 83.5, "PKR": 278.0, "JPY": 154.0,
+        "CNY": 7.25, "KRW": 1340.0, "BRL": 5.0, "MXN": 17.2, "CAD": 1.37,
+        "AUD": 1.55, "NZD": 1.67, "ZAR": 18.5, "NGN": 1550.0, "KES": 153.0,
+        "MAD": 10.0, "IQD": 1310.0, "LBP": 89500.0, "THB": 35.5, "MYR": 4.7,
+        "SGD": 1.35, "PHP": 56.5, "IDR": 15700.0, "VND": 25000.0, "CHF": 0.88,
+        "SEK": 10.8, "NOK": 10.9, "DKK": 6.9, "PLN": 4.0, "CZK": 23.0,
+        "HUF": 360.0, "RON": 4.6, "BGN": 1.8, "HRK": 7.0, "RUB": 92.0,
+        "UAH": 41.0, "ILS": 3.7, "CLP": 950.0, "COP": 3950.0, "PEN": 3.7,
+        "ARS": 870.0, "TWD": 31.5, "HKD": 7.82,
+    }
+    rate = USD_RATES.get(company_currency, 1.0)
+
+    # Convert revenue from company currency to USD for ROI/profit calculation
+    revenue_in_usd = round(total_revenue / rate, 2) if rate else total_revenue
+
+    # ROI = ((revenue - cost) / cost) * 100, rounded to 3 s.f.
+    if total_cost > 0:
+        roi_raw = ((revenue_in_usd - total_cost) / total_cost) * 100
+        if roi_raw != 0:
+            from math import log10, floor
+            magnitude = floor(log10(abs(roi_raw)))
+            roi = round(roi_raw, -int(magnitude) + 2)
+        else:
+            roi = 0
+    else:
+        roi = 0
+
+    # Profit in company currency: revenue (already in company currency) - cost converted to company currency
+    profit = round(total_revenue - (total_cost * rate), 2)
+
+    return {
+        "money_generated": round(total_revenue, 2),
+        "plan_cost": current_plan_cost,          # always USD
+        "total_cost": round(total_cost, 2),       # always USD
+        "plan": plan,
+        "roi": roi,
+        "profit": profit,                         # in company currency
+        "total_sessions": total_sessions,
+        "total_bookings": total_bookings,
+        "currency": company_currency,
+        "currency_symbol": currency_symbol,
     }
 
 
@@ -1456,9 +1602,15 @@ def set_user_admin_id(user_id, admin_id):
     conn.close()
 
 
+PLAN_COSTS = {"free_trial": 0, "basic": 49, "pro": 149, "agency": 299}
+
 def update_user_plan(user_id, plan):
     conn = get_db()
     conn.execute("UPDATE users SET plan = ? WHERE id = ?", (plan, user_id))
+    # Record in plan history for ROI cost tracking
+    cost = PLAN_COSTS.get(plan, 0)
+    conn.execute("INSERT INTO plan_history (user_id, plan, monthly_cost) VALUES (?,?,?)",
+                 (user_id, plan, cost))
     conn.commit()
     conn.close()
 
@@ -1880,7 +2032,7 @@ def add_doctor_from_pdf(admin_id, name, email="", specialty="", bio="", availabi
 def update_doctor(doctor_id, admin_id, name, specialty="", bio="", availability="Mon-Fri",
                    start_time=None, end_time=None, is_active=None, appointment_length=None,
                    years_of_experience=None, schedule_type=None, daily_hours=None,
-                   gender=None, photo_url=None):
+                   gender=None, photo_url=None, **kwargs):
     name = _strip_dr_prefix(name)
     conn = get_db()
     conn.execute("UPDATE doctors SET name=?, specialty=?, bio=?, availability=? WHERE id=? AND admin_id=?",
@@ -1913,6 +2065,12 @@ def update_doctor(doctor_id, admin_id, name, specialty="", bio="", availability=
     if photo_url is not None:
         conn.execute("UPDATE doctors SET photo_url=? WHERE id=? AND admin_id=?",
                      (photo_url, doctor_id, admin_id))
+    if kwargs.get("avg_appointment_price") is not None:
+        conn.execute("UPDATE doctors SET avg_appointment_price=? WHERE id=? AND admin_id=?",
+                     (float(kwargs["avg_appointment_price"]), doctor_id, admin_id))
+    if kwargs.get("avg_appointment_currency") is not None:
+        conn.execute("UPDATE doctors SET avg_appointment_currency=? WHERE id=? AND admin_id=?",
+                     (kwargs["avg_appointment_currency"], doctor_id, admin_id))
     conn.commit()
     conn.close()
 
@@ -2737,6 +2895,55 @@ def get_form_for_booking(booking_id):
     row = conn.execute("SELECT * FROM patient_forms WHERE booking_id=?", (booking_id,)).fetchone()
     conn.close()
     return dict(row) if row else None
+
+
+def get_patient_submitted_form(admin_id, email="", phone=""):
+    """Find a previously submitted form for a returning patient by email or phone."""
+    conn = get_db()
+    row = None
+    # Find patient first
+    patient = None
+    if phone:
+        patient = conn.execute("SELECT id FROM patients WHERE admin_id=? AND phone=?", (admin_id, phone)).fetchone()
+    if not patient and email:
+        patient = conn.execute("SELECT id FROM patients WHERE admin_id=? AND email=?", (admin_id, email)).fetchone()
+    if patient:
+        # Find a submitted form linked to any of this patient's bookings
+        row = conn.execute("""
+            SELECT pf.* FROM patient_forms pf
+            JOIN bookings b ON pf.booking_id = b.id
+            WHERE b.patient_id = ? AND pf.submitted_at IS NOT NULL
+            ORDER BY pf.submitted_at DESC LIMIT 1
+        """, (patient["id"],)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def clone_form_for_booking(source_form, booking_id, admin_id, patient_name=""):
+    """Create a new form record for a booking, pre-filled from a previously submitted form."""
+    token = secrets.token_urlsafe(32)
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn = get_db()
+    conn.execute("""INSERT INTO patient_forms
+        (booking_id, admin_id, token, full_name, date_of_birth, gender,
+         medical_history, medications, allergies, insurance_provider, insurance_policy,
+         signature_data, submitted_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (booking_id, admin_id, token,
+         source_form.get("full_name") or patient_name,
+         source_form.get("date_of_birth", ""),
+         source_form.get("gender", ""),
+         source_form.get("medical_history", ""),
+         source_form.get("medications", ""),
+         source_form.get("allergies", ""),
+         source_form.get("insurance_provider", ""),
+         source_form.get("insurance_policy", ""),
+         source_form.get("signature_data", ""),
+         now))
+    conn.execute("UPDATE bookings SET form_token=?, form_submitted=1 WHERE id=?", (token, booking_id))
+    conn.commit()
+    conn.close()
+    return token
 
 
 # Keep old name as alias for backward compatibility

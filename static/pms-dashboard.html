@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PMS Integration - ChatGenius</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #8b5cf6;
+            --primary-dark: #7c3aed;
+            --bg-dark: #0f0f1a;
+            --bg-card: rgba(255,255,255,0.03);
+            --border: rgba(255,255,255,0.08);
+            --text: #f1f5f9;
+            --text-muted: #64748b;
+            --success: #34d399;
+            --warning: #fbbf24;
+            --danger: #ef4444;
+            --info: #3b82f6;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        .header {
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .header h1 { font-size: 1.2rem; font-weight: 700; }
+        .header h1 span { color: var(--primary); }
+        .back-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            text-decoration: none;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            background: var(--bg-card);
+            padding: 6px;
+            border-radius: 12px;
+            width: fit-content;
+        }
+        .tab {
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .tab.active {
+            background: var(--primary);
+            color: #fff;
+        }
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        .status-badge {
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .status-connected {
+            background: rgba(52,211,153,0.15);
+            color: var(--success);
+        }
+        .status-disconnected {
+            background: rgba(239,68,68,0.15);
+            color: var(--danger);
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+        .form-input, .form-select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 0.9rem;
+        }
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: var(--text);
+        }
+        .btn-success {
+            background: var(--success);
+            color: #000;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+        td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            font-size: 0.9rem;
+        }
+        tr:hover td {
+            background: rgba(139,92,246,0.05);
+        }
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        .stat-card {
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+        .adapter-card {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .adapter-card:hover {
+            border-color: var(--primary);
+            background: rgba(139,92,246,0.05);
+        }
+        .adapter-card.selected {
+            border-color: var(--primary);
+            background: rgba(139,92,246,0.1);
+        }
+        .adapter-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        .adapter-name {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        .adapter-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        .adapter-status {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 10px;
+            margin-top: 0.5rem;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/user-dashboard" class="back-btn">Back to Dashboard</a>
+        <h1>PMS <span>Integration</span></h1>
+    </div>
+    
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('connection')">Connection</button>
+            <button class="tab" onclick="switchTab('appointments')">Appointments</button>
+            <button class="tab" onclick="switchTab('patients')">Patients</button>
+            <button class="tab" onclick="switchTab('doctors')">Doctors</button>
+            <button class="tab" onclick="switchTab('sync')">Sync</button>
+        </div>
+        
+        <!-- Connection Tab -->
+        <div id="tab-connection">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Select PMS Provider</div>
+                    <span class="status-badge status-disconnected" id="connectionStatus">Not Connected</span>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                    <div class="adapter-card selected" onclick="selectAdapter('mock')" id="adapter-mock">
+                        <div class="adapter-icon">🗄️</div>
+                        <div class="adapter-name">Mock PMS</div>
+                        <div class="adapter-desc">Local database for testing</div>
+                        <span class="adapter-status status-connected">Available</span>
+                    </div>
+                    <div class="adapter-card" onclick="selectAdapter('dentrix')" id="adapter-dentrix">
+                        <div class="adapter-icon">🏥</div>
+                        <div class="adapter-name">Dentrix</div>
+                        <div class="adapter-desc">Enterprise dental PMS</div>
+                        <span class="adapter-status" style="background: rgba(255,255,255,0.1); color: var(--text-muted);">Coming Soon</span>
+                    </div>
+                    <div class="adapter-card" onclick="selectAdapter('eaglesoft')" id="adapter-eaglesoft">
+                        <div class="adapter-icon">🦷</div>
+                        <div class="adapter-name">Eaglesoft</div>
+                        <div class="adapter-desc">Patterson Dental PMS</div>
+                        <span class="adapter-status" style="background: rgba(255,255,255,0.1); color: var(--text-muted);">Coming Soon</span>
+                    </div>
+                    <div class="adapter-card" onclick="selectAdapter('opendental')" id="adapter-opendental">
+                        <div class="adapter-icon">🔓</div>
+                        <div class="adapter-name">Open Dental</div>
+                        <div class="adapter-desc">Open source dental PMS</div>
+                        <span class="adapter-status" style="background: rgba(255,255,255,0.1); color: var(--text-muted);">Coming Soon</span>
+                    </div>
+                </div>
+                
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">API URL (for real PMS)</label>
+                        <input type="text" class="form-input" id="apiUrl" placeholder="https://api.example.com">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">API Key</label>
+                        <input type="password" class="form-input" id="apiKey" placeholder="Enter API key">
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary" onclick="connectPMS()">Connect</button>
+                <button class="btn btn-secondary" onclick="testConnection()">Test Connection</button>
+            </div>
+        </div>
+        
+        <!-- Appointments Tab -->
+        <div id="tab-appointments" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Appointments</div>
+                    <button class="btn btn-primary" onclick="showAddAppointment()">+ Add Appointment</button>
+                </div>
+                
+                <div class="grid-2" style="margin-bottom: 1rem;">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalAppointments">0</div>
+                        <div class="stat-label">Total Appointments</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="todayAppointments">0</div>
+                        <div class="stat-label">Today's Appointments</div>
+                    </div>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Patient</th>
+                            <th>Doctor</th>
+                            <th>Service</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="appointmentsTable">
+                        <tr><td colspan="6" class="empty-state">No appointments found</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Patients Tab -->
+        <div id="tab-patients" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Patients</div>
+                    <button class="btn btn-primary" onclick="showAddPatient()">+ Add Patient</button>
+                </div>
+                
+                <div style="margin-bottom: 1rem;">
+                    <input type="text" class="form-input" id="patientSearch" placeholder="Search patients..." oninput="searchPatients()">
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Insurance</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="patientsTable">
+                        <tr><td colspan="5" class="empty-state">No patients found</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Doctors Tab -->
+        <div id="tab-doctors" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Doctors</div>
+                    <button class="btn btn-primary" onclick="showAddDoctor()">+ Add Doctor</button>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Specialty</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="doctorsTable">
+                        <tr><td colspan="5" class="empty-state">No doctors found</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Sync Tab -->
+        <div id="tab-sync" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Data Synchronization</div>
+                </div>
+                
+                <div class="stat-card" style="margin-bottom: 1rem;">
+                    <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">Last Sync</div>
+                    <div id="lastSyncTime" style="font-size: 1.2rem;">Never</div>
+                </div>
+                
+                <button class="btn btn-primary" onclick="syncAll()">Sync Now</button>
+                <button class="btn btn-secondary" onclick="loadSyncLog()">View Sync Log</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const token = localStorage.getItem('token');
+        const headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+        let currentAdapter = 'mock';
+        
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('[id^="tab-"]').forEach(t => t.style.display = 'none');
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tab).style.display = 'block';
+            
+            if (tab === 'appointments') loadAppointments();
+            if (tab === 'patients') loadPatients();
+            if (tab === 'doctors') loadDoctors();
+            if (tab === 'sync') loadSyncStatus();
+        }
+        
+        function selectAdapter(adapter) {
+            if (adapter !== 'mock') {
+                alert('This adapter is not yet implemented. Please use Mock PMS for now.');
+                return;
+            }
+            currentAdapter = adapter;
+            document.querySelectorAll('.adapter-card').forEach(c => c.classList.remove('selected'));
+            document.getElementById('adapter-' + adapter).classList.add('selected');
+        }
+        
+        async function connectPMS() {
+            try {
+                const res = await fetch('/api/pms/sync', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        pms_type: currentAdapter,
+                        api_url: document.getElementById('apiUrl').value,
+                        api_key: document.getElementById('apiKey').value
+                    })
+                });
+                const data = await res.json();
+                document.getElementById('connectionStatus').textContent = 'Connected';
+                document.getElementById('connectionStatus').className = 'status-badge status-connected';
+            } catch (e) {
+                alert('Connection failed: ' + e.message);
+            }
+        }
+        
+        async function testConnection() {
+            try {
+                const res = await fetch('/api/pms/status', {
+                    headers
+                });
+                const data = await res.json();
+                alert('Connection test: ' + (data.is_connected ? 'Success' : 'Failed'));
+            } catch (e) {
+                alert('Test failed: ' + e.message);
+            }
+        }
+        
+        async function loadAppointments() {
+            try {
+                const res = await fetch('/api/pms/appointments', { headers });
+                const appointments = await res.json();
+                
+                document.getElementById('totalAppointments').textContent = appointments.length;
+                
+                const today = new Date().toISOString().split('T')[0];
+                const todayCount = appointments.filter(a => a.date === today).length;
+                document.getElementById('todayAppointments').textContent = todayCount;
+                
+                const tbody = document.getElementById('appointmentsTable');
+                if (appointments.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No appointments found</td></tr>';
+                } else {
+                    tbody.innerHTML = appointments.map(a => `
+                        <tr>
+                            <td>${escapeHtml(a.patient_name || 'Unknown')}</td>
+                            <td>${escapeHtml(a.doctor_name || 'TBD')}</td>
+                            <td>${escapeHtml(a.service || 'General')}</td>
+                            <td>${a.date}</td>
+                            <td>${a.time}</td>
+                            <td><span class="status-badge ${a.status === 'scheduled' ? 'status-connected' : 'status-disconnected'}">${a.status}</span></td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        
+        async function loadPatients() {
+            try {
+                const res = await fetch('/api/pms/patients', { headers });
+                const patients = await res.json();
+                
+                const tbody = document.getElementById('patientsTable');
+                if (patients.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No patients found</td></tr>';
+                } else {
+                    tbody.innerHTML = patients.map(p => `
+                        <tr>
+                            <td>${escapeHtml(p.name || 'Unknown')}</td>
+                            <td>${escapeHtml(p.email || '-')}</td>
+                            <td>${escapeHtml(p.phone || '-')}</td>
+                            <td>${escapeHtml(p.insurance_provider || '-')}</td>
+                            <td><button class="btn btn-secondary" onclick="viewPatient(${p.id})">View</button></td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        
+        async function loadDoctors() {
+            try {
+                const res = await fetch('/api/pms/doctors', { headers });
+                const doctors = await res.json();
+                
+                const tbody = document.getElementById('doctorsTable');
+                if (doctors.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No doctors found</td></tr>';
+                } else {
+                    tbody.innerHTML = doctors.map(d => `
+                        <tr>
+                            <td>${escapeHtml(d.name || 'Unknown')}</td>
+                            <td>${escapeHtml(d.specialty || '-')}</td>
+                            <td>${escapeHtml(d.email || '-')}</td>
+                            <td>${escapeHtml(d.phone || '-')}</td>
+                            <td><span class="status-badge ${d.is_active ? 'status-connected' : 'status-disconnected'}">${d.is_active ? 'Active' : 'Inactive'}</span></td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        
+        async function syncAll() {
+            try {
+                const res = await fetch('/api/pms/sync', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ pms_type: currentAdapter })
+                });
+                const data = await res.json();
+                alert('Sync completed: ' + JSON.stringify(data.records || data));
+                loadSyncStatus();
+            } catch (e) {
+                alert('Sync failed: ' + e.message);
+            }
+        }
+        
+        async function loadSyncStatus() {
+            try {
+                const res = await fetch('/api/pms/status', { headers });
+                const status = await res.json();
+                document.getElementById('lastSyncTime').textContent = status.last_sync_at || 'Never';
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        
+        function searchPatients() {
+            const query = document.getElementById('patientSearch').value;
+            loadPatientsWithSearch(query);
+        }
+        
+        async function loadPatientsWithSearch(search) {
+            try {
+                const res = await fetch(`/api/pms/patients?search=${encodeURIComponent(search)}`, { headers });
+                const patients = await res.json();
+                // Update table
+                loadPatients();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        
+        function showAddPatient() {
+            const name = prompt('Patient Name:');
+            if (!name) return;
+            const phone = prompt('Phone:') || '';
+            const email = prompt('Email:') || '';
+            
+            fetch('/api/pms/patients', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ name, phone, email })
+            }).then(() => loadPatients());
+        }
+        
+        function showAddDoctor() {
+            const name = prompt('Doctor Name:');
+            if (!name) return;
+            const specialty = prompt('Specialty:') || '';
+            
+            alert('Doctor creation via PMS coming soon. Use the Doctors section instead.');
+        }
+        
+        function showAddAppointment() {
+            alert('Appointment creation via PMS coming soon.');
+        }
+        
+        function viewPatient(id) {
+            alert('Patient details coming soon.');
+        }
+        
+        function escapeHtml(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+        
+        loadSyncStatus();
+    </script>
+</body>
+</html>

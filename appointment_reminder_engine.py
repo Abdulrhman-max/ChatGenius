@@ -20,13 +20,51 @@ BASE_URL = os.getenv("BASE_URL", "http://localhost:5000")
 
 # ── Scheduling ───────────────────────────────────────────────────────────────
 
-def schedule_reminders(booking_id, admin_id):
-    """Schedule 48h, 24h, and 2h reminders for a booking.
+def _is_high_risk_patient(booking, admin_id):
+    """Check if patient has 4+ cancellations (cancelled + no-shows).
+    Returns True if high risk."""
+    patient_id = booking.get("patient_id")
+    if patient_id:
+        conn = db.get_db()
+        row = conn.execute(
+            "SELECT total_cancelled, total_no_shows FROM patients WHERE id=?",
+            (patient_id,)
+        ).fetchone()
+        conn.close()
+        if row:
+            total = (row["total_cancelled"] or 0) + (row["total_no_shows"] or 0)
+            return total >= 4
+    # Fallback: check by email/phone from bookings table
+    email = booking.get("customer_email", "")
+    phone = booking.get("customer_phone", "")
+    if email or phone:
+        conn = db.get_db()
+        cancelled_count = 0
+        if email:
+            row = conn.execute(
+                "SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND customer_email=? AND status IN ('cancelled','no_show')",
+                (admin_id, email)
+            ).fetchone()
+            cancelled_count = row["c"] if row else 0
+        if not cancelled_count and phone:
+            row = conn.execute(
+                "SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND customer_phone=? AND status IN ('cancelled','no_show')",
+                (admin_id, phone)
+            ).fetchone()
+            cancelled_count = row["c"] if row else 0
+        conn.close()
+        return cancelled_count >= 4
+    return False
 
-    Reads the admin's reminder_config to determine offsets and quiet-hour
-    boundaries.  Creates three reminder rows (one per tier) with
-    ``status='pending'``.  Does NOT create APScheduler date jobs — the
-    interval-based ``process_pending_reminders()`` picks them up instead.
+
+def schedule_reminders(booking_id, admin_id):
+    """Schedule reminders for a booking based on cancellation risk.
+
+    Normal patients: 24h reminder only.
+    High-risk patients (4+ cancellations/no-shows): 24h + 6h reminders.
+
+    Reads the admin's reminder_config for quiet-hour boundaries.
+    Creates reminder rows with ``status='pending'``.
     """
     booking = db.get_booking_by_id(booking_id)
     if not booking:
@@ -40,11 +78,21 @@ def schedule_reminders(booking_id, admin_id):
     start_time = raw_time.split(" - ")[0].strip() if " - " in raw_time else raw_time.strip()
     appt_dt = datetime.strptime(f"{booking['date']} {start_time}", "%Y-%m-%d %I:%M %p")
 
-    tiers = [
-        ("48h", config.get("hours_before_first", 48), config.get("reminder_48h_enabled", 1)),
-        ("24h", config.get("hours_before_second", 24), config.get("reminder_24h_enabled", 1)),
-        ("2h", config.get("hours_before_third", 2), config.get("reminder_2h_enabled", 1)),
-    ]
+    # Determine cancellation risk
+    high_risk = _is_high_risk_patient(booking, admin_id)
+    if high_risk:
+        print(f"[Reminders] Booking {booking_id}: HIGH RISK patient — scheduling 24h + 6h reminders")
+
+    # Build tiers based on risk level
+    if high_risk:
+        tiers = [
+            ("24h", 24, True),
+            ("6h", 6, True),
+        ]
+    else:
+        tiers = [
+            ("24h", 24, True),
+        ]
 
     quiet_start = config.get("quiet_hours_start", 23)
     quiet_end = config.get("quiet_hours_end", 8)
@@ -153,7 +201,12 @@ def send_reminder(reminder_id):
         except Exception:
             pass
 
-    subject = f"Appointment Reminder — {date_display}"
+    is_high_risk_reminder = reminder["reminder_type"] == "6h"
+    if is_high_risk_reminder:
+        subject = f"Your Appointment is in 6 Hours — Please Confirm"
+    else:
+        subject = f"Appointment Reminder — {date_display}"
+
     html = _build_reminder_email(
         customer_name=customer_name,
         doctor_name=doctor_name,
@@ -162,6 +215,7 @@ def send_reminder(reminder_id):
         confirm_url=confirm_url,
         cancel_url=cancel_url,
         preparation_instructions=prep_instructions,
+        is_urgent=is_high_risk_reminder,
     )
 
     success = _send_email(customer_email, subject, html)
@@ -177,7 +231,7 @@ def send_reminder(reminder_id):
     return success
 
 
-def _build_reminder_email(customer_name, doctor_name, date_display, time_display, confirm_url, cancel_url, preparation_instructions=""):
+def _build_reminder_email(customer_name, doctor_name, date_display, time_display, confirm_url, cancel_url, preparation_instructions="", is_urgent=False):
     """Return full HTML for the appointment-reminder email, matching the
     luxury style used throughout email_service.py."""
 
@@ -212,8 +266,8 @@ def _build_reminder_email(customer_name, doctor_name, date_display, time_display
         <div style="width:72px;height:72px;margin:0 auto 20px;border-radius:50%;background:linear-gradient(135deg,#c9a84c,#e8c547);display:flex;align-items:center;justify-content:center;">
             <span style="font-size:36px;line-height:72px;">&#128339;</span>
         </div>
-        <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:300;letter-spacing:1px;">Appointment <strong style="font-weight:700;">Reminder</strong></h1>
-        <p style="margin:12px 0 0;color:#c9a84c;font-size:14px;letter-spacing:2px;text-transform:uppercase;">Don't forget your upcoming visit</p>
+        <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:300;letter-spacing:1px;">{'<strong style="font-weight:700;">Urgent</strong> Reminder' if is_urgent else 'Appointment <strong style="font-weight:700;">Reminder</strong>'}</h1>
+        <p style="margin:12px 0 0;color:#c9a84c;font-size:14px;letter-spacing:2px;text-transform:uppercase;">{'Your appointment is just hours away' if is_urgent else "Don't forget your upcoming visit"}</p>
     </td></tr>
     <!-- Greeting -->
     <tr><td style="padding:36px 40px 0;">
@@ -221,7 +275,7 @@ def _build_reminder_email(customer_name, doctor_name, date_display, time_display
             Dear <strong>{customer_name}</strong>,
         </p>
         <p style="color:#555;font-size:15px;line-height:1.6;margin:12px 0 0;">
-            This is a friendly reminder about your upcoming appointment. Please confirm or cancel using the buttons below.
+            {'Your appointment is coming up <strong>very soon</strong>. We have reserved this time specifically for you and our team is preparing for your visit. Please confirm your attendance below, or let us know if you need to reschedule.' if is_urgent else 'This is a friendly reminder about your upcoming appointment. Please confirm or cancel using the buttons below.'}
         </p>
     </td></tr>
     <!-- Appointment Card -->

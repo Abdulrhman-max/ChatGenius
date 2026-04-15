@@ -438,8 +438,9 @@
         <div class="sidebar-logo">Chat<span>Genius</span></div>
         <ul class="sidebar-nav" id="sidebarNav">
             <li><a href="#" class="active" onclick="showPage('overview')"><i data-lucide="layout-dashboard" style="width:18px;height:18px"></i><span class="icon">&#9783;</span> Overview</a></li>
-            <li class="head-admin-only" style="display:none"><a href="#" onclick="showPage('plan')"><i data-lucide="package" style="width:18px;height:18px"></i><span class="icon">&#9733;</span> My Plan</a></li>
+            <li><a href="#" onclick="showPage('plan')"><i data-lucide="package" style="width:18px;height:18px"></i><span class="icon">&#9733;</span> My Plan</a></li>
             <li><a href="#" onclick="showPage('bookings')"><i data-lucide="calendar-check" style="width:18px;height:18px"></i><span class="icon">&#128197;</span> Bookings</a></li>
+            <li><a href="#" onclick="showPage('previous-bookings')"><i data-lucide="history" style="width:18px;height:18px"></i><span class="icon">&#128218;</span> Previous Bookings</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('leads')"><i data-lucide="user-plus" style="width:18px;height:18px"></i><span class="icon">&#127919;</span> Leads</a></li>
             <li class="head-admin-only"><a href="#" onclick="showPage('company')"><i data-lucide="building-2" style="width:18px;height:18px"></i><span class="icon">&#127970;</span> Company Info</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('doctors')"><i data-lucide="stethoscope" style="width:18px;height:18px"></i><span class="icon">&#129657;</span> Doctors</a></li>
@@ -456,6 +457,8 @@
             <li class="admin-only"><a href="#" onclick="showPage('recall')"><i data-lucide="rotate-ccw" style="width:18px;height:18px"></i><span class="icon">&#128276;</span> Recall & Retention</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('followups')"><i data-lucide="bell" style="width:18px;height:18px"></i><span class="icon">&#128221;</span> Follow-Ups</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('config')"><i data-lucide="sliders" style="width:18px;height:18px"></i><span class="icon">&#9881;</span> Configuration</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('roi')"><i data-lucide="trending-up" style="width:18px;height:18px"></i><span class="icon">&#128200;</span> ROI</a></li>
+            <li class="admin-only"><a href="#" onclick="showPage('pms')"><i data-lucide="plug" style="width:18px;height:18px"></i><span class="icon">&#128268;</span> PMS Integration</a></li>
         </ul>
         <div class="sidebar-user">
             <div class="sidebar-user-info" onclick="toggleProfile()" style="cursor:pointer;border-radius:10px;padding:0.4rem;margin:-0.4rem;transition:background .2s" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='transparent'">
@@ -537,6 +540,18 @@
             </div>
         </div>
 
+        <!-- PREVIOUS BOOKINGS PAGE -->
+        <div id="page-previous-bookings" style="display:none">
+            <div class="main-header"><h1>Previous Bookings</h1></div>
+            <p style="color:var(--gray);font-size:0.9rem;margin-bottom:1rem">Completed, cancelled, and non-attended bookings.</p>
+            <div class="section">
+                <table>
+                    <thead><tr><th>Customer</th><th>Type</th><th>Doctor</th><th>Date</th><th>Time</th><th>Promo</th><th>Status</th></tr></thead>
+                    <tbody id="prevBookingsBody"><tr><td colspan="7" class="empty-msg">No previous bookings</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- Booking Detail Modal -->
         <div id="bookingDetailModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;justify-content:center;align-items:center;backdrop-filter:blur(4px)">
             <div style="background:#111827;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:2rem;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;position:relative;box-shadow:0 25px 60px rgba(0,0,0,0.5)">
@@ -607,7 +622,8 @@
                     <div id="svc_list" style="display:flex;flex-direction:column;gap:0.35rem"></div>
                     <p id="svc_status" style="color:var(--gray);font-size:0.8rem;margin-top:0.4rem"></p>
                 </div>
-                <div class="form-group"><label class="form-label">Currency</label>
+                <div class="form-group"><label class="form-label">Company Currency</label>
+                    <p style="color:var(--gray);font-size:0.78rem;margin-bottom:0.3rem">This currency is used across the entire app — services, invoices, chatbot prices, and reports.</p>
                     <select class="form-input" id="ci_currency" onchange="onCurrencyChange()">
                         <option value="USD">USD — US Dollar</option>
                         <option value="EUR">EUR — Euro</option>
@@ -631,66 +647,6 @@
                 <button class="btn-primary" onclick="saveCompanyInfo()">Save Company Info</button>
             </div>
 
-            <div class="section head-admin-only" style="display:none;margin-top:1.5rem">
-                <div class="section-header"><div class="section-title">Embed Chatbot on Your Website</div></div>
-                <p style="color:var(--gray);font-size:0.85rem;margin-bottom:1rem">Copy and paste this code before the closing <code style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px">&lt;/body&gt;</code> tag of your website. The chatbot will use your company info to answer patient questions.</p>
-                <div style="display:flex;gap:0.5rem;margin-bottom:0.8rem;flex-wrap:wrap">
-                    <div class="form-group" style="flex:1;min-width:200px">
-                        <label class="form-label">Chatbot Title</label>
-                        <input type="text" class="form-input" id="embed_title" placeholder="Chat with us" value="Chat with us">
-                    </div>
-                    <div class="form-group" style="flex:1;min-width:200px">
-                        <label class="form-label">Welcome Message</label>
-                        <input type="text" class="form-input" id="embed_welcome" placeholder="Hello! How can I help you today?" value="Hello! How can I help you today?">
-                    </div>
-                    <div class="form-group" style="min-width:120px">
-                        <label class="form-label">Color</label>
-                        <input type="color" id="embed_color" value="#0891b2" style="height:38px;width:60px;border:none;background:none;cursor:pointer">
-                    </div>
-                </div>
-                <div style="position:relative">
-                    <pre id="embedCodeBlock" style="background:#1a1d27;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:1rem;font-size:0.78rem;color:#94a3b8;overflow-x:auto;white-space:pre-wrap;word-break:break-all;line-height:1.6;max-height:160px"></pre>
-                    <button onclick="copyEmbedCode()" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;padding:4px 12px;font-size:0.78rem;cursor:pointer">Copy</button>
-                </div>
-                <span id="embedCopyMsg" style="font-size:0.8rem;color:var(--cyan);display:none;margin-top:0.4rem">Copied to clipboard!</span>
-            </div>
-
-            <!-- Customer Database API Integration -->
-            <div class="section head-admin-only" style="display:none;margin-top:1.5rem">
-                <div class="section-header"><div class="section-title">Connect Your Customer Database</div></div>
-                <p style="color:var(--gray);font-size:0.85rem;margin-bottom:1rem">Connect your external customer database so the chatbot can recognize your customers automatically. When a known customer chats, the bot will skip asking for their name, email, and phone number.</p>
-                <div class="form-group">
-                    <label class="form-label">Customers API Endpoint URL</label>
-                    <input type="text" class="form-input" id="customers_api_url" placeholder="https://yoursite.com/api/customers">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">API Key (optional)</label>
-                    <input type="password" class="form-input" id="customers_api_key" placeholder="Your API key or token">
-                </div>
-                <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap">
-                    <button class="btn-primary" onclick="saveCustomersApiConfig()">Save API Config</button>
-                    <button class="btn-primary" onclick="testCustomersApi()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1)">Test Connection</button>
-                </div>
-                <span id="customersApiMsg" style="font-size:0.8rem;display:none;margin-top:0.5rem"></span>
-                <div id="customersApiPreview" style="display:none;margin-top:1rem">
-                    <p style="color:var(--gray);font-size:0.82rem;margin-bottom:0.5rem"><strong style="color:#e2e8f0">Preview</strong> — First 5 customers from your API:</p>
-                    <div id="customersApiPreviewList" style="background:#1a1d27;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:0.75rem;font-size:0.8rem;color:#94a3b8;max-height:200px;overflow-y:auto"></div>
-                </div>
-                <details style="margin-top:1rem">
-                    <summary style="color:var(--gray);font-size:0.82rem;cursor:pointer">API Format Requirements</summary>
-                    <div style="background:#1a1d27;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:1rem;margin-top:0.5rem;font-size:0.78rem;color:#94a3b8;line-height:1.6">
-                        Your API must support fetching a single customer by ID:<br><br>
-                        <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;color:#e2e8f0">GET {base_url}/{customer_id}</code><br><br>
-                        Example: if your base URL is <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;color:#e2e8f0">https://yoursite.com/api/customers</code> and the customer ID is <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;color:#e2e8f0">42</code>, we call:<br>
-                        <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;color:#e2e8f0">GET https://yoursite.com/api/customers/42</code><br><br>
-                        Response must include <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;color:#e2e8f0">name</code>, <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;color:#e2e8f0">email</code>, and <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;color:#e2e8f0">phone</code> fields:<br>
-                        <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;color:#e2e8f0">{"name": "John Doe", "email": "john@example.com", "phone": "+1234567890"}</code><br><br>
-                        The API key is sent as both <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;color:#e2e8f0">Authorization: Bearer &lt;key&gt;</code> and <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;color:#e2e8f0">X-API-Key: &lt;key&gt;</code> headers.<br><br>
-                        <strong style="color:#e2e8f0">Embed usage:</strong> Pass the logged-in customer's ID in your embed code:<br>
-                        <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;color:#e2e8f0">window.ChatGeniusConfig = { ..., customerId: "42" }</code>
-                    </div>
-                </details>
-            </div>
         </div>
 
         <!-- DOCTORS PAGE (admin only) -->
@@ -1290,6 +1246,113 @@
             <span class="save-msg" id="configSaveMsg" style="display:none">Saved!</span>
         </div>
 
+        <!-- ROI PAGE (admin only) -->
+        <div id="page-roi" style="display:none">
+            <div class="main-header"><h1>Return on Investment</h1></div>
+            <p style="color:var(--gray);font-size:0.9rem;margin-bottom:1.5rem">Track the revenue generated by ChatGenius and measure your return on investment.</p>
+
+            <div class="stats-row" id="roiStatsRow">
+                <div class="stat-card">
+                    <div class="stat-label">Money Generated</div>
+                    <div class="stat-value" id="roi_money_generated" style="color:var(--green)">—</div>
+                    <div class="stat-sub">Total revenue from bookings via ChatGenius</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Cost</div>
+                    <div class="stat-value" id="roi_total_cost">—</div>
+                    <div class="stat-sub">All-time spend — current plan: <span id="roi_plan_cost">—</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">ROI</div>
+                    <div class="stat-value" style="color:var(--green)" id="roi_percentage">0%</div>
+                    <div class="stat-sub">Return on investment</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Profit</div>
+                    <div class="stat-value" id="roi_profit">—</div>
+                    <div class="stat-sub">Money generated minus plan cost</div>
+                </div>
+            </div>
+
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-label">Chat Sessions</div>
+                    <div class="stat-value" id="roi_sessions">0</div>
+                    <div class="stat-sub">Total conversations with ChatGenius</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Bookings via ChatGenius</div>
+                    <div class="stat-value" id="roi_bookings">0</div>
+                    <div class="stat-sub">Total appointments booked through the chatbot</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PMS INTEGRATION PAGE (admin only) -->
+        <div id="page-pms" style="display:none">
+            <div class="main-header"><h1>PMS Integration</h1></div>
+            <p style="color:var(--gray);font-size:0.9rem;margin-bottom:1.5rem">Connect ChatGenius with your Practice Management System and website.</p>
+
+            <!-- Embed Chatbot Section (moved from Company Info) -->
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-header"><div class="section-title">Embed Chatbot on Your Website</div></div>
+                <p style="color:var(--gray);font-size:0.85rem;margin-bottom:1rem">Copy and paste this code before the closing <code style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px">&lt;/body&gt;</code> tag of your website. The chatbot will use your company info to answer patient questions.</p>
+                <div style="display:flex;gap:0.5rem;margin-bottom:0.8rem;flex-wrap:wrap">
+                    <div class="form-group" style="flex:1;min-width:200px">
+                        <label class="form-label">Chatbot Title</label>
+                        <input type="text" class="form-input" id="pms_embed_title" placeholder="Chat with us" value="Chat with us">
+                    </div>
+                    <div class="form-group" style="flex:1;min-width:200px">
+                        <label class="form-label">Welcome Message</label>
+                        <input type="text" class="form-input" id="pms_embed_welcome" placeholder="Hello! How can I help you today?" value="Hello! How can I help you today?">
+                    </div>
+                    <div class="form-group" style="min-width:120px">
+                        <label class="form-label">Color</label>
+                        <input type="color" id="pms_embed_color" value="#0891b2" style="height:38px;width:60px;border:none;background:none;cursor:pointer">
+                    </div>
+                </div>
+                <div style="position:relative">
+                    <pre id="pmsEmbedCodeBlock" style="background:#1a1d27;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:1rem;font-size:0.78rem;color:#94a3b8;overflow-x:auto;white-space:pre-wrap;word-break:break-all;line-height:1.6;max-height:160px"></pre>
+                    <button onclick="copyPmsEmbedCode()" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;padding:4px 12px;font-size:0.78rem;cursor:pointer">Copy</button>
+                </div>
+                <span id="pmsEmbedCopyMsg" style="font-size:0.8rem;color:var(--cyan);display:none;margin-top:0.4rem">Copied to clipboard!</span>
+            </div>
+
+            <!-- Customer Database API Integration (moved from Company Info) -->
+            <div class="section" style="margin-top:1.5rem">
+                <div class="section-header"><div class="section-title">Connect Your Customer Database</div></div>
+                <p style="color:var(--gray);font-size:0.85rem;margin-bottom:1rem">Connect your external customer database so the chatbot can recognize your customers automatically. When a known customer chats, the bot will skip asking for their name, email, and phone number.</p>
+                <div class="form-group">
+                    <label class="form-label">Customers API Endpoint URL</label>
+                    <input type="text" class="form-input" id="pms_customers_api_url" placeholder="https://yoursite.com/api/customers">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">API Key (optional)</label>
+                    <input type="password" class="form-input" id="pms_customers_api_key" placeholder="Your API key or token">
+                </div>
+                <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap">
+                    <button class="btn-primary" onclick="savePmsApiConfig()">Save API Config</button>
+                    <button class="btn-primary" onclick="testPmsApi()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1)">Test Connection</button>
+                </div>
+                <span id="pmsApiMsg" style="font-size:0.8rem;display:none;margin-top:0.5rem"></span>
+                <div id="pmsApiPreview" style="display:none;margin-top:1rem">
+                    <p style="color:var(--gray);font-size:0.82rem;margin-bottom:0.5rem"><strong style="color:#e2e8f0">Preview</strong> — First 5 customers from your API:</p>
+                    <div id="pmsApiPreviewList" style="background:#1a1d27;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:0.75rem;font-size:0.8rem;color:#94a3b8;max-height:200px;overflow-y:auto"></div>
+                </div>
+                <details style="margin-top:1rem">
+                    <summary style="color:var(--gray);font-size:0.82rem;cursor:pointer">API Format Requirements</summary>
+                    <div style="background:#1a1d27;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:1rem;margin-top:0.5rem;font-size:0.78rem;color:#94a3b8;line-height:1.6">
+                        Your API must support fetching a single customer by ID:<br><br>
+                        <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;color:#e2e8f0">GET {base_url}/{customer_id}</code><br><br>
+                        Response must include <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;color:#e2e8f0">name</code>, <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;color:#e2e8f0">email</code>, and <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;color:#e2e8f0">phone</code> fields.<br><br>
+                        The API key is sent as both <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;color:#e2e8f0">Authorization: Bearer &lt;key&gt;</code> and <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;color:#e2e8f0">X-API-Key: &lt;key&gt;</code> headers.<br><br>
+                        <strong style="color:#e2e8f0">Embed usage:</strong> Pass the logged-in customer's ID in your embed code:<br>
+                        <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;color:#e2e8f0">window.ChatGeniusConfig = { ..., customerId: "42" }</code>
+                    </div>
+                </details>
+            </div>
+        </div>
+
     </main>
 </div>
 
@@ -1457,9 +1520,10 @@
         }
 
         applyRoleUI();
+        highlightCurrentPlan();
     }
 
-    const PLAN_GATED_PAGES = ['company', 'analytics', 'manage', 'promotions', 'waitlist'];
+    const PLAN_GATED_PAGES = ['company', 'analytics', 'manage', 'promotions', 'waitlist', 'roi', 'pms'];
     function hasActivePlan() {
         const p = user && user.plan;
         return !!(p && String(p).trim() && p !== 'none');
@@ -1500,6 +1564,9 @@
         if (page === 'gmb') loadGmb();
         if (page === 'security') loadSecurity();
         if (page === 'config') loadFeatureConfig();
+        if (page === 'roi') loadROI();
+        if (page === 'pms') loadPMS();
+        if (page === 'previous-bookings') loadPreviousBookings();
     }
 
     async function loadData() {
@@ -1594,9 +1661,39 @@
         loadData();
     }
 
-    function selectPlan(plan) {
+    async function selectPlan(plan) {
         if (user.plan === plan) return;
-        window.location.href = '/checkout/' + plan;
+        if (!confirm(`Switch to the ${plan.charAt(0).toUpperCase() + plan.slice(1)} plan?`)) return;
+        try {
+            const res = await fetch('/auth/update-plan', {
+                method: 'POST', headers,
+                body: JSON.stringify({ plan })
+            });
+            const d = await res.json();
+            if (d.error) { showToast(d.error, 'error'); return; }
+            user.plan = plan;
+            if (d.user) Object.assign(user, d.user);
+            localStorage.setItem('user', JSON.stringify(user));
+            initUI();
+            highlightCurrentPlan();
+            showToast('Plan updated to ' + plan.charAt(0).toUpperCase() + plan.slice(1) + '!', 'success');
+        } catch(e) { showToast('Failed to update plan.', 'error'); }
+    }
+
+    function highlightCurrentPlan() {
+        const p = user.plan || 'free_trial';
+        ['basic','pro','agency'].forEach(plan => {
+            const card = document.getElementById('planCard-' + plan);
+            if (!card) return;
+            const btn = card.querySelector('.plan-btn');
+            if (p === plan) {
+                card.classList.add('current');
+                if (btn) { btn.textContent = 'Current Plan'; btn.className = 'plan-btn plan-btn-current'; btn.onclick = null; }
+            } else {
+                card.classList.remove('current');
+                if (btn) { btn.textContent = 'Choose ' + plan.charAt(0).toUpperCase() + plan.slice(1); btn.className = 'plan-btn plan-btn-outline'; btn.onclick = () => selectPlan(plan); }
+            }
+        });
     }
 
     function logout() {
@@ -1773,7 +1870,7 @@
                     <div style="font-weight:600;font-size:0.85rem;color:#a78bfa;margin-bottom:6px">Service Details</div>
                     ${si.description ? `<div style="color:#94a3b8;font-size:0.85rem;margin-bottom:6px">${escapeHtml(si.description)}</div>` : ''}
                     <div style="display:flex;gap:16px;font-size:0.88rem">
-                        ${si.price ? `<span>Price: <strong style="color:#34d399">${si.price} ${si.currency || 'SAR'}</strong></span>` : ''}
+                        ${si.price ? `<span>Price: <strong style="color:#34d399">${si.price} ${__servicesCurrency || 'USD'}</strong></span>` : ''}
                         ${si.duration_minutes ? `<span>Duration: <strong>${si.duration_minutes} min</strong></span>` : ''}
                     </div>
                 </div>`;
@@ -1917,7 +2014,7 @@
                     <select class="form-input svc-category" style="padding:0.3rem 0.4rem;font-size:0.8rem;width:120px">${categoryOptions.replace(`value="${escapeHtml(s.category || '')}"`, `value="${escapeHtml(s.category || '')}" selected`)}</select>
                     <span style="color:var(--gray);font-size:0.7rem">Price:</span>
                     <input type="number" step="0.01" class="form-input svc-price" value="${Number(s.price).toFixed(2)}" style="width:90px;padding:0.3rem 0.5rem;font-size:0.85rem" placeholder="Price">
-                    <span style="color:var(--gray);font-size:0.8rem">${escapeHtml(s.currency || __servicesCurrency)}</span>
+                    <span style="color:var(--gray);font-size:0.8rem">${escapeHtml(__servicesCurrency || 'USD')}</span>
                     <span style="color:var(--gray);font-size:0.7rem;margin-left:0.3rem">Duration:</span>
                     <input type="number" class="form-input svc-duration" value="${s.duration_minutes || 60}" style="width:60px;padding:0.3rem 0.5rem;font-size:0.85rem" title="Duration (minutes)">
                     <span style="color:var(--gray);font-size:0.75rem">min</span>
@@ -2865,6 +2962,17 @@
                         </div>
                     </div>
                 </div>
+                <!-- Average Appointment Price -->
+                <div style="margin-bottom:0.75rem">
+                    <div class="form-group" style="margin:0">
+                        <div class="time-label">Avg Appointment Price</div>
+                        <div style="display:flex;align-items:center;gap:0.3rem;margin-top:0.3rem">
+                            <input type="number" step="0.01" class="form-input" id="avg_price_${d.id}" value="${d.avg_appointment_price || 20}" min="0" placeholder="20" style="width:100px;font-size:0.85rem;text-align:center">
+                            <span style="color:var(--gray);font-size:0.8rem" class="company-currency-label">${__servicesCurrency || 'USD'}</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div style="margin-bottom:0.5rem">
                     <button class="manage-save-btn" onclick="saveDoctorProfile(${d.id})" style="margin-bottom:0.65rem;font-size:0.78rem">Save Profile</button>
                 </div>
@@ -3120,14 +3228,16 @@
         const bio = document.getElementById('bio_' + id).value.trim();
         const exp = parseInt(document.getElementById('exp_' + id).value) || 0;
         const gender = document.getElementById('gender_' + id).value;
+        const avg_price = parseFloat(document.getElementById('avg_price_' + id).value) || 20;
         try {
             await fetch(`/api/doctors/${id}`, {
                 method: 'PUT', headers,
-                body: JSON.stringify({ name: doc.name, specialty: doc.specialty || '', bio, availability: doc.availability || 'Mon-Fri', years_of_experience: exp, gender })
+                body: JSON.stringify({ name: doc.name, specialty: doc.specialty || '', bio, availability: doc.availability || 'Mon-Fri', years_of_experience: exp, gender, avg_appointment_price: avg_price })
             });
             doc.bio = bio;
             doc.years_of_experience = exp;
             doc.gender = gender;
+            doc.avg_appointment_price = avg_price;
             showManageSuccess();
         } catch(e) { showToast('Failed to save profile.', 'error'); }
     }
@@ -4355,6 +4465,135 @@
         }, 400);
     }
 
+    // ═══════ ROI Dashboard ═══════
+    async function loadROI() {
+        try {
+            const res = await fetch('/api/roi', {headers});
+            const d = await res.json();
+            if (d.error) { showToast(d.error, 'error'); return; }
+            const cur = d.currency || 'USD';
+            document.getElementById('roi_money_generated').textContent = d.money_generated.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ' + cur;
+            document.getElementById('roi_total_cost').textContent = d.total_cost.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + ' USD';
+            document.getElementById('roi_plan_cost').textContent = d.plan_cost.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + ' USD/mo';
+            document.getElementById('roi_percentage').textContent = d.roi + '%';
+            document.getElementById('roi_percentage').style.color = d.roi > 0 ? 'var(--green)' : 'var(--red)';
+            document.getElementById('roi_profit').textContent = (d.profit < 0 ? '-' : '') + Math.abs(d.profit).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ' + cur;
+            document.getElementById('roi_profit').style.color = d.profit >= 0 ? 'var(--green)' : 'var(--red)';
+            document.getElementById('roi_sessions').textContent = d.total_sessions.toLocaleString();
+            document.getElementById('roi_bookings').textContent = d.total_bookings.toLocaleString();
+        } catch(e) { console.error('ROI load error:', e); }
+    }
+
+    // ═══════ Previous Bookings ═══════
+    async function loadPreviousBookings() {
+        try {
+            const res = await fetch('/api/bookings/previous', {headers});
+            const bookings = await res.json();
+            const body = document.getElementById('prevBookingsBody');
+            if (!bookings.length) {
+                body.innerHTML = '<tr><td colspan="7" class="empty-msg">No previous bookings</td></tr>';
+                return;
+            }
+            body.innerHTML = bookings.map(function(b) {
+                const badgeClass = b.status === 'cancelled' ? 'badge-red' : b.status === 'no_show' ? 'badge-red' : 'badge-green';
+                const statusLabel = b.status === 'no_show' ? 'Non-Attended' : b.status.charAt(0).toUpperCase() + b.status.slice(1);
+                const promo = b.promotion_code ? '<span class="badge badge-cyan">' + escapeHtml(b.promotion_code) + '</span>' : '<span style="color:var(--gray)">—</span>';
+                const bType = b.service_id ? 'Service' : 'Appointment';
+                const typeBadge = b.service_id ? '<span class="badge badge-cyan">' + escapeHtml(b.service || bType) + '</span>' : '<span class="badge badge-blue">' + bType + '</span>';
+                return '<tr style="cursor:pointer" onclick="openBookingDetail(' + b.id + ')">'
+                    + '<td>' + escapeHtml(b.customer_name) + '</td>'
+                    + '<td>' + typeBadge + '</td>'
+                    + '<td>' + (b.doctor_name ? 'Dr. ' + escapeHtml(b.doctor_name) : '—') + '</td>'
+                    + '<td>' + escapeHtml(b.date) + '</td>'
+                    + '<td>' + escapeHtml(b.time) + '</td>'
+                    + '<td>' + promo + '</td>'
+                    + '<td><span class="badge ' + badgeClass + '">' + escapeHtml(statusLabel) + '</span></td>'
+                    + '</tr>';
+            }).join('');
+        } catch(e) { console.error('Previous bookings load error:', e); }
+    }
+
+    // ═══════ PMS Integration ═══════
+    let _pmsEmbedId = '';
+    async function loadPMS() {
+        // Load embed ID
+        try {
+            const res = await fetch('/api/embed-id', {headers});
+            const d = await res.json();
+            _pmsEmbedId = d.public_id || '';
+            generatePmsEmbedCode();
+        } catch(e) {}
+        // Load API config
+        try {
+            const res = await fetch('/api/customers-api-config', {headers});
+            const d = await res.json();
+            if (d.url) document.getElementById('pms_customers_api_url').value = d.url;
+            if (d.key) document.getElementById('pms_customers_api_key').value = d.key;
+        } catch(e) {}
+    }
+
+    function generatePmsEmbedCode() {
+        const title = document.getElementById('pms_embed_title').value || 'Chat with us';
+        const welcome = document.getElementById('pms_embed_welcome').value || 'Hello! How can I help you today?';
+        const color = document.getElementById('pms_embed_color').value || '#0891b2';
+        const server = window.location.origin;
+        const code = `<script>\n    window.ChatGeniusConfig = {\n        adminId: '${_pmsEmbedId}',\n        server: '${server}',\n        title: '${title}',\n        welcome: '${welcome}',\n        color: '${color}',\n        position: 'right',\n        customerId: '',\n        customerApiUrl: ''\n    };\n<\/script>\n<script src="${server}/static/chatbot-embed.js"><\/script>`;
+        document.getElementById('pmsEmbedCodeBlock').textContent = code;
+    }
+    // Auto-regenerate on input changes
+    document.addEventListener('input', function(e) {
+        if (['pms_embed_title','pms_embed_welcome','pms_embed_color'].includes(e.target.id)) generatePmsEmbedCode();
+    });
+
+    function copyPmsEmbedCode() {
+        const code = document.getElementById('pmsEmbedCodeBlock').textContent;
+        navigator.clipboard.writeText(code).then(() => {
+            const msg = document.getElementById('pmsEmbedCopyMsg');
+            msg.style.display = 'inline';
+            setTimeout(() => msg.style.display = 'none', 2000);
+        });
+    }
+
+    async function savePmsApiConfig() {
+        const url = document.getElementById('pms_customers_api_url').value.trim();
+        const key = document.getElementById('pms_customers_api_key').value.trim();
+        try {
+            const res = await fetch('/api/customers-api-config', {method:'POST', headers, body: JSON.stringify({url, key})});
+            const d = await res.json();
+            const msg = document.getElementById('pmsApiMsg');
+            msg.textContent = d.ok ? 'Saved!' : (d.error || 'Failed');
+            msg.style.color = d.ok ? 'var(--green)' : 'var(--red)';
+            msg.style.display = 'inline';
+            setTimeout(() => msg.style.display = 'none', 3000);
+        } catch(e) { showToast('Failed to save API config', 'error'); }
+    }
+
+    async function testPmsApi() {
+        const url = document.getElementById('pms_customers_api_url').value.trim();
+        const key = document.getElementById('pms_customers_api_key').value.trim();
+        if (!url) { showToast('Enter API URL first', 'warning'); return; }
+        try {
+            const res = await fetch('/api/customers-api-test', {method:'POST', headers, body: JSON.stringify({url, key})});
+            const d = await res.json();
+            const msg = document.getElementById('pmsApiMsg');
+            if (d.ok) {
+                msg.textContent = 'Connection successful!';
+                msg.style.color = 'var(--green)';
+                if (d.preview && d.preview.length) {
+                    document.getElementById('pmsApiPreview').style.display = 'block';
+                    document.getElementById('pmsApiPreviewList').innerHTML = d.preview.map(c =>
+                        `<div style="padding:0.3rem 0;border-bottom:1px solid rgba(255,255,255,0.05)">${escapeHtml(c.name || '')} — ${escapeHtml(c.email || '')} — ${escapeHtml(c.phone || '')}</div>`
+                    ).join('');
+                }
+            } else {
+                msg.textContent = d.error || 'Connection failed';
+                msg.style.color = 'var(--red)';
+            }
+            msg.style.display = 'inline';
+            setTimeout(() => msg.style.display = 'none', 5000);
+        } catch(e) { showToast('Test failed', 'error'); }
+    }
+
     // ═══════ Feature 3: Recall ═══════
     async function loadRecall() {
         try {
@@ -4631,8 +4870,10 @@
         const h = p.history || {};
         const d = document.getElementById('patientDetail');
         d.style.display = '';
-        d.innerHTML = `<h3 style="margin-bottom:0.8rem">${escapeHtml(p.name)||'Patient'} <span style="font-size:0.8rem;color:var(--gray);font-weight:400">${escapeHtml(p.email)||''} | ${escapeHtml(p.phone)||''}</span></h3>
-            <div style="display:flex;gap:1rem;margin-bottom:1rem;flex-wrap:wrap"><div>Language: ${escapeHtml(p.language)||'en'}</div><div>Points: <strong style="color:var(--cyan)">${p.loyalty_points||0}</strong></div><div>Last Visit: ${escapeHtml(p.last_visit_date)||'Never'}</div></div>
+        const cancelCount = (p.total_cancelled||0) + (p.total_no_shows||0);
+        const riskBadge = cancelCount >= 4 ? ' <span style="background:#dc3545;color:#fff;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:600">HIGH RISK</span>' : '';
+        d.innerHTML = `<h3 style="margin-bottom:0.8rem">${escapeHtml(p.name)||'Patient'}${riskBadge} <span style="font-size:0.8rem;color:var(--gray);font-weight:400">${escapeHtml(p.email)||''} | ${escapeHtml(p.phone)||''}</span></h3>
+            <div style="display:flex;gap:1rem;margin-bottom:1rem;flex-wrap:wrap"><div>Language: ${escapeHtml(p.language)||'en'}</div><div>Points: <strong style="color:var(--cyan)">${p.loyalty_points||0}</strong></div><div>Last Visit: ${escapeHtml(p.last_visit_date)||'Never'}</div><div>Cancellations: <strong style="color:${cancelCount>=4?'var(--red)':'inherit'}">${cancelCount}</strong></div></div>
             <h4 style="font-size:0.85rem;margin-bottom:0.4rem">Appointments (${(h.bookings||[]).length})</h4>
             ${(h.bookings||[]).map(b => `<div style="font-size:0.8rem;padding:0.25rem 0">${escapeHtml(b.date)} ${escapeHtml(b.time)} — Dr. ${escapeHtml(b.doctor_name)||'N/A'} — <span class="badge ${b.status==='completed'?'badge-green':b.status==='cancelled'?'badge-gray':'badge-yellow'}">${escapeHtml(b.status)}</span></div>`).join('') || '<span class="empty-msg">No appointments.</span>'}
             <h4 style="font-size:0.85rem;margin:0.8rem 0 0.4rem">Notes</h4>
