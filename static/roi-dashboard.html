@@ -6,6 +6,7 @@
     <title>ROI Dashboard - ChatGenius</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
@@ -16,6 +17,7 @@
             --warning: #fbbf24;
             --warning-bg: rgba(251, 191, 36, 0.1);
             --danger: #ef4444;
+            --danger-light: #f87171;
             --bg: #0f0f1a;
             --bg-light: #1a1a2e;
             --card: rgba(255,255,255,0.03);
@@ -92,10 +94,7 @@
         .roi-hero::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
             background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
             opacity: 0.3;
         }
@@ -119,14 +118,8 @@
             margin-top: 1.5rem;
             position: relative;
         }
-        .roi-detail-item {
-            text-align: center;
-        }
-        .roi-detail-value {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #fff;
-        }
+        .roi-detail-item { text-align: center; }
+        .roi-detail-value { font-size: 1.5rem; font-weight: 700; color: #fff; }
         .roi-detail-label {
             font-size: 0.8rem;
             color: rgba(255,255,255,0.7);
@@ -139,7 +132,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 1rem;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
         }
         .revenue-card {
             background: var(--card);
@@ -154,125 +147,44 @@
             border-color: rgba(139, 92, 246, 0.3);
         }
         .revenue-card .label {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 0.5rem;
+            font-size: 0.75rem; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem;
         }
-        .revenue-card .value {
-            font-size: 2rem;
-            font-weight: 800;
-            color: var(--text);
-        }
+        .revenue-card .value { font-size: 2rem; font-weight: 800; color: var(--text); }
         .revenue-card.primary .value { color: var(--primary-light); }
         .revenue-card .change {
-            font-size: 0.8rem;
-            margin-top: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.25rem;
+            font-size: 0.8rem; margin-top: 0.5rem;
+            display: flex; align-items: center; gap: 0.25rem;
         }
         .revenue-card .change.up { color: var(--success); }
         .revenue-card .change.down { color: var(--danger); }
-        .revenue-card .subtext {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            margin-top: 0.25rem;
-        }
+        .revenue-card .subtext { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
 
         /* Section Headers */
-        .section {
-            margin-bottom: 2rem;
-        }
-        .section-header {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            margin-bottom: 1rem;
-        }
+        .section { margin-bottom: 2rem; }
+        .section-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
         .section-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1rem;
+            width: 32px; height: 32px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center; font-size: 1rem;
         }
         .section-icon.revenue { background: rgba(52, 211, 153, 0.15); color: var(--success); }
-        .section-icon.savings { background: rgba(251, 191, 36, 0.15); color: var(--warning); }
-        .section-icon.automation { background: rgba(139, 92, 246, 0.15); color: var(--primary); }
+        .section-icon.loss { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
         .section-icon.funnel { background: rgba(99, 102, 241, 0.15); color: #6366f1; }
         .section-icon.insights { background: rgba(236, 72, 153, 0.15); color: #ec4899; }
-        .section-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-        }
+        .section-icon.patients { background: rgba(251, 191, 36, 0.15); color: var(--warning); }
+        .section-icon.automation { background: rgba(139, 92, 246, 0.15); color: var(--primary); }
+        .section-title { font-size: 1.1rem; font-weight: 600; }
 
-        /* Savings Grid */
-        .savings-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-        }
-        .savings-card {
+        /* Chart Container */
+        .chart-container {
             background: var(--card);
             border: 1px solid var(--border);
             border-radius: 16px;
-            padding: 1.25rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
         }
-        .savings-card .label {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 0.5rem;
-        }
-        .savings-card .value {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--warning);
-        }
-        .savings-card .detail {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            margin-top: 0.25rem;
-        }
-
-        /* Automation Stats */
-        .automation-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 1rem;
-        }
-        .auto-stat {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1.25rem;
-            text-align: center;
-        }
-        .auto-stat .label {
-            font-size: 0.7rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 0.5rem;
-        }
-        .auto-stat .value {
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: var(--primary-light);
-        }
-        .auto-stat .pct {
-            font-size: 0.8rem;
-            color: var(--success);
-            font-weight: 500;
-        }
-        .auto-stat .subtext {
-            font-size: 0.7rem;
-            color: var(--text-secondary);
+        .chart-container canvas {
+            max-height: 320px;
         }
 
         /* Funnel */
@@ -283,119 +195,123 @@
             padding: 1.5rem;
         }
         .funnel-stage {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 0.75rem;
+            display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem;
         }
         .funnel-stage:last-child { margin-bottom: 0; }
-        .stage-label {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            min-width: 140px;
-        }
+        .stage-label { font-size: 0.85rem; color: var(--text-secondary); min-width: 180px; }
         .stage-bar {
-            height: 32px;
+            height: 36px;
             background: linear-gradient(90deg, var(--primary) 0%, #6366f1 100%);
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            padding: 0 0.75rem;
-            min-width: 60px;
-            transition: width 0.5s ease;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: flex-end;
+            padding: 0 0.75rem; min-width: 60px;
+            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .stage-bar .count {
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #fff;
-        }
-        .stage-rate {
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--success);
-            min-width: 50px;
-            text-align: right;
-        }
+        .stage-bar .count { font-size: 0.85rem; font-weight: 600; color: #fff; }
+        .stage-rate { font-size: 0.85rem; font-weight: 600; color: var(--success); min-width: 60px; text-align: right; }
         .stage-rate.na { color: var(--text-muted); }
-        .funnel-stage.revenue-stage .stage-bar {
-            background: linear-gradient(90deg, var(--success) 0%, #10b981 100%);
-        }
 
-        /* Insights Grid */
-        .insights-grid {
+        /* Stats Grid */
+        .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 1rem;
         }
-        .insight-card {
+        .stat-card {
             background: var(--card);
             border: 1px solid var(--border);
             border-radius: 12px;
             padding: 1.25rem;
+            text-align: center;
+            transition: all 0.2s;
         }
-        .insight-card .label {
-            font-size: 0.7rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 0.5rem;
+        .stat-card:hover { border-color: var(--primary); }
+        .stat-card .label {
+            font-size: 0.7rem; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem;
         }
-        .insight-card .value {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--text);
+        .stat-card .value { font-size: 1.75rem; font-weight: 700; }
+        .stat-card .value.purple { color: var(--primary-light); }
+        .stat-card .value.green { color: var(--success); }
+        .stat-card .value.red { color: var(--danger-light); }
+        .stat-card .value.yellow { color: var(--warning); }
+        .stat-card .subtext { font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.25rem; }
+
+        /* Insight Sentences */
+        .insights-list {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
         }
-        .insight-card .detail {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            margin-top: 0.25rem;
+        .insight-item {
+            display: flex; align-items: flex-start; gap: 0.75rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
         }
-        .insight-card .detail.positive { color: var(--success); }
+        .insight-item:last-child { border-bottom: none; }
+        .insight-bullet {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--primary); margin-top: 6px; flex-shrink: 0;
+        }
+        .insight-text { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6; }
+
+        /* Loss metric cards */
+        .loss-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .loss-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: all 0.2s;
+        }
+        .loss-card:hover { border-color: var(--danger); }
+        .loss-card .label {
+            font-size: 0.75rem; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem;
+        }
+        .loss-card .value { font-size: 2rem; font-weight: 800; color: var(--danger-light); }
+        .loss-card .subtext { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+        /* Patient grid */
+        .patient-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex; align-items: center; justify-content: center;
+            padding: 2rem; color: var(--text-muted);
+        }
+        .loading::after {
+            content: ''; width: 20px; height: 20px;
+            border: 2px solid var(--primary); border-top-color: transparent;
+            border-radius: 50%; margin-left: 0.5rem;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         /* Responsive */
         @media (max-width: 768px) {
             .container { padding: 1rem; }
             .roi-multiple { font-size: 3rem; }
             .roi-detail { flex-direction: column; gap: 1rem; }
-            .revenue-grid { grid-template-columns: 1fr; }
+            .revenue-grid, .loss-grid, .stats-grid, .patient-grid { grid-template-columns: 1fr; }
             .funnel-stage { flex-wrap: wrap; }
             .stage-label { min-width: 100%; }
-        }
-
-        /* Loading State */
-        .loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-            color: var(--text-muted);
-        }
-        .loading::after {
-            content: '';
-            width: 20px;
-            height: 20px;
-            border: 2px solid var(--primary);
-            border-top-color: transparent;
-            border-radius: 50%;
-            margin-left: 0.5rem;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* No Data */
-        .no-data {
-            text-align: center;
-            padding: 2rem;
-            color: var(--text-muted);
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <a href="/user-dashboard" class="back-btn">← Back to Dashboard</a>
+        <a href="/user-dashboard" class="back-btn">&larr; Back to Dashboard</a>
         <h1>ROI <span>Dashboard</span></h1>
     </div>
 
@@ -410,22 +326,22 @@
 
         <!-- ROI Hero -->
         <div class="roi-hero">
-            <div class="roi-multiple" id="roiMultiple">
+            <div class="roi-multiple">
                 <span id="roiValue">--</span><span class="x">x</span>
             </div>
-            <div class="roi-subtitle">Return on Investment — Every $1 spent returns $<span id="roiReturn">--</span></div>
+            <div class="roi-subtitle">Return on Investment &mdash; Every $1 spent returns $<span id="roiReturn">--</span></div>
             <div class="roi-detail">
                 <div class="roi-detail-item">
                     <div class="roi-detail-value" id="monthlyCost">$--</div>
                     <div class="roi-detail-label">Monthly Cost</div>
                 </div>
                 <div class="roi-detail-item">
-                    <div class="roi-detail-value" id="revenueGenerated">$--</div>
+                    <div class="roi-detail-value" id="revenueGenerated">--</div>
                     <div class="roi-detail-label">Revenue Generated</div>
                 </div>
                 <div class="roi-detail-item">
-                    <div class="roi-detail-value" id="savingsTotal">$--</div>
-                    <div class="roi-detail-label">Cost Savings</div>
+                    <div class="roi-detail-value" id="profitTotal">--</div>
+                    <div class="roi-detail-label">Profit</div>
                 </div>
             </div>
         </div>
@@ -439,17 +355,17 @@
             <div class="revenue-grid">
                 <div class="revenue-card primary">
                     <div class="label">Total Revenue</div>
-                    <div class="value" id="totalRevenue">$0</div>
+                    <div class="value" id="totalRevenue">--</div>
                     <div class="change up" id="revenueChange">+0% vs last period</div>
                 </div>
                 <div class="revenue-card">
                     <div class="label">From ChatGenius</div>
-                    <div class="value" id="chatbotRevenue">$0</div>
+                    <div class="value" id="chatbotRevenue">--</div>
                     <div class="subtext">Automated bookings</div>
                 </div>
                 <div class="revenue-card">
                     <div class="label">Avg Booking Value</div>
-                    <div class="value" id="avgBookingValue">$0</div>
+                    <div class="value" id="avgBookingValue">--</div>
                     <div class="subtext">Per appointment</div>
                 </div>
                 <div class="revenue-card">
@@ -458,145 +374,159 @@
                     <div class="change" id="bookingsChange">+0% vs last period</div>
                 </div>
             </div>
-        </section>
-
-        <!-- Cost Savings Section -->
-        <section class="section">
-            <div class="section-header">
-                <div class="section-icon savings">⚡</div>
-                <h2 class="section-title">Cost Savings</h2>
-            </div>
-            <div class="savings-grid">
-                <div class="savings-card">
-                    <div class="label">No-Show Recovery</div>
-                    <div class="value" id="noshowRecovery">$0</div>
-                    <div class="detail"><span id="noshowCount">0</span> appointments recovered</div>
-                </div>
-                <div class="savings-card">
-                    <div class="label">Missed Call Recovery</div>
-                    <div class="value" id="missedCallRecovery">$0</div>
-                    <div class="detail"><span id="missedCallCount">0</span> calls converted</div>
-                </div>
-                <div class="savings-card">
-                    <div class="label">Staff Time Saved</div>
-                    <div class="value" id="staffTimeSaved">0 hrs</div>
-                    <div class="detail">Automated customer interactions</div>
-                </div>
-                <div class="savings-card">
-                    <div class="label">No-Show Rate</div>
-                    <div class="value" id="noshowRate">0%</div>
-                    <div class="detail"><span id="noshowReduction">0%</span> below industry avg</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Automation Impact Section -->
-        <section class="section">
-            <div class="section-header">
-                <div class="section-icon automation">🤖</div>
-                <h2 class="section-title">Automation Impact</h2>
-            </div>
-            <div class="automation-grid">
-                <div class="auto-stat">
-                    <div class="label">Automated Bookings</div>
-                    <div class="value" id="automatedBookings">0</div>
-                    <div class="pct" id="automationPct">0% of total</div>
-                </div>
-                <div class="auto-stat">
-                    <div class="label">Reminders Sent</div>
-                    <div class="value" id="remindersSent">0</div>
-                    <div class="subtext">Auto-reminders</div>
-                </div>
-                <div class="auto-stat">
-                    <div class="label">Lead Conversions</div>
-                    <div class="value" id="leadConversions">0</div>
-                    <div class="subtext">From chatbot</div>
-                </div>
-                <div class="auto-stat">
-                    <div class="label">Human Handoff</div>
-                    <div class="value" id="humanHandoff">0%</div>
-                    <div class="subtext">Required staff help</div>
-                </div>
+            <!-- Revenue Chart -->
+            <div class="chart-container">
+                <canvas id="revenueChart"></canvas>
             </div>
         </section>
 
         <!-- Conversion Funnel -->
         <section class="section">
             <div class="section-header">
-                <div class="section-icon funnel">📊</div>
-                <h2 class="section-title">Patient Conversion Funnel</h2>
+                <div class="section-icon funnel">&#x1f4ca;</div>
+                <h2 class="section-title">Conversion Funnel</h2>
             </div>
-            <div class="funnel-container">
+            <div class="funnel-container" style="margin-bottom: 1rem;">
                 <div class="funnel-stage">
-                    <div class="stage-label">Website Visitors</div>
+                    <div class="stage-label">Chatbot Visitors</div>
                     <div class="stage-bar" id="visitorsBar" style="width: 100%">
                         <span class="count" id="visitorsCount">0</span>
                     </div>
-                    <div class="stage-rate na">—</div>
+                    <div class="stage-rate na">&mdash;</div>
                 </div>
                 <div class="funnel-stage">
-                    <div class="stage-label">Chat Started</div>
-                    <div class="stage-bar" id="chatStartedBar" style="width: 0%">
-                        <span class="count" id="chatStartedCount">0</span>
+                    <div class="stage-label">Chats Started</div>
+                    <div class="stage-bar" id="chatsBar" style="width: 0%">
+                        <span class="count" id="chatsCount">0</span>
                     </div>
-                    <div class="stage-rate" id="chatStartRate">0%</div>
+                    <div class="stage-rate" id="chatRate">0%</div>
                 </div>
                 <div class="funnel-stage">
-                    <div class="stage-label">Qualified Leads</div>
-                    <div class="stage-bar" id="qualifiedBar" style="width: 0%">
-                        <span class="count" id="qualifiedCount">0</span>
+                    <div class="stage-label">Leads Captured</div>
+                    <div class="stage-bar" id="leadsBar" style="width: 0%">
+                        <span class="count" id="leadsCount">0</span>
                     </div>
-                    <div class="stage-rate" id="qualRate">0%</div>
+                    <div class="stage-rate" id="leadRate">0%</div>
                 </div>
                 <div class="funnel-stage">
                     <div class="stage-label">Bookings Made</div>
-                    <div class="stage-bar" id="bookingsBar" style="width: 0%">
+                    <div class="stage-bar" id="bookingsFunnelBar" style="width: 0%">
                         <span class="count" id="bookingsFunnelCount">0</span>
                     </div>
                     <div class="stage-rate" id="bookingRate">0%</div>
                 </div>
-                <div class="funnel-stage">
-                    <div class="stage-label">Completed Visits</div>
-                    <div class="stage-bar" id="completedBar" style="width: 0%">
-                        <span class="count" id="completedCount">0</span>
-                    </div>
-                    <div class="stage-rate" id="completionRate">0%</div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="label">Visitor &rarr; Chat</div>
+                    <div class="value green" id="visitorToChatPct">100%</div>
                 </div>
-                <div class="funnel-stage revenue-stage">
-                    <div class="stage-label">Revenue</div>
-                    <div class="stage-bar" style="width: 100%">
-                        <span class="count" id="funnelRevenue">$0</span>
-                    </div>
+                <div class="stat-card">
+                    <div class="label">Chat &rarr; Lead</div>
+                    <div class="value green" id="chatToLeadPct">0%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Lead &rarr; Booking</div>
+                    <div class="value green" id="leadToBookingPct">0%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Bookings per 100 Chats</div>
+                    <div class="value purple" id="bookingsPer100">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">AI Success Rate</div>
+                    <div class="value purple" id="aiSuccessRate">0%</div>
+                    <div class="subtext">Bookings from chatbot visitors</div>
                 </div>
             </div>
         </section>
 
-        <!-- Clinic Intelligence -->
+        <!-- Loss Metrics -->
         <section class="section">
             <div class="section-header">
-                <div class="section-icon insights">💡</div>
-                <h2 class="section-title">Clinic Intelligence</h2>
+                <div class="section-icon loss">&#x1f4c9;</div>
+                <h2 class="section-title">Loss Metrics</h2>
             </div>
-            <div class="insights-grid">
-                <div class="insight-card">
-                    <div class="label">Top Service</div>
-                    <div class="value" id="topService">N/A</div>
-                    <div class="detail" id="topServiceRevenue">$0 revenue</div>
+            <div class="loss-grid">
+                <div class="loss-card">
+                    <div class="label">No-Show Count</div>
+                    <div class="value" id="noshowCount">0</div>
+                    <div class="subtext">Missed appointments</div>
                 </div>
-                <div class="insight-card">
-                    <div class="label">Peak Hours</div>
-                    <div class="value" id="peakHours">N/A</div>
-                    <div class="detail" id="peakHoursPct">0% of bookings</div>
+                <div class="loss-card">
+                    <div class="label">No-Show Rate</div>
+                    <div class="value" id="noshowRate">0%</div>
+                    <div class="subtext">Of all bookings</div>
                 </div>
-                <div class="insight-card">
-                    <div class="label">No-Show Risk</div>
-                    <div class="value" id="noshowRisk">0%</div>
-                    <div class="detail positive" id="noshowRiskDetail">vs industry avg</div>
+                <div class="loss-card">
+                    <div class="label">Revenue Lost</div>
+                    <div class="value" id="revenueLost">--</div>
+                    <div class="subtext">From no-shows</div>
                 </div>
-                <div class="insight-card">
-                    <div class="label">Top Channel</div>
-                    <div class="value" id="topChannel">N/A</div>
-                    <div class="detail" id="topChannelPct">0% of bookings</div>
+            </div>
+            <!-- No-Show Chart -->
+            <div class="chart-container">
+                <canvas id="noshowChart"></canvas>
+            </div>
+        </section>
+
+        <!-- AI Insights -->
+        <section class="section">
+            <div class="section-header">
+                <div class="section-icon insights">&#x1f9e0;</div>
+                <h2 class="section-title">AI Insights</h2>
+            </div>
+            <div class="insights-list" id="insightsList">
+                <div class="loading">Analyzing your data</div>
+            </div>
+        </section>
+
+        <!-- Patient Metrics -->
+        <section class="section">
+            <div class="section-header">
+                <div class="section-icon patients">&#x1f465;</div>
+                <h2 class="section-title">Patient Metrics</h2>
+            </div>
+            <div class="patient-grid">
+                <div class="stat-card">
+                    <div class="label">New Patients</div>
+                    <div class="value green" id="newPatients">0</div>
+                    <div class="subtext">First-time this period</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Returning Patients</div>
+                    <div class="value purple" id="returningPatients">0</div>
+                    <div class="subtext">Visited before</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Avg Visits / Patient</div>
+                    <div class="value yellow" id="avgVisits">0</div>
+                    <div class="subtext">This period</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Automation Impact -->
+        <section class="section">
+            <div class="section-header">
+                <div class="section-icon automation">&#x1f916;</div>
+                <h2 class="section-title">Automation Impact</h2>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="label">Automated Bookings</div>
+                    <div class="value purple" id="automatedBookings">0</div>
+                    <div class="subtext" id="automationPct">0% of total</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Lead Conversions</div>
+                    <div class="value green" id="leadConversions">0</div>
+                    <div class="subtext">From chatbot</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Staff Time Saved</div>
+                    <div class="value yellow" id="staffTimeSaved">0 hrs</div>
+                    <div class="subtext">Automated interactions</div>
                 </div>
             </div>
         </section>
@@ -606,105 +536,275 @@
         const token = localStorage.getItem('token');
         const headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
         let currentRange = 'month';
+        let revenueChartInstance = null;
+        let noshowChartInstance = null;
+        let currencySymbol = '$';
+
+        function fc(value) {
+            if (value === null || value === undefined) return currencySymbol + '0';
+            return currencySymbol + Number(value).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        }
+
+        function buildRevenueChart(dailyData) {
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            if (revenueChartInstance) revenueChartInstance.destroy();
+
+            const labels = dailyData.map(d => {
+                const date = new Date(d.date + 'T00:00:00');
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            });
+            const revenues = dailyData.map(d => d.revenue);
+            const bookings = dailyData.map(d => d.bookings);
+
+            revenueChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Revenue (' + currencySymbol + ')',
+                            data: revenues,
+                            borderColor: '#8b5cf6',
+                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                            borderWidth: 2.5,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointHoverRadius: 7,
+                            pointBackgroundColor: '#8b5cf6',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            yAxisID: 'y',
+                        },
+                        {
+                            label: 'Bookings',
+                            data: bookings,
+                            borderColor: '#34d399',
+                            backgroundColor: 'rgba(52, 211, 153, 0.08)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 3,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: '#34d399',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            yAxisID: 'y1',
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: {
+                            labels: { color: '#94a3b8', usePointStyle: true, padding: 20, font: { family: 'Inter', size: 12 } }
+                        },
+                        tooltip: {
+                            backgroundColor: '#1a1a2e',
+                            titleColor: '#f1f5f9',
+                            bodyColor: '#94a3b8',
+                            borderColor: 'rgba(255,255,255,0.1)',
+                            borderWidth: 1,
+                            cornerRadius: 10,
+                            padding: 12,
+                            callbacks: {
+                                label: function(ctx) {
+                                    if (ctx.datasetIndex === 0) return ' Revenue: ' + currencySymbol + ctx.parsed.y.toLocaleString();
+                                    return ' Bookings: ' + ctx.parsed.y;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.04)' },
+                            ticks: { color: '#64748b', font: { family: 'Inter', size: 11 } }
+                        },
+                        y: {
+                            position: 'left',
+                            grid: { color: 'rgba(255,255,255,0.04)' },
+                            ticks: {
+                                color: '#a78bfa',
+                                font: { family: 'Inter', size: 11 },
+                                callback: v => currencySymbol + v.toLocaleString()
+                            },
+                            title: { display: true, text: 'Revenue', color: '#a78bfa', font: { family: 'Inter', size: 12 } }
+                        },
+                        y1: {
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            ticks: { color: '#34d399', font: { family: 'Inter', size: 11 } },
+                            title: { display: true, text: 'Bookings', color: '#34d399', font: { family: 'Inter', size: 12 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function buildNoshowChart(dailyNoshows, dailyRevenue) {
+            const ctx = document.getElementById('noshowChart').getContext('2d');
+            if (noshowChartInstance) noshowChartInstance.destroy();
+
+            // Merge dates from both sources
+            const dateSet = new Set();
+            dailyRevenue.forEach(d => dateSet.add(d.date));
+            dailyNoshows.forEach(d => dateSet.add(d.date));
+            const allDates = [...dateSet].sort();
+
+            const noshowMap = {};
+            dailyNoshows.forEach(d => { noshowMap[d.date] = d.count; });
+
+            const labels = allDates.map(d => {
+                const date = new Date(d + 'T00:00:00');
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            });
+            const counts = allDates.map(d => noshowMap[d] || 0);
+
+            noshowChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'No-Shows',
+                        data: counts,
+                        backgroundColor: 'rgba(239, 68, 68, 0.6)',
+                        borderColor: '#ef4444',
+                        borderWidth: 1.5,
+                        borderRadius: 6,
+                        hoverBackgroundColor: 'rgba(239, 68, 68, 0.85)',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#94a3b8', usePointStyle: true, padding: 20, font: { family: 'Inter', size: 12 } }
+                        },
+                        tooltip: {
+                            backgroundColor: '#1a1a2e',
+                            titleColor: '#f1f5f9',
+                            bodyColor: '#94a3b8',
+                            borderColor: 'rgba(255,255,255,0.1)',
+                            borderWidth: 1,
+                            cornerRadius: 10,
+                            padding: 12,
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.04)' },
+                            ticks: { color: '#64748b', font: { family: 'Inter', size: 11 } }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255,255,255,0.04)' },
+                            ticks: {
+                                color: '#f87171',
+                                font: { family: 'Inter', size: 11 },
+                                stepSize: 1
+                            },
+                            title: { display: true, text: 'No-Shows', color: '#f87171', font: { family: 'Inter', size: 12 } }
+                        }
+                    }
+                }
+            });
+        }
 
         async function loadROI() {
             try {
-                const res = await fetch(`/api/roi/stats?range=${currentRange}`, { headers });
+                const res = await fetch('/api/roi/stats?range=' + currentRange, { headers });
+                if (!res.ok) throw new Error('Failed to load');
                 const data = await res.json();
 
-                // ROI Hero
-                document.getElementById('roiValue').textContent = data.roi?.multiple?.toFixed(1) || '0.0';
-                document.getElementById('roiReturn').textContent = data.roi?.multiple?.toFixed(2) || '0.00';
-                document.getElementById('monthlyCost').textContent = '$' + (data.roi?.monthly_cost || 0);
-                document.getElementById('revenueGenerated').textContent = formatCurrency(data.revenue?.total_generated || 0);
-                document.getElementById('savingsTotal').textContent = formatCurrency(data.roi?.savings_total || 0);
+                currencySymbol = data.currency_symbol || '$';
 
-                // Revenue Section
-                document.getElementById('totalRevenue').textContent = formatCurrency(data.revenue?.total_generated || 0);
-                document.getElementById('chatbotRevenue').textContent = formatCurrency(data.revenue?.chatbot_revenue || 0);
-                document.getElementById('avgBookingValue').textContent = formatCurrency(data.revenue?.avg_booking_value || 0);
+                // ROI Hero
+                const mult = data.roi?.multiple || 0;
+                document.getElementById('roiValue').textContent = mult.toFixed(1);
+                document.getElementById('roiReturn').textContent = mult.toFixed(2);
+                document.getElementById('monthlyCost').textContent = '$' + (data.roi?.monthly_cost || 0);
+                document.getElementById('revenueGenerated').textContent = fc(data.revenue?.total_generated);
+                document.getElementById('profitTotal').textContent = fc(data.roi?.profit);
+
+                // Revenue cards
+                document.getElementById('totalRevenue').textContent = fc(data.revenue?.total_generated);
+                document.getElementById('chatbotRevenue').textContent = fc(data.revenue?.chatbot_revenue);
+                document.getElementById('avgBookingValue').textContent = fc(data.revenue?.avg_booking_value);
                 document.getElementById('totalBookings').textContent = (data.revenue?.total_bookings || 0).toLocaleString();
 
                 const revChange = data.period_comparison?.revenue_change_pct || 0;
-                const revChangeEl = document.getElementById('revenueChange');
-                revChangeEl.textContent = (revChange >= 0 ? '+' : '') + revChange.toFixed(1) + '% vs last period';
-                revChangeEl.className = 'change ' + (revChange >= 0 ? 'up' : 'down');
+                const revEl = document.getElementById('revenueChange');
+                revEl.textContent = (revChange >= 0 ? '+' : '') + revChange.toFixed(1) + '% vs last period';
+                revEl.className = 'change ' + (revChange >= 0 ? 'up' : 'down');
 
                 const bkChange = data.period_comparison?.bookings_change_pct || 0;
-                const bkChangeEl = document.getElementById('bookingsChange');
-                bkChangeEl.textContent = (bkChange >= 0 ? '+' : '') + bkChange.toFixed(1) + '% vs last period';
-                bkChangeEl.className = 'change ' + (bkChange >= 0 ? 'up' : 'down');
+                const bkEl = document.getElementById('bookingsChange');
+                bkEl.textContent = (bkChange >= 0 ? '+' : '') + bkChange.toFixed(1) + '% vs last period';
+                bkEl.className = 'change ' + (bkChange >= 0 ? 'up' : 'down');
 
-                // Savings Section
-                document.getElementById('noshowRecovery').textContent = formatCurrency(data.savings?.noshow_recovery_value || 0);
-                document.getElementById('noshowCount').textContent = data.savings?.noshow_recovery_count || 0;
-                document.getElementById('missedCallRecovery').textContent = formatCurrency(data.savings?.missed_call_recovery_value || 0);
-                document.getElementById('missedCallCount').textContent = data.savings?.missed_call_recovery_count || 0;
-                document.getElementById('staffTimeSaved').textContent = (data.savings?.staff_time_saved_hours || 0) + ' hrs';
-                document.getElementById('noshowRate').textContent = (data.savings?.noshow_rate || 0) + '%';
-                document.getElementById('noshowReduction').textContent = (data.savings?.noshow_risk_reduction || 0) + '%';
+                // Revenue Chart
+                buildRevenueChart(data.revenue?.daily || []);
 
-                // Automation Section
-                document.getElementById('automatedBookings').textContent = data.automation?.automated_bookings || 0;
-                document.getElementById('automationPct').textContent = (data.automation?.automation_rate || 0) + '% of total';
-                document.getElementById('remindersSent').textContent = data.automation?.reminders_sent || 0;
-                document.getElementById('leadConversions').textContent = data.automation?.lead_conversions || 0;
-                document.getElementById('humanHandoff').textContent = (data.automation?.human_handoff_rate || 0) + '%';
+                // Conversion Funnel
+                const f = data.funnel || {};
+                const maxV = Math.max(f.visitors || 1, 1);
+                setBar('visitors', f.visitors || 0, 100);
+                setBar('chats', f.chats_started || 0, (f.chats_started || 0) / maxV * 100);
+                setBar('leads', f.leads_captured || 0, (f.leads_captured || 0) / maxV * 100);
+                setBar('bookingsFunnel', f.bookings_made || 0, (f.bookings_made || 0) / maxV * 100);
 
-                // Funnel
-                const funnel = data.funnel || {};
-                const maxVisitors = Math.max(funnel.visitors || 1, 1);
+                document.getElementById('chatRate').textContent = (f.visitor_to_chat_pct || 100) + '%';
+                document.getElementById('leadRate').textContent = (f.chat_to_lead_pct || 0) + '%';
+                document.getElementById('bookingRate').textContent = (f.lead_to_booking_pct || 0) + '%';
 
-                updateFunnelStage('visitors', funnel.visitors || 0, 100, null);
-                updateFunnelStage('chatStarted', funnel.chat_started || 0, (funnel.chat_started || 0) / maxVisitors * 100, funnel.conversion_rates?.chat_start_rate);
-                updateFunnelStage('qualified', funnel.qualified_leads || 0, (funnel.qualified_leads || 0) / maxVisitors * 100, funnel.conversion_rates?.lead_qual_rate);
-                updateFunnelStage('bookingsFunnel', funnel.bookings || 0, (funnel.bookings || 0) / maxVisitors * 100, funnel.conversion_rates?.booking_rate);
-                updateFunnelStage('completed', funnel.completed_visits || 0, (funnel.completed_visits || 0) / maxVisitors * 100, funnel.conversion_rates?.completion_rate);
-                document.getElementById('funnelRevenue').textContent = formatCurrency(funnel.revenue || 0);
+                document.getElementById('visitorToChatPct').textContent = (f.visitor_to_chat_pct || 100) + '%';
+                document.getElementById('chatToLeadPct').textContent = (f.chat_to_lead_pct || 0) + '%';
+                document.getElementById('leadToBookingPct').textContent = (f.lead_to_booking_pct || 0) + '%';
+                document.getElementById('bookingsPer100').textContent = f.bookings_per_100_conversations || 0;
+                document.getElementById('aiSuccessRate').textContent = (f.ai_success_rate || 0) + '%';
 
-                // Insights
-                const insights = data.insights || {};
-                document.getElementById('topService').textContent = insights.top_service?.name || 'N/A';
-                document.getElementById('topServiceRevenue').textContent = formatCurrency(insights.top_service?.revenue || 0) + ' revenue';
+                // Loss Metrics
+                const loss = data.loss_metrics || {};
+                document.getElementById('noshowCount').textContent = loss.noshow_count || 0;
+                document.getElementById('noshowRate').textContent = (loss.noshow_rate || 0) + '%';
+                document.getElementById('revenueLost').textContent = fc(loss.revenue_lost_noshows);
+                buildNoshowChart(loss.daily_noshows || [], data.revenue?.daily || []);
 
-                const peakHours = insights.peak_booking_hours || [];
-                if (peakHours.length > 0) {
-                    const hoursStr = peakHours.slice(0, 2).map(h => h.hour).join(', ');
-                    document.getElementById('peakHours').textContent = hoursStr;
-                    const topHour = peakHours[0];
-                    const totalBookings = data.automation?.total_bookings || 1;
-                    document.getElementById('peakHoursPct').textContent = ((topHour?.count || 0) / totalBookings * 100).toFixed(0) + '% of bookings';
+                // AI Insights
+                const sentences = data.insights?.sentences || [];
+                const insightsEl = document.getElementById('insightsList');
+                if (sentences.length === 0) {
+                    insightsEl.innerHTML = '<div style="padding:1rem;color:var(--text-muted);text-align:center;">Not enough data yet to generate insights. Keep using ChatGenius!</div>';
+                } else {
+                    insightsEl.innerHTML = sentences.map(s =>
+                        '<div class="insight-item"><div class="insight-bullet"></div><div class="insight-text">' + s + '</div></div>'
+                    ).join('');
                 }
 
-                const reduction = insights.noshow_risk_reduction || data.savings?.noshow_risk_reduction || 0;
-                document.getElementById('noshowRisk').textContent = (reduction > 0 ? '-' : '') + Math.abs(reduction) + '%';
-                document.getElementById('noshowRiskDetail').textContent = reduction >= 0 ? 'below industry avg' : 'above industry avg';
-                document.getElementById('noshowRiskDetail').className = 'detail ' + (reduction >= 0 ? 'positive' : '');
+                // Patient Metrics
+                const p = data.patients || {};
+                document.getElementById('newPatients').textContent = p.new_patients || 0;
+                document.getElementById('returningPatients').textContent = p.returning_patients || 0;
+                document.getElementById('avgVisits').textContent = p.avg_visits_per_patient || 0;
 
-                document.getElementById('topChannel').textContent = formatChannel(insights.top_channel || 'N/A');
-                document.getElementById('topChannelPct').textContent = (insights.top_channel_pct || 0) + '% of bookings';
+                // Automation
+                const a = data.automation || {};
+                document.getElementById('automatedBookings').textContent = a.automated_bookings || 0;
+                document.getElementById('automationPct').textContent = (a.automation_rate || 0) + '% of total';
+                document.getElementById('leadConversions').textContent = a.lead_conversions || 0;
+                document.getElementById('staffTimeSaved').textContent = (a.staff_time_saved_hours || 0) + ' hrs';
 
             } catch (e) {
                 console.error('Failed to load ROI:', e);
             }
         }
 
-        function updateFunnelStage(name, count, widthPct, rate) {
+        function setBar(name, count, pct) {
             document.getElementById(name + 'Count').textContent = count.toLocaleString();
-            document.getElementById(name + 'Bar').style.width = Math.max(widthPct, 5) + '%';
-            if (rate !== null) {
-                document.getElementById(name.replace('Funnel', '') + 'Rate').textContent = rate.toFixed(1) + '%';
-            }
-        }
-
-        function formatCurrency(value) {
-            if (value === null || value === undefined) return '$0';
-            return '$' + value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-        }
-
-        function formatChannel(channel) {
-            if (!channel || channel === 'N/A') return 'N/A';
-            return channel.charAt(0).toUpperCase() + channel.slice(1);
+            document.getElementById(name + 'Bar').style.width = Math.max(pct, 5) + '%';
         }
 
         function setDateRange(range) {
@@ -714,10 +814,7 @@
             loadROI();
         }
 
-        // Initial load
         loadROI();
-
-        // Auto-refresh every 30 seconds
         setInterval(loadROI, 30000);
     </script>
 </body>

@@ -134,6 +134,14 @@ def think_and_respond(user_message, company_info=None, doctors=None,
                                  ("emergency_info", "Emergency Info")]:
                 if company_info.get(field):
                     context_parts.append(f"{label}: {company_info[field]}")
+            if company_info.get("_customer_name"):
+                context_parts.append(f"Current patient name: {company_info['_customer_name']}")
+
+        if doctor_slots:
+            slot_lines = []
+            for doc_name, slots in doctor_slots.items():
+                slot_lines.append(f"Dr. {doc_name} today's slots: {', '.join(slots[:10])}")
+            context_parts.append("Today's available time slots:\n" + "\n".join(slot_lines))
 
         if doctors:
             doc_lines = []
@@ -168,6 +176,10 @@ def think_and_respond(user_message, company_info=None, doctors=None,
 
 CONTEXT:
 {company_context}
+
+IMPORTANT: You ONLY answer questions related to dentistry, dental health, and this dental office.
+If the patient asks about anything unrelated to dentistry (e.g. cooking, politics, math, programming, etc.),
+politely decline and say you can only help with dental-related questions.
 
 YOUR JOB:
 You UNDERSTAND what the patient means and respond helpfully. You have access to real doctor schedules and office data above.

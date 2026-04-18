@@ -12,12 +12,14 @@ import os
 import json
 import re
 import uuid
+import secrets
 from datetime import datetime, timedelta
 
 import database as db
 import calendar_service as cal
 import email_service as email
 import social_auth
+import chatbot_classifier
 import dental_ai
 import dental_knowledge_engine as dke
 import intent_classifier
@@ -191,14 +193,14 @@ KEYWORD_MAP = {
 }
 
 KB_RESPONSES = {
-    "pricing": "We have three plans: **Basic** at $49/month (500 conversations, 1 chatbot, email support), **Pro** at $149/month (5,000 conversations, 3 chatbots, appointment booking, CRM integration, priority support), and **Agency** at $299/month (unlimited everything, white-label, API access, dedicated manager). All include a 14-day free trial — no credit card required! Save 20% with annual billing.",
+    "pricing": "We have three plans: **Basic** at $99/month (700 conversations, 1 chatbot, smart booking, calendar scheduling, email reminders, patient profiles, pre-visit forms, basic analytics), **Pro** at $249/month (5,000 conversations, 4 chatbots, everything in Basic + advanced reminders, no-show recovery, ROI dashboard, lead capture, waitlist, promotions, multi-language, AI PDF extraction), and **Agency** at $599/month (unlimited conversations, everything in Pro + AI no-show prediction, advanced analytics, API access, PMS/CRM integration, full doctor portal, priority support, custom email sending). All include a 14-day free trial — no credit card required!",
     "features": "ChatGenius includes: 24/7 instant AI replies (under 2 seconds), automated appointment booking with calendar sync, smart lead capture with CRM integration, one-line website integration, a no-code dashboard, and templates for 20+ industries. Pro adds multi-language support, analytics, and human handoff.",
     "setup": "Setup takes under 5 minutes: 1) Sign up free, 2) Enter your business info, 3) Upload your knowledge base or let AI learn from your website, 4) Customize the look, 5) Paste one line of code on your site. No coding or technical skills needed!",
     "trial": "We offer a 14-day free trial with full Pro features — no credit card required. After the trial, choose a paid plan or continue with a limited free tier (50 conversations/month). We also have a 30-day money-back guarantee on all paid plans. Zero risk!",
     "industries": "ChatGenius works for any industry! Popular verticals: dental clinics, law firms, real estate, restaurants, e-commerce, fitness studios, salons, automotive, professional services, and education. We have pre-built templates for 20+ industries, and the AI adapts to your specific business.",
     "integration": "We integrate with HubSpot, Salesforce, Zoho, Pipedrive (CRM), Google Calendar, Calendly, Outlook (scheduling), Slack, Teams (communication), Zapier, Make (automation), and Google Analytics. Works on WordPress, Shopify, Wix, Squarespace, Webflow, and any custom website.",
     "security": "All data is encrypted with AES-256 at rest and TLS 1.3 in transit. We're GDPR and CCPA compliant, hosted on AWS with 99.9% uptime. Agency plan includes SOC 2 Type II compliance. We never sell your data — you own everything and can export or delete anytime.",
-    "support": "Basic: email support (24-48h response). Pro: priority email + chat (under 4h). Agency: dedicated account manager, Slack channel, phone support. All users get access to our knowledge base, video tutorials, weekly webinars, and community forum.",
+    "support": "Basic: email support. Pro: priority email + chat support. Agency: dedicated account manager, priority support, full doctor portal access. All users get access to our knowledge base and tutorials.",
     "comparison": "Unlike scripted chatbots, ChatGenius uses real AI that understands context and intent. Compared to Intercom ($74+/mo, built for enterprise), we're purpose-built for SMBs at lower cost. Compared to Tidio, our AI handles unexpected questions and maintains conversation flow.",
     "how_it_works": "ChatGenius uses AI trained on your business data to understand and respond to customer questions naturally. Visitors get instant answers, can book appointments, and share their contact info — all automatically. You manage everything from a simple dashboard.",
     "languages": "On Pro and Agency plans, ChatGenius supports 10 languages: English, Spanish, French, German, Portuguese, Italian, Dutch, Japanese, Korean, and Chinese. The chatbot auto-detects the visitor's language and responds accordingly.",
@@ -808,6 +810,40 @@ def _doctor_dropdown_item(d):
     """Build a doctor dropdown item dict with working days from schedule config."""
     return {"name": d["name"], "specialty": d.get("specialty", "General"), "availability": _doctor_avail_str(d),
             "years_of_experience": d.get("years_of_experience", 0), "gender": d.get("gender", "")}
+
+
+def _get_customer_booked_dates(session, admin_id):
+    """Get booked dates filtered to the current customer only.
+    Only marks dates where THIS user has active future bookings."""
+    customer_name = (session.get("_prefill_name") or session.get("_greeting_name") or "").strip().lower()
+    customer_email = (session.get("_prefill_email") or "").strip().lower()
+    customer_phone = (session.get("_prefill_phone") or "").strip()
+
+    if not customer_name and not customer_email and not customer_phone:
+        return db.get_booking_dates(admin_id)
+
+    from datetime import date as _date_h
+    today = _date_h.today().isoformat()
+    conn = db.get_db()
+    rows = conn.execute(
+        "SELECT DISTINCT date FROM bookings WHERE admin_id=? AND date>=? AND status NOT IN ('cancelled','no_show') ORDER BY date",
+        (admin_id, today)
+    ).fetchall()
+    conn.close()
+
+    matched_dates = []
+    for r in rows:
+        date_str = r["date"]
+        bookings = db.find_bookings_by_date(admin_id, date_str)
+        for b in bookings:
+            if ((customer_name and b.get("customer_name", "").strip().lower() == customer_name) or
+                (customer_email and b.get("customer_email", "").strip().lower() == customer_email) or
+                (customer_phone and b.get("customer_phone", "").strip() == customer_phone)):
+                matched_dates.append(date_str)
+                break
+
+    return matched_dates
+
 
 
 def _get_doctor_working_days(doctor):
@@ -1587,13 +1623,25 @@ def handle_booking(session, user_message, corrected_message=None):
     corrected = corrected_message or correct_spelling(user_message)
     lower = corrected.lower().strip()
 
-    # Auto-fill name/email/phone from customer API (embedded widget — never ask)
+    # Auto-fill name/email/phone from prefill (dashboard user or embedded widget)
     if session.get("_prefill_name") and "name" not in data:
         data["name"] = session["_prefill_name"]
     if session.get("_prefill_email") and "email" not in data:
         data["email"] = session["_prefill_email"]
     if session.get("_prefill_phone") and "phone" not in data:
         data["phone"] = session["_prefill_phone"]
+    # If email is known but phone isn't, try to find phone from patient record
+    if "email" in data and "phone" not in data and not session.get("_phone_lookup_done"):
+        session["_phone_lookup_done"] = True
+        _admin = data.get("_admin_id") or session.get("admin_id", 0)
+        if _admin and data["email"]:
+            try:
+                _prec = db.get_or_create_patient(_admin, data.get("name", ""), data["email"], "", increment_booking=False)
+                if _prec and _prec.get("phone"):
+                    data["phone"] = _prec["phone"]
+                    session["_prefill_phone"] = _prec["phone"]
+            except Exception:
+                pass
     if session.get("patient_id") and "_patient_id" not in data:
         data["_patient_id"] = session["patient_id"]
 
@@ -1804,6 +1852,9 @@ def handle_booking(session, user_message, corrected_message=None):
             if "email" in data and "phone" in data:
                 session["step"] = "get_date"
                 return f"Nice to meet you, {data['name']}! When would you like to come in?"
+            if "email" in data:
+                session["step"] = "get_phone"
+                return f"Nice to meet you, {data['name']}! What's your phone number? (In case we need to reach you)"
             session["step"] = "get_email"
             return f"Nice to meet you, {data['name']}! What's your email address? (We'll send you a confirmation)"
 
@@ -2424,6 +2475,9 @@ def handle_booking(session, user_message, corrected_message=None):
                 if "email" in data and "phone" in data:
                     session["step"] = "ask_discount"
                     return f"**{time_str_all}** on **{data['date_display']}** — great choice!\n\nDo you have a **promotion code** for a discount? If yes, type it now, or say **no** to continue."
+                if "email" in data:
+                    session["step"] = "get_phone"
+                    return f"**{time_str_all}** on **{data['date_display']}** — great choice!\n\nWhat's your phone number? (In case we need to reach you)"
                 session["step"] = "get_email"
                 return f"**{time_str_all}** on **{data['date_display']}** — great choice!\n\nWhat's your email address? (We'll send you a confirmation)"
 
@@ -2443,6 +2497,9 @@ def handle_booking(session, user_message, corrected_message=None):
             if "email" in data and "phone" in data:
                 session["step"] = "ask_discount"
                 return f"**{time_str}** on **{data['date_display']}** — great choice!\n\nDo you have a **promotion code** for a discount? If yes, type it now, or say **no** to continue."
+            if "email" in data:
+                session["step"] = "get_phone"
+                return f"**{time_str}** on **{data['date_display']}** — great choice!\n\nWhat's your phone number? (In case we need to reach you)"
             session["step"] = "get_email"
             return f"**{time_str}** on **{data['date_display']}** — great choice!\n\nWhat's your email address? (We'll send you a confirmation)"
 
@@ -2905,8 +2962,39 @@ def handle_booking(session, user_message, corrected_message=None):
                 print(f"[booking] Pre-visit form email sent to {data['email']}", flush=True)
             except Exception as e:
                 print(f"[booking] ERROR sending form email: {e}", flush=True)
-        elif _auto_confirmed:
-            print(f"[booking] Returning patient — skipped form email, auto-confirmed", flush=True)
+        elif _auto_confirmed and data.get("email"):
+            # Send confirmation email for auto-confirmed returning patients
+            try:
+                _bk_admin_ac = data.get("_admin_id") or session.get("_admin_id", 0)
+                if db.is_feature_enabled(_bk_admin_ac, "email_booking_confirmation"):
+                    _svc_data = data.get("_service_data", {})
+                    # Generate cancel token and confirm URL
+                    _cancel_tok = secrets.token_urlsafe(32)
+                    try:
+                        _bconn = db.get_db()
+                        _bconn.execute("UPDATE bookings SET cancel_token=? WHERE id=?", (_cancel_tok, booking_id))
+                        _bconn.commit(); _bconn.close()
+                    except Exception:
+                        _cancel_tok = ""
+                    _base = request.host_url.rstrip("/")
+                    _confirm_url = f"{_base}/booking-confirmed/{booking_id}"
+                    _cancel_url = f"{_base}/booking-cancel/{_cancel_tok}" if _cancel_tok else ""
+                    email.send_booking_confirmation_customer(
+                        customer_name=data["name"],
+                        customer_email=data["email"],
+                        date_display=booking_result.get("date_display", data.get("date_display", "")),
+                        time_display=booking_result.get("time", data.get("chosen_time", "")),
+                        doctor_name=data.get("doctor_name", ""),
+                        confirm_url=_confirm_url,
+                        cancel_url=_cancel_url,
+                        service_name=data.get("service_name", ""),
+                        duration_minutes=_svc_data.get("duration", 0) if _svc_data else 0,
+                        price=str(_svc_data.get("price", "")) if _svc_data else "",
+                        admin_id=_bk_admin_ac,
+                    )
+                    print(f"[booking] Auto-confirmed booking email sent to {data['email']}", flush=True)
+            except Exception as e:
+                print(f"[booking] ERROR sending auto-confirm email: {e}", flush=True)
         elif not form_token:
             print(f"[booking] WARNING: No form token — skipping form email", flush=True)
 
@@ -2930,10 +3018,11 @@ def handle_booking(session, user_message, corrected_message=None):
         session["step"] = None
         session["data"] = {}
 
-        confirmation = (
-            f"Almost there!\n\n"
-            f"**Name:** {data['name']}\n"
-        )
+        if _auto_confirmed:
+            confirmation = f"Congratulations! Your appointment is **confirmed**!\n\n"
+        else:
+            confirmation = f"Almost there!\n\n"
+        confirmation += f"**Name:** {data['name']}\n"
         if data.get("doctor_name"):
             confirmation += f"**Doctor:** Dr. {data['doctor_name']}\n"
         confirmation += (
@@ -2945,7 +3034,7 @@ def handle_booking(session, user_message, corrected_message=None):
         if data.get("loyalty_points_used"):
             confirmation += f"**Loyalty Points Used:** {data['loyalty_points_used']}\n"
         if _auto_confirmed:
-            confirmation += f"\nWelcome back! Your appointment is **automatically confirmed**."
+            confirmation += f"\nWelcome back! A **confirmation email** has been sent to **{data.get('email', '')}**."
         elif data.get("email") and form_token:
             confirmation += (
                 f"\nA **pre-visit form** has been sent to **{data['email']}**.\n"
@@ -3412,6 +3501,381 @@ def handle_cancel_appointment(session, user_message, admin_id):
 
 
 # ══════════════════════════════════════════════
+#  Reschedule Appointment Flow State Machine
+# ══════════════════════════════════════════════
+
+def handle_reschedule(session, user_message, admin_id):
+    step = session["step"]
+    data = session["data"]
+    lower = user_message.strip().lower()
+
+    # Abort if user says nevermind
+    if lower in ("nevermind", "never mind", "stop", "go back", "cancel"):
+        session["flow"] = None
+        session["step"] = None
+        session["data"] = {}
+        return "No problem! Your appointment stays as is. How else can I help you?"
+
+    # ── Step 1: Select date that has bookings ──
+    if step == "get_date":
+        from calendar_service import _parse_date
+        parsed_date = _parse_date(user_message)
+        if not parsed_date:
+            return "I didn't understand that date. Could you try again? (e.g. Monday, April 10, tomorrow)"
+
+        date_iso = parsed_date.isoformat()
+        date_display = parsed_date.strftime("%A, %B %d, %Y")
+        bookings = db.find_bookings_by_date(admin_id, date_iso)
+
+        # For embedded widget: only show THEIR bookings
+        if session.get("_is_embedded") and session.get("_customer_logged_in"):
+            customer_name = (session.get("_prefill_name") or "").strip().lower()
+            customer_email = (session.get("_prefill_email") or "").strip().lower()
+            customer_phone = (session.get("_prefill_phone") or "").strip()
+            if customer_name or customer_email or customer_phone:
+                bookings = [b for b in bookings if
+                    (customer_name and b.get("customer_name", "").strip().lower() == customer_name) or
+                    (customer_email and b.get("customer_email", "").strip().lower() == customer_email) or
+                    (customer_phone and b.get("customer_phone", "").strip() == customer_phone)
+                ]
+
+        # Only show future bookings (can't reschedule past ones)
+        from datetime import datetime as _dt_r
+        now = _dt_r.now()
+        future_bookings = []
+        for b in bookings:
+            try:
+                time_parts = b["time"].split(" - ")
+                end_str = time_parts[-1].strip() if len(time_parts) > 1 else time_parts[0].strip()
+                booking_end = _dt_r.strptime(f"{b['date']} {end_str}", "%Y-%m-%d %I:%M %p")
+                if booking_end > now:
+                    future_bookings.append(b)
+            except Exception:
+                future_bookings.append(b)
+        bookings = future_bookings
+
+        if not bookings:
+            session["flow"] = None
+            session["step"] = None
+            session["data"] = {}
+            return f"There are no upcoming appointments on **{date_display}**. Say **reschedule** to try a different date."
+
+        data["_reschedule_date"] = date_iso
+        data["_reschedule_date_display"] = date_display
+
+        if len(bookings) == 1:
+            b = bookings[0]
+            data["_booking_to_reschedule"] = b
+            session["step"] = "keep_doctor"
+            doctor_info = f" with **Dr. {b['doctor_name']}**" if b.get("doctor_name") else ""
+            service_info = f" ({b.get('service', '')})" if b.get("service") else ""
+            session["_ui_options"] = {"type": "confirm_yesno", "items": [{"name": "Yes, same doctor", "value": "yes"}, {"name": "No, different doctor", "value": "no"}]}
+            return (f"I found your appointment on **{date_display}**:\n\n"
+                    f"**{b['customer_name']}** — {b['time']}{doctor_info}{service_info}\n\n"
+                    f"Would you like to keep the same doctor?")
+
+        # Multiple bookings — show dropdown
+        data["_bookings_list"] = bookings
+        session["step"] = "choose_booking"
+        lines = []
+        for i, b in enumerate(bookings, 1):
+            doctor_info = f" — Dr. {b['doctor_name']}" if b.get("doctor_name") else ""
+            service_info = f" ({b.get('service', '')})" if b.get("service") else ""
+            lines.append(f"**{i}.** {b['customer_name']} at {b['time']}{doctor_info}{service_info}")
+        session["_ui_options"] = {
+            "type": "cancel_bookings",
+            "items": [
+                {"name": f"{b['customer_name']} — {b['time']}" + (f" (Dr. {b['doctor_name']})" if b.get("doctor_name") else ""), "index": i}
+                for i, b in enumerate(bookings, 1)
+            ]
+        }
+        return f"I found **{len(bookings)}** appointments on **{date_display}**:\n\n" + "\n".join(lines) + "\n\nWhich one would you like to reschedule?"
+
+    # ── Step 2: Choose which booking (multiple bookings) ──
+    if step == "choose_booking":
+        bookings = data.get("_bookings_list", [])
+        chosen = None
+
+        num_match = re.search(r'(\d+)', lower)
+        if num_match:
+            idx = int(num_match.group(1)) - 1
+            if 0 <= idx < len(bookings):
+                chosen = bookings[idx]
+
+        if not chosen:
+            for b in bookings:
+                if b.get("customer_name", "").lower() in lower or lower in b.get("customer_name", "").lower():
+                    chosen = b
+                    break
+            if not chosen:
+                for b in bookings:
+                    if b.get("doctor_name", "").lower() in lower or lower in b.get("doctor_name", "").lower():
+                        chosen = b
+                        break
+
+        if chosen:
+            data["_booking_to_reschedule"] = chosen
+            session["step"] = "keep_doctor"
+            doctor_info = f" with **Dr. {chosen['doctor_name']}**" if chosen.get("doctor_name") else ""
+            session["_ui_options"] = {"type": "confirm_yesno", "items": [{"name": "Yes, same doctor", "value": "yes"}, {"name": "No, different doctor", "value": "no"}]}
+            return (f"You selected:\n\n"
+                    f"**{chosen['customer_name']}** — {chosen['time']}{doctor_info}\n\n"
+                    f"Would you like to keep the same doctor?")
+
+        return "I couldn't match that. Please pick a number from the list or say the patient name."
+
+    # ── Step 3: Keep same doctor? ──
+    if step == "keep_doctor":
+        booking = data.get("_booking_to_reschedule", {})
+
+        if lower in ("yes", "yeah", "yep", "yea", "sure", "ok", "okay", "y", "yes please", "same doctor", "same"):
+            # Keep same doctor — go to date selection
+            doctor_id = booking.get("doctor_id")
+            if not doctor_id:
+                session["flow"] = None
+                session["step"] = None
+                session["data"] = {}
+                return "This appointment doesn't have a doctor assigned. Please contact the clinic directly to reschedule."
+
+            data["_new_doctor_id"] = doctor_id
+            data["_new_doctor_name"] = booking.get("doctor_name", "")
+            session["step"] = "select_new_date"
+
+            # Show calendar with off-dates for this doctor
+            off_dates = _get_off_dates_with_blocks(doctor_id, admin_id)
+            session["_ui_options"] = {"type": "calendar", "off_dates": off_dates}
+            return f"Great! When would you like to reschedule with **Dr. {booking.get('doctor_name', '')}**? Pick a new date:"
+
+        elif lower in ("no", "nah", "nope", "n", "no thanks", "different doctor", "different", "change doctor"):
+            # Different doctor — show doctor list
+            service_id = booking.get("service_id")
+            if service_id:
+                doctors = db.get_doctors_for_service(service_id)
+            else:
+                doctors = db.get_doctors(admin_id)
+
+            # Filter out inactive doctors
+            doctors = [d for d in doctors if d.get("is_active", 1)]
+
+            if not doctors:
+                session["flow"] = None
+                session["step"] = None
+                session["data"] = {}
+                return "No available doctors found. Please contact the clinic directly."
+
+            if len(doctors) == 1:
+                # Only one doctor available
+                data["_new_doctor_id"] = doctors[0]["id"]
+                data["_new_doctor_name"] = doctors[0]["name"]
+                session["step"] = "select_new_date"
+                off_dates = _get_off_dates_with_blocks(doctors[0]["id"], admin_id)
+                session["_ui_options"] = {"type": "calendar", "off_dates": off_dates}
+                return f"The only available doctor is **Dr. {doctors[0]['name']}**. Pick a new date:"
+
+            data["_available_doctors"] = doctors
+            session["step"] = "select_doctor"
+            session["_ui_options"] = {"type": "doctors", "items": [_doctor_dropdown_item(d) for d in doctors]}
+            return "Which doctor would you like to see instead?"
+
+        return "Please say **yes** to keep the same doctor or **no** to choose a different one."
+
+    # ── Step 4: Select doctor (if changing) ──
+    if step == "select_doctor":
+        doctors = data.get("_available_doctors", [])
+        chosen_doc = None
+
+        for d in doctors:
+            if d["name"].lower() == lower or f"dr. {d['name'].lower()}" == lower or f"dr {d['name'].lower()}" == lower:
+                chosen_doc = d
+                break
+        if not chosen_doc:
+            for d in doctors:
+                if d["name"].lower() in lower or lower in d["name"].lower():
+                    chosen_doc = d
+                    break
+
+        if chosen_doc:
+            data["_new_doctor_id"] = chosen_doc["id"]
+            data["_new_doctor_name"] = chosen_doc["name"]
+            session["step"] = "select_new_date"
+            off_dates = _get_off_dates_with_blocks(chosen_doc["id"], admin_id)
+            session["_ui_options"] = {"type": "calendar", "off_dates": off_dates}
+            return f"When would you like to see **Dr. {chosen_doc['name']}**? Pick a new date:"
+
+        return "I couldn't match that doctor. Please select one from the list."
+
+    # ── Step 5: Select new date ──
+    if step == "select_new_date":
+        from calendar_service import _parse_date
+        parsed_date = _parse_date(user_message)
+        if not parsed_date:
+            return "I didn't understand that date. Could you try again? (e.g. Monday, April 10, tomorrow)"
+
+        date_iso = parsed_date.isoformat()
+        date_display = parsed_date.strftime("%A, %B %d, %Y")
+
+        # Check if date is in the past
+        from datetime import datetime as _dt_r2
+        if parsed_date < _dt_r2.now().date():
+            return "That date is in the past. Please select a future date."
+
+        doctor_id = data.get("_new_doctor_id")
+        doctor = db.get_doctor_by_id(doctor_id) if doctor_id else None
+
+        if not doctor:
+            session["flow"] = None
+            session["step"] = None
+            session["data"] = {}
+            return "Something went wrong finding the doctor. Say **reschedule** to try again."
+
+        # Check if doctor works this day
+        off_dates = _get_off_dates_with_blocks(doctor_id, admin_id)
+        if date_iso in off_dates:
+            return f"**Dr. {doctor['name']}** is not available on **{date_display}**. Please pick another date."
+
+        # Generate time slots
+        doctor_breaks = db.get_doctor_breaks(doctor_id)
+        booking = data.get("_booking_to_reschedule", {})
+
+        # Get service duration if available
+        service_duration = None
+        if booking.get("service_id"):
+            svc = db.get_company_service_by_id(booking["service_id"])
+            if svc and svc.get("duration_minutes"):
+                service_duration = int(svc["duration_minutes"])
+
+        slots = _generate_doctor_slots(doctor, breaks=doctor_breaks, selected_date=date_iso, service_duration=service_duration)
+        booked_times = db.get_booked_times(doctor_id, date_iso)
+
+        # Exclude the original booking's time slot if same doctor and same date
+        # (so the user can re-pick their own slot if desired)
+        orig_booking = data.get("_booking_to_reschedule", {})
+        if str(orig_booking.get("doctor_id")) == str(doctor_id) and orig_booking.get("date") == date_iso:
+            orig_time = orig_booking.get("time", "")
+            booked_times = [t for t in booked_times if t != orig_time and t != orig_time.split(" - ")[0].strip()]
+
+        available_slots = [s for s in slots if not _is_booked_slot(s["time"], booked_times)]
+
+        if not available_slots:
+            return f"No available time slots on **{date_display}** for **Dr. {doctor['name']}**. Please try another date."
+
+        data["_new_date_iso"] = date_iso
+        data["_new_date_display"] = date_display
+        data["_available_slots"] = available_slots
+        session["step"] = "select_time"
+
+        dropdown_items = []
+        for s in slots:
+            item = {"name": s["time"], "hour": s["hour"], "minute": s.get("minute", 0)}
+            if _is_booked_slot(s["time"], booked_times):
+                item["booked"] = True
+            dropdown_items.append(item)
+
+        session["_ui_options"] = {"type": "timeslots", "items": dropdown_items}
+        return f"Available times on **{date_display}** with **Dr. {data.get('_new_doctor_name', '')}**:"
+
+    # ── Step 6: Select time ──
+    if step == "select_time":
+        available_slots = data.get("_available_slots", [])
+        matched_slot = _match_time_to_slot(user_message, available_slots)
+
+        if not matched_slot:
+            # Try exact match
+            for s in available_slots:
+                if s["time"].lower() == lower or s["time"].lower().replace(" ", "") == lower.replace(" ", ""):
+                    matched_slot = s
+                    break
+
+        if not matched_slot:
+            return "I couldn't match that time. Please select one from the available slots."
+
+        data["_new_time"] = matched_slot["time"]
+        session["step"] = "confirm"
+
+        # Build confirmation summary
+        booking = data.get("_booking_to_reschedule", {})
+        old_doctor = f"Dr. {booking.get('doctor_name', '')}" if booking.get("doctor_name") else "N/A"
+        new_doctor = f"Dr. {data.get('_new_doctor_name', '')}"
+        old_date = data.get("_reschedule_date_display", booking.get("date", ""))
+        new_date = data.get("_new_date_display", "")
+        old_time = booking.get("time", "")
+        new_time = matched_slot["time"]
+        service_name = booking.get("service", "")
+
+        summary = f"Here's a summary of the reschedule:\n\n"
+        if service_name:
+            summary += f"**Service:** {service_name}\n"
+        summary += f"**Patient:** {booking.get('customer_name', '')}\n\n"
+        summary += f"**Old appointment:**\n{old_date} at {old_time} — {old_doctor}\n\n"
+        summary += f"**New appointment:**\n{new_date} at {new_time} — {new_doctor}\n\n"
+        summary += f"Do you want to confirm this reschedule?"
+
+        session["_ui_options"] = {"type": "confirm_yesno", "items": [{"name": "Yes, reschedule", "value": "yes"}, {"name": "No, cancel", "value": "no"}]}
+        return summary
+
+    # ── Step 7: Confirm reschedule ──
+    if step == "confirm":
+        if lower in ("yes", "yeah", "yep", "yea", "sure", "ok", "okay", "y", "yes please", "confirm"):
+            booking = data.get("_booking_to_reschedule", {})
+            new_doctor_id = data.get("_new_doctor_id")
+            new_doctor_name = data.get("_new_doctor_name", "")
+            new_date = data.get("_new_date_iso", "")
+            new_time = data.get("_new_time", "")
+
+            if not booking or not new_date or not new_time:
+                session["flow"] = None
+                session["step"] = None
+                session["data"] = {}
+                return "Something went wrong. Say **reschedule** to try again."
+
+            # Update the booking in database
+            conn = db.get_db()
+            try:
+                conn.execute(
+                    """UPDATE bookings SET date=?, time=?, doctor_id=?, doctor_name=?
+                       WHERE id=?""",
+                    (new_date, new_time, new_doctor_id, new_doctor_name, booking["id"])
+                )
+                conn.commit()
+            except Exception as e:
+                conn.close()
+                logger.error(f"Reschedule DB error: {e}")
+                session["flow"] = None
+                session["step"] = None
+                session["data"] = {}
+                return "An error occurred while rescheduling. Please try again or contact the clinic."
+            conn.close()
+
+            # Keep original status — if was confirmed, stays confirmed
+            # If was pending, stays pending (user needs to confirm via form)
+
+            old_date_display = data.get("_reschedule_date_display", booking.get("date", ""))
+            new_date_display = data.get("_new_date_display", "")
+            doctor_info = f" with **Dr. {new_doctor_name}**" if new_doctor_name else ""
+
+            session["flow"] = None
+            session["step"] = None
+            session["data"] = {}
+            return (f"Your appointment has been rescheduled!\n\n"
+                    f"**New appointment:** {new_date_display} at {new_time}{doctor_info}\n\n"
+                    f"Is there anything else I can help you with?")
+
+        elif lower in ("no", "nah", "nope", "n", "no thanks"):
+            session["flow"] = None
+            session["step"] = None
+            session["data"] = {}
+            return "Okay, your appointment stays as is. How else can I help you?"
+
+        return "Please say **yes** to confirm the reschedule or **no** to keep your current appointment."
+
+    # Fallback
+    session["flow"] = None
+    session["step"] = None
+    session["data"] = {}
+    return "Something went wrong. Say **reschedule my appointment** to try again."
+
+
+# ══════════════════════════════════════════════
 #  Lead Capture Flow State Machine
 # ══════════════════════════════════════════════
 
@@ -3575,10 +4039,30 @@ def _ask_ai_during_booking(user_message, session, admin_id=1):
 # ══════════════════════════════════════════════
 
 def process_message(session_id, user_message, admin_id=1, patient_id=None,
-                    customer_id="", customer_api_url=""):
+                    customer_id="", customer_api_url="",
+                    user_name="", user_email="", user_phone=""):
     session = get_session(session_id)
     session["admin_id"] = admin_id
     session["last_message_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # ── Pre-fill from signed-in dashboard user ──
+    if user_name and not session.get("_patient_prefilled"):
+        session["_patient_prefilled"] = True
+        session["_patient_recognized"] = True
+        session["_greeting_name"] = user_name
+        session["_prefill_name"] = user_name
+        if user_email:
+            session["_prefill_email"] = user_email
+        if user_phone:
+            session["_prefill_phone"] = user_phone
+        # If no phone provided, try to find it from patient record
+        if not user_phone and user_email and admin_id:
+            try:
+                _patient_rec = db.get_or_create_patient(admin_id, user_name, user_email, "", increment_booking=False)
+                if _patient_rec and _patient_rec.get("phone"):
+                    session["_prefill_phone"] = _patient_rec["phone"]
+            except Exception:
+                pass
 
     # ── Pre-fill from external customers API (embedded widget only, NOT demo) ──
     is_demo = session_id.startswith("demo_")
@@ -3942,6 +4426,8 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
                 return _reply("No problem, I've stopped the booking process. How else can I help you?")
             elif flow_was == "cancel_appointment":
                 return _reply("OK, I've stopped the cancellation. Your appointment is still active. How else can I help you?")
+            elif flow_was == "reschedule":
+                return _reply("OK, I've stopped the reschedule. Your appointment stays as is. How else can I help you?")
             return _reply("No problem! How else can I help you?")
         return _reply("No worries! Is there anything else I can help you with?")
 
@@ -3967,38 +4453,10 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
         session["history"].append({"role": "assistant", "content": response})
         return response
 
-    # Detect if user wants to cancel an EXISTING appointment (only when NOT in a booking flow)
-    # Use broad matching for "appointment" typos — any word starting with "app" or "apo" near cancel/delete
-    # Check BOTH raw message and AI-corrected message (AI may fix "appoimtent" → "appointment")
-    _appt_variants = r"(app\w+|apo\w+|booking|reservation)"
-    _cancel_verbs = r"(cancel|delete|remove)"
-    wants_cancel_appointment = False
-    for _check_text in (raw_lower, lower):
-        if wants_cancel_appointment:
-            break
-        wants_cancel_appointment = bool(re.search(
-            _cancel_verbs + r"\s+(my\s+|the\s+)?" + _appt_variants, _check_text
-        )) or bool(re.search(
-            r"(want\s+to|need\s+to|can\s+i|please|wanna)\s+" + _cancel_verbs + r"\s+(my\s+|the\s+)?" + _appt_variants, _check_text
-        )) or bool(re.search(
-            _cancel_verbs + r"\b.*\b(dr\.?|doctor|appointment|booking)\b", _check_text
-        ))
-
-    if wants_cancel_appointment and session["flow"] != "cancel_appointment":
-        session["flow"] = "cancel_appointment"
-        session["step"] = "get_date"
-        session["data"] = {"_admin_id": admin_id}
-        # Try to extract a date from the initial message so user doesn't have to repeat
-        from calendar_service import _parse_date
-        parsed_date = _parse_date(raw_lower)
-        if parsed_date:
-            # Feed the message directly into the cancel flow
-            result = handle_cancel_appointment(session, user_message, admin_id)
-            return _reply(result)
-        # Show calendar with booked dates highlighted
-        booked_dates = db.get_booking_dates(admin_id)
-        session["_ui_options"] = {"type": "calendar", "mode": "cancel", "booked_dates": booked_dates}
-        return _reply("I can help you cancel your appointment. What date is it on?")
+    # Handle reschedule flow
+    if session["flow"] == "reschedule":
+        result = handle_reschedule(session, user_message, admin_id)
+        return _reply(result)
 
     # Handle cancel appointment flow
     if session["flow"] == "cancel_appointment":
@@ -4142,63 +4600,34 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
         else:
             return _reply(f"I couldn't find any upcoming appointments for **{identity}**. Would you like to **book one**?")
 
-    # Detect intent using the smart classifier (returns intent + confidence)
-    classified_raw, classified_conf = intent_classifier.classify(corrected)
-    intent = detect_intent(corrected)
-
-    # Step 2b: Sklearn intent classifier — granular dental intent detection
-    sklearn_intent, sklearn_conf = sklearn_classifier.classify(corrected)
-    print(f"[router] sklearn: {sklearn_intent} ({sklearn_conf:.2f}) | classic: {classified_raw} ({classified_conf:.2f}) | flow: {intent}", flush=True)
+    # ── NEW: Keyword classifier for booking/reschedule/cancel ──
+    # Check RAW message first — spell corrector can mangle intent words
+    # (e.g. "reschedule" → "schedule", "reshcdule" → "schedule")
+    raw_intent = chatbot_classifier.classify(user_message)
+    corrected_intent = chatbot_classifier.classify(corrected)
+    # Prefer raw reschedule/cancel over corrected booking (spell corrector strips "re-")
+    if raw_intent in ("reschedule", "cancel"):
+        classifier_intent = raw_intent
+    elif corrected_intent:
+        classifier_intent = corrected_intent
+    else:
+        classifier_intent = raw_intent
+    print(f"[classifier] intent={classifier_intent} | raw_intent={raw_intent} | corrected_intent={corrected_intent}", flush=True)
 
     # Log conversation for analytics
     try:
-        db.log_chat(session_id, admin_id, user_message, intent=sklearn_intent or classified_raw, intent_confidence=sklearn_conf)
+        db.log_chat(session_id, admin_id, user_message, intent=classifier_intent or "general", intent_confidence=1.0 if classifier_intent else 0.0)
     except Exception:
         pass
 
-    # ── Doctor availability / schedule / hours question guard (must run BEFORE restriction filter) ──
-    _avail_pattern = re.search(
-        r'\b(when|what\s+day|which\s+day|what\s+time|what\s+hour|work|schedule|available|availability|off\s+day|day\s+off|open|close|closed|hours?|friday|saturday|sunday|monday|tuesday|wednesday|thursday|weekend|weekday|holiday)\b',
-        raw_lower
-    )
-    _avail_question = _avail_pattern and re.search(
-        r'\b(work|schedule|available|availability|off|day|hour|time|open|close|closed|friday|saturday|sunday|monday|tuesday|wednesday|thursday|weekend|weekday|holiday)\b', raw_lower
-    ) and not re.search(r'\b(book|cancel|delete|remove|reserve)\b', raw_lower)
-    # Also catch "are you open" patterns directly
-    _is_hours_question = bool(re.search(r'\b(are\s+you\s+open|do\s+you\s+open|when\s+do\s+you\s+open|what\s+are\s+your\s+hours|opening\s+hours|office\s+hours|clinic\s+hours|working\s+hours)\b', raw_lower))
-    if (_avail_question or _is_hours_question) and not session.get("flow"):
-        intent = "qa"
-
-    # Step 3: Restriction filter — block non-dental messages (only for Q&A, not booking/cancel)
-    # Skip restriction filter for availability questions (already validated as dental-related above)
-    if intent == "qa" and classified_raw not in ("greeting", "farewell") and not _avail_question:
-        is_blocked, blocked_response = restriction_filter.is_off_topic(
-            corrected, sklearn_intent=sklearn_intent, sklearn_conf=sklearn_conf
-        )
-        if is_blocked:
-            return _reply(blocked_response)
-
-    # ── Greeting / Farewell handler (works without AI) ──
-    _greeting_words = {"hi", "hello", "hey", "hola", "marhaba", "salam", "good morning", "good afternoon", "good evening", "howdy", "yo", "sup", "hii", "hiii", "hiiii", "helloo", "hellooo"}
-    _farewell_words = {"bye", "goodbye", "thanks", "thank you", "thank", "thankyou", "see you", "take care", "bye bye", "shukran"}
-    # Don't greet if the last AI message suggested booking and user is confirming
-    _last_bot_msg = session["history"][-1].get("content", "").lower() if session.get("history") else ""
-    _bot_offered_booking = any(p in _last_bot_msg for p in ["would you like to book", "book an appointment", "schedule a consultation", "schedule an appointment", "would you like to schedule"])
-    _is_affirmative = raw_lower in ("okay", "ok", "yes", "sure", "yeah", "yep", "yea", "please", "yes please", "let's book", "lets book")
-    if (raw_lower in _greeting_words or classified_raw == "greeting") and not (_is_affirmative and _bot_offered_booking):
-        greeting_name = session.get("_greeting_name", "")
-        name_part = f" {greeting_name}" if greeting_name else ""
-        return _reply(
-            f"Hello{name_part}! Welcome to **BrightSmile Advanced Dental Center**. 😊\n\n"
-            "How can I help you today? I can:\n"
-            "• Book an appointment\n"
-            "• Answer questions about our services & pricing\n"
-            "• Help with insurance queries\n"
-            "• Provide dental advice\n\n"
-            "Just let me know what you need!"
-        )
-    if raw_lower in _farewell_words or classified_raw == "farewell":
-        return _reply("Thank you for chatting with us! If you need anything else, don't hesitate to reach out. Have a wonderful day! 😊")
+    # Check if user is confirming a booking suggestion from AI (e.g. "okay", "yes", "sure")
+    if lower in ("okay", "ok", "yes", "sure", "yeah", "yep", "yea", "please", "yes please", "book", "i want to book", "lets book", "let's book"):
+        _last_bot_msg = session["history"][-1].get("content", "").lower() if session.get("history") else ""
+        if any(phrase in _last_bot_msg for phrase in ["book an appointment", "book appointment", "would you like to book", "schedule a consultation", "schedule an appointment"]):
+            session["flow"] = "booking"
+            session["step"] = None
+            session["data"] = {"_admin_id": admin_id, "_session_id": session_id}
+            return _reply(handle_booking(session, user_message))
 
     # ── Silent auto-lead capture (Intent Scoring) ──
     # Every message gets scored based on user behavior signals.
@@ -4270,186 +4699,16 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
             except Exception as e:
                 print(f"[lead] Auto-capture failed: {e}", flush=True)
 
-    # Low-confidence booking with doctor name mentioned → likely an availability follow-up
-    # e.g. "I mean for doctor jhon only" after asking about availability
-    if intent == "booking" and classified_conf < 0.8:
-        # Check if recent conversation was about availability/doctors
-        recent_about_availability = False
-        for msg in session.get("history", [])[-4:]:
-            if msg.get("role") != "user":
-                continue  # Only check user messages, not bot responses
-            content = msg.get("content", "").lower()
-            if any(w in content for w in ["available", "time slots", "schedule", "availability"]):
-                recent_about_availability = True
-                break
-        if recent_about_availability:
-            intent = "qa"  # Treat as a follow-up question, not booking
-
-    # Check if user is confirming a booking suggestion from AI (e.g. "okay", "yes", "sure")
-    if lower in ("okay", "ok", "yes", "sure", "yeah", "yep", "yea", "please", "yes please", "book", "i want to book", "lets book", "let's book"):
-        # Check if the last assistant message suggested booking
-        if session["history"] and any(phrase in session["history"][-1].get("content", "").lower() for phrase in ["book an appointment", "book appointment", "would you like to book", "schedule a consultation", "schedule an appointment"]):
-            session["flow"] = "booking"
-            session["step"] = None
-            session["data"] = {"_admin_id": admin_id, "_session_id": session_id}
-
-            # Context-aware: detect which service was being discussed
-            try:
-                all_svcs = db.get_services_with_doctors(admin_id)
-                active_svcs = [s for s in all_svcs if s.get("is_active", 1)]
-                if active_svcs:
-                    user_history_texts = []
-                    for msg in session.get("history", [])[-8:]:
-                        if msg.get("role") == "user":
-                            user_history_texts.append(msg.get("content", "").lower())
-                    combined_user_history = " ".join(user_history_texts)
-
-                    best_svc = None
-                    best_score = 0
-                    for svc in active_svcs:
-                        svc_lower = svc["name"].lower()
-                        svc_words = [w for w in svc_lower.split() if len(w) >= 4]
-                        score = 0
-                        if svc_lower in combined_user_history:
-                            score = 30
-                        elif svc_words and any(w in combined_user_history for w in svc_words):
-                            score = 10 + sum(1 for w in svc_words if w in combined_user_history)
-                        if score > best_score:
-                            best_score = score
-                            best_svc = svc
-                    if best_svc:
-                        session["data"]["_detected_service"] = best_svc
-            except Exception:
-                pass
-
-            return _reply(handle_booking(session, user_message))
-
-    # Specialization/symptom queries take priority over booking
-    # e.g. "what specialist do I need for braces" is a question, not a booking request
-    if claude_specialist.is_configured() and claude_specialist.is_specialization_query(corrected):
-        all_doctors = db.get_doctors(admin_id)
-        active_doctors = [d for d in all_doctors if d.get("status") == "active"]
-        specialist_result = claude_specialist.analyze_symptoms(
-            corrected, doctors=active_doctors, history=session["history"]
-        )
-        if specialist_result and specialist_result.get("reply"):
-            return _reply(specialist_result["reply"])
-
-    # ── Fast Booking Detection ──
-    # Triggers when message has booking keywords + details (doctor/time/date)
-    # Works even if intent classifier misses it (e.g. "book with dr john at 2pm, any open spots?")
-    # Skip if the user wants to cancel/delete an appointment
-    _wants_cancel_or_delete = bool(re.search(r'\b(cancel|delete|remove)\b', raw_lower)) or bool(re.search(r'\b(cancel|delete|remove)\b', lower))
-    # Skip booking signal when avail/hours guard already set intent to QA
-    _avail_guard_active = _avail_question or _is_hours_question
-    has_booking_signal = not _wants_cancel_or_delete and not _avail_guard_active and (
-        bool(re.search(
-            r'\b(book|booking|reserve|reservation|schedule|appointment|appoint|apoitment|apointment)\b',
-            raw_lower
-        )) or (intent == "booking") or (sklearn_intent == "book_appointment" and sklearn_conf > 0.4)
-    )
-
-    if has_booking_signal:
-        extracted, active_docs = _parse_fast_booking(corrected, admin_id)
-
-        if extracted and any(k in extracted for k in ("doctor", "ambiguous_doctors", "time_raw", "date_raw")):
-            # User provided booking details — use fast booking
-            session["flow"] = "booking"
-            session["step"] = None
-            session["data"] = {"_admin_id": admin_id, "_session_id": session_id}
-            reply_text, ui_opts = _init_fast_booking(session, extracted, active_docs, admin_id)
-            if ui_opts:
-                session["_ui_options"] = ui_opts
-            return _reply(reply_text)
-
-    # Start cancel appointment flow via intent detection
-    # Guard: only trigger cancel when the message actually has cancel-related words
-    # Prevents false triggers like "Can I have more details?" being classified as cancellation
-    _is_change_not_cancel = bool(re.search(r'\b(change|switch|swap|replace)\s+(my\s+|the\s+)?(doctor|dentist|specialist)\b', raw_lower))
-    _has_cancel_words = bool(re.search(r'\b(cancel|reschedule|postpone|can\'t make it|move.*appointment|won\'t be able)\b', raw_lower))
-    if intent == "cancel" and session["flow"] != "cancel_appointment" and not _is_change_not_cancel and _has_cancel_words:
-        session["flow"] = "cancel_appointment"
-        session["step"] = "get_date"
-        session["data"] = {"_admin_id": admin_id}
-        from calendar_service import _parse_date
-        parsed_date = _parse_date(raw_lower)
-        if parsed_date:
-            result = handle_cancel_appointment(session, user_message, admin_id)
-            return _reply(result)
-        booked_dates = db.get_booking_dates(admin_id)
-        session["_ui_options"] = {"type": "calendar", "mode": "cancel", "booked_dates": booked_dates}
-        return _reply("I can help you cancel your appointment. What date is it on?")
-
-    # Start booking flow (needs state management — must stay before AI)
-    # Also trigger if has_booking_signal is True (user said "book" but classifier missed it)
-    if intent == "booking" or has_booking_signal:
-        session["flow"] = "booking"
-        session["step"] = None
-        session["data"] = {"_admin_id": admin_id, "_session_id": session_id}
-
-        # Context-aware: detect service from current message + conversation history
-        # Priority: 1) full name in current message, 2) word match in current message,
-        # 3) full name in user history, 4) word match in user history
-        try:
-            all_svcs = db.get_services_with_doctors(admin_id)
-            active_svcs = [s for s in all_svcs if s.get("is_active", 1)]
-            if active_svcs:
-                current_msg = user_message.lower()
-                # Only use USER messages from history (not AI responses which mention many services)
-                user_history_texts = []
-                for msg in session.get("history", [])[-8:]:
-                    if msg.get("role") == "user":
-                        user_history_texts.append(msg.get("content", "").lower())
-                combined_user_history = " ".join(user_history_texts)
-
-                best_svc = None
-                best_score = 0
-                for svc in active_svcs:
-                    svc_lower = svc["name"].lower()
-                    svc_words = [w for w in svc_lower.split() if len(w) >= 5]
-                    score = 0
-                    # Full name match in current message (highest priority)
-                    if svc_lower in current_msg:
-                        score = 100
-                    # Word match in current message
-                    elif svc_words and any(w in current_msg for w in svc_words):
-                        score = 50 + sum(1 for w in svc_words if w in current_msg)
-                    # Full name match in user history
-                    elif svc_lower in combined_user_history:
-                        score = 30
-                    # Word match in user history
-                    elif svc_words and any(w in combined_user_history for w in svc_words):
-                        score = 10 + sum(1 for w in svc_words if w in combined_user_history)
-                    if score > best_score:
-                        best_score = score
-                        best_svc = svc
-                if best_svc:
-                    session["data"]["_detected_service"] = best_svc
-        except Exception:
-            pass
-
-        return _reply(handle_booking(session, user_message))
-
-    # Start lead capture flow (needs state management — must stay before AI)
-    # Skip lead capture for recognized customers — they already have info on file,
-    # so answer their question via Q&A instead of capturing a lead
-    if intent == "lead_capture" and not session.get("_patient_recognized"):
-        session["flow"] = "lead_capture"
-        session["step"] = None
-        session["data"] = {}
-        return _reply(handle_lead_capture(session, user_message))
+    # ── Classifier-based intent routing ──
 
     # ── My Appointments Lookup ──
-    # If user asks about their upcoming appointments, look them up in the DB
-    # Match appointment words including typos and plurals
-    _appt_words = r'(appointments?|bookings?|appo\w+ments?|apo\w+ments?|appoitments?)'
-    _appt_triggers = r'(when\s+is|when\s+are|my\s+next|my\s+upcoming|check\s+my|view\s+my|show\s+my|do\s+i\s+have|my)'
+    _appt_words_re = r'(appointments?|bookings?|appo\w+ments?|apo\w+ments?|appoitments?)'
+    _appt_triggers_re = r'(when\s+is|when\s+are|my\s+next|my\s+upcoming|check\s+my|view\s+my|show\s+my|do\s+i\s+have|my)'
     _appt_check = (
-        re.search(_appt_triggers + r'\b.*?' + _appt_words, raw_lower) or
-        re.search(_appt_triggers + r'\b.*?' + _appt_words, lower) or
-        (sklearn_intent == "appointment_reminder" and sklearn_conf > 0.3)
+        re.search(_appt_triggers_re + r'\b.*?' + _appt_words_re, raw_lower) or
+        re.search(_appt_triggers_re + r'\b.*?' + _appt_words_re, lower)
     )
-    if _appt_check:
+    if _appt_check and not classifier_intent:
         _cust_name = session.get("_prefill_name", "").strip()
         _cust_email = session.get("_prefill_email", "").strip()
         _cust_phone = session.get("_prefill_phone", "").strip()
@@ -4470,19 +4729,40 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
             else:
                 return _reply("You don't have any upcoming appointments. Would you like to **book one**?")
         else:
-            # Not logged in / no identity — ask for info then look up
             if session.get("_is_embedded") and not session.get("_customer_logged_in"):
                 return _reply("Please **log in** to your account first so I can look up your appointments.")
-            # Start appointment lookup flow
             session["flow"] = "appointment_lookup"
             session["step"] = "get_identity"
             session["data"] = {"_admin_id": admin_id}
             return _reply("Sure! Could you tell me your **name** or **email** so I can look up your appointments?")
 
+    # ── Route based on classifier intent ──
+    if classifier_intent == "reschedule":
+        session["flow"] = "reschedule"
+        session["step"] = "get_date"
+        session["data"] = {"_admin_id": admin_id}
+        booked_dates = _get_customer_booked_dates(session, admin_id)
+        session["_ui_options"] = {"type": "calendar", "mode": "cancel", "booked_dates": booked_dates}
+        return _reply("I can help you reschedule your appointment. What date is your current appointment on?")
+
+    if classifier_intent == "cancel":
+        session["flow"] = "cancel_appointment"
+        session["step"] = "get_date"
+        session["data"] = {"_admin_id": admin_id}
+        booked_dates = db.get_booking_dates(admin_id)
+        session["_ui_options"] = {"type": "calendar", "mode": "cancel", "booked_dates": booked_dates}
+        return _reply("I can help you cancel your appointment. What date is it on?")
+
+    if classifier_intent == "booking":
+        session["flow"] = "booking"
+        session["step"] = None
+        session["data"] = {"_admin_id": admin_id, "_session_id": session_id}
+        return _reply(handle_booking(session, user_message))
+
     # ══════════════════════════════════════════════════════════════
-    #  AI BRAIN — routes to the right AI for each type of question
-    #  Step 4: Smart router (sklearn intent → correct engine)
-    #  Fallback: Claude AI → Groq → OpenAI → offline
+    #  No classifier match → send to Groq AI with full company context
+    #  Groq handles: greetings, farewells, dental Q&A, services,
+    #  pricing, availability, symptoms — ONLY dentist-related topics
     # ══════════════════════════════════════════════════════════════
     company_info = db.get_company_info(admin_id)
     all_doctors = db.get_doctors(admin_id)
@@ -4519,48 +4799,14 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
     except Exception:
         pass
 
-    # ── Service availability check — intercept before AI if user asks about a service we don't offer ──
-    _service_ask_early = bool(re.search(r'\b(do you offer|do you have|do you do|do you provide|is .* available|can (i|you) get)\b', raw_lower))
-    if _service_ask_early and (sklearn_intent in ("services_info",) or classified_raw in ("treatment_question",)):
-        try:
-            _our_services_early = services_list if 'services_list' in dir() else db.get_company_services(admin_id)
-            _our_svc_names_early = [s["name"].lower() for s in _our_services_early if s.get("is_active", 1)]
-            _found_early = any(sn in raw_lower or any(w in raw_lower for w in sn.split() if len(w) >= 5) for sn in _our_svc_names_early)
-            if not _found_early:
-                _svc_list_early = ", ".join(s["name"] for s in _our_services_early if s.get("is_active", 1))
-                return _reply(
-                    f"We don't currently offer that service at our clinic.\n\n"
-                    f"Here are the services we do offer:\n**{_svc_list_early}**\n\n"
-                    f"Would you like to know more about any of these, or book an appointment?"
-                )
-        except Exception:
-            pass
+    # Add customer name to company_info so AI can address them by name
+    _customer_name = session.get("_greeting_name", "") or session.get("_prefill_name", "")
+    if _customer_name:
+        if company_info is None:
+            company_info = {}
+        company_info["_customer_name"] = _customer_name
 
-    # ── Smart router: sklearn intent → correct engine ──
-    # Threshold lowered for 24-intent model (confidence spreads across more classes)
-    if sklearn_intent and sklearn_conf > 0.15:
-        smart_result = smart_router.route(
-            sklearn_intent, sklearn_conf, corrected,
-            {
-                "company_info": company_info,
-                "active_doctors": active_doctors,
-                "doctor_slots": doctor_slots,
-                "history": session["history"],
-            }
-        )
-        if smart_result:
-            print(f"[router] Smart route: {sklearn_intent} -> response", flush=True)
-            return _reply(smart_result)
-
-    # ── Claude AI for specialization/symptom cases (fallback) ──
-    if claude_specialist.is_configured() and claude_specialist.is_specialization_query(corrected):
-        claude_result = claude_specialist.analyze_symptoms(
-            corrected, doctors=active_doctors, history=session["history"]
-        )
-        if claude_result and claude_result.get("reply"):
-            return _reply(claude_result["reply"])
-
-    # ── Groq AI for everything else (fallback) ──
+    # Send to Groq AI with full context (dentist-only constraint is in the system prompt)
     if message_interpreter.is_configured():
         ai_result = message_interpreter.think_and_respond(
             corrected, company_info, active_doctors,
@@ -4569,118 +4815,13 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
         if ai_result and ai_result.get("reply"):
             return _reply(ai_result["reply"])
 
-    # Try OpenAI as last AI fallback
-    if dental_ai.is_configured():
-        ai_result = dental_ai.think_and_respond(
-            corrected, company_info, active_doctors, history=session["history"]
-        )
-        if ai_result and ai_result.get("reply"):
-            return _reply(ai_result["reply"])
-
-    # ══════════════════════════════════════════════════════════════
-    #  Offline fallbacks — if BOTH AI providers fail
-    # ══════════════════════════════════════════════════════════════
-
-    # Availability fallback — answer using doctor schedule data when AI fails
-    if sklearn_intent in ("check_availability",) or classified_raw == "availability":
-        if active_doctors:
-            avail_lines = []
-            for doc in active_doctors:
-                working_days = _get_doctor_working_days(doc)
-                avail_lines.append(f"**Dr. {doc['name']}** ({doc.get('specialty', 'General')})")
-                if isinstance(working_days, list):
-                    # Show each working day with its time range
-                    for day in working_days:
-                        hours = _get_doctor_hours_for_day(doc, day)
-                        if hours:
-                            avail_lines.append(f"  • {day}: {hours[0]} – {hours[1]}")
-                        else:
-                            avail_lines.append(f"  • {day}")
-                else:
-                    avail_lines.append(f"  Working days: {working_days}")
-            return _reply("Here's our doctors' availability:\n\n" + "\n".join(avail_lines) + "\n\nWould you like to book an appointment?")
-
-    # ── Service availability check — if user asks about a specific service, verify we offer it ──
-    _service_ask = bool(re.search(r'\b(do you offer|do you have|do you do|do you provide|is .* available|can (i|you) get)\b', raw_lower))
-    if _service_ask and sklearn_intent in ("services_info",) or classified_raw in ("treatment_question",):
-        try:
-            _our_services = db.get_company_services(admin_id)
-            _our_svc_names = [s["name"].lower() for s in _our_services if s.get("is_active", 1)]
-            # Check if the asked service matches any of ours
-            _asked_lower = raw_lower
-            _found_match = any(sn in _asked_lower or any(w in _asked_lower for w in sn.split() if len(w) >= 5) for sn in _our_svc_names)
-            if not _found_match and _service_ask:
-                # Build a list of our services to suggest
-                _svc_list = ", ".join(s["name"] for s in _our_services if s.get("is_active", 1))
-                return _reply(
-                    f"We don't currently offer that service at our clinic.\n\n"
-                    f"Here are the services we do offer:\n**{_svc_list}**\n\n"
-                    f"Would you like to know more about any of these, or book an appointment?"
-                )
-        except Exception:
-            pass
-
-    # Dental knowledge engine — trained on 60+ dental topics
-    kb_result = dke.find_best_answer(user_message)
-    if kb_result:
-        answer = kb_result["answer"]
-        if kb_result.get("follow_up"):
-            answer += "\n\n" + kb_result["follow_up"]
-        return _reply(answer)
-
-    # Symptom detection
-    symptom_specialty = find_symptom_specialty(corrected)
-    if symptom_specialty:
-        return _reply(_build_symptom_response(symptom_specialty, admin_id))
-
-    # ── Feature 10: Check if user wants human handoff ──
-    human_phrases = ("speak to a human", "talk to someone", "real person", "human agent",
-                     "live chat", "speak to staff", "talk to a person", "speak to someone",
-                     "customer service", "i need help from a person")
-    if any(phrase in msg_lower_raw for phrase in human_phrases):
-        db.create_handoff(admin_id, session_id, patient_name=session.get("_greeting_name", ""),
-                         reason="Patient requested human assistance", ai_confidence=sklearn_conf)
-        return _reply("I'm connecting you with a staff member now. A team member will be with you shortly. Please hold on — they'll see your full conversation history.")
-
-    # ── Feature 10: Auto-handoff on very low confidence (engine) ──
-    try:
-        confidence_score = max(sklearn_conf, classified_conf)
-        should_hand, reason = handoff_engine.should_handoff(user_message, confidence_score, admin_id)
-        if should_hand:
-            patient_name = session.get("_greeting_name", "Patient")
-            handoff_engine.create_handoff(admin_id, session_id, patient_name, reason, ai_confidence=confidence_score)
-            try:
-                realtime.emit_handoff_request(admin_id, {"patient_name": patient_name, "reason": reason})
-            except Exception:
-                pass
-            lang = session.get("language", "en")
-            try:
-                response = tr.t('handoff_connecting', lang)
-            except Exception:
-                response = "I'm connecting you with a staff member now. Please hold on."
-            return _reply(response)
-    except Exception:
-        pass
-    # Fallback: legacy auto-handoff
-    if sklearn_conf < 0.15 and classified_conf < 0.3:
-        try:
-            company = db.get_company_info(admin_id)
-            threshold = 0.3
-            if company and company.get("handoff_threshold"):
-                threshold = float(company["handoff_threshold"])
-            if sklearn_conf < threshold and classified_conf < threshold:
-                db.create_handoff(admin_id, session_id, patient_name=session.get("_greeting_name", ""),
-                                 reason="Low AI confidence", ai_confidence=sklearn_conf)
-        except Exception:
-            pass
-
+    # Offline fallback — if Groq is not configured or fails
     return _reply(
         "I'm here to help with your dental needs! I can:\n\n"
-        "**1.** Help you find the right specialist for your problem\n"
-        "**2.** Book an appointment\n"
-        "**3.** Answer questions about our services, hours, and pricing\n"
-        "**4.** Save your contact info for a callback\n\n"
-        "Tell me what's bothering you or what you need help with!"
+        "• Book an appointment\n"
+        "• Reschedule or cancel existing appointments\n"
+        "• Answer questions about our services & pricing\n\n"
+        "Just let me know what you need!"
     )
 
 
@@ -4781,6 +4922,13 @@ def auth_login():
     user, error = db.login_user(email_addr, password)
     if error:
         return jsonify({"error": error}), 400
+
+    # Process any expired plan changes on login
+    target_id = user["id"]
+    if user.get("admin_id") and user["admin_id"] != 0:
+        target_id = user["admin_id"]
+    if db.process_plan_expiry(target_id):
+        user = db.get_user_by_token(user["token"])
 
     return jsonify({"token": user["token"], "user": db.user_to_public(user)})
 
@@ -4931,8 +5079,107 @@ def auth_update_plan():
     target_user_id = user["id"]
     if user.get("admin_id") and user["admin_id"] != 0:
         target_user_id = user["admin_id"]
-    db.update_user_plan(target_user_id, plan)
-    user["plan"] = plan
+    billing_cycle = data.get("billing_cycle", "monthly")
+
+    current_plan = user.get("plan", "free_trial")
+    if current_plan == "free_trial":
+        # First time subscribing — activate immediately
+        db.update_user_plan(target_user_id, plan, billing_cycle=billing_cycle)
+        user = db.get_user_by_token(token)
+        return jsonify({"ok": True, "scheduled": False, "user": db.user_to_public(user)})
+    else:
+        # Already on a paid plan — schedule change for next billing cycle
+        db.schedule_plan_change(target_user_id, plan)
+        user = db.get_user_by_token(token)
+        plan_label = plan.capitalize()
+        expires = user.get("plan_expires_at", "")
+        msg = f"Plan change to {plan_label} scheduled."
+        if expires:
+            try:
+                from datetime import datetime as _dt
+                exp = _dt.strptime(expires, "%Y-%m-%d %H:%M:%S")
+                msg += f" Takes effect on {exp.strftime('%b %d, %Y')}."
+            except Exception:
+                pass
+        return jsonify({"ok": True, "scheduled": True, "message": msg, "user": db.user_to_public(user)})
+
+
+@app.route("/auth/subscription", methods=["GET"])
+def get_subscription():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    target_id = user["id"]
+    if user.get("admin_id") and user["admin_id"] != 0:
+        target_id = user["admin_id"]
+    # Process any expired plans first
+    db.process_plan_expiry(target_id)
+    # Get the actual plan owner's data
+    conn = db.get_db()
+    row = conn.execute("SELECT * FROM users WHERE id=?", (target_id,)).fetchone()
+    conn.close()
+    owner = dict(row) if row else dict(user)
+    plan = owner.get("plan", "free_trial")
+    payment = db.get_payment_method(target_id)
+    conv_count = db.get_monthly_conversation_count(target_id)
+    conv_limit = db.PLAN_MONTHLY_CONVERSATIONS.get(plan, 50)
+    pending = owner.get("pending_plan", "")
+    return jsonify({
+        "plan": plan,
+        "pending_plan": pending,
+        "plan_started_at": owner.get("plan_started_at", ""),
+        "plan_expires_at": owner.get("plan_expires_at", ""),
+        "billing_cycle": owner.get("billing_cycle", "monthly"),
+        "auto_renew": owner.get("auto_renew", 1),
+        "monthly_cost": db.PLAN_COSTS.get(plan, 0),
+        "conversations_used": conv_count,
+        "conversations_limit": conv_limit,
+        "payment_method": payment,
+    })
+
+
+@app.route("/auth/cancel-subscription", methods=["POST"])
+def cancel_subscription():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    target_id = user["id"]
+    if user.get("admin_id") and user["admin_id"] != 0:
+        target_id = user["admin_id"]
+    db.cancel_user_plan(target_id)
+    user = db.get_user_by_token(token)
+    return jsonify({"ok": True, "message": "Subscription cancelled. Your plan remains active until the end of the billing period.", "user": db.user_to_public(user)})
+
+
+@app.route("/auth/cancel-plan-change", methods=["POST"])
+def cancel_plan_change():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    target_id = user["id"]
+    if user.get("admin_id") and user["admin_id"] != 0:
+        target_id = user["admin_id"]
+    db.cancel_pending_plan_change(target_id)
+    user = db.get_user_by_token(token)
+    return jsonify({"ok": True, "message": "Scheduled plan change cancelled.", "user": db.user_to_public(user)})
+
+
+@app.route("/auth/toggle-auto-renew", methods=["POST"])
+def toggle_auto_renew():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    data = request.get_json() or {}
+    enabled = data.get("enabled", True)
+    target_id = user["id"]
+    if user.get("admin_id") and user["admin_id"] != 0:
+        target_id = user["admin_id"]
+    db.toggle_auto_renew(target_id, enabled)
+    user = db.get_user_by_token(token)
     return jsonify({"ok": True, "user": db.user_to_public(user)})
 
 
@@ -5019,14 +5266,24 @@ def chat():
     customer_id = str(data.get("customer_id", "")).strip()
     customer_api_url = data.get("customer_api_url", "").strip()
 
+    # User info from dashboard chatbot (signed-in users)
+    user_name = data.get("user_name", "").strip()
+    user_email = data.get("user_email", "").strip()
+    user_phone = data.get("user_phone", "").strip()
+
     if not user_message:
         return jsonify({"error": "Empty message"}), 400
     if len(user_message) > 2000:
         user_message = user_message[:2000]
 
+    # Check conversation limit for the admin's plan
+    if db.is_conversation_limit_reached(admin_id):
+        return jsonify({"reply": "We're sorry, but our chat service is temporarily unavailable. Please try again later or contact the clinic directly for assistance."})
+
     try:
         reply = process_message(session_id, user_message, admin_id=admin_id,
-                                customer_id=customer_id, customer_api_url=customer_api_url)
+                                customer_id=customer_id, customer_api_url=customer_api_url,
+                                user_name=user_name, user_email=user_email, user_phone=user_phone)
         # Check if session has UI options to send to frontend
         session = get_session(session_id)
         response = {"reply": reply}
@@ -5072,6 +5329,10 @@ def patient_chat():
         return jsonify({"error": "Empty message"}), 400
     if len(user_message) > 2000:
         user_message = user_message[:2000]
+
+    # Check conversation limit
+    if db.is_conversation_limit_reached(admin_id):
+        return jsonify({"reply": "We're sorry, but our chat service is temporarily unavailable. Please try again later or contact the clinic directly for assistance."})
 
     try:
         reply = process_message(session_id, user_message, admin_id=admin_id, patient_id=patient_id)
@@ -5183,25 +5444,25 @@ def api_bookings():
         conn = db.get_db()
         for bid in ids_to_complete:
             conn.execute("UPDATE bookings SET status='completed' WHERE id=?", (bid,))
-            # Update patient's last_visit_date
-            bk = conn.execute("SELECT * FROM bookings WHERE id=?", (bid,)).fetchone()
-            if bk and bk["patient_id"]:
-                conn.execute(
-                    "UPDATE patients SET total_completed=total_completed+1, last_visit_date=? WHERE id=? AND (last_visit_date IS NULL OR last_visit_date < ?)",
-                    (bk["date"], bk["patient_id"], bk["date"])
-                )
-            elif bk:
-                # Try to find patient by email/phone and update
-                pat = None
-                if bk.get("customer_email"):
-                    pat = conn.execute("SELECT id FROM patients WHERE admin_id=? AND email=?", (bk["admin_id"], bk["customer_email"])).fetchone()
-                if not pat and bk.get("customer_phone"):
-                    pat = conn.execute("SELECT id FROM patients WHERE admin_id=? AND phone=?", (bk["admin_id"], bk["customer_phone"])).fetchone()
-                if pat:
+            bk_row = conn.execute("SELECT * FROM bookings WHERE id=?", (bid,)).fetchone()
+            if bk_row:
+                bk = dict(bk_row)
+                if bk.get("patient_id"):
                     conn.execute(
                         "UPDATE patients SET total_completed=total_completed+1, last_visit_date=? WHERE id=? AND (last_visit_date IS NULL OR last_visit_date < ?)",
-                        (bk["date"], pat["id"], bk["date"])
+                        (bk["date"], bk["patient_id"], bk["date"])
                     )
+                else:
+                    pat = None
+                    if bk.get("customer_email"):
+                        pat = conn.execute("SELECT id FROM patients WHERE admin_id=? AND email=?", (bk["admin_id"], bk["customer_email"])).fetchone()
+                    if not pat and bk.get("customer_phone"):
+                        pat = conn.execute("SELECT id FROM patients WHERE admin_id=? AND phone=?", (bk["admin_id"], bk["customer_phone"])).fetchone()
+                    if pat:
+                        conn.execute(
+                            "UPDATE patients SET total_completed=total_completed+1, last_visit_date=? WHERE id=? AND (last_visit_date IS NULL OR last_visit_date < ?)",
+                            (bk["date"], pat["id"], bk["date"])
+                        )
         conn.commit()
         conn.close()
 
@@ -5239,6 +5500,48 @@ def api_previous_bookings():
     else:
         admin_id = get_effective_admin_id(user)
         bookings = db.get_all_bookings(admin_id=admin_id)
+
+    # Auto-complete past bookings whose date+time has passed
+    now = datetime.now()
+    ids_to_complete = []
+    for b in bookings:
+        if b.get("status") in ("no_show", "cancelled", "completed"):
+            continue
+        try:
+            time_parts = b["time"].split(" - ")
+            end_time_str = time_parts[-1].strip() if len(time_parts) > 1 else time_parts[0].strip()
+            booking_end = datetime.strptime(f"{b['date']} {end_time_str}", "%Y-%m-%d %I:%M %p")
+            if booking_end < now:
+                ids_to_complete.append(b["id"])
+                b["status"] = "completed"
+        except (ValueError, KeyError, IndexError):
+            pass
+
+    if ids_to_complete:
+        conn = db.get_db()
+        for bid in ids_to_complete:
+            conn.execute("UPDATE bookings SET status='completed' WHERE id=?", (bid,))
+            bk_row = conn.execute("SELECT * FROM bookings WHERE id=?", (bid,)).fetchone()
+            if bk_row:
+                bk = dict(bk_row)
+                if bk.get("patient_id"):
+                    conn.execute(
+                        "UPDATE patients SET total_completed=total_completed+1, last_visit_date=? WHERE id=? AND (last_visit_date IS NULL OR last_visit_date < ?)",
+                        (bk["date"], bk["patient_id"], bk["date"])
+                    )
+                else:
+                    pat = None
+                    if bk.get("customer_email"):
+                        pat = conn.execute("SELECT id FROM patients WHERE admin_id=? AND email=?", (bk["admin_id"], bk["customer_email"])).fetchone()
+                    if not pat and bk.get("customer_phone"):
+                        pat = conn.execute("SELECT id FROM patients WHERE admin_id=? AND phone=?", (bk["admin_id"], bk["customer_phone"])).fetchone()
+                    if pat:
+                        conn.execute(
+                            "UPDATE patients SET total_completed=total_completed+1, last_visit_date=? WHERE id=? AND (last_visit_date IS NULL OR last_visit_date < ?)",
+                            (bk["date"], pat["id"], bk["date"])
+                        )
+        conn.commit()
+        conn.close()
 
     # Only return past/finished bookings
     previous = [b for b in bookings if b.get("status") in ("completed", "cancelled", "no_show")]
@@ -5304,6 +5607,343 @@ def api_roi():
     return jsonify(data)
 
 
+@app.route("/api/external/booking", methods=["POST"])
+def api_external_booking():
+    """External endpoint for syncing appointments from a website/PMS."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    # Authenticate via external API key (dedicated per-company key for PMS integrations)
+    admin_id = db.get_admin_by_external_api_key(token)
+    if not admin_id:
+        return jsonify({"error": "Invalid or missing API key"}), 401
+
+    data = request.get_json(silent=True) or {}
+    patient_name = (data.get("patient_name") or "").strip()
+    doctor_name_input = (data.get("doctor_name") or "").strip()
+    date_raw = (data.get("date") or "").strip()
+    time_raw = (data.get("time") or "").strip()
+    patient_email = (data.get("patient_email") or "").strip()
+    patient_phone = (data.get("patient_phone") or "").strip()
+    service = (data.get("service") or "").strip() or "NA"
+    notes = (data.get("notes") or "").strip()
+
+    # All fields are required for external bookings (no prior info about the patient)
+    # service is optional — defaults to "General Appointment" if not provided
+    missing = []
+    if not patient_name: missing.append("patient_name")
+    if not patient_email: missing.append("patient_email")
+    if not patient_phone: missing.append("patient_phone")
+    if not doctor_name_input: missing.append("doctor_name")
+    if not date_raw: missing.append("date")
+    if not time_raw: missing.append("time")
+    if missing:
+        return jsonify({"error": f"Missing required fields: {', '.join(missing)}"}), 400
+
+    # Parse date — support formats like "2026-9-13", "2026-09-13", "2026-9-13 4:00"
+    import re
+    date_str = ""
+    time_str = ""
+    # If date contains time (e.g. "2026-9-13 4:00"), split it
+    dt_match = re.match(r"(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{2})", date_raw)
+    if dt_match:
+        date_str = f"{dt_match.group(1)}-{int(dt_match.group(2)):02d}-{int(dt_match.group(3)):02d}"
+        time_str = f"{int(dt_match.group(4)):02d}:{dt_match.group(5)}"
+    else:
+        d_match = re.match(r"(\d{4})-(\d{1,2})-(\d{1,2})", date_raw)
+        if d_match:
+            date_str = f"{d_match.group(1)}-{int(d_match.group(2)):02d}-{int(d_match.group(3)):02d}"
+        else:
+            return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
+    # Parse time — support "14:00", "9:30", "9:30 AM", "2:30 PM"
+    if not time_str:
+        # Try 12h format first: "9:30 AM" or "2:30 PM"
+        t12_match = re.match(r"(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)", time_raw)
+        if t12_match:
+            h, m, ampm = int(t12_match.group(1)), int(t12_match.group(2)), t12_match.group(3).upper()
+            if ampm == "PM" and h != 12: h += 12
+            if ampm == "AM" and h == 12: h = 0
+            time_str = f"{h:02d}:{m:02d}"
+        else:
+            t_match = re.match(r"(\d{1,2}):(\d{2})", time_raw)
+            if t_match:
+                time_str = f"{int(t_match.group(1)):02d}:{t_match.group(2)}"
+            else:
+                return jsonify({"error": "Invalid time format. Use HH:MM or HH:MM AM/PM"}), 400
+
+    # Find doctor by name
+    conn = db.get_db()
+    doctors = conn.execute("SELECT id, name, appointment_length, schedule_type, daily_hours, start_time, end_time, availability FROM doctors WHERE admin_id=?", (admin_id,)).fetchall()
+    doctor_id = None
+    matched_name = ""
+    matched_doc = None
+    doctor_name_lower = doctor_name_input.lower().replace("dr.", "").replace("dr ", "").strip()
+    for doc in doctors:
+        doc_lower = doc["name"].lower().replace("dr.", "").replace("dr ", "").strip()
+        if doc_lower == doctor_name_lower or doctor_name_lower in doc_lower or doc_lower in doctor_name_lower:
+            doctor_id = doc["id"]
+            matched_name = doc["name"]
+            matched_doc = doc
+            break
+    if not doctor_id:
+        conn.close()
+        return jsonify({"error": f"Doctor '{doctor_name_input}' not found. Available: {', '.join(d['name'] for d in doctors)}"}), 404
+
+    # Validate time is within doctor's working hours
+    import json as _json
+    from datetime import datetime as _dt
+    appt_length = matched_doc["appointment_length"] or 60
+    start_dt = _dt.strptime(time_str, "%H:%M")
+    end_dt = start_dt + timedelta(minutes=appt_length)
+    booking_date = _dt.strptime(date_str, "%Y-%m-%d")
+    day_name = booking_date.strftime("%A")  # e.g. "Sunday", "Monday"
+
+    schedule_type = matched_doc["schedule_type"] or "fixed"
+    work_from = None
+    work_to = None
+    is_day_off = False
+
+    if schedule_type == "flexible" and matched_doc["daily_hours"]:
+        try:
+            daily = _json.loads(matched_doc["daily_hours"])
+            day_info = daily.get(day_name, {})
+            if day_info.get("off"):
+                is_day_off = True
+            else:
+                work_from = _dt.strptime(day_info.get("from", ""), "%I:%M %p")
+                work_to = _dt.strptime(day_info.get("to", ""), "%I:%M %p")
+        except (ValueError, KeyError):
+            pass
+    else:
+        # Fixed schedule — check if day is in availability
+        avail = (matched_doc["availability"] or "Mon-Fri").lower()
+        day_abbrevs = {"monday": "mon", "tuesday": "tue", "wednesday": "wed", "thursday": "thu", "friday": "fri", "saturday": "sat", "sunday": "sun"}
+        day_abbr = day_abbrevs.get(day_name.lower(), "")
+        if day_abbr not in avail:
+            is_day_off = True
+        else:
+            try:
+                work_from = _dt.strptime(matched_doc["start_time"] or "09:00 AM", "%I:%M %p")
+                work_to = _dt.strptime(matched_doc["end_time"] or "05:00 PM", "%I:%M %p")
+            except ValueError:
+                pass
+
+    if is_day_off:
+        conn.close()
+        return jsonify({"error": f"Sorry, Dr. {matched_name} does not work on {day_name}s."}), 400
+
+    if work_from and work_to:
+        # Compare using only hour:minute (strip date part)
+        start_check = start_dt.replace(year=1900, month=1, day=1)
+        end_check = end_dt.replace(year=1900, month=1, day=1)
+        wf = work_from.replace(year=1900, month=1, day=1)
+        wt = work_to.replace(year=1900, month=1, day=1)
+        if start_check < wf or end_check > wt:
+            conn.close()
+            return jsonify({"error": f"Sorry, this time is outside Dr. {matched_name}'s working hours. Dr. {matched_name} works from {work_from.strftime('%I:%M %p')} to {work_to.strftime('%I:%M %p')} on {day_name}s."}), 400
+
+    # Build time slot: "HH:MM AM - HH:MM AM" using doctor's appointment length
+    time_slot = f"{start_dt.strftime('%I:%M %p')} - {end_dt.strftime('%I:%M %p')}"
+
+    # Check for double-booking — if slot taken, add to waitlist
+    existing = conn.execute(
+        "SELECT id FROM bookings WHERE admin_id=? AND doctor_id=? AND date=? AND time=? AND status NOT IN ('cancelled','no_show')",
+        (admin_id, doctor_id, date_str, time_slot)
+    ).fetchone()
+    if existing:
+        conn.close()
+        # Deduplicate patient first
+        patient = db.get_or_create_patient(admin_id, name=patient_name, email=patient_email, phone=patient_phone, increment_booking=False)
+        # Add to waitlist
+        wid = db.add_to_waitlist(admin_id, doctor_id, date_str, time_slot,
+                                  patient_name, patient_email, patient_phone)
+        # Generate tokens for confirm/remove actions
+        import secrets as _secrets
+        confirm_token = _secrets.token_urlsafe(32)
+        remove_token = _secrets.token_urlsafe(32)
+        wl_conn = db.get_db()
+        wl_conn.execute("UPDATE waitlist SET confirm_token=?, remove_token=? WHERE id=?",
+                        (confirm_token, remove_token, wid))
+        wl_conn.commit()
+        # Get position
+        pos_row = wl_conn.execute("SELECT position FROM waitlist WHERE id=?", (wid,)).fetchone()
+        position = pos_row["position"] if pos_row else 1
+        wl_conn.close()
+        # Send waitlist email with confirm/remove buttons
+        server_url = request.host_url.rstrip("/")
+        confirm_url = f"{server_url}/waitlist/external/confirm/{confirm_token}"
+        remove_url = f"{server_url}/waitlist/external/remove/{remove_token}"
+        from email_service import send_waitlist_placed_email
+        send_waitlist_placed_email(
+            to_email=patient_email,
+            patient_name=patient_name,
+            date_display=date_str,
+            time_slot=time_slot,
+            doctor_name=matched_name,
+            confirm_url=confirm_url,
+            remove_url=remove_url,
+            position=position
+        )
+        return jsonify({
+            "ok": True,
+            "waitlisted": True,
+            "waitlist_id": wid,
+            "position": position,
+            "patient_id": patient["id"],
+            "message": f"Time slot is taken. Patient has been added to waitlist at position #{position}. An email has been sent to {patient_email}."
+        }), 202
+    conn.close()
+
+    # Deduplicate patient: find or create by email/phone (never count same person twice)
+    patient = db.get_or_create_patient(admin_id, name=patient_name, email=patient_email, phone=patient_phone)
+
+    # Create the booking
+    booking_id = db.add_booking(
+        customer_name=patient_name,
+        customer_email=patient_email,
+        customer_phone=patient_phone,
+        date=date_str,
+        time=time_slot,
+        service=service,
+        doctor_id=doctor_id,
+        doctor_name=matched_name,
+        admin_id=admin_id,
+        status="confirmed"
+    )
+
+    # Set revenue from service price
+    svc_conn = db.get_db()
+    svc_row = svc_conn.execute("SELECT price FROM company_services WHERE admin_id=? AND LOWER(name)=?", (admin_id, service.lower())).fetchone()
+    if svc_row and svc_row["price"]:
+        db.add_booking_revenue(booking_id, svc_row["price"])
+    svc_conn.close()
+
+    return jsonify({"ok": True, "booking_id": booking_id, "patient_id": patient["id"], "is_returning": patient.get("total_bookings", 1) > 1, "message": "Appointment synced successfully"}), 201
+
+
+@app.route("/waitlist/external/confirm/<token>", methods=["GET"])
+def waitlist_external_confirm(token):
+    """Patient clicked 'Keep Me on Waitlist' in their email."""
+    entry = db.get_waitlist_by_token(token, "confirm_token")
+    if not entry:
+        return "<html><body style='font-family:sans-serif;text-align:center;padding:60px'><h2>Link expired or invalid.</h2></body></html>", 404
+    if entry["status"] == "removed":
+        return "<html><body style='font-family:sans-serif;text-align:center;padding:60px'><h2>You have already been removed from the waitlist.</h2></body></html>"
+    if entry["status"] == "confirmed":
+        return "<html><body style='font-family:sans-serif;text-align:center;padding:60px'><h2>Your waitlist spot is already confirmed!</h2></body></html>"
+    # Mark as confirmed (still waiting, but patient explicitly agreed)
+    conn = db.get_db()
+    conn.execute("UPDATE waitlist SET confirmed_at=CURRENT_TIMESTAMP WHERE id=?", (entry["id"],))
+    conn.commit()
+    conn.close()
+    doctor = db.get_doctor_by_id(entry["doctor_id"])
+    doc_name = doctor["name"] if doctor else ""
+    return f"""<html><body style='font-family:sans-serif;text-align:center;padding:60px;background:#f0fdf4'>
+    <div style='max-width:500px;margin:0 auto;background:#fff;border-radius:16px;padding:40px;box-shadow:0 4px 24px rgba(0,0,0,0.1)'>
+    <div style='font-size:48px;margin-bottom:16px'>&#9989;</div>
+    <h2 style='color:#065f46'>You're Confirmed on the Waitlist!</h2>
+    <p style='color:#555'>You'll be automatically moved to the main appointment if the current booking for <strong>Dr. {doc_name}</strong> on <strong>{entry["date"]}</strong> at <strong>{entry["time_slot"]}</strong> is cancelled.</p>
+    <p style='color:#999;font-size:13px;margin-top:24px'>You can close this page.</p>
+    </div></body></html>"""
+
+
+@app.route("/waitlist/external/remove/<token>", methods=["GET"])
+def waitlist_external_remove(token):
+    """Patient clicked 'Remove Me from Waitlist' in their email."""
+    entry = db.get_waitlist_by_token(token, "remove_token")
+    if not entry:
+        return "<html><body style='font-family:sans-serif;text-align:center;padding:60px'><h2>Link expired or invalid.</h2></body></html>", 404
+    if entry["status"] == "removed":
+        return "<html><body style='font-family:sans-serif;text-align:center;padding:60px'><h2>You have already been removed from the waitlist.</h2></body></html>"
+    # Remove from waitlist
+    conn = db.get_db()
+    conn.execute("UPDATE waitlist SET status='removed' WHERE id=?", (entry["id"],))
+    conn.commit()
+    conn.close()
+    return f"""<html><body style='font-family:sans-serif;text-align:center;padding:60px;background:#fef2f2'>
+    <div style='max-width:500px;margin:0 auto;background:#fff;border-radius:16px;padding:40px;box-shadow:0 4px 24px rgba(0,0,0,0.1)'>
+    <div style='font-size:48px;margin-bottom:16px'>&#128075;</div>
+    <h2 style='color:#991b1b'>Removed from Waitlist</h2>
+    <p style='color:#555'>You've been removed from the waitlist for <strong>{entry["date"]}</strong> at <strong>{entry["time_slot"]}</strong>.</p>
+    <p style='color:#999;font-size:13px;margin-top:24px'>You can close this page.</p>
+    </div></body></html>"""
+
+
+@app.route("/api/bookings/manual", methods=["POST"])
+def api_manual_booking():
+    """Admin endpoint to manually add an appointment."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    if user.get("role") not in ("admin", "head_admin"):
+        return jsonify({"error": "Only admins can add appointments"}), 403
+    admin_id = get_effective_admin_id(user)
+
+    data = request.get_json(silent=True) or {}
+    patient_name = (data.get("patient_name") or "").strip()
+    doctor_id = data.get("doctor_id")
+    date_str = (data.get("date") or "").strip()
+    time_str = (data.get("time") or "").strip()
+    patient_email = (data.get("patient_email") or "").strip()
+    patient_phone = (data.get("patient_phone") or "").strip()
+    service = (data.get("service") or "General Consultation").strip()
+    notes = (data.get("notes") or "").strip()
+
+    if not patient_name or not doctor_id or not date_str or not time_str:
+        return jsonify({"error": "Missing required fields: patient_name, doctor_id, date, time"}), 400
+
+    # Verify doctor belongs to this admin
+    doctor = db.get_doctor_by_id(doctor_id)
+    if not doctor or doctor.get("admin_id") != admin_id:
+        return jsonify({"error": "Doctor not found"}), 404
+
+    # Check for double-booking
+    conn = db.get_db()
+    existing = conn.execute(
+        "SELECT id FROM bookings WHERE admin_id=? AND doctor_id=? AND date=? AND time=? AND status NOT IN ('cancelled','no_show')",
+        (admin_id, doctor_id, date_str, time_str)
+    ).fetchone()
+    if existing:
+        conn.close()
+        return jsonify({"error": f"Time slot {date_str} {time_str} is already booked for Dr. {doctor['name']}"}), 409
+    conn.close()
+
+    booking_id = db.add_booking(
+        customer_name=patient_name,
+        customer_email=patient_email,
+        customer_phone=patient_phone,
+        date=date_str,
+        time=time_str,
+        service=service,
+        doctor_id=doctor_id,
+        doctor_name=doctor.get("name", ""),
+        admin_id=admin_id,
+        status="confirmed"
+    )
+
+    # Set revenue from service price
+    svc_conn = db.get_db()
+    svc_row = svc_conn.execute("SELECT price FROM company_services WHERE admin_id=? AND LOWER(name)=?", (admin_id, service.lower())).fetchone()
+    if svc_row and svc_row["price"]:
+        db.add_booking_revenue(booking_id, svc_row["price"])
+    svc_conn.close()
+
+    return jsonify({"ok": True, "booking_id": booking_id, "message": "Appointment added successfully"}), 201
+
+
+@app.route("/api/roi/stats", methods=["GET"])
+def api_roi_stats():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    if user.get("role") not in ("admin", "head_admin"):
+        return jsonify({"error": "Access denied"}), 403
+    admin_id = get_effective_admin_id(user)
+    date_range = request.args.get("range", "month")
+    data = db.get_roi_stats(admin_id, date_range)
+    return jsonify(data)
+
+
 @app.route("/api/bookings/<int:booking_id>/noshow", methods=["POST"])
 def api_mark_noshow(booking_id):
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
@@ -5319,19 +5959,21 @@ def api_mark_noshow(booking_id):
         return jsonify({"error": "Booking not found"}), 404
     booking = dict(booking)
 
-    # 45-minute rule: booking date+time must have passed by at least 45 minutes
+    # Only allow marking as non-attended after appointment end time and within 2 hours
     try:
-        # Parse booking start time from "HH:MM AM/PM - HH:MM AM/PM" format
-        time_str = booking["time"].split(" - ")[0].strip()
-        booking_dt = datetime.strptime(f"{booking['date']} {time_str}", "%Y-%m-%d %I:%M %p")
+        time_parts = booking["time"].split(" - ")
+        end_time_str = time_parts[-1].strip() if len(time_parts) > 1 else time_parts[0].strip()
+        booking_end = datetime.strptime(f"{booking['date']} {end_time_str}", "%Y-%m-%d %I:%M %p")
         now = datetime.now()
-        diff_minutes = (now - booking_dt).total_seconds() / 60
-        if diff_minutes < 45:
+        if now < booking_end:
             conn.close()
-            remaining = int(45 - diff_minutes)
-            return jsonify({"error": f"Cannot mark as non-attended yet. The appointment must have passed by at least 45 minutes. ({remaining} min remaining)"}), 400
+            return jsonify({"error": "Cannot mark as non-attended — appointment hasn't finished yet."}), 400
+        hours_since = (now - booking_end).total_seconds() / 3600
+        if hours_since > 2:
+            conn.close()
+            return jsonify({"error": "The 2-hour window to mark as non-attended has passed."}), 400
     except (ValueError, IndexError):
-        pass  # If time parsing fails, allow marking (don't block on edge cases)
+        pass  # If time parsing fails, allow marking
 
     # Generate a unique token for the no-show reason form
     import secrets
@@ -6841,6 +7483,16 @@ def api_submit_form(token):
                     confirm_url = f"{base_url}/booking-confirmed/{form['booking_id']}"
                 except Exception:
                     confirm_url = ""
+                # Generate cancel token
+                _fc_cancel_url = ""
+                try:
+                    _fc_tok = secrets.token_urlsafe(32)
+                    _fc_conn = db.get_db()
+                    _fc_conn.execute("UPDATE bookings SET cancel_token=? WHERE id=?", (_fc_tok, form['booking_id']))
+                    _fc_conn.commit(); _fc_conn.close()
+                    _fc_cancel_url = f"{base_url}/booking-cancel/{_fc_tok}"
+                except Exception:
+                    pass
                 # Fetch service details for the email if service_id exists
                 _svc_name = ""
                 _svc_dur = 0
@@ -6863,10 +7515,12 @@ def api_submit_form(token):
                     booking["time"],
                     doctor_name=booking.get("doctor_name", ""),
                     confirm_url=confirm_url,
+                    cancel_url=_fc_cancel_url,
                     service_name=_svc_name,
                     duration_minutes=_svc_dur,
                     price=_svc_price,
                     preparation_instructions=_svc_prep,
+                    admin_id=booking.get("admin_id", 0),
                 )
 
             # Schedule appointment reminders now that booking is confirmed
@@ -7134,6 +7788,58 @@ def api_booking_full_details(booking_id):
 def booking_confirmed_page(booking_id):
     return send_from_directory("static", "booking-confirmed.html")
 
+@app.route("/booking-cancel/<token>")
+def booking_cancel_page(token):
+    """Public page for cancelling a booking via email link."""
+    if not token or len(token) < 10:
+        return "<h2>Invalid cancellation link.</h2>", 404
+    conn = db.get_db()
+    booking = conn.execute("SELECT * FROM bookings WHERE cancel_token=? AND status != 'cancelled'", (token,)).fetchone()
+    if not booking:
+        conn.close()
+        return """<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cancellation</title>
+        <style>body{font-family:'Helvetica Neue',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5;}
+        .card{background:#fff;border-radius:16px;padding:48px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.08);max-width:480px;}
+        h2{color:#1a1a2e;margin:0 0 12px;}p{color:#666;margin:0;}</style></head>
+        <body><div class="card"><h2>Link Expired or Already Used</h2>
+        <p>This booking has already been cancelled or the link is no longer valid.</p></div></body></html>"""
+    # Cancel the booking
+    conn.execute("UPDATE bookings SET status='cancelled', cancel_token='', cancelled_at=CURRENT_TIMESTAMP WHERE id=?", (booking["id"],))
+    conn.commit()
+    conn.close()
+    # Update patient stats
+    try:
+        if booking.get("patient_id"):
+            pconn = db.get_db()
+            pconn.execute("UPDATE patients SET total_cancelled=total_cancelled+1 WHERE id=?", (booking["patient_id"],))
+            pconn.commit(); pconn.close()
+    except Exception:
+        pass
+    # Notify waitlist if applicable
+    try:
+        from waitlist_engine import process_waitlist_after_cancellation
+        process_waitlist_after_cancellation(booking["id"], booking.get("admin_id", 0))
+    except Exception:
+        pass
+    doctor_name = booking.get("doctor_name", "")
+    date_display = booking.get("date", "")
+    try:
+        date_display = datetime.strptime(booking["date"], "%Y-%m-%d").strftime("%A, %B %d, %Y")
+    except Exception:
+        pass
+    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Appointment Cancelled</title>
+    <style>body{{font-family:'Helvetica Neue',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5;}}
+    .card{{background:#fff;border-radius:16px;padding:48px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.08);max-width:480px;}}
+    h2{{color:#1a1a2e;margin:0 0 12px;}}p{{color:#666;line-height:1.6;}}
+    .icon{{width:64px;height:64px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:28px;}}</style></head>
+    <body><div class="card">
+    <div class="icon">&#10005;</div>
+    <h2>Appointment Cancelled</h2>
+    <p>Your appointment{f' with <strong>Dr. {doctor_name}</strong>' if doctor_name else ''} on <strong>{date_display}</strong> at <strong>{booking['time']}</strong> has been cancelled.</p>
+    <p style="margin-top:16px;color:#999;">If this was a mistake, please contact us to rebook.</p>
+    </div></body></html>"""
+
+
 @app.route("/api/bookings/<int:booking_id>/details", methods=["GET"])
 def api_booking_details_public(booking_id):
     """Public endpoint for booking confirmation page (limited info)."""
@@ -7198,6 +7904,8 @@ def api_update_recall_rule(rule_id):
         return jsonify({"error": "Unauthorized"}), 401
     data = request.get_json()
     admin_id = get_effective_admin_id(user)
+    if not db.is_feature_enabled(admin_id, "auto_recall"):
+        return jsonify({"error": "Recall feature is disabled"}), 403
     db.update_recall_rule(rule_id, admin_id, **data)
     return jsonify({"ok": True})
 
@@ -7208,6 +7916,8 @@ def api_delete_recall_rule(rule_id):
     if not user or not is_admin_role(user):
         return jsonify({"error": "Unauthorized"}), 401
     admin_id = get_effective_admin_id(user)
+    if not db.is_feature_enabled(admin_id, "auto_recall"):
+        return jsonify({"error": "Recall feature is disabled"}), 403
     db.delete_recall_rule(rule_id, admin_id)
     return jsonify({"ok": True})
 
@@ -7219,6 +7929,314 @@ def api_get_recall_campaigns():
         return jsonify({"error": "Unauthorized"}), 401
     admin_id = get_effective_admin_id(user)
     return jsonify({"campaigns": db.get_recall_campaigns(admin_id), "stats": db.get_recall_stats(admin_id)})
+
+
+# ── Recall Booking (public pages, no auth) ──
+
+@app.route("/recall-book/<token>")
+def recall_book_page(token):
+    """Public booking page for recall patients. Served from email link."""
+    campaign = db.get_recall_campaign_by_token(token)
+    if not campaign:
+        return "<h2>Invalid or expired recall link.</h2>", 404
+    admin_id = campaign["admin_id"]
+    company = db.get_company_info(admin_id)
+    company_name = company.get("name", "Our Clinic") if company else "Our Clinic"
+    doctors = db.get_doctors(admin_id)
+    active_doctors = [d for d in doctors if d.get("status") in ("accepted", "active") and d.get("is_active", 1)]
+    service_name = campaign.get("service_name", "Follow-up")
+    patient_name = campaign.get("patient_name", "")
+    patient_email = campaign.get("patient_email", "")
+    patient_phone = campaign.get("patient_phone", "")
+
+    doctors_json = json.dumps([{"id": d["id"], "name": d["name"], "specialty": d.get("specialty",""),
+                                "start_time": d.get("start_time","09:00 AM"), "end_time": d.get("end_time","05:00 PM"),
+                                "appointment_length": d.get("appointment_length", 60)} for d in active_doctors])
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Book Your {_h(service_name)} Appointment — {_h(company_name)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{{margin:0;padding:0;box-sizing:border-box}}
+body{{font-family:'Inter',sans-serif;background:#0a0d14;color:#f1f5f9;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}}
+.card{{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:24px;padding:2.5rem;max-width:520px;width:100%;position:relative;overflow:hidden}}
+.card::before{{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#8b5cf6,#6366f1,#3b82f6)}}
+.logo{{text-align:center;margin-bottom:1.5rem}}
+.logo h1{{font-size:1.1rem;font-weight:800;margin-bottom:0.25rem}}
+.logo h1 span{{background:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}}
+.logo p{{font-size:0.82rem;color:#8b95a8}}
+.hero{{text-align:center;margin-bottom:2rem;padding:1.5rem;border-radius:16px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.12)}}
+.hero h2{{font-size:1.3rem;font-weight:700;margin-bottom:0.3rem}}
+.hero .service{{background:linear-gradient(135deg,#8b5cf6,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:1.1rem;font-weight:700}}
+.hero p{{color:#8b95a8;font-size:0.85rem;margin-top:0.5rem}}
+label{{display:block;font-size:0.78rem;color:#8b95a8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.4rem;font-weight:600}}
+input,select{{width:100%;padding:0.7rem 1rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:#f1f5f9;font-size:0.9rem;font-family:inherit;outline:none;transition:border-color .3s}}
+input:focus,select:focus{{border-color:rgba(139,92,246,0.4)}}
+select option{{background:#1a1f2e;color:#f1f5f9}}
+.form-group{{margin-bottom:1.25rem}}
+.row{{display:grid;grid-template-columns:1fr 1fr;gap:1rem}}
+.slots{{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:0.5rem;margin-top:0.5rem;max-height:200px;overflow-y:auto}}
+.slot{{padding:0.5rem;text-align:center;border-radius:10px;font-size:0.82rem;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);transition:all .2s}}
+.slot:hover{{border-color:rgba(139,92,246,0.3);background:rgba(139,92,246,0.06)}}
+.slot.selected{{background:rgba(139,92,246,0.15);border-color:#8b5cf6;color:#a78bfa}}
+.slot.booked{{opacity:0.3;cursor:not-allowed;text-decoration:line-through}}
+.submit-btn{{display:block;width:100%;padding:0.85rem;border:none;border-radius:50px;background:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);color:#fff;font-size:1rem;font-weight:700;cursor:pointer;transition:transform .2s,box-shadow .2s;margin-top:1.5rem}}
+.submit-btn:hover{{transform:translateY(-2px);box-shadow:0 8px 24px rgba(139,92,246,0.3)}}
+.submit-btn:disabled{{opacity:0.5;cursor:not-allowed;transform:none;box-shadow:none}}
+.success{{text-align:center;padding:3rem 1rem}}
+.success svg{{margin-bottom:1rem}}
+.success h2{{font-size:1.5rem;margin-bottom:0.5rem}}
+.success p{{color:#8b95a8;font-size:0.9rem}}
+.toast{{position:fixed;top:1rem;right:1rem;padding:0.75rem 1.25rem;border-radius:12px;font-size:0.85rem;font-weight:600;z-index:9999;transform:translateY(-20px);opacity:0;transition:all .3s}}
+.toast.show{{transform:translateY(0);opacity:1}}
+.toast.error{{background:rgba(248,113,113,0.15);border:1px solid rgba(248,113,113,0.3);color:#f87171}}
+@media(max-width:500px){{.row{{grid-template-columns:1fr}}.card{{padding:1.5rem}}}}
+</style>
+</head>
+<body>
+<div class="card" id="bookingCard">
+    <div class="logo">
+        <h1>Chat<span>Genius</span></h1>
+        <p>{_h(company_name)}</p>
+    </div>
+    <div class="hero">
+        <h2>Welcome back, {_h(patient_name.split()[0] if patient_name else 'there')}!</h2>
+        <div class="service">{_h(service_name)}</div>
+        <p>It's time for your follow-up. Pick a date and time below.</p>
+    </div>
+    <form id="bookingForm" onsubmit="submitBooking(event)">
+        <input type="hidden" id="recallToken" value="{_h(token)}">
+        <div class="row">
+            <div class="form-group">
+                <label>Your Name</label>
+                <input type="text" id="bkName" value="{_h(patient_name)}" required>
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="bkEmail" value="{_h(patient_email)}" required>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Phone (optional)</label>
+            <input type="tel" id="bkPhone" value="{_h(patient_phone)}">
+        </div>
+        <div class="form-group">
+            <label>Doctor</label>
+            <select id="bkDoctor" onchange="onDoctorChange()" required>
+                <option value="">Choose a doctor...</option>
+            </select>
+        </div>
+        <div class="row">
+            <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="bkDate" onchange="loadSlots()" required min="">
+            </div>
+            <div class="form-group">
+                <label>Time Slot</label>
+                <div id="slotsContainer" style="color:#8b95a8;font-size:0.85rem;padding:0.5rem 0">Select doctor & date first</div>
+                <input type="hidden" id="bkTime" required>
+            </div>
+        </div>
+        <button type="submit" class="submit-btn" id="submitBtn" disabled>Book Appointment</button>
+    </form>
+</div>
+<div id="toastEl" class="toast"></div>
+<script>
+const doctors = {doctors_json};
+const service = '{_js(service_name)}';
+const adminId = {admin_id};
+let selectedSlot = '';
+
+// Populate doctors
+const sel = document.getElementById('bkDoctor');
+doctors.forEach(d => {{
+    const opt = document.createElement('option');
+    opt.value = d.id;
+    opt.textContent = d.name + (d.specialty ? ' — ' + d.specialty : '');
+    sel.appendChild(opt);
+}});
+
+// Set min date to today
+document.getElementById('bkDate').min = new Date().toISOString().split('T')[0];
+
+function onDoctorChange() {{ loadSlots(); }}
+
+async function loadSlots() {{
+    const doctorId = document.getElementById('bkDoctor').value;
+    const date = document.getElementById('bkDate').value;
+    const container = document.getElementById('slotsContainer');
+    document.getElementById('bkTime').value = '';
+    selectedSlot = '';
+    updateSubmit();
+    if (!doctorId || !date) {{ container.innerHTML = '<span style="color:#8b95a8;font-size:0.85rem">Select doctor & date</span>'; return; }}
+
+    container.innerHTML = '<span style="color:#8b95a8;font-size:0.85rem">Loading...</span>';
+
+    try {{
+        const res = await fetch('/api/recall-book/slots?doctor_id=' + doctorId + '&date=' + date + '&admin_id=' + adminId);
+        const data = await res.json();
+        if (!data.slots || !data.slots.length) {{
+            container.innerHTML = '<span style="color:#f87171;font-size:0.85rem">No available slots on this date</span>';
+            return;
+        }}
+        container.innerHTML = '<div class="slots">' + data.slots.map(s => {{
+            const booked = data.booked.includes(s);
+            return '<div class="slot' + (booked ? ' booked' : '') + '" onclick="' + (booked ? '' : "pickSlot(this,'" + s + "')") + '">' + s + '</div>';
+        }}).join('') + '</div>';
+    }} catch(e) {{
+        container.innerHTML = '<span style="color:#f87171;font-size:0.85rem">Failed to load slots</span>';
+    }}
+}}
+
+function pickSlot(el, time) {{
+    document.querySelectorAll('.slot.selected').forEach(s => s.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedSlot = time;
+    document.getElementById('bkTime').value = time;
+    updateSubmit();
+}}
+
+function updateSubmit() {{
+    const ok = document.getElementById('bkDoctor').value && document.getElementById('bkDate').value && selectedSlot && document.getElementById('bkName').value;
+    document.getElementById('submitBtn').disabled = !ok;
+}}
+document.querySelectorAll('#bookingForm input, #bookingForm select').forEach(el => el.addEventListener('input', updateSubmit));
+
+async function submitBooking(e) {{
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true; btn.textContent = 'Booking...';
+    try {{
+        const body = {{
+            token: document.getElementById('recallToken').value,
+            name: document.getElementById('bkName').value,
+            email: document.getElementById('bkEmail').value,
+            phone: document.getElementById('bkPhone').value,
+            doctor_id: parseInt(document.getElementById('bkDoctor').value),
+            date: document.getElementById('bkDate').value,
+            time: selectedSlot,
+            service: service
+        }};
+        const res = await fetch('/api/recall-book', {{ method:'POST', headers:{{'Content-Type':'application/json'}}, body:JSON.stringify(body) }});
+        const d = await res.json();
+        if (d.error) {{ showToast(d.error); btn.disabled = false; btn.textContent = 'Book Appointment'; return; }}
+        document.getElementById('bookingCard').innerHTML = '<div class="success"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg><h2>Booking Confirmed!</h2><p>Your ' + service + ' appointment has been booked for<br><strong>' + body.date + '</strong> at <strong>' + body.time + '</strong>.<br><br>We look forward to seeing you!</p></div>';
+    }} catch(e) {{
+        showToast('Something went wrong. Please try again.');
+        btn.disabled = false; btn.textContent = 'Book Appointment';
+    }}
+}}
+
+function showToast(msg) {{
+    const t = document.getElementById('toastEl');
+    t.textContent = msg; t.className = 'toast error show';
+    setTimeout(() => t.className = 'toast', 3000);
+}}
+</script>
+</body>
+</html>"""
+
+
+def _h(s):
+    """HTML-escape a string."""
+    import html
+    return html.escape(str(s)) if s else ""
+
+def _js(s):
+    """Escape for JS string literal."""
+    return str(s).replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n") if s else ""
+
+
+@app.route("/api/recall-book/slots", methods=["GET"])
+def api_recall_book_slots():
+    """Public endpoint: get available time slots for a doctor on a date."""
+    doctor_id = request.args.get("doctor_id", type=int)
+    date_str = request.args.get("date", "")
+    if not doctor_id or not date_str:
+        return jsonify({"error": "Missing doctor_id or date"}), 400
+
+    doctor = db.get_doctor_by_id(doctor_id)
+    if not doctor:
+        return jsonify({"error": "Doctor not found"}), 404
+
+    # Generate time slots based on doctor's schedule
+    start_str = doctor.get("start_time", "09:00 AM")
+    end_str = doctor.get("end_time", "05:00 PM")
+    appt_len = int(doctor.get("appointment_length", 60) or 60)
+
+    from datetime import datetime as _dt, timedelta as _td
+    def _parse_time(t):
+        for fmt in ("%I:%M %p", "%H:%M", "%I:%M%p"):
+            try:
+                return _dt.strptime(t.strip(), fmt)
+            except ValueError:
+                continue
+        return _dt.strptime("09:00 AM", "%I:%M %p")
+
+    start_t = _parse_time(start_str)
+    end_t = _parse_time(end_str)
+    slots = []
+    current = start_t
+    while current + _td(minutes=appt_len) <= end_t:
+        slots.append(current.strftime("%I:%M %p").lstrip("0"))
+        current += _td(minutes=appt_len)
+
+    booked = db.get_booked_times(doctor_id, date_str)
+    return jsonify({"slots": slots, "booked": booked})
+
+
+@app.route("/api/recall-book", methods=["POST"])
+def api_recall_book():
+    """Public endpoint: book an appointment from a recall email link."""
+    data = request.get_json()
+    token = data.get("token", "")
+    campaign = db.get_recall_campaign_by_token(token)
+    if not campaign:
+        return jsonify({"error": "Invalid or expired recall link"}), 404
+
+    name = (data.get("name") or "").strip()
+    email = (data.get("email") or "").strip()
+    phone = (data.get("phone") or "").strip()
+    doctor_id = data.get("doctor_id", 0)
+    date_str = (data.get("date") or "").strip()
+    time_str = (data.get("time") or "").strip()
+    service = (data.get("service") or campaign.get("service_name") or "Follow-up").strip()
+
+    if not name or not date_str or not time_str or not doctor_id:
+        return jsonify({"error": "Please fill all required fields"}), 400
+
+    # Check slot not already booked
+    booked = db.get_booked_times(doctor_id, date_str)
+    if time_str in booked:
+        return jsonify({"error": "This time slot is no longer available. Please pick another."}), 409
+
+    doctor = db.get_doctor_by_id(doctor_id)
+    doctor_name = doctor["name"] if doctor else ""
+    admin_id = campaign["admin_id"]
+
+    bid = db.add_booking(
+        customer_name=name, customer_email=email, customer_phone=phone,
+        date=date_str, time=time_str, service=service,
+        doctor_id=doctor_id, doctor_name=doctor_name,
+        admin_id=admin_id, status="confirmed"
+    )
+
+    db.mark_recall_booked(campaign["id"], booking_id=bid)
+
+    # Send confirmation email
+    try:
+        import email_service as email_svc
+        email_svc.send_booking_confirmation_customer(
+            customer_name=name, customer_email=email, doctor_name=doctor_name,
+            date_display=date_str, time_display=time_str, service_name=service, admin_id=admin_id
+        )
+    except Exception as e:
+        print(f"[recall-book] Failed to send confirmation email: {e}", flush=True)
+
+    return jsonify({"ok": True, "booking_id": bid})
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -7326,6 +8344,338 @@ def api_cancel_followup(fid):
     conn.commit()
     conn.close()
     return jsonify({"ok": True})
+
+
+# ── Follow-up from Booking (Previous Bookings → Add to Follow-up) ──
+
+@app.route("/api/followup-from-booking", methods=["POST"])
+def api_followup_from_booking():
+    """Create a follow-up from a completed booking and send email to patient."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    data = request.get_json()
+    booking_id = data.get("booking_id")
+    if not booking_id:
+        return jsonify({"error": "Missing booking_id"}), 400
+
+    # Get the booking
+    conn = db.get_db()
+    booking = conn.execute("SELECT * FROM bookings WHERE id=?", (booking_id,)).fetchone()
+    conn.close()
+    if not booking:
+        return jsonify({"error": "Booking not found"}), 404
+    booking = dict(booking)
+
+    admin_id = get_effective_admin_id(user)
+    if booking.get("admin_id") != admin_id:
+        return jsonify({"error": "Access denied"}), 403
+
+    # Check not already followed up
+    conn = db.get_db()
+    existing = conn.execute(
+        "SELECT id FROM treatment_followups WHERE admin_id=? AND booking_id=? AND status != 'cancelled'",
+        (admin_id, booking_id)).fetchone()
+    conn.close()
+    if existing:
+        return jsonify({"error": "A follow-up already exists for this booking"}), 409
+
+    # Create the follow-up with token
+    result = db.create_single_followup(
+        admin_id=admin_id,
+        doctor_id=booking.get("doctor_id", 0),
+        patient_name=booking.get("customer_name", ""),
+        treatment_name=booking.get("service", "Follow-up"),
+        patient_email=booking.get("customer_email", ""),
+        patient_phone=booking.get("customer_phone", ""),
+        booking_id=booking_id
+    )
+
+    # Send follow-up email with "Confirm Follow-up" button
+    patient_email = booking.get("customer_email", "")
+    if patient_email:
+        import os
+        base = os.environ.get("SERVER_URL", request.host_url.rstrip("/"))
+        booking_url = f"{base}/followup-book/{result['followup_token']}"
+        try:
+            import email_service as email_svc
+            email_svc.send_treatment_followup(
+                to_email=patient_email,
+                patient_name=booking.get("customer_name", "Patient"),
+                treatment_name=booking.get("service", "your treatment"),
+                day_number=0,
+                booking_url=booking_url,
+                admin_id=admin_id
+            )
+            # Mark as sent
+            conn = db.get_db()
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            conn.execute("UPDATE treatment_followups SET status='sent', sent_at=? WHERE id=?",
+                         (now, result["id"]))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f"[followup] Failed to send email: {e}", flush=True)
+
+    return jsonify({"ok": True, "followup_id": result["id"]})
+
+
+@app.route("/followup-book/<token>")
+def followup_book_page(token):
+    """Public booking page for follow-up patients. Accessed from email link."""
+    followup = db.get_followup_by_token(token)
+    if not followup:
+        return "<h2>Invalid or expired follow-up link.</h2>", 404
+
+    if followup.get("status") == "booked":
+        return """<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+        <title>Already Booked</title><style>body{font-family:Inter,sans-serif;background:#0a0d14;color:#f1f5f9;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+        .card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:24px;padding:2.5rem;max-width:480px;text-align:center}
+        h2{margin-bottom:0.5rem}p{color:#8b95a8;font-size:0.9rem}</style></head>
+        <body><div class="card"><h2>Already Booked</h2><p>This follow-up appointment has already been confirmed. We look forward to seeing you!</p></div></body></html>"""
+
+    admin_id = followup["admin_id"]
+    company = db.get_company_info(admin_id)
+    company_name = company.get("name", "Our Clinic") if company else "Our Clinic"
+    doctors = db.get_doctors(admin_id)
+    active_doctors = [d for d in doctors if d.get("status") in ("accepted", "active") and d.get("is_active", 1)]
+    service_name = followup.get("treatment_name", "Follow-up")
+    patient_name = followup.get("patient_name", "")
+    patient_email = followup.get("patient_email", "")
+    patient_phone = followup.get("patient_phone", "")
+
+    doctors_json = json.dumps([{"id": d["id"], "name": d["name"], "specialty": d.get("specialty", ""),
+                                "start_time": d.get("start_time", "09:00 AM"), "end_time": d.get("end_time", "05:00 PM"),
+                                "appointment_length": d.get("appointment_length", 60)} for d in active_doctors])
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Confirm Follow-Up — {_h(company_name)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{{margin:0;padding:0;box-sizing:border-box}}
+body{{font-family:'Inter',sans-serif;background:#0a0d14;color:#f1f5f9;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}}
+.card{{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:24px;padding:2.5rem;max-width:520px;width:100%;position:relative;overflow:hidden}}
+.card::before{{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#10b981,#059669,#047857)}}
+.logo{{text-align:center;margin-bottom:1.5rem}}
+.logo h1{{font-size:1.1rem;font-weight:800;margin-bottom:0.25rem}}
+.logo h1 span{{background:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}}
+.logo p{{font-size:0.82rem;color:#8b95a8}}
+.hero{{text-align:center;margin-bottom:2rem;padding:1.5rem;border-radius:16px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.15)}}
+.hero h2{{font-size:1.3rem;font-weight:700;margin-bottom:0.3rem}}
+.hero .service{{background:linear-gradient(135deg,#10b981,#059669);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:1.1rem;font-weight:700}}
+.hero p{{color:#8b95a8;font-size:0.85rem;margin-top:0.5rem}}
+label{{display:block;font-size:0.78rem;color:#8b95a8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.4rem;font-weight:600}}
+input,select{{width:100%;padding:0.7rem 1rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:#f1f5f9;font-size:0.9rem;font-family:inherit;outline:none;transition:border-color .3s}}
+input:focus,select:focus{{border-color:rgba(16,185,129,0.4)}}
+select option{{background:#1a1f2e;color:#f1f5f9}}
+.form-group{{margin-bottom:1.25rem}}
+.row{{display:grid;grid-template-columns:1fr 1fr;gap:1rem}}
+.slots{{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:0.5rem;margin-top:0.5rem;max-height:200px;overflow-y:auto}}
+.slot{{padding:0.5rem;text-align:center;border-radius:10px;font-size:0.82rem;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);transition:all .2s}}
+.slot:hover{{border-color:rgba(16,185,129,0.3);background:rgba(16,185,129,0.06)}}
+.slot.selected{{background:rgba(16,185,129,0.15);border-color:#10b981;color:#34d399}}
+.slot.booked{{opacity:0.3;cursor:not-allowed;text-decoration:line-through}}
+.submit-btn{{display:block;width:100%;padding:0.85rem;border:none;border-radius:50px;background:linear-gradient(135deg,#10b981,#059669,#047857);color:#fff;font-size:1rem;font-weight:700;cursor:pointer;transition:transform .2s,box-shadow .2s;margin-top:1.5rem}}
+.submit-btn:hover{{transform:translateY(-2px);box-shadow:0 8px 24px rgba(16,185,129,0.3)}}
+.submit-btn:disabled{{opacity:0.5;cursor:not-allowed;transform:none;box-shadow:none}}
+.success{{text-align:center;padding:3rem 1rem}}
+.toast{{position:fixed;top:1rem;right:1rem;padding:0.75rem 1.25rem;border-radius:12px;font-size:0.85rem;font-weight:600;z-index:9999;transform:translateY(-20px);opacity:0;transition:all .3s}}
+.toast.show{{transform:translateY(0);opacity:1}}
+.toast.error{{background:rgba(248,113,113,0.15);border:1px solid rgba(248,113,113,0.3);color:#f87171}}
+@media(max-width:500px){{.row{{grid-template-columns:1fr}}.card{{padding:1.5rem}}}}
+</style>
+</head>
+<body>
+<div class="card" id="bookingCard">
+    <div class="logo">
+        <h1>Chat<span>Genius</span></h1>
+        <p>{_h(company_name)}</p>
+    </div>
+    <div class="hero">
+        <h2>Confirm Your Follow-Up</h2>
+        <div class="service">{_h(service_name)}</div>
+        <p>Hi {_h(patient_name.split()[0] if patient_name else 'there')}, please pick your preferred date and time for your follow-up visit.</p>
+    </div>
+    <form id="bookingForm" onsubmit="submitBooking(event)">
+        <input type="hidden" id="fuToken" value="{_h(token)}">
+        <div class="row">
+            <div class="form-group">
+                <label>Your Name</label>
+                <input type="text" id="bkName" value="{_h(patient_name)}" required>
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="bkEmail" value="{_h(patient_email)}" required>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Phone (optional)</label>
+            <input type="tel" id="bkPhone" value="{_h(patient_phone)}">
+        </div>
+        <div class="form-group">
+            <label>Doctor</label>
+            <select id="bkDoctor" onchange="loadSlots()" required>
+                <option value="">Choose a doctor...</option>
+            </select>
+        </div>
+        <div class="row">
+            <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="bkDate" onchange="loadSlots()" required>
+            </div>
+            <div class="form-group">
+                <label>Time Slot</label>
+                <div id="slotsContainer" style="color:#8b95a8;font-size:0.85rem;padding:0.5rem 0">Select doctor & date first</div>
+                <input type="hidden" id="bkTime" required>
+            </div>
+        </div>
+        <button type="submit" class="submit-btn" id="submitBtn" disabled>Confirm Follow-Up</button>
+    </form>
+</div>
+<div id="toastEl" class="toast"></div>
+<script>
+const doctors = {doctors_json};
+const service = '{_js(service_name)}';
+let selectedSlot = '';
+
+const sel = document.getElementById('bkDoctor');
+doctors.forEach(d => {{
+    const opt = document.createElement('option');
+    opt.value = d.id;
+    opt.textContent = d.name + (d.specialty ? ' — ' + d.specialty : '');
+    sel.appendChild(opt);
+}});
+document.getElementById('bkDate').min = new Date().toISOString().split('T')[0];
+
+async function loadSlots() {{
+    const doctorId = document.getElementById('bkDoctor').value;
+    const date = document.getElementById('bkDate').value;
+    const container = document.getElementById('slotsContainer');
+    document.getElementById('bkTime').value = '';
+    selectedSlot = '';
+    updateSubmit();
+    if (!doctorId || !date) {{ container.innerHTML = '<span style="color:#8b95a8;font-size:0.85rem">Select doctor & date</span>'; return; }}
+    container.innerHTML = '<span style="color:#8b95a8;font-size:0.85rem">Loading...</span>';
+    try {{
+        const res = await fetch('/api/recall-book/slots?doctor_id=' + doctorId + '&date=' + date);
+        const data = await res.json();
+        if (!data.slots || !data.slots.length) {{
+            container.innerHTML = '<span style="color:#f87171;font-size:0.85rem">No available slots on this date</span>';
+            return;
+        }}
+        container.innerHTML = '<div class="slots">' + data.slots.map(s => {{
+            const booked = data.booked.includes(s);
+            return '<div class="slot' + (booked ? ' booked' : '') + '" onclick="' + (booked ? '' : "pickSlot(this,'" + s + "')") + '">' + s + '</div>';
+        }}).join('') + '</div>';
+    }} catch(e) {{
+        container.innerHTML = '<span style="color:#f87171;font-size:0.85rem">Failed to load slots</span>';
+    }}
+}}
+
+function pickSlot(el, time) {{
+    document.querySelectorAll('.slot.selected').forEach(s => s.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedSlot = time;
+    document.getElementById('bkTime').value = time;
+    updateSubmit();
+}}
+
+function updateSubmit() {{
+    const ok = document.getElementById('bkDoctor').value && document.getElementById('bkDate').value && selectedSlot && document.getElementById('bkName').value;
+    document.getElementById('submitBtn').disabled = !ok;
+}}
+document.querySelectorAll('#bookingForm input, #bookingForm select').forEach(el => el.addEventListener('input', updateSubmit));
+
+async function submitBooking(e) {{
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true; btn.textContent = 'Booking...';
+    try {{
+        const body = {{
+            token: document.getElementById('fuToken').value,
+            name: document.getElementById('bkName').value,
+            email: document.getElementById('bkEmail').value,
+            phone: document.getElementById('bkPhone').value,
+            doctor_id: parseInt(document.getElementById('bkDoctor').value),
+            date: document.getElementById('bkDate').value,
+            time: selectedSlot,
+            service: service
+        }};
+        const res = await fetch('/api/followup-book', {{ method:'POST', headers:{{'Content-Type':'application/json'}}, body:JSON.stringify(body) }});
+        const d = await res.json();
+        if (d.error) {{ showToast(d.error); btn.disabled = false; btn.textContent = 'Confirm Follow-Up'; return; }}
+        document.getElementById('bookingCard').innerHTML = '<div class="success"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg><h2>Follow-Up Confirmed!</h2><p>Your ' + service + ' follow-up has been booked for<br><strong>' + body.date + '</strong> at <strong>' + body.time + '</strong>.<br><br>We look forward to seeing you!</p></div>';
+    }} catch(e) {{
+        showToast('Something went wrong. Please try again.');
+        btn.disabled = false; btn.textContent = 'Confirm Follow-Up';
+    }}
+}}
+
+function showToast(msg) {{
+    const t = document.getElementById('toastEl');
+    t.textContent = msg; t.className = 'toast error show';
+    setTimeout(() => t.className = 'toast', 3000);
+}}
+</script>
+</body>
+</html>"""
+
+
+@app.route("/api/followup-book", methods=["POST"])
+def api_followup_book():
+    """Public endpoint: book a follow-up appointment from email link."""
+    data = request.get_json()
+    token = data.get("token", "")
+    followup = db.get_followup_by_token(token)
+    if not followup:
+        return jsonify({"error": "Invalid or expired follow-up link"}), 404
+    if followup.get("status") == "booked":
+        return jsonify({"error": "This follow-up has already been booked"}), 409
+
+    name = (data.get("name") or "").strip()
+    email = (data.get("email") or "").strip()
+    phone = (data.get("phone") or "").strip()
+    doctor_id = data.get("doctor_id", 0)
+    date_str = (data.get("date") or "").strip()
+    time_str = (data.get("time") or "").strip()
+    service = (data.get("service") or followup.get("treatment_name") or "Follow-up").strip()
+
+    if not name or not date_str or not time_str or not doctor_id:
+        return jsonify({"error": "Please fill all required fields"}), 400
+
+    booked = db.get_booked_times(doctor_id, date_str)
+    if time_str in booked:
+        return jsonify({"error": "This time slot is no longer available. Please pick another."}), 409
+
+    doctor = db.get_doctor_by_id(doctor_id)
+    doctor_name = doctor["name"] if doctor else ""
+    admin_id = followup["admin_id"]
+
+    bid = db.add_booking(
+        customer_name=name, customer_email=email, customer_phone=phone,
+        date=date_str, time=time_str, service=service,
+        doctor_id=doctor_id, doctor_name=doctor_name,
+        admin_id=admin_id, status="confirmed"
+    )
+
+    db.mark_followup_booked(followup["id"], booking_id=bid)
+
+    # Send confirmation email
+    try:
+        import email_service as email_svc
+        email_svc.send_booking_confirmation_customer(
+            customer_name=name, customer_email=email, doctor_name=doctor_name,
+            date_display=date_str, time_display=time_str, service_name=service, admin_id=admin_id
+        )
+    except Exception as e:
+        print(f"[followup-book] Failed to send confirmation email: {e}", flush=True)
+
+    return jsonify({"ok": True, "booking_id": bid})
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -8641,7 +9991,7 @@ def api_cancel_booking(bid):
         conn.close()
         return jsonify({"error": "Booking not found"}), 404
     booking = dict(booking)
-    conn.execute("UPDATE bookings SET status='cancelled', revenue_amount=0 WHERE id=?", (bid,))
+    conn.execute("UPDATE bookings SET status='cancelled', revenue_amount=0, cancelled_at=CURRENT_TIMESTAMP WHERE id=?", (bid,))
     # Track cancellation on patient profile
     if booking.get("patient_id"):
         conn.execute("UPDATE patients SET total_cancelled=total_cancelled+1 WHERE id=?", (booking["patient_id"],))
@@ -9430,6 +10780,234 @@ def api_whitelabel():
     conn.commit()
     conn.close()
     return jsonify({"ok": True})
+
+
+# ══════════════════════════════════════════════
+#  Email Template / Style Customization
+# ══════════════════════════════════════════════
+
+EMAIL_IMG_DIR = os.path.join(os.path.dirname(__file__), "uploads", "email_images")
+os.makedirs(EMAIL_IMG_DIR, exist_ok=True)
+
+
+@app.route("/api/email-template", methods=["GET"])
+def get_email_template():
+    user = db.get_user_by_token(request.headers.get("Authorization", "").replace("Bearer ", ""))
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+    template = db.get_email_template(admin_id)
+    return jsonify(template or {})
+
+
+@app.route("/api/email-template", methods=["POST"])
+def save_email_template():
+    user = db.get_user_by_token(request.headers.get("Authorization", "").replace("Bearer ", ""))
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Not authorized"}), 403
+    # Plan check — Pro+ only
+    plan = user.get("plan", "free_trial")
+    if plan not in ("pro", "agency"):
+        return jsonify({"error": "Email customization requires Pro or Agency plan."}), 403
+
+    admin_id = get_effective_admin_id(user)
+    data = request.json or {}
+
+    # Validate variables in all HTML sections
+    all_html = (data.get("header_html", "") or "") + (data.get("body_html", "") or "") + (data.get("footer_html", "") or "")
+    valid_vars, invalid_vars = db.validate_email_template_variables(all_html)
+    if invalid_vars:
+        return jsonify({
+            "error": f"Unknown variables: {', '.join('{{' + v + '}}' for v in sorted(invalid_vars))}",
+            "valid_variables": sorted(db.VALID_EMAIL_VARIABLES),
+            "invalid_variables": sorted(invalid_vars)
+        }), 400
+
+    db.save_email_template(admin_id, **data)
+    return jsonify({"ok": True, "message": "Email template saved successfully."})
+
+
+@app.route("/api/email-template", methods=["DELETE"])
+def delete_email_template():
+    user = db.get_user_by_token(request.headers.get("Authorization", "").replace("Bearer ", ""))
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Not authorized"}), 403
+    admin_id = get_effective_admin_id(user)
+    db.delete_email_template(admin_id)
+    return jsonify({"ok": True, "message": "Email template deleted. Default style restored."})
+
+
+@app.route("/api/email-template/upload-image", methods=["POST"])
+def upload_email_image():
+    user = db.get_user_by_token(request.headers.get("Authorization", "").replace("Bearer ", ""))
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Not authorized"}), 403
+    plan = user.get("plan", "free_trial")
+    if plan not in ("pro", "agency"):
+        return jsonify({"error": "Email customization requires Pro or Agency plan."}), 403
+
+    if "image" not in request.files:
+        return jsonify({"error": "No image file provided."}), 400
+
+    file = request.files["image"]
+    if not file.filename:
+        return jsonify({"error": "Empty filename."}), 400
+
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"):
+        return jsonify({"error": "Invalid image type. Allowed: PNG, JPG, GIF, WEBP, SVG."}), 400
+
+    safe_name = f"{uuid.uuid4().hex}{ext}"
+    file.save(os.path.join(EMAIL_IMG_DIR, safe_name))
+    # Return absolute URL so images work in email clients
+    base_url = request.host_url.rstrip("/")
+    url = f"{base_url}/uploads/email_images/{safe_name}"
+    return jsonify({"ok": True, "url": url})
+
+
+@app.route("/uploads/email_images/<path:filename>")
+def serve_email_image(filename):
+    return send_from_directory(EMAIL_IMG_DIR, filename)
+
+
+@app.route("/api/email-template/preview", methods=["POST"])
+def preview_email_template():
+    """Generate a preview of the email template with sample data."""
+    user = db.get_user_by_token(request.headers.get("Authorization", "").replace("Bearer ", ""))
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+    data = request.json or {}
+
+    # Build a mock template for preview
+    template = {
+        "header_html": data.get("header_html", ""),
+        "body_html": data.get("body_html", ""),
+        "footer_html": data.get("footer_html", ""),
+        "primary_color": data.get("primary_color", "#8b5cf6"),
+        "secondary_color": data.get("secondary_color", "#1a1a2e"),
+        "bg_color": data.get("bg_color", "#f0f0f0"),
+        "button_color": data.get("button_color", "#8b5cf6"),
+        "button_text_color": data.get("button_text_color", "#ffffff"),
+        "button_radius": data.get("button_radius", "8"),
+        "button_size": data.get("button_size", "medium"),
+        "header_image_url": data.get("header_image_url", ""),
+        "footer_image_url": data.get("footer_image_url", ""),
+        "body_image_url": data.get("body_image_url", ""),
+        "logo_url": data.get("logo_url", ""),
+        "font_family": data.get("font_family", "Helvetica Neue, Helvetica, Arial, sans-serif"),
+    }
+
+    # Sample variables for preview
+    sample_vars = {
+        "patient_name": "John Smith",
+        "doctor_name": "Dr. Sarah Johnson",
+        "date": "April 25, 2026",
+        "time": "10:30 AM - 11:30 AM",
+        "clinic_name": user.get("company", "Your Clinic"),
+        "confirm_link": "#",
+        "cancel_link": "#",
+        "service_name": "Dental Cleaning",
+        "booking_id": "BK-12345",
+        "waitlist_position": "2",
+        "reschedule_link": "#",
+        "survey_link": "#",
+        "invoice_link": "#",
+        "recall_treatment": "Teeth Cleaning",
+        "followup_date": "October 25, 2026",
+    }
+
+    # Build sample email content
+    sample_content = f"""
+    <tr><td style="padding:40px 40px 16px;text-align:center;">
+        <h1 style="color:#1a1a2e;font-size:24px;margin:0 0 8px;font-weight:700;">Appointment Confirmed</h1>
+        <p style="color:#666;font-size:15px;margin:0;">Hello {sample_vars['patient_name']},</p>
+    </td></tr>
+    <tr><td style="padding:16px 40px;">
+        <p style="color:#444;font-size:15px;line-height:1.6;">Your appointment has been confirmed for <strong>{sample_vars['date']}</strong> at <strong>{sample_vars['time']}</strong> with <strong>{sample_vars['doctor_name']}</strong>.</p>
+    </td></tr>
+    <tr><td style="padding:16px 40px;text-align:center;">
+        <a href="#" style="display:inline-block;background:#c9a84c;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Confirm Appointment</a>
+    </td></tr>"""
+
+    # Check if admin has a saved template with compiled_html (drag-and-drop builder)
+    saved_template = db.get_email_template(admin_id)
+    if saved_template and saved_template.get("compiled_html"):
+        html = email._make_urls_absolute(saved_template["compiled_html"])
+        html = email.render_template_variables(html, sample_vars)
+        return jsonify({"html": html})
+
+    # Fallback: old-style template with header/body/footer
+    header = email.render_template_variables(template.get("header_html", ""), sample_vars)
+    body = email.render_template_variables(template.get("body_html", ""), sample_vars)
+    footer = email.render_template_variables(template.get("footer_html", ""), sample_vars)
+
+    template["header_html"] = header
+    template["body_html"] = body
+    template["footer_html"] = footer
+
+    if body.strip():
+        sample_content = f'<tr><td style="padding:20px 40px;">{body}</td></tr>'
+
+    html = email._wrap_custom_template(sample_content, template)
+    return jsonify({"html": html})
+
+
+@app.route("/api/email-template/send-test", methods=["POST"])
+def send_test_email():
+    """Send a test email using the current template."""
+    user = db.get_user_by_token(request.headers.get("Authorization", "").replace("Bearer ", ""))
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Not authorized"}), 403
+    plan = user.get("plan", "free_trial")
+    if plan not in ("pro", "agency"):
+        return jsonify({"error": "Pro or Agency plan required."}), 403
+
+    data = request.json or {}
+    to_email = data.get("email", user.get("email", ""))
+    if not to_email:
+        return jsonify({"error": "No email address provided."}), 400
+
+    admin_id = get_effective_admin_id(user)
+
+    # Send a sample booking confirmation using the custom template
+    result = email.send_booking_confirmation_customer(
+        customer_name="Test Patient",
+        customer_email=to_email,
+        date_display="April 25, 2026",
+        time_display="10:30 AM - 11:30 AM",
+        doctor_name="Dr. Sarah Johnson",
+        service_name="Sample Consultation",
+        admin_id=admin_id,
+    )
+    if result:
+        return jsonify({"ok": True, "message": f"Test email sent to {to_email}"})
+    return jsonify({"error": "Failed to send test email. Check SMTP settings."}), 500
+
+
+@app.route("/api/email-template/variables", methods=["GET"])
+def get_email_variables():
+    """Return list of valid template variables."""
+    return jsonify({
+        "variables": sorted(db.VALID_EMAIL_VARIABLES),
+        "descriptions": {
+            "patient_name": "Patient's full name",
+            "doctor_name": "Doctor's name",
+            "date": "Appointment date",
+            "time": "Appointment time slot",
+            "clinic_name": "Your clinic/business name",
+            "confirm_link": "Appointment confirmation URL",
+            "cancel_link": "Appointment cancellation URL",
+            "service_name": "Service/treatment name",
+            "booking_id": "Booking reference ID",
+            "waitlist_position": "Position in waitlist",
+            "reschedule_link": "Reschedule appointment URL",
+            "survey_link": "Post-appointment survey URL",
+            "invoice_link": "Invoice download URL",
+            "recall_treatment": "Treatment type for recall",
+            "followup_date": "Recommended follow-up date",
+        }
+    })
 
 
 @app.route("/health")

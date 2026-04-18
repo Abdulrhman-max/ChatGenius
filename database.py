@@ -904,6 +904,26 @@ def init_db():
         ("doctors", "avg_appointment_currency", "TEXT DEFAULT 'USD'"),
         # ROI: revenue amount tracked per booking
         ("bookings", "revenue_amount", "REAL DEFAULT 0"),
+        ("bookings", "cancelled_at", "TIMESTAMP DEFAULT ''"),
+        # External API key for PMS / external booking integrations
+        ("company_info", "external_api_key", "TEXT DEFAULT ''"),
+        # Waitlist email action tokens
+        ("waitlist", "confirm_token", "TEXT DEFAULT ''"),
+        ("waitlist", "remove_token", "TEXT DEFAULT ''"),
+        # Booking cancel token for email links
+        ("bookings", "cancel_token", "TEXT DEFAULT ''"),
+        # Subscription management
+        ("users", "plan_started_at", "TIMESTAMP DEFAULT ''"),
+        ("users", "plan_expires_at", "TIMESTAMP DEFAULT ''"),
+        ("users", "billing_cycle", "TEXT DEFAULT 'monthly'"),
+        ("users", "auto_renew", "INTEGER DEFAULT 1"),
+        ("users", "pending_plan", "TEXT DEFAULT ''"),
+        # Recall booking tokens
+        ("recall_campaigns", "recall_token", "TEXT DEFAULT ''"),
+        ("recall_campaigns", "service_name", "TEXT DEFAULT ''"),
+        ("recall_campaigns", "doctor_name", "TEXT DEFAULT ''"),
+        # Followup booking tokens
+        ("treatment_followups", "followup_token", "TEXT DEFAULT ''"),
     ]
     for table, col, col_type in migrations:
         try:
@@ -911,6 +931,13 @@ def init_db():
             conn.commit()
         except sqlite3.OperationalError:
             pass
+
+    # Backfill external_api_key for existing companies that don't have one
+    companies_without_key = conn.execute("SELECT id FROM company_info WHERE external_api_key IS NULL OR external_api_key = ''").fetchall()
+    for c in companies_without_key:
+        conn.execute("UPDATE company_info SET external_api_key = ? WHERE id = ?", (secrets.token_hex(32), c["id"]))
+    if companies_without_key:
+        conn.commit()
 
     # Backfill public_id for existing users that don't have one
     import uuid as _uuid
@@ -1240,7 +1267,7 @@ def get_booking_dates(admin_id):
 def cancel_booking(booking_id):
     """Cancel a booking by setting its status to 'cancelled'."""
     conn = get_db()
-    conn.execute("UPDATE bookings SET status = 'cancelled', revenue_amount = 0 WHERE id = ?", (booking_id,))
+    conn.execute("UPDATE bookings SET status = 'cancelled', revenue_amount = 0, cancelled_at = CURRENT_TIMESTAMP WHERE id = ?", (booking_id,))
     conn.commit()
     conn.close()
 
@@ -1324,10 +1351,10 @@ def add_booking_revenue(booking_id, amount):
 def get_roi_data(admin_id):
     """Get ROI metrics for a company."""
     conn = get_db()
-    # Total money generated from bookings with revenue
+    # Total money generated from confirmed/completed bookings only
     row = conn.execute(
         "SELECT COALESCE(SUM(revenue_amount), 0) as total_revenue, COUNT(*) as total_bookings "
-        "FROM bookings WHERE admin_id=? AND status != 'cancelled'",
+        "FROM bookings WHERE admin_id=? AND status IN ('confirmed', 'completed')",
         (admin_id,)
     ).fetchone()
     total_revenue = row["total_revenue"]
@@ -1361,10 +1388,12 @@ def get_roi_data(admin_id):
             start = _dt.strptime(h["started_at"][:19], "%Y-%m-%d %H:%M:%S") if h["started_at"] else _dt.now()
             if i + 1 < len(history_rows):
                 end = _dt.strptime(history_rows[i + 1]["started_at"][:19], "%Y-%m-%d %H:%M:%S")
+                # If replaced by another plan in the same billing period, this entry costs nothing
+                months = (end.year - start.year) * 12 + end.month - start.month
             else:
+                # Current (latest) plan — count at least 1 month
                 end = _dt.now()
-            # Calculate months between start and end (at least 1 if any time passed)
-            months = max(1, (end.year - start.year) * 12 + end.month - start.month)
+                months = max(1, (end.year - start.year) * 12 + end.month - start.month)
             total_cost += h["monthly_cost"] * months
     elif current_plan_cost > 0:
         # No history yet — assume at least 1 month on current plan
@@ -1375,21 +1404,8 @@ def get_roi_data(admin_id):
     # Get company currency and convert USD plan costs
     company_currency = get_company_currency(admin_id)
 
-    # Currency symbol map
-    CURRENCY_SYMBOLS = {
-        "USD": "$", "EUR": "€", "GBP": "£", "SAR": "﷼", "AED": "د.إ",
-        "EGP": "E£", "JOD": "JD", "KWD": "د.ك", "BHD": "BD", "QAR": "﷼",
-        "OMR": "﷼", "TRY": "₺", "INR": "₹", "PKR": "₨", "JPY": "¥",
-        "CNY": "¥", "KRW": "₩", "BRL": "R$", "MXN": "$", "CAD": "C$",
-        "AUD": "A$", "NZD": "NZ$", "ZAR": "R", "NGN": "₦", "KES": "KSh",
-        "MAD": "MAD", "IQD": "ع.د", "LBP": "ل.ل", "THB": "฿", "MYR": "RM",
-        "SGD": "S$", "PHP": "₱", "IDR": "Rp", "VND": "₫", "CHF": "CHF",
-        "SEK": "kr", "NOK": "kr", "DKK": "kr", "PLN": "zł", "CZK": "Kč",
-        "HUF": "Ft", "RON": "lei", "BGN": "лв", "HRK": "kn", "RUB": "₽",
-        "UAH": "₴", "ILS": "₪", "CLP": "$", "COP": "$", "PEN": "S/.",
-        "ARS": "$", "TWD": "NT$", "HKD": "HK$",
-    }
-    currency_symbol = CURRENCY_SYMBOLS.get(company_currency, company_currency)
+    # Always use currency code (SAR, USD, EUR etc.) — no Arabic/special symbols
+    currency_symbol = company_currency + " "
 
     # Approximate USD exchange rates (USD → target currency)
     USD_RATES = {
@@ -1436,6 +1452,473 @@ def get_roi_data(admin_id):
         "total_bookings": total_bookings,
         "currency": company_currency,
         "currency_symbol": currency_symbol,
+    }
+
+
+def get_roi_stats(admin_id, date_range="month"):
+    """Get comprehensive ROI stats with daily revenue, funnel, loss metrics, AI insights."""
+    from datetime import datetime as _dt, timedelta
+    from math import log10, floor
+
+    conn = get_db()
+    now = _dt.now()
+
+    # --- Date boundaries (include future bookings within the period) ---
+    import calendar
+    if date_range == "all":
+        date_from = "2000-01-01"
+        date_to = "2099-12-31"
+        prev_from = "1999-01-01"
+        prev_to = "1999-12-31"
+    elif date_range == "today":
+        date_from = now.strftime("%Y-%m-%d")
+        date_to = date_from
+        prev_from = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+        prev_to = prev_from
+    elif date_range == "week":
+        date_from = (now - timedelta(days=now.weekday())).strftime("%Y-%m-%d")
+        date_to = (now - timedelta(days=now.weekday()) + timedelta(days=6)).strftime("%Y-%m-%d")
+        prev_from = (now - timedelta(days=now.weekday() + 7)).strftime("%Y-%m-%d")
+        prev_to = (now - timedelta(days=now.weekday() + 1)).strftime("%Y-%m-%d")
+    elif date_range == "year":
+        date_from = f"{now.year}-01-01"
+        date_to = f"{now.year}-12-31"
+        prev_from = f"{now.year - 1}-01-01"
+        prev_to = f"{now.year - 1}-12-31"
+    else:  # month (default)
+        date_from = now.strftime("%Y-%m-01")
+        last_day = calendar.monthrange(now.year, now.month)[1]
+        date_to = now.strftime(f"%Y-%m-{last_day:02d}")
+        first_of_prev = (now.replace(day=1) - timedelta(days=1)).replace(day=1)
+        prev_from = first_of_prev.strftime("%Y-%m-%d")
+        prev_to = (now.replace(day=1) - timedelta(days=1)).strftime("%Y-%m-%d")
+
+    # --- Currency setup ---
+    company_currency = get_company_currency(admin_id)
+    # Always use currency code (SAR, USD, EUR etc.) — no Arabic/special symbols
+    USD_RATES = {
+        "USD": 1.0, "EUR": 0.92, "GBP": 0.79, "SAR": 3.75, "AED": 3.67,
+        "EGP": 50.0, "JOD": 0.71, "KWD": 0.31, "BHD": 0.38, "QAR": 3.64,
+        "OMR": 0.38, "TRY": 32.0, "INR": 83.5, "PKR": 278.0, "JPY": 154.0,
+        "CNY": 7.25, "KRW": 1340.0, "BRL": 5.0, "MXN": 17.2, "CAD": 1.37,
+        "AUD": 1.55, "NZD": 1.67, "ZAR": 18.5, "NGN": 1550.0, "KES": 153.0,
+        "MAD": 10.0, "IQD": 1310.0, "LBP": 89500.0, "THB": 35.5, "MYR": 4.7,
+        "SGD": 1.35, "PHP": 56.5, "IDR": 15700.0, "VND": 25000.0, "CHF": 0.88,
+        "SEK": 10.8, "NOK": 10.9, "DKK": 6.9, "PLN": 4.0, "CZK": 23.0,
+        "HUF": 360.0, "RON": 4.6, "BGN": 1.8, "HRK": 7.0, "RUB": 92.0,
+        "UAH": 41.0, "ILS": 3.7, "CLP": 950.0, "COP": 3950.0, "PEN": 3.7,
+        "ARS": 870.0, "TWD": 31.5, "HKD": 7.82,
+    }
+    rate = USD_RATES.get(company_currency, 1.0)
+    currency_symbol = company_currency + " "
+
+    # Build a service price lookup from company_services for this admin
+    svc_prices = {}
+    svc_rows = conn.execute(
+        "SELECT LOWER(name) as name, price FROM company_services WHERE admin_id=?", (admin_id,)
+    ).fetchall()
+    for sr in svc_rows:
+        svc_prices[sr["name"]] = sr["price"]
+
+    def calc_booking_revenue(rev_amount, service_name):
+        """Return revenue: use revenue_amount if set, else lookup service price."""
+        if rev_amount and rev_amount > 0:
+            return rev_amount
+        return svc_prices.get((service_name or "").lower(), 0)
+
+    # ── 1. Daily revenue chart data ──
+    daily_rows = conn.execute(
+        "SELECT date, service, revenue_amount "
+        "FROM bookings WHERE admin_id=? AND status IN ('confirmed','completed') "
+        "AND date BETWEEN ? AND ?",
+        (admin_id, date_from, date_to)
+    ).fetchall()
+    # Aggregate daily
+    daily_map = {}
+    for r in daily_rows:
+        d = r["date"]
+        rev = calc_booking_revenue(r["revenue_amount"], r["service"])
+        if d not in daily_map:
+            daily_map[d] = {"revenue": 0, "bookings": 0}
+        daily_map[d]["revenue"] += rev
+        daily_map[d]["bookings"] += 1
+    daily_revenue = [{"date": d, "revenue": round(v["revenue"], 2), "bookings": v["bookings"]}
+                     for d, v in sorted(daily_map.items())]
+
+    # ── 2. Current period totals ──
+    total_revenue = sum(d["revenue"] for d in daily_revenue)
+    total_bookings = sum(d["bookings"] for d in daily_revenue)
+
+    # Previous period for comparison
+    prev_rows = conn.execute(
+        "SELECT service, revenue_amount "
+        "FROM bookings WHERE admin_id=? AND status IN ('confirmed','completed') "
+        "AND date BETWEEN ? AND ?",
+        (admin_id, prev_from, prev_to)
+    ).fetchall()
+    prev_revenue = sum(calc_booking_revenue(r["revenue_amount"], r["service"]) for r in prev_rows)
+    prev_bookings = len(prev_rows)
+    rev_change = ((total_revenue - prev_revenue) / prev_revenue * 100) if prev_revenue > 0 else 0
+    bk_change = ((total_bookings - prev_bookings) / prev_bookings * 100) if prev_bookings > 0 else 0
+
+    avg_booking_value = round(total_revenue / total_bookings, 2) if total_bookings > 0 else 0
+
+    # ── 3. Plan cost & ROI ──
+    plan_row = conn.execute("SELECT plan FROM users WHERE id=?", (admin_id,)).fetchone()
+    plan = plan_row["plan"] if plan_row else "free_trial"
+    current_plan_cost = PLAN_COSTS.get(plan, 0)
+
+    # Calculate all-time total cost from plan history
+    history_rows = conn.execute(
+        "SELECT plan, monthly_cost, started_at FROM plan_history WHERE user_id=? ORDER BY started_at",
+        (admin_id,)
+    ).fetchall()
+    alltime_cost = 0
+    if history_rows:
+        for i, h in enumerate(history_rows):
+            start = _dt.strptime(h["started_at"][:19], "%Y-%m-%d %H:%M:%S") if h["started_at"] else _dt.now()
+            if i + 1 < len(history_rows):
+                end = _dt.strptime(history_rows[i + 1]["started_at"][:19], "%Y-%m-%d %H:%M:%S")
+                months = (end.year - start.year) * 12 + end.month - start.month
+            else:
+                end = _dt.now()
+                months = max(1, (end.year - start.year) * 12 + end.month - start.month)
+            alltime_cost += h["monthly_cost"] * months
+    elif current_plan_cost > 0:
+        alltime_cost = current_plan_cost
+
+    # Calculate all-time months on platform
+    first_started = None
+    if history_rows and history_rows[0]["started_at"]:
+        first_started = _dt.strptime(history_rows[0]["started_at"][:19], "%Y-%m-%d %H:%M:%S")
+    if not first_started:
+        user_row = conn.execute("SELECT created_at FROM users WHERE id=?", (admin_id,)).fetchone()
+        if user_row and user_row["created_at"]:
+            try:
+                first_started = _dt.strptime(user_row["created_at"][:19], "%Y-%m-%d %H:%M:%S")
+            except Exception:
+                first_started = now
+        else:
+            first_started = now
+    alltime_months = max(1, (now.year - first_started.year) * 12 + now.month - first_started.month)
+    daily_cost_rate = alltime_cost / (alltime_months * 30) if alltime_months > 0 else 0
+
+    # Proportional cost for the selected range
+    dt_from = _dt.strptime(date_from, "%Y-%m-%d")
+    dt_to = _dt.strptime(date_to, "%Y-%m-%d")
+    range_days = max(1, (dt_to - dt_from).days + 1)
+
+    if date_range == "all":
+        total_cost = alltime_cost
+    else:
+        total_cost = round(daily_cost_rate * range_days, 2)
+
+    revenue_in_usd = round(total_revenue / rate, 2) if rate else total_revenue
+    if total_cost > 0:
+        roi_raw = ((revenue_in_usd - total_cost) / total_cost) * 100
+        if roi_raw != 0:
+            magnitude = floor(log10(abs(roi_raw)))
+            roi = round(roi_raw, -int(magnitude) + 2)
+        else:
+            roi = 0
+        roi_multiple = round(revenue_in_usd / total_cost, 2)
+    else:
+        roi = 0
+        roi_multiple = 0
+
+    profit = round(total_revenue - (total_cost * rate), 2)
+
+    # ── 4. Conversion Funnel ──
+    # Visitors = distinct sessions that sent at least one message to chatbot
+    visitors_row = conn.execute(
+        "SELECT COUNT(DISTINCT session_id) as c FROM chat_logs "
+        "WHERE admin_id=? AND date(created_at) BETWEEN ? AND ?",
+        (admin_id, date_from, date_to)
+    ).fetchone()
+    visitors = visitors_row["c"] if visitors_row else 0
+
+    # Chats started = same as visitors (each session = one visitor who chatted)
+    chats_started = visitors
+
+    # Leads captured = distinct sessions where user shared contact info (resulted in a lead or booking)
+    leads_row = conn.execute(
+        "SELECT COUNT(*) as c FROM leads "
+        "WHERE admin_id=? AND date(created_at) BETWEEN ? AND ?",
+        (admin_id, date_from, date_to)
+    ).fetchone()
+    leads_captured = leads_row["c"] if leads_row else 0
+
+    # Bookings completed (status = completed)
+    completed_row = conn.execute(
+        "SELECT COUNT(*) as c FROM bookings "
+        "WHERE admin_id=? AND status='completed' AND date BETWEEN ? AND ?",
+        (admin_id, date_from, date_to)
+    ).fetchone()
+    bookings_completed = completed_row["c"] if completed_row else 0
+
+    # Bookings made (confirmed + completed, not cancelled/no_show)
+    bookings_made_row = conn.execute(
+        "SELECT COUNT(*) as c FROM bookings "
+        "WHERE admin_id=? AND status IN ('confirmed','completed') AND date BETWEEN ? AND ?",
+        (admin_id, date_from, date_to)
+    ).fetchone()
+    bookings_made = bookings_made_row["c"] if bookings_made_row else 0
+
+    # Conversion rates
+    visitor_to_chat = 100.0  # every visitor IS a chat (they opened chatbot)
+    chat_to_lead = round((leads_captured / chats_started * 100), 1) if chats_started > 0 else 0
+    lead_to_booking = round((bookings_made / leads_captured * 100), 1) if leads_captured > 0 else 0
+    bookings_per_100 = round((bookings_made / chats_started * 100), 1) if chats_started > 0 else 0
+
+    # AI success rate = bookings from chatbot / total visitors (sessions)
+    ai_booking_row = conn.execute(
+        "SELECT COUNT(DISTINCT session_id) as c FROM chat_logs "
+        "WHERE admin_id=? AND resulted_in_booking=1 AND date(created_at) BETWEEN ? AND ?",
+        (admin_id, date_from, date_to)
+    ).fetchone()
+    ai_bookings = ai_booking_row["c"] if ai_booking_row else 0
+    ai_success_rate = round((ai_bookings / visitors * 100), 1) if visitors > 0 else 0
+
+    # ── 5. Loss Metrics (no-shows + cancellations) ──
+    # Use cancelled_at date for cancellations (when the action happened),
+    # fall back to booking date if cancelled_at is empty
+    lost_rows = conn.execute(
+        "SELECT date, status, service, revenue_amount, cancelled_at "
+        "FROM bookings WHERE admin_id=? AND status IN ('no_show','cancelled') "
+        "AND (CASE "
+        "  WHEN status='cancelled' AND cancelled_at != '' THEN date(cancelled_at) "
+        "  ELSE date "
+        "END) BETWEEN ? AND ?",
+        (admin_id, date_from, date_to)
+    ).fetchall()
+    noshow_count = sum(1 for r in lost_rows if r["status"] == "no_show")
+    cancel_count = sum(1 for r in lost_rows if r["status"] == "cancelled")
+    total_lost_count = len(lost_rows)
+
+    all_bookings_row = conn.execute(
+        "SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND date BETWEEN ? AND ?",
+        (admin_id, date_from, date_to)
+    ).fetchone()
+    all_bookings_count = all_bookings_row["c"] if all_bookings_row else 0
+    noshow_rate = round((noshow_count / all_bookings_count * 100), 1) if all_bookings_count > 0 else 0
+    cancel_rate = round((cancel_count / all_bookings_count * 100), 1) if all_bookings_count > 0 else 0
+    total_lost_rate = round((total_lost_count / all_bookings_count * 100), 1) if all_bookings_count > 0 else 0
+
+    # Calculate revenue lost per lost booking, grouped by the action date
+    total_revenue_lost = 0
+    daily_loss_map = {}  # date -> {noshows, cancellations, revenue_lost}
+    for r in lost_rows:
+        rev = calc_booking_revenue(r["revenue_amount"], r["service"]) or avg_booking_value
+        total_revenue_lost += rev
+        # Use cancelled_at date for cancellations, booking date for no-shows
+        if r["status"] == "cancelled" and r["cancelled_at"]:
+            d = r["cancelled_at"][:10]
+        else:
+            d = r["date"]
+        if d not in daily_loss_map:
+            daily_loss_map[d] = {"noshows": 0, "cancellations": 0, "revenue_lost": 0}
+        if r["status"] == "no_show":
+            daily_loss_map[d]["noshows"] += 1
+        else:
+            daily_loss_map[d]["cancellations"] += 1
+        daily_loss_map[d]["revenue_lost"] += rev
+    total_revenue_lost = round(total_revenue_lost, 2)
+
+    daily_losses = [{"date": d, "noshows": v["noshows"], "cancellations": v["cancellations"],
+                     "revenue_lost": round(v["revenue_lost"], 2)}
+                    for d, v in sorted(daily_loss_map.items())]
+
+    # ── 6. AI Insights (real data) ──
+    # Previous period losses for comparison
+    prev_lost = conn.execute(
+        "SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND status IN ('no_show','cancelled') AND date BETWEEN ? AND ?",
+        (admin_id, prev_from, prev_to)
+    ).fetchone()
+    prev_lost_count = prev_lost["c"] if prev_lost else 0
+    prev_noshow = conn.execute(
+        "SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND status='no_show' AND date BETWEEN ? AND ?",
+        (admin_id, prev_from, prev_to)
+    ).fetchone()
+    prev_noshow_count = prev_noshow["c"] if prev_noshow else 0
+    noshow_change = round(((noshow_count - prev_noshow_count) / prev_noshow_count * 100), 1) if prev_noshow_count > 0 else 0
+
+    # Top revenue service — compute from service prices
+    svc_agg_rows = conn.execute(
+        "SELECT service, revenue_amount FROM bookings "
+        "WHERE admin_id=? AND status IN ('confirmed','completed') AND date BETWEEN ? AND ?",
+        (admin_id, date_from, date_to)
+    ).fetchall()
+    svc_agg = {}
+    for r in svc_agg_rows:
+        s = r["service"]
+        rev = calc_booking_revenue(r["revenue_amount"], s)
+        if s not in svc_agg:
+            svc_agg[s] = {"rev": 0, "cnt": 0}
+        svc_agg[s]["rev"] += rev
+        svc_agg[s]["cnt"] += 1
+    if svc_agg:
+        top_svc = max(svc_agg.items(), key=lambda x: x[1]["rev"])
+        top_service_name = top_svc[0]
+        top_service_revenue = round(top_svc[1]["rev"], 2)
+        top_service_count = top_svc[1]["cnt"]
+    else:
+        top_service_name = "N/A"
+        top_service_revenue = 0
+        top_service_count = 0
+
+    # Peak booking hour
+    peak_hours_rows = conn.execute(
+        "SELECT substr(time, 1, 2) as hour, COUNT(*) as cnt "
+        "FROM bookings WHERE admin_id=? AND status IN ('confirmed','completed') "
+        "AND date BETWEEN ? AND ? GROUP BY hour ORDER BY cnt DESC LIMIT 3",
+        (admin_id, date_from, date_to)
+    ).fetchall()
+    peak_hours = []
+    for ph in peak_hours_rows:
+        try:
+            h = int(ph["hour"])
+            label = f"{h}:00–{h+1}:00"
+            if h < 12:
+                label = f"{h} AM–{h+1} AM"
+            elif h == 12:
+                label = "12–1 PM"
+            else:
+                label = f"{h-12} PM–{h-11} PM"
+            peak_hours.append({"hour": label, "count": ph["cnt"]})
+        except (ValueError, TypeError):
+            peak_hours.append({"hour": ph["hour"], "count": ph["cnt"]})
+
+    # Build insight sentences from real data
+    insights_sentences = []
+    if prev_noshow_count > 0 and noshow_change != 0:
+        direction = "decreased" if noshow_change < 0 else "increased"
+        insights_sentences.append(f"No-shows {direction} by {abs(noshow_change)}% compared to last period")
+    if top_service_name != "N/A":
+        insights_sentences.append(f"Most revenue came from {top_service_name} ({currency_symbol}{top_service_revenue:,.0f})")
+    if peak_hours:
+        insights_sentences.append(f"Peak booking time: {peak_hours[0]['hour']} ({peak_hours[0]['count']} bookings)")
+    if total_bookings > 0 and prev_bookings > 0:
+        if bk_change > 0:
+            insights_sentences.append(f"Bookings grew {bk_change:.1f}% compared to last period")
+        elif bk_change < 0:
+            insights_sentences.append(f"Bookings declined {abs(bk_change):.1f}% compared to last period")
+    if visitors > 0:
+        insights_sentences.append(f"AI successfully booked {ai_success_rate}% of chatbot visitors")
+    if noshow_count == 0 and all_bookings_count > 0:
+        insights_sentences.append("Zero no-shows this period — great patient commitment!")
+    if cancel_count > 0:
+        insights_sentences.append(f"{cancel_count} cancelled appointment{'s' if cancel_count != 1 else ''} — {currency_symbol}{total_revenue_lost:,.0f} in potential revenue lost")
+    if total_lost_rate > 20:
+        insights_sentences.append(f"Loss rate is {total_lost_rate}% — consider sending more reminders to reduce cancellations")
+
+    # ── 7. Patient Metrics ──
+    # New patients = patients created in date range
+    new_patients_row = conn.execute(
+        "SELECT COUNT(*) as c FROM patients WHERE admin_id=? AND date(created_at) BETWEEN ? AND ?",
+        (admin_id, date_from, date_to)
+    ).fetchone()
+    new_patients = new_patients_row["c"] if new_patients_row else 0
+
+    # Returning patients = patients with more than 1 completed booking in range
+    returning_row = conn.execute(
+        "SELECT COUNT(DISTINCT customer_email) as c FROM bookings "
+        "WHERE admin_id=? AND status='completed' AND date BETWEEN ? AND ? "
+        "AND customer_email IN (SELECT customer_email FROM bookings WHERE admin_id=? AND status='completed' "
+        "AND date < ? AND customer_email != '')",
+        (admin_id, date_from, date_to, admin_id, date_from)
+    ).fetchone()
+    returning_patients = returning_row["c"] if returning_row else 0
+
+    # Average visits per patient
+    avg_visits_row = conn.execute(
+        "SELECT AVG(visit_count) as avg_v FROM ("
+        "SELECT customer_email, COUNT(*) as visit_count FROM bookings "
+        "WHERE admin_id=? AND status IN ('confirmed','completed') AND customer_email != '' "
+        "AND date BETWEEN ? AND ? GROUP BY customer_email)",
+        (admin_id, date_from, date_to)
+    ).fetchone()
+    avg_visits = round(avg_visits_row["avg_v"], 1) if avg_visits_row and avg_visits_row["avg_v"] else 0
+
+    # ── 8. Automation stats ──
+    # Automated bookings = bookings that came from chatbot sessions
+    auto_bookings_row = conn.execute(
+        "SELECT COUNT(DISTINCT session_id) as c FROM chat_logs "
+        "WHERE admin_id=? AND resulted_in_booking=1 AND date(created_at) BETWEEN ? AND ?",
+        (admin_id, date_from, date_to)
+    ).fetchone()
+    automated_bookings = auto_bookings_row["c"] if auto_bookings_row else 0
+    automation_rate = round((automated_bookings / total_bookings * 100), 1) if total_bookings > 0 else 0
+
+    # Staff time saved: estimate 5 min per automated interaction
+    staff_time_saved = round(visitors * 5 / 60, 1)
+
+    conn.close()
+
+    return {
+        "currency": company_currency,
+        "currency_symbol": currency_symbol,
+        "date_from": date_from,
+        "date_to": date_to,
+        "roi": {
+            "multiple": roi_multiple,
+            "percentage": roi,
+            "monthly_cost": current_plan_cost,
+            "total_cost": round(total_cost, 2),
+            "profit": profit,
+            "savings_total": round(staff_time_saved * 25, 2),  # $25/hr staff cost estimate
+        },
+        "revenue": {
+            "total_generated": round(total_revenue, 2),
+            "chatbot_revenue": round(total_revenue, 2),  # all revenue via chatbot platform
+            "avg_booking_value": avg_booking_value,
+            "total_bookings": total_bookings,
+            "daily": daily_revenue,
+        },
+        "period_comparison": {
+            "revenue_change_pct": round(rev_change, 1),
+            "bookings_change_pct": round(bk_change, 1),
+        },
+        "funnel": {
+            "visitors": visitors,
+            "chats_started": chats_started,
+            "leads_captured": leads_captured,
+            "bookings_made": bookings_made,
+            "bookings_completed": bookings_completed,
+            "visitor_to_chat_pct": visitor_to_chat,
+            "chat_to_lead_pct": chat_to_lead,
+            "lead_to_booking_pct": lead_to_booking,
+            "bookings_per_100_conversations": bookings_per_100,
+            "ai_success_rate": ai_success_rate,
+            "revenue": round(total_revenue, 2),
+        },
+        "loss_metrics": {
+            "noshow_count": noshow_count,
+            "noshow_rate": noshow_rate,
+            "cancel_count": cancel_count,
+            "cancel_rate": cancel_rate,
+            "total_lost_count": total_lost_count,
+            "total_lost_rate": total_lost_rate,
+            "revenue_lost": total_revenue_lost,
+            "daily_losses": daily_losses,
+        },
+        "insights": {
+            "sentences": insights_sentences,
+            "top_service": {"name": top_service_name, "revenue": top_service_revenue, "count": top_service_count},
+            "peak_booking_hours": peak_hours,
+            "noshow_change_pct": noshow_change,
+        },
+        "patients": {
+            "new_patients": new_patients,
+            "returning_patients": returning_patients,
+            "avg_visits_per_patient": avg_visits,
+        },
+        "automation": {
+            "automated_bookings": automated_bookings,
+            "automation_rate": automation_rate,
+            "total_bookings": total_bookings,
+            "lead_conversions": leads_captured,
+            "staff_time_saved_hours": staff_time_saved,
+        },
     }
 
 
@@ -1602,17 +2085,175 @@ def set_user_admin_id(user_id, admin_id):
     conn.close()
 
 
-PLAN_COSTS = {"free_trial": 0, "basic": 49, "pro": 149, "agency": 299}
+PLAN_COSTS = {"free_trial": 0, "basic": 99, "pro": 249, "agency": 599}
+PLAN_MONTHLY_CONVERSATIONS = {"free_trial": 50, "basic": 700, "pro": 5000, "agency": 999999999}
 
-def update_user_plan(user_id, plan):
+
+def get_monthly_conversation_count(admin_id):
+    """Count distinct chat sessions for this admin in the current month."""
     conn = get_db()
-    conn.execute("UPDATE users SET plan = ? WHERE id = ?", (plan, user_id))
-    # Record in plan history for ROI cost tracking
+    now = datetime.now()
+    month_start = now.strftime("%Y-%m-01 00:00:00")
+    row = conn.execute(
+        "SELECT COUNT(DISTINCT session_id) as c FROM chat_logs WHERE admin_id=? AND created_at >= ?",
+        (admin_id, month_start)).fetchone()
+    conn.close()
+    return row["c"] if row else 0
+
+
+def is_conversation_limit_reached(admin_id):
+    """Check if admin has exceeded their plan's monthly conversation limit."""
+    conn = get_db()
+    user = conn.execute("SELECT plan FROM users WHERE id=?", (admin_id,)).fetchone()
+    conn.close()
+    if not user:
+        return True
+    plan = user["plan"] or "free_trial"
+    limit = PLAN_MONTHLY_CONVERSATIONS.get(plan, 50)
+    count = get_monthly_conversation_count(admin_id)
+    return count >= limit
+
+def update_user_plan(user_id, plan, billing_cycle="monthly"):
+    """Activate a plan immediately (used for first-time subscription from free_trial)."""
+    from dateutil.relativedelta import relativedelta
+    conn = get_db()
+    now = datetime.now()
+    if plan == "free_trial":
+        expires = ""
+    elif billing_cycle == "yearly":
+        expires = (now + relativedelta(years=1)).strftime("%Y-%m-%d %H:%M:%S")
+    else:
+        expires = (now + relativedelta(months=1)).strftime("%Y-%m-%d %H:%M:%S")
+    started = now.strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute(
+        "UPDATE users SET plan=?, plan_started_at=?, plan_expires_at=?, billing_cycle=?, auto_renew=1, pending_plan='' WHERE id=?",
+        (plan, started, expires, billing_cycle, user_id))
     cost = PLAN_COSTS.get(plan, 0)
     conn.execute("INSERT INTO plan_history (user_id, plan, monthly_cost) VALUES (?,?,?)",
                  (user_id, plan, cost))
     conn.commit()
     conn.close()
+
+
+def schedule_plan_change(user_id, new_plan):
+    """Schedule a plan change for the next billing cycle. Current plan stays active until expiry."""
+    conn = get_db()
+    conn.execute("UPDATE users SET pending_plan=?, auto_renew=1 WHERE id=?", (new_plan, user_id))
+    conn.commit()
+    conn.close()
+
+
+def cancel_user_plan(user_id):
+    """Cancel subscription. Plan stays active until expiry, then downgrades to free_trial."""
+    conn = get_db()
+    conn.execute("UPDATE users SET auto_renew=0, pending_plan='free_trial' WHERE id=?", (user_id,))
+    conn.commit()
+    conn.close()
+
+
+def cancel_pending_plan_change(user_id):
+    """Remove a scheduled plan change, keeping the current plan as-is."""
+    conn = get_db()
+    conn.execute("UPDATE users SET pending_plan='' WHERE id=?", (user_id,))
+    conn.commit()
+    conn.close()
+
+
+def toggle_auto_renew(user_id, enabled):
+    conn = get_db()
+    if enabled:
+        # Re-enabling: clear the pending free_trial downgrade
+        conn.execute("UPDATE users SET auto_renew=1, pending_plan='' WHERE id=?", (user_id,))
+    else:
+        conn.execute("UPDATE users SET auto_renew=0, pending_plan='free_trial' WHERE id=?", (user_id,))
+    conn.commit()
+    conn.close()
+
+
+def process_plan_expiry(user_id):
+    """Check if user's plan has expired and apply pending changes.
+    Called on login / API access. Returns True if plan was changed."""
+    from dateutil.relativedelta import relativedelta
+    conn = get_db()
+    user = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    if not user:
+        conn.close()
+        return False
+    plan = user["plan"] or "free_trial"
+    expires = user["plan_expires_at"] or ""
+    pending = user["pending_plan"] or ""
+    auto_renew = user["auto_renew"]
+    billing_cycle = user["billing_cycle"] or "monthly"
+
+    if plan == "free_trial" or not expires:
+        conn.close()
+        return False
+
+    now = datetime.now()
+    try:
+        exp_dt = datetime.strptime(expires, "%Y-%m-%d %H:%M:%S")
+    except (ValueError, TypeError):
+        conn.close()
+        return False
+
+    if now < exp_dt:
+        conn.close()
+        return False  # not expired yet
+
+    # Plan has expired — apply changes
+    if pending and pending != plan:
+        # Switch to pending plan
+        new_plan = pending
+    elif not auto_renew:
+        # Cancelled — downgrade to free_trial
+        new_plan = "free_trial"
+    else:
+        # Auto-renew: same plan, new period
+        new_plan = plan
+
+    if new_plan == "free_trial":
+        conn.execute(
+            "UPDATE users SET plan='free_trial', plan_started_at='', plan_expires_at='', pending_plan='', auto_renew=1, billing_cycle='monthly' WHERE id=?",
+            (user_id,))
+        cost = 0
+    else:
+        new_started = now.strftime("%Y-%m-%d %H:%M:%S")
+        if billing_cycle == "yearly":
+            new_expires = (now + relativedelta(years=1)).strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            new_expires = (now + relativedelta(months=1)).strftime("%Y-%m-%d %H:%M:%S")
+        conn.execute(
+            "UPDATE users SET plan=?, plan_started_at=?, plan_expires_at=?, pending_plan='', auto_renew=1 WHERE id=?",
+            (new_plan, new_started, new_expires, user_id))
+        cost = PLAN_COSTS.get(new_plan, 0)
+
+    conn.execute("INSERT INTO plan_history (user_id, plan, monthly_cost) VALUES (?,?,?)",
+                 (user_id, new_plan, cost))
+    conn.commit()
+    conn.close()
+    return True
+
+
+def get_payment_method(user_id):
+    """Get the default payment method for a user."""
+    conn = get_db()
+    conn.execute("""CREATE TABLE IF NOT EXISTS payment_methods (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        card_last4 TEXT DEFAULT '',
+        card_brand TEXT DEFAULT '',
+        cardholder_name TEXT DEFAULT '',
+        expiry TEXT DEFAULT '',
+        is_default INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )""")
+    row = conn.execute("SELECT * FROM payment_methods WHERE user_id=? AND is_default=1 ORDER BY id DESC LIMIT 1", (user_id,)).fetchone()
+    conn.close()
+    if row:
+        return {"card_last4": row["card_last4"], "card_brand": row["card_brand"],
+                "cardholder_name": row["cardholder_name"], "expiry": row["expiry"]}
+    return None
 
 
 def save_payment_method(user_id, card_last4="", card_brand="", cardholder_name="", expiry=""):
@@ -1663,6 +2304,11 @@ def user_to_public(user):
         "token_expires_at": user.get("token_expires_at", ""),
         "created_at": user["created_at"],
         "public_id": user.get("public_id", ""),
+        "plan_started_at": user.get("plan_started_at", ""),
+        "plan_expires_at": user.get("plan_expires_at", ""),
+        "billing_cycle": user.get("billing_cycle", "monthly"),
+        "auto_renew": user.get("auto_renew", 1),
+        "pending_plan": user.get("pending_plan", ""),
     }
 
 
@@ -1689,10 +2335,10 @@ def save_company_info(user_id, data):
              data.get("emergency_info", ""), data.get("about", ""), data.get("currency", "USD"), user_id))
     else:
         conn.execute("""INSERT INTO company_info (user_id, business_name, address, phone, business_hours,
-            services, pricing_insurance, emergency_info, about, currency) VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            services, pricing_insurance, emergency_info, about, currency, external_api_key) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
             (user_id, data.get("business_name", ""), data.get("address", ""), data.get("phone", ""),
              data.get("business_hours", ""), data.get("services", ""), data.get("pricing_insurance", ""),
-             data.get("emergency_info", ""), data.get("about", ""), data.get("currency", "USD")))
+             data.get("emergency_info", ""), data.get("about", ""), data.get("currency", "USD"), secrets.token_hex(32)))
     conn.commit()
     conn.close()
 
@@ -1709,6 +2355,26 @@ def save_customers_api_config(user_id, api_url, api_key):
                      (user_id, api_url, api_key))
     conn.commit()
     conn.close()
+
+
+def get_admin_by_external_api_key(api_key):
+    """Look up the admin user_id from an external_api_key."""
+    conn = get_db()
+    row = conn.execute("SELECT user_id FROM company_info WHERE external_api_key = ?", (api_key,)).fetchone()
+    conn.close()
+    if row:
+        return row["user_id"]
+    return None
+
+
+def get_external_api_key(user_id):
+    """Get the external API key for a given admin."""
+    conn = get_db()
+    row = conn.execute("SELECT external_api_key FROM company_info WHERE user_id = ?", (user_id,)).fetchone()
+    conn.close()
+    if row:
+        return row["external_api_key"] or ""
+    return ""
 
 
 def get_customers_api_config(user_id):
@@ -2734,6 +3400,14 @@ def delete_waitlist_entry(waitlist_id):
     conn.close()
 
 
+def get_waitlist_by_token(token_value, token_type="confirm_token"):
+    """Look up a waitlist entry by confirm_token or remove_token."""
+    conn = get_db()
+    row = conn.execute(f"SELECT * FROM waitlist WHERE {token_type} = ? AND {token_type} != ''", (token_value,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
 # Legacy aliases for backward compatibility
 def confirm_waitlist(waitlist_id):
     return confirm_waitlist_patient(waitlist_id)
@@ -2763,6 +3437,7 @@ FEATURE_DEFAULTS = {
     "auto_invoices": 1,
     "auto_reports": 1,
     "auto_noshow_recovery": 1,
+    "auto_noshow_detection": 0,
     "loyalty_program": 1,
     "auto_recall": 1,
     "auto_followups": 1,
@@ -3006,10 +3681,30 @@ def delete_recall_rule(rule_id, admin_id):
     conn.commit()
     conn.close()
 
-def add_recall_campaign(admin_id, rule_id, patient_name, patient_email="", patient_phone="", recall_type="appointment"):
+def add_recall_campaign(admin_id, rule_id, patient_name, patient_email="", patient_phone="", recall_type="appointment", service_name="", doctor_name=""):
     conn = get_db()
-    conn.execute("INSERT INTO recall_campaigns (admin_id,rule_id,patient_name,patient_email,patient_phone,recall_type) VALUES (?,?,?,?,?,?)",
-                 (admin_id, rule_id, patient_name, patient_email, patient_phone, recall_type))
+    token = secrets.token_urlsafe(32)
+    conn.execute(
+        "INSERT INTO recall_campaigns (admin_id,rule_id,patient_name,patient_email,patient_phone,recall_type,recall_token,service_name,doctor_name) VALUES (?,?,?,?,?,?,?,?,?)",
+        (admin_id, rule_id, patient_name, patient_email, patient_phone, recall_type, token, service_name, doctor_name))
+    conn.commit()
+    cid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return {"id": cid, "recall_token": token}
+
+
+def get_recall_campaign_by_token(token):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM recall_campaigns WHERE recall_token=?", (token,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def mark_recall_booked(campaign_id, booking_id=0):
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("UPDATE recall_campaigns SET status='booked', booked_at=?, booking_id=? WHERE id=?",
+                 (now, booking_id, campaign_id))
     conn.commit()
     conn.close()
 
@@ -3096,6 +3791,41 @@ def get_due_followups():
                            AND date(recommended_date, '+' || followup_day || ' days') <= date('now')""").fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def create_single_followup(admin_id, doctor_id, patient_name, treatment_name,
+                           patient_email="", patient_phone="", booking_id=0):
+    """Create a single follow-up entry (from 'Add to Follow-up' button) with a booking token."""
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d")
+    token = secrets.token_urlsafe(32)
+    conn.execute(
+        """INSERT INTO treatment_followups
+           (admin_id, doctor_id, patient_name, patient_email, patient_phone,
+            treatment_name, recommended_date, followup_day, followup_token, booking_id)
+           VALUES (?,?,?,?,?,?,?,?,?,?)""",
+        (admin_id, doctor_id, patient_name, patient_email, patient_phone,
+         treatment_name, now, 0, token, booking_id))
+    conn.commit()
+    fid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return {"id": fid, "followup_token": token}
+
+
+def get_followup_by_token(token):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM treatment_followups WHERE followup_token=?", (token,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def mark_followup_booked(followup_id, booking_id=0):
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("UPDATE treatment_followups SET status='booked', booked_at=?, booking_id=? WHERE id=?",
+                 (now, booking_id, followup_id))
+    conn.commit()
+    conn.close()
 
 
 # ═══════════════ Feature 7: Gallery ═══════════════
@@ -4724,6 +5454,126 @@ def save_report_config(admin_id, **kwargs):
         placeholders = ",".join(["?"] * len(cols))
         values = [admin_id] + list(fields.values())
         conn.execute(f"INSERT INTO report_config ({','.join(cols)}) VALUES ({placeholders})", values)
+    conn.commit()
+    conn.close()
+
+
+# ── Email Templates ──────────────────────────────────────────────────────────
+
+def _ensure_email_templates_table():
+    conn = get_db()
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS email_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER NOT NULL,
+            name TEXT NOT NULL DEFAULT 'Custom Template',
+            header_html TEXT DEFAULT '',
+            body_html TEXT DEFAULT '',
+            footer_html TEXT DEFAULT '',
+            primary_color TEXT DEFAULT '#8b5cf6',
+            secondary_color TEXT DEFAULT '#1a1a2e',
+            bg_color TEXT DEFAULT '#f0f0f0',
+            button_color TEXT DEFAULT '#8b5cf6',
+            button_text_color TEXT DEFAULT '#ffffff',
+            button_radius TEXT DEFAULT '8',
+            button_size TEXT DEFAULT 'medium',
+            header_image_url TEXT DEFAULT '',
+            footer_image_url TEXT DEFAULT '',
+            body_image_url TEXT DEFAULT '',
+            logo_url TEXT DEFAULT '',
+            font_family TEXT DEFAULT 'Helvetica Neue, Helvetica, Arial, sans-serif',
+            is_active INTEGER DEFAULT 1,
+            source_type TEXT DEFAULT 'manual',
+            blocks_json TEXT DEFAULT '[]',
+            compiled_html TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    conn.commit()
+    conn.close()
+
+_ensure_email_templates_table()
+
+# Migration: add blocks_json and compiled_html columns if missing
+try:
+    _conn = get_db()
+    _cols = [c[1] for c in _conn.execute("PRAGMA table_info(email_templates)").fetchall()]
+    if "blocks_json" not in _cols:
+        _conn.execute("ALTER TABLE email_templates ADD COLUMN blocks_json TEXT DEFAULT '[]'")
+    if "compiled_html" not in _cols:
+        _conn.execute("ALTER TABLE email_templates ADD COLUMN compiled_html TEXT DEFAULT ''")
+    _conn.commit()
+    _conn.close()
+except Exception:
+    pass
+
+VALID_EMAIL_VARIABLES = {
+    'patient_name', 'doctor_name', 'date', 'time', 'clinic_name',
+    'confirm_link', 'cancel_link', 'service_name', 'booking_id',
+    'waitlist_position', 'reschedule_link', 'survey_link',
+    'invoice_link', 'recall_treatment', 'followup_date',
+}
+
+REQUIRED_VARIABLES_BY_TYPE = {
+    'booking_confirmation': {'patient_name', 'date', 'time'},
+    'waitlist_placed': {'patient_name', 'date', 'time'},
+    'appointment_reminder': {'patient_name', 'date', 'time'},
+    'noshow_recovery': {'patient_name'},
+}
+
+
+def validate_email_template_variables(html_text):
+    """Extract and validate all {{variable}} placeholders. Returns (valid_vars, invalid_vars)."""
+    import re
+    found = set(re.findall(r'\{\{(\w+)\}\}', html_text))
+    valid = found & VALID_EMAIL_VARIABLES
+    invalid = found - VALID_EMAIL_VARIABLES
+    return valid, invalid
+
+
+def save_email_template(admin_id, **kwargs):
+    """Save or update email template for an admin."""
+    conn = get_db()
+    existing = conn.execute("SELECT id FROM email_templates WHERE admin_id=? AND is_active=1", (admin_id,)).fetchone()
+    allowed = [
+        "name", "header_html", "body_html", "footer_html",
+        "primary_color", "secondary_color", "bg_color",
+        "button_color", "button_text_color", "button_radius", "button_size",
+        "header_image_url", "footer_image_url", "body_image_url", "logo_url",
+        "font_family", "is_active", "source_type", "blocks_json", "compiled_html"
+    ]
+    fields = {k: v for k, v in kwargs.items() if k in allowed}
+    fields["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if existing:
+        set_clause = ", ".join(f"{k}=?" for k in fields)
+        values = list(fields.values()) + [existing["id"]]
+        conn.execute(f"UPDATE email_templates SET {set_clause} WHERE id=?", values)
+    else:
+        # Clean up any inactive templates for this admin before inserting
+        conn.execute("DELETE FROM email_templates WHERE admin_id=? AND is_active=0", (admin_id,))
+        fields["is_active"] = 1
+        cols = ["admin_id"] + list(fields.keys())
+        placeholders = ",".join(["?"] * len(cols))
+        values = [admin_id] + list(fields.values())
+        conn.execute(f"INSERT INTO email_templates ({','.join(cols)}) VALUES ({placeholders})", values)
+    conn.commit()
+    conn.close()
+
+
+def get_email_template(admin_id):
+    """Get the email template for an admin, or None."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM email_templates WHERE admin_id=? AND is_active=1", (admin_id,)).fetchone()
+    conn.close()
+    if row:
+        return dict(row)
+    return None
+
+
+def delete_email_template(admin_id):
+    conn = get_db()
+    conn.execute("DELETE FROM email_templates WHERE admin_id=?", (admin_id,))
     conn.commit()
     conn.close()
 

@@ -225,7 +225,8 @@ def _process_expired_waitlist_notifications():
 
 
 def _process_noshow_detection():
-    """Detect no-shows: appointments 10+ minutes past start time without check-in."""
+    """Auto-complete past appointments. Default: mark as completed (Attended).
+    Only mark as no_show if admin has auto_noshow_detection enabled AND patient didn't check in."""
     import database as db
 
     conn = db.get_db()
@@ -233,27 +234,56 @@ def _process_noshow_detection():
         now = datetime.now()
         today = now.strftime("%Y-%m-%d")
         rows = conn.execute(
-            "SELECT * FROM bookings WHERE date=? AND status='confirmed' AND checked_in=0",
+            "SELECT * FROM bookings WHERE date=? AND status='confirmed'",
             (today,)
         ).fetchall()
         for row in rows:
             row = dict(row)
             try:
-                time_str = row["time"].split(" - ")[0].strip() if " - " in row["time"] else row["time"].strip()
-                appt_time = datetime.strptime(f"{today} {time_str}", "%Y-%m-%d %I:%M %p")
-                if now > appt_time + timedelta(minutes=10):
-                    conn.execute("UPDATE bookings SET status='no_show' WHERE id=? AND status='confirmed'", (row["id"],))
+                # Use end time of appointment to determine if it's finished
+                time_parts = row["time"].split(" - ")
+                end_time_str = time_parts[-1].strip() if len(time_parts) > 1 else time_parts[0].strip()
+                appt_end = datetime.strptime(f"{today} {end_time_str}", "%Y-%m-%d %I:%M %p")
+                if now <= appt_end:
+                    continue  # appointment not finished yet
+
+                admin_id = row.get("admin_id", 0)
+                # Only auto-mark as no_show if admin opted in AND patient didn't check in
+                if not row.get("checked_in") and db.is_feature_enabled(admin_id, "auto_noshow_detection"):
+                    conn.execute("UPDATE bookings SET status='no_show', revenue_amount=0 WHERE id=? AND status='confirmed'", (row["id"],))
                     if row.get("patient_id"):
                         conn.execute("UPDATE patients SET total_no_shows=total_no_shows+1 WHERE id=?", (row["patient_id"],))
                     conn.commit()
                     logger.info(f"No-show detected: booking {row['id']} for {row['customer_name']}")
                     # Trigger no-show recovery if feature is enabled
-                    if db.is_feature_enabled(row.get("admin_id", 0), "auto_noshow_recovery"):
+                    if db.is_feature_enabled(admin_id, "auto_noshow_recovery"):
                         try:
                             import noshow_recovery_engine
                             noshow_recovery_engine.on_noshow_detected(row["id"])
                         except Exception as e:
                             logger.warning(f"No-show recovery trigger failed for booking {row['id']}: {e}")
+                else:
+                    # Default: mark as completed (Attended)
+                    conn.execute("UPDATE bookings SET status='completed' WHERE id=? AND status='confirmed'", (row["id"],))
+                    # Update patient stats
+                    if row.get("patient_id"):
+                        conn.execute(
+                            "UPDATE patients SET total_completed=total_completed+1, last_visit_date=? WHERE id=? AND (last_visit_date IS NULL OR last_visit_date < ?)",
+                            (row["date"], row["patient_id"], row["date"])
+                        )
+                    else:
+                        pat = None
+                        if row.get("customer_email"):
+                            pat = conn.execute("SELECT id FROM patients WHERE admin_id=? AND email=?", (admin_id, row["customer_email"])).fetchone()
+                        if not pat and row.get("customer_phone"):
+                            pat = conn.execute("SELECT id FROM patients WHERE admin_id=? AND phone=?", (admin_id, row["customer_phone"])).fetchone()
+                        if pat:
+                            conn.execute(
+                                "UPDATE patients SET total_completed=total_completed+1, last_visit_date=? WHERE id=? AND (last_visit_date IS NULL OR last_visit_date < ?)",
+                                (row["date"], pat["id"], row["date"])
+                            )
+                    conn.commit()
+                    logger.info(f"Auto-completed: booking {row['id']} for {row['customer_name']}")
             except (ValueError, IndexError):
                 pass
     finally:

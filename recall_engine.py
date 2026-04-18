@@ -129,37 +129,49 @@ def process_recall_campaigns(admin_id=None):
             if existing:
                 continue
 
-            # Create campaign
-            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            conn.execute(
-                """INSERT INTO recall_campaigns
-                   (admin_id, rule_id, patient_name, patient_email, patient_phone,
-                    recall_type, status, created_at)
-                   VALUES (?,?,?,?,?,?,?,?)""",
-                (rule["admin_id"], rule["id"], patient_name, patient_email,
-                 booking.get("patient_phone") or booking.get("customer_phone"),
-                 "recall", "pending", now)
+            # Create campaign with unique booking token
+            doctor_name = booking.get("doctor_name", "")
+            campaign = db.add_recall_campaign(
+                admin_id=rule["admin_id"], rule_id=rule["id"],
+                patient_name=patient_name, patient_email=patient_email,
+                patient_phone=booking.get("patient_phone") or booking.get("customer_phone") or "",
+                recall_type="recall", service_name=rule["treatment_type"],
+                doctor_name=doctor_name
             )
-            conn.commit()
+            recall_token = campaign["recall_token"]
 
-            # Send email
-            booking_url = f"https://chatgenius.com/book/{rule['admin_id']}"
-            message = rule["message_template"].format(
-                patient_name=patient_name,
-                recall_days=rule["recall_days"],
-                treatment_type=rule["treatment_type"],
-                doctor_name=booking.get("doctor_name", "your doctor"),
-                booking_url=booking_url
-            )
+            # Build booking URL using recall token
+            import os
+            from flask import request as _req
+            try:
+                base = _req.host_url.rstrip("/")
+            except Exception:
+                base = os.environ.get("SERVER_URL", "http://localhost:8080")
+            booking_url = f"{base}/recall-book/{recall_token}"
+
+            message = rule.get("message_template", "")
+            if message:
+                try:
+                    message = message.format(
+                        patient_name=patient_name,
+                        recall_days=rule["recall_days"],
+                        treatment_type=rule["treatment_type"],
+                        doctor_name=doctor_name or "your doctor",
+                        booking_url=booking_url
+                    )
+                except Exception:
+                    pass
 
             try:
                 email_svc.send_recall_email(
                     patient_email, patient_name,
-                    rule["treatment_type"], message, booking_url
+                    rule["treatment_type"], message, booking_url,
+                    admin_id=rule["admin_id"]
                 )
+                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 conn.execute(
-                    "UPDATE recall_campaigns SET status='sent', sent_at=? WHERE rule_id=? AND patient_email=? AND status='pending'",
-                    (now, rule["id"], patient_email)
+                    "UPDATE recall_campaigns SET status='sent', sent_at=? WHERE id=?",
+                    (now, campaign["id"])
                 )
                 conn.commit()
                 logger.info(f"Recall sent to {patient_email} for {rule['treatment_type']}")
@@ -189,10 +201,17 @@ def process_second_reminders():
 
     for camp in campaigns:
         camp = dict(camp)
-        booking_url = f"https://chatgenius.com/book/{camp['admin_id']}"
+        # Use recall token if available, otherwise fallback
+        recall_token = camp.get("recall_token", "")
+        if recall_token:
+            import os
+            base = os.environ.get("SERVER_URL", "http://localhost:8080")
+            booking_url = f"{base}/recall-book/{recall_token}"
+        else:
+            booking_url = "#"
         message = (
             f"Hi {camp['patient_name']}! Just a gentle reminder — it's time for your "
-            f"{camp['treatment_type']} appointment. Book your visit today: {booking_url}"
+            f"{camp['treatment_type']} appointment. Book your visit today!"
         )
 
         try:

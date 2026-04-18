@@ -85,6 +85,89 @@
         .plan-btn-current{background:rgba(139,92,246,0.15);color:var(--cyan);cursor:default}
         .plan-btn:hover:not(.plan-btn-current){transform:translateY(-1px)}
 
+        /* ── Subscription Hero ── */
+        .sub-hero{position:relative;border-radius:24px;padding:2rem 2.5rem;overflow:hidden;border:1px solid rgba(255,255,255,0.06);margin-bottom:1.5rem}
+        .sub-hero::before{content:'';position:absolute;inset:0;background:var(--gradient);opacity:0.07;z-index:0}
+        .sub-hero::after{content:'';position:absolute;top:-60%;right:-20%;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,0.15),transparent 70%);z-index:0;animation:aurM 12s ease-in-out infinite}
+        .sub-hero>*{position:relative;z-index:1}
+        .sub-hero-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem}
+        .sub-hero-plan{font-size:2rem;font-weight:900;letter-spacing:-0.5px}
+        .sub-hero-plan small{display:block;font-size:0.82rem;font-weight:500;color:var(--gray);letter-spacing:0;margin-bottom:0.25rem;text-transform:uppercase}
+        .sub-hero-price{text-align:right}
+        .sub-hero-price .amount{font-size:2.4rem;font-weight:900;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .sub-hero-price .period{font-size:0.85rem;color:var(--gray)}
+        .sub-hero-meta{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;padding-top:1.25rem;border-top:1px solid rgba(255,255,255,0.06)}
+        .sub-meta-item{text-align:center}
+        .sub-meta-item .label{font-size:0.72rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:0.3rem}
+        .sub-meta-item .value{font-size:0.95rem;font-weight:700;color:var(--white)}
+
+        /* ── Pending Change Banner ── */
+        .sub-pending-banner{border-radius:16px;padding:1.25rem 1.75rem;margin-bottom:1.5rem;border:1px solid rgba(245,158,11,0.25);background:linear-gradient(135deg,rgba(245,158,11,0.06),rgba(245,158,11,0.02));position:relative;overflow:hidden}
+        .sub-pending-banner::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#f59e0b,#f97316)}
+        .sub-pending-banner .banner-title{display:flex;align-items:center;gap:0.5rem;font-weight:700;color:#f59e0b;margin-bottom:0.75rem;font-size:0.92rem}
+        .sub-pending-flow{display:flex;align-items:center;gap:0;justify-content:center;padding:0.5rem 0}
+        .sub-pending-flow .flow-plan{background:rgba(255,255,255,0.04);border-radius:12px;padding:0.75rem 1.5rem;text-align:center;min-width:120px}
+        .sub-pending-flow .flow-plan .fp-label{font-size:0.7rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.15rem}
+        .sub-pending-flow .flow-plan .fp-name{font-size:1.1rem;font-weight:800}
+        .sub-pending-flow .flow-plan.flow-current .fp-name{color:var(--white)}
+        .sub-pending-flow .flow-plan.flow-next .fp-name{color:#f59e0b}
+        .sub-pending-flow .flow-arrow{display:flex;flex-direction:column;align-items:center;padding:0 1.5rem;color:var(--gray)}
+        .sub-pending-flow .flow-arrow .arrow-line{width:60px;height:2px;background:linear-gradient(90deg,rgba(255,255,255,0.1),#f59e0b);position:relative}
+        .sub-pending-flow .flow-arrow .arrow-line::after{content:'';position:absolute;right:-2px;top:-4px;border:5px solid transparent;border-left:7px solid #f59e0b}
+        .sub-pending-flow .flow-arrow .arrow-date{font-size:0.72rem;margin-top:0.4rem;color:#f59e0b;font-weight:600}
+
+        /* ── Cancel Banner ── */
+        .sub-cancel-banner{border-radius:16px;padding:1.25rem 1.75rem;margin-bottom:1.5rem;border:1px solid rgba(248,113,113,0.25);background:linear-gradient(135deg,rgba(248,113,113,0.06),rgba(248,113,113,0.02));position:relative;overflow:hidden}
+        .sub-cancel-banner::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#f87171,#ef4444)}
+        .sub-cancel-banner .banner-title{display:flex;align-items:center;gap:0.5rem;font-weight:700;color:#f87171;margin-bottom:0.5rem;font-size:0.92rem}
+        .sub-cancel-banner .banner-desc{color:var(--gray);font-size:0.85rem;line-height:1.5}
+        .sub-cancel-banner .banner-desc strong{color:var(--white)}
+
+        /* ── Subscription Detail Cards ── */
+        .sub-details-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem}
+        .sub-detail-card{background:rgba(255,255,255,0.02);border-radius:16px;padding:1.5rem;border:1px solid rgba(255,255,255,0.04)}
+        .sub-detail-card .card-header{display:flex;align-items:center;gap:0.6rem;margin-bottom:1rem}
+        .sub-detail-card .card-header .card-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem}
+        .sub-detail-card .card-header .card-title{font-size:0.95rem;font-weight:700}
+
+        /* Usage card */
+        .sub-usage-ring{display:flex;align-items:center;gap:1.5rem}
+        .sub-usage-ring svg{width:90px;height:90px;transform:rotate(-90deg)}
+        .sub-usage-ring .ring-bg{fill:none;stroke:rgba(255,255,255,0.06);stroke-width:8}
+        .sub-usage-ring .ring-fill{fill:none;stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset 1s ease}
+        .sub-usage-info .usage-pct{font-size:1.8rem;font-weight:900;color:var(--white)}
+        .sub-usage-info .usage-detail{font-size:0.82rem;color:var(--gray);margin-top:0.15rem}
+
+        /* Payment card */
+        .sub-payment-card{background:linear-gradient(135deg,rgba(139,92,246,0.1),rgba(99,102,241,0.05));border-radius:14px;padding:1.25rem;border:1px solid rgba(139,92,246,0.15);position:relative;overflow:hidden}
+        .sub-payment-card::after{content:'';position:absolute;top:10px;right:15px;width:50px;height:35px;border-radius:5px;border:2px solid rgba(255,255,255,0.1)}
+        .sub-payment-card .card-brand{font-size:0.85rem;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:1px;margin-bottom:0.75rem}
+        .sub-payment-card .card-number{font-family:'Courier New',monospace;font-size:1rem;color:var(--white);letter-spacing:3px;margin-bottom:0.6rem}
+        .sub-payment-card .card-bottom{display:flex;justify-content:space-between;align-items:flex-end}
+        .sub-payment-card .card-holder{font-size:0.72rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px}
+        .sub-payment-card .card-holder span{display:block;font-size:0.82rem;color:var(--white);font-weight:600;margin-top:0.1rem;text-transform:none;letter-spacing:0}
+        .sub-payment-card .card-expiry{font-size:0.72rem;color:var(--gray);text-align:right}
+        .sub-payment-card .card-expiry span{display:block;font-size:0.82rem;color:var(--white);font-weight:600;margin-top:0.1rem}
+
+        /* Billing timeline */
+        .sub-timeline{display:flex;align-items:center;gap:0;padding:0.5rem 0}
+        .sub-timeline .tl-dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--cyan);background:var(--cyan-glow);flex-shrink:0;position:relative}
+        .sub-timeline .tl-dot.active{background:var(--cyan)}
+        .sub-timeline .tl-line{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,0.06);position:relative;overflow:hidden}
+        .sub-timeline .tl-line .tl-progress{height:100%;background:var(--gradient);border-radius:2px;transition:width 1s ease}
+        .sub-timeline .tl-dot-end{width:12px;height:12px;border-radius:50%;border:2px solid rgba(255,255,255,0.15);flex-shrink:0}
+
+        /* Action buttons */
+        .sub-actions{display:flex;gap:0.75rem;flex-wrap:wrap}
+        .sub-action-btn{padding:0.65rem 1.5rem;border-radius:12px;font-size:0.85rem;font-weight:600;cursor:pointer;transition:all .3s var(--ease);border:none;display:flex;align-items:center;gap:0.5rem}
+        .sub-action-btn:hover{transform:translateY(-1px)}
+        .sub-action-btn.primary{background:var(--gradient);color:#fff}
+        .sub-action-btn.danger{background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.25);color:#f87171}
+        .sub-action-btn.danger:hover{background:rgba(248,113,113,0.15)}
+        .sub-action-btn.secondary{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:var(--white)}
+        .sub-action-btn.secondary:hover{background:rgba(255,255,255,0.08)}
+        @media(max-width:768px){.sub-hero-meta{grid-template-columns:repeat(2,1fr)}.sub-details-grid{grid-template-columns:1fr}.sub-pending-flow{flex-direction:column}.sub-pending-flow .flow-arrow{transform:rotate(90deg);padding:0.75rem 0}}
+
         table{width:100%;border-collapse:collapse;background:rgba(255,255,255,0.02);border-radius:16px;overflow:hidden}
         th{text-align:left;padding:0.65rem 0.75rem;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray);border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.03)}
         td{padding:0.65rem 0.75rem;font-size:0.88rem;border-bottom:1px solid rgba(255,255,255,0.03)}
@@ -233,7 +316,67 @@
         .profile-backdrop.show{display:block}
         @keyframes profileIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 
-        @media(max-width:768px){.sidebar{display:none}.main{margin-left:0}.form-row{grid-template-columns:1fr}.profile-popup{left:50%;transform:translateX(-50%);bottom:20px}}
+        @media(max-width:768px){.sidebar{display:none}.main{margin-left:0}.form-row{grid-template-columns:1fr}.profile-popup{left:50%;transform:translateX(-50%);bottom:20px}.sub-grid{grid-template-columns:1fr!important}.recall-add-grid{grid-template-columns:1fr!important}}
+
+        /* ── Email Builder ── */
+        .eb-topbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;padding-bottom:0.75rem;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:0.75rem}
+        .eb-device-btn,.eb-action-btn{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:var(--gray);padding:0.3rem 0.7rem;border-radius:8px;font-size:0.78rem;cursor:pointer;transition:all .2s}
+        .eb-device-btn:hover,.eb-action-btn:hover{background:rgba(139,92,246,0.15);color:var(--white)}
+        .eb-device-btn.active{background:rgba(139,92,246,0.2);color:#a78bfa;border-color:rgba(139,92,246,0.3)}
+        .eb-palette-item{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:0.5rem 0.3rem;text-align:center;cursor:grab;font-size:0.72rem;color:var(--gray);transition:all .2s;user-select:none}
+        .eb-palette-item:hover{background:rgba(139,92,246,0.12);border-color:rgba(139,92,246,0.25);color:var(--white)}
+        .eb-palette-item:active{cursor:grabbing}
+        .eb-palette-icon{font-size:1.2rem;display:block;margin-bottom:2px}
+        .eb-canvas-outer{flex:1;display:flex;justify-content:center;overflow-y:auto;background:rgba(0,0,0,0.2);border-radius:12px;padding:1.5rem;min-height:500px;max-height:calc(100vh - 180px)}
+        .eb-canvas{background:#ffffff;border-radius:8px;box-shadow:0 4px 30px rgba(0,0,0,0.3);min-height:300px;transition:width .3s}
+        .eb-block-wrap{position:relative;cursor:grab;transition:outline .15s, opacity .2s, transform .2s, box-shadow .2s;outline:2px solid transparent;outline-offset:-2px}
+        .eb-block-wrap:hover{outline:2px dashed rgba(139,92,246,0.4)}
+        .eb-block-wrap.eb-selected{outline:2px solid #8b5cf6}
+        .eb-block-wrap.eb-dragging{opacity:0.4;transform:scale(0.98);cursor:grabbing}
+        .eb-canvas.eb-is-dragging .eb-block-wrap:not(.eb-dragging){transition:transform .2s}
+        .eb-block-bar{position:absolute;top:-28px;right:4px;display:none;gap:2px;z-index:10}
+        .eb-block-wrap:hover .eb-block-bar,.eb-block-wrap.eb-selected .eb-block-bar{display:flex}
+        .eb-block-bar button{width:24px;height:24px;border-radius:6px;border:none;background:rgba(0,0,0,0.65);color:#fff;font-size:0.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+        .eb-block-bar button:hover{background:#8b5cf6}
+        .eb-dropzone{height:6px;transition:all .2s;border-radius:2px;margin:0 8px}
+        .eb-canvas.eb-is-dragging .eb-dropzone{height:24px;background:rgba(139,92,246,0.04);border:2px dashed transparent;margin:2px 8px;border-radius:8px}
+        .eb-dropzone.eb-drag-over{height:40px!important;background:rgba(139,92,246,0.18)!important;border:2px dashed #8b5cf6!important;margin:4px 8px!important;border-radius:8px}
+        .eb-empty{text-align:center;padding:4rem 2rem;color:#999;font-size:0.9rem}
+        .eb-settings-title{font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray);margin:1rem 0 0.4rem;padding-bottom:0.3rem;border-bottom:1px solid rgba(255,255,255,0.05)}
+        .eb-settings-row{margin-bottom:0.6rem}
+        .eb-settings-row label{display:block;font-size:0.75rem;color:var(--gray);margin-bottom:0.2rem}
+        .eb-settings-row input[type="text"],.eb-settings-row input[type="number"],.eb-settings-row select,.eb-settings-row textarea{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:var(--white);padding:0.35rem 0.5rem;font-size:0.8rem;outline:none}
+        .eb-settings-row input:focus,.eb-settings-row select:focus,.eb-settings-row textarea:focus{border-color:rgba(139,92,246,0.4)}
+        .eb-settings-row textarea{resize:vertical;min-height:50px;font-family:inherit}
+        .eb-color-row{display:flex;align-items:center;gap:0.4rem}
+        .eb-color-row input[type="color"]{width:32px;height:28px;border:none;background:none;cursor:pointer;padding:0}
+        .eb-color-row input[type="text"]{flex:1}
+        .eb-var-chip{background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.2);color:#c4b5fd;padding:0.15rem 0.45rem;border-radius:5px;font-size:0.68rem;cursor:pointer;font-family:monospace;transition:all .15s;white-space:nowrap}
+        .eb-var-chip:hover{background:rgba(139,92,246,0.25)}
+        .eb-action-btn{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#e2e8f0;padding:0.3rem 0.4rem;border-radius:6px;font-size:0.7rem;cursor:grab;transition:all .15s;display:flex;align-items:center;gap:0.3rem}
+        .eb-action-btn:hover{background:rgba(139,92,246,0.12);border-color:rgba(139,92,246,0.3)}
+        .eb-action-btn span{font-size:0.8rem}
+        .eb-rte-toolbar{display:flex;gap:1px;flex-wrap:wrap;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-bottom:none;border-radius:6px 6px 0 0;padding:3px}
+        .eb-rte-toolbar button{width:28px;height:26px;border:none;background:none;color:var(--gray);font-size:0.78rem;cursor:pointer;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+        .eb-rte-toolbar button:hover{background:rgba(139,92,246,0.2);color:var(--white)}
+        .eb-rte-toolbar .eb-sep{width:1px;height:20px;background:rgba(255,255,255,0.08);margin:3px 2px;flex-shrink:0}
+        .eb-rte-editor{min-height:100px;max-height:300px;overflow-y:auto;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:0 0 6px 6px;color:var(--white);padding:0.5rem 0.6rem;font-size:0.85rem;line-height:1.6;outline:none}
+        .eb-rte-editor:focus{border-color:rgba(139,92,246,0.4)}
+        .eb-rte-editor p{margin:0 0 0.5em}
+        .eb-rte-editor ul,.eb-rte-editor ol{margin:0.3em 0;padding-left:1.5em}
+        .eb-rte-editor h1,.eb-rte-editor h2,.eb-rte-editor h3{margin:0.3em 0;font-weight:700}
+        .eb-rte-editor h1{font-size:1.4em} .eb-rte-editor h2{font-size:1.15em} .eb-rte-editor h3{font-size:1em}
+        .eb-rte-editor a{color:#a78bfa}
+        .eb-rte-editor blockquote{border-left:3px solid rgba(139,92,246,0.4);margin:0.3em 0;padding-left:0.8em;color:var(--gray)}
+        .eb-text-editable{outline:none;min-height:20px;cursor:text}
+        .eb-text-editable:focus{background:rgba(139,92,246,0.03)}
+        .eb-text-toolbar{position:absolute;top:-32px;left:50%;transform:translateX(-50%);display:none;gap:1px;background:rgba(0,0,0,0.8);border-radius:8px;padding:3px;z-index:20;backdrop-filter:blur(8px)}
+        .eb-block-wrap.eb-selected .eb-text-toolbar{display:flex}
+        .eb-text-toolbar button{width:26px;height:24px;border:none;background:none;color:#ccc;font-size:0.75rem;cursor:pointer;border-radius:4px;display:flex;align-items:center;justify-content:center}
+        .eb-text-toolbar button:hover{background:rgba(255,255,255,0.15);color:#fff}
+        .eb-preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.3rem}
+        .eb-preset-btn{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:0.3rem;text-align:center;cursor:pointer;font-size:0.7rem;color:var(--gray);transition:all .15s}
+        .eb-preset-btn:hover,.eb-preset-btn.active{border-color:rgba(139,92,246,0.4);color:var(--white);background:rgba(139,92,246,0.1)}
 
         /* ── Manage Doctors page ── */
         .manage-card{background:rgba(255,255,255,0.035);border-radius:20px;padding:1.25rem 1.5rem;border:1px solid rgba(255,255,255,0.05);margin-bottom:0.75rem;transition:border-color 0.3s var(--ease),box-shadow 0.3s var(--ease)}
@@ -458,6 +601,7 @@
             <li class="admin-only"><a href="#" onclick="showPage('followups')"><i data-lucide="bell" style="width:18px;height:18px"></i><span class="icon">&#128221;</span> Follow-Ups</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('config')"><i data-lucide="sliders" style="width:18px;height:18px"></i><span class="icon">&#9881;</span> Configuration</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('roi')"><i data-lucide="trending-up" style="width:18px;height:18px"></i><span class="icon">&#128200;</span> ROI</a></li>
+            <li class="admin-only pro-only"><a href="#" onclick="showPage('email-style')"><i data-lucide="palette" style="width:18px;height:18px"></i><span class="icon">&#127912;</span> Email Style</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('pms')"><i data-lucide="plug" style="width:18px;height:18px"></i><span class="icon">&#128268;</span> PMS Integration</a></li>
         </ul>
         <div class="sidebar-user">
@@ -514,18 +658,164 @@
 
         <!-- PLAN PAGE (admin only) -->
         <div id="page-plan" style="display:none">
-            <div class="main-header"><h1>My Plan</h1></div>
-            <div class="section" style="margin-bottom:1.5rem">
+            <div class="main-header"><h1>Subscription & Billing</h1></div>
+
+            <!-- ═══ SUBSCRIPTION DETAILS (paid users) ═══ -->
+            <div id="subscriptionDetails" style="display:none">
+
+                <!-- Hero Card -->
+                <div class="sub-hero">
+                    <div class="sub-hero-top">
+                        <div class="sub-hero-plan">
+                            <small>Current Plan</small>
+                            <span id="subPlanType">Pro</span>
+                            <span class="plan-badge plan-free" id="planPageBadge" style="margin-top:0.35rem">Pro</span>
+                        </div>
+                        <div class="sub-hero-price">
+                            <div class="amount" id="subCostBig">$249</div>
+                            <div class="period" id="subCostPeriod">per month</div>
+                        </div>
+                    </div>
+                    <div class="sub-hero-meta">
+                        <div class="sub-meta-item">
+                            <div class="label">Billing Cycle</div>
+                            <div class="value" id="subCycle">Monthly</div>
+                        </div>
+                        <div class="sub-meta-item">
+                            <div class="label">Started</div>
+                            <div class="value" id="subStarted">-</div>
+                        </div>
+                        <div class="sub-meta-item">
+                            <div class="label">Next Renewal</div>
+                            <div class="value" id="subExpires">-</div>
+                        </div>
+                        <div class="sub-meta-item">
+                            <div class="label">Status</div>
+                            <div class="value" id="subStatus" style="color:#10b981">Active</div>
+                        </div>
+                    </div>
+                    <!-- Billing Timeline -->
+                    <div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.06)">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem">
+                            <span style="font-size:0.72rem;color:var(--gray)" id="subTlStart">Billing started</span>
+                            <span style="font-size:0.72rem;color:var(--gray)" id="subTlEnd">Renews</span>
+                        </div>
+                        <div class="sub-timeline">
+                            <div class="tl-dot active"></div>
+                            <div class="tl-line"><div class="tl-progress" id="subTlProgress" style="width:0%"></div></div>
+                            <div class="tl-dot-end"></div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-top:0.25rem">
+                            <span style="font-size:0.72rem;color:var(--white);font-weight:600" id="subTlStartDate">-</span>
+                            <span style="font-size:0.72rem;color:var(--white);font-weight:600" id="subTlEndDate">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pending Plan Change Banner -->
+                <div id="subPendingBanner" class="sub-pending-banner" style="display:none">
+                    <div class="banner-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                        Plan Change Scheduled
+                    </div>
+                    <div class="sub-pending-flow">
+                        <div class="flow-plan flow-current">
+                            <div class="fp-label">Current</div>
+                            <div class="fp-name" id="subPendingFrom">Pro</div>
+                        </div>
+                        <div class="flow-arrow">
+                            <div class="arrow-line"></div>
+                            <div class="arrow-date" id="subPendingDate">Effective May 15, 2026</div>
+                        </div>
+                        <div class="flow-plan flow-next">
+                            <div class="fp-label">Switching To</div>
+                            <div class="fp-name" id="subPendingTo">Agency</div>
+                        </div>
+                    </div>
+                    <div style="text-align:center;margin-top:0.75rem">
+                        <button onclick="cancelPlanChange()" class="sub-action-btn danger" style="font-size:0.8rem;padding:0.5rem 1.25rem">Cancel Plan Change</button>
+                    </div>
+                </div>
+
+                <!-- Cancellation Banner -->
+                <div id="subCancelBanner" class="sub-cancel-banner" style="display:none">
+                    <div class="banner-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>
+                        Subscription Cancelled
+                    </div>
+                    <div class="banner-desc">
+                        Your subscription has been cancelled. You'll continue to have access to all <strong id="subCancelPlan">Pro</strong> features until <strong id="subCancelDate">-</strong>. After that, your account will revert to the Free Trial.
+                    </div>
+                    <button onclick="toggleAutoRenew(true)" class="sub-action-btn secondary" style="margin-top:1rem;font-size:0.8rem">Reactivate Subscription</button>
+                </div>
+
+                <!-- Detail Cards Grid -->
+                <div class="sub-details-grid">
+                    <!-- Usage Card -->
+                    <div class="sub-detail-card">
+                        <div class="card-header">
+                            <div class="card-icon" style="background:rgba(139,92,246,0.12);color:var(--cyan)">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                            </div>
+                            <div class="card-title">Conversations Used</div>
+                        </div>
+                        <div class="sub-usage-ring">
+                            <svg viewBox="0 0 36 36">
+                                <circle class="ring-bg" cx="18" cy="18" r="14"/>
+                                <circle class="ring-fill" id="subUsageRing" cx="18" cy="18" r="14" stroke="url(#usageGrad)" stroke-dasharray="87.96" stroke-dashoffset="87.96"/>
+                                <defs><linearGradient id="usageGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#8b5cf6"/><stop offset="100%" stop-color="#3b82f6"/></linearGradient></defs>
+                            </svg>
+                            <div class="sub-usage-info">
+                                <div class="usage-pct" id="subUsagePct">0%</div>
+                                <div class="usage-detail" id="subConvCount">0 / 50 conversations</div>
+                                <div class="usage-detail" id="subConvNote" style="font-size:0.72rem;margin-top:0.25rem;color:var(--gray)">Resets at next billing cycle</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Method Card -->
+                    <div class="sub-detail-card">
+                        <div class="card-header">
+                            <div class="card-icon" style="background:rgba(52,211,153,0.12);color:var(--green)">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                            </div>
+                            <div class="card-title">Payment Method</div>
+                        </div>
+                        <div id="subPaymentInfo">
+                            <p style="color:var(--gray);font-size:0.85rem">No payment method on file</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions Row -->
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+                    <div class="sub-actions">
+                        <button onclick="document.getElementById('plansSection').scrollIntoView({behavior:'smooth'})" class="sub-action-btn primary">Change Plan</button>
+                        <button onclick="cancelSubscription()" id="subCancelBtn" class="sub-action-btn danger">Cancel Subscription</button>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:0.75rem">
+                        <span style="font-size:0.85rem;color:var(--gray)">Auto-Renewal</span>
+                        <label style="position:relative;width:44px;height:24px;cursor:pointer;flex-shrink:0">
+                            <input type="checkbox" id="subAutoRenew" onchange="toggleAutoRenew(this.checked)" style="opacity:0;width:0;height:0">
+                            <span style="position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.1);border-radius:50px;transition:0.3s" id="subAutoRenewTrack"></span>
+                            <span style="position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:0.3s;box-shadow:0 2px 4px rgba(0,0,0,0.3)" id="subAutoRenewThumb"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ FREE TRIAL MESSAGE ═══ -->
+            <div id="freeTrialMsg" class="section" style="margin-bottom:1.5rem">
                 <div class="section-header">
                     <div class="section-title">Current Plan</div>
-                    <span class="plan-badge plan-free" id="planPageBadge">Free Trial</span>
+                    <span class="plan-badge plan-free">Free Trial</span>
                 </div>
-                <p style="color:var(--gray);font-size:0.92rem" id="planDescription">You're on the free trial.</p>
+                <p style="color:var(--gray);font-size:0.92rem" id="planDescription">You're on the free trial. Choose a plan below to unlock more features.</p>
             </div>
-            <div class="plans-grid">
-                <div class="plan-card" id="planCard-basic"><h3>Basic</h3><div class="plan-price">$49<small>/mo</small></div><ul class="plan-features"><li>500 conversations/month</li><li>1 chatbot</li><li>Email support</li></ul><button class="plan-btn plan-btn-outline" onclick="selectPlan('basic')">Choose Basic</button></div>
-                <div class="plan-card" id="planCard-pro"><h3>Pro <span style="color:var(--cyan);font-size:0.75rem">POPULAR</span></h3><div class="plan-price">$149<small>/mo</small></div><ul class="plan-features"><li>5,000 conversations/month</li><li>3 chatbots</li><li>Appointment booking</li><li>Priority support</li></ul><button class="plan-btn plan-btn-primary" onclick="selectPlan('pro')">Choose Pro</button></div>
-                <div class="plan-card" id="planCard-agency"><h3>Agency</h3><div class="plan-price">$299<small>/mo</small></div><ul class="plan-features"><li>Unlimited conversations</li><li>Unlimited chatbots</li><li>White-label</li><li>Dedicated manager</li></ul><button class="plan-btn plan-btn-outline" onclick="selectPlan('agency')">Choose Agency</button></div>
+            <div class="plans-grid" id="plansSection">
+                <div class="plan-card" id="planCard-basic"><h3>Basic</h3><div class="plan-price">$99<small>/mo</small></div><ul class="plan-features"><li>Up to 700 conversations/month</li><li>1 chatbot (with watermark)</li><li>AI chatbot (website only)</li><li>Smart appointment booking</li><li>Calendar & doctor scheduling</li><li>Email reminders (48h, 24h)</li><li>Basic patient profiles</li><li>Pre-visit forms</li><li>Basic analytics</li></ul><button class="plan-btn plan-btn-outline" onclick="selectPlan('basic')">Choose Basic</button></div>
+                <div class="plan-card" id="planCard-pro"><h3>Pro <span style="color:var(--cyan);font-size:0.75rem">MOST POPULAR</span></h3><div class="plan-price">$249<small>/mo</small></div><ul class="plan-features"><li>Up to 5,000 conversations/month</li><li>4 chatbots (no watermark)</li><li>Everything in Basic +</li><li>Advanced reminders (48h, 24h, 2h)</li><li>No-show detection & recovery</li><li>ROI dashboard</li><li>Lead capture + auto follow-ups</li><li>Waitlist system</li><li>Promotions & loyalty program</li><li>Multi-language chatbot</li><li>Treatment follow-ups</li><li>Customer integration</li><li>Customizable chatbot</li><li>AI PDF extraction</li><li>Configurable emails</li></ul><button class="plan-btn plan-btn-primary" onclick="selectPlan('pro')">Choose Pro</button></div>
+                <div class="plan-card" id="planCard-agency"><h3>Agency</h3><div class="plan-price">$599<small>/mo</small></div><ul class="plan-features"><li>Unlimited conversations</li><li>Everything in Pro +</li><li>AI no-show prediction reminders</li><li>Advanced analytics & reports</li><li>Custom workflows</li><li>API access (integrations)</li><li>Appointment database integrations</li><li>PMS/CRM integration</li><li>Full doctor portal access</li><li>Priority support</li><li>Customizable emails</li><li>Use your own email to send</li></ul><button class="plan-btn plan-btn-outline" onclick="selectPlan('agency')">Choose Agency</button></div>
             </div>
         </div>
 
@@ -543,11 +833,11 @@
         <!-- PREVIOUS BOOKINGS PAGE -->
         <div id="page-previous-bookings" style="display:none">
             <div class="main-header"><h1>Previous Bookings</h1></div>
-            <p style="color:var(--gray);font-size:0.9rem;margin-bottom:1rem">Completed, cancelled, and non-attended bookings.</p>
+            <p style="color:var(--gray);font-size:0.9rem;margin-bottom:1rem">Attended, cancelled, and non-attended bookings.</p>
             <div class="section">
                 <table>
-                    <thead><tr><th>Customer</th><th>Type</th><th>Doctor</th><th>Date</th><th>Time</th><th>Promo</th><th>Status</th></tr></thead>
-                    <tbody id="prevBookingsBody"><tr><td colspan="7" class="empty-msg">No previous bookings</td></tr></tbody>
+                    <thead><tr><th>Customer</th><th>Type</th><th>Doctor</th><th>Date</th><th>Time</th><th>Promo</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="prevBookingsBody"><tr><td colspan="8" class="empty-msg">No previous bookings</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -584,8 +874,8 @@
             <p style="color:var(--gray);font-size:0.9rem;margin-bottom:1.5rem">Fill in your business details. This powers your chatbot's responses — customers get answers based on what you provide here.</p>
 
             <!-- File Upload Section -->
-            <div class="section" style="margin-bottom:1.5rem">
-                <div class="section-header"><div class="section-title">Auto-Fill from File</div></div>
+            <div class="section pro-only" style="margin-bottom:1.5rem">
+                <div class="section-header"><div class="section-title">AI PDF Extraction</div></div>
                 <p style="color:var(--gray);font-size:0.85rem;margin-bottom:1rem">Upload a PDF, DOCX, or TXT file with your business info. AI will extract and fill the fields below automatically.</p>
                 <div class="upload-area" id="uploadArea" onclick="document.getElementById('uploadFileInput').click()" ondragover="event.preventDefault();this.classList.add('dragging')" ondragleave="this.classList.remove('dragging')" ondrop="event.preventDefault();this.classList.remove('dragging');handleFileDrop(event)">
                     <div class="upload-icon">&#128196;</div>
@@ -654,7 +944,7 @@
             <div class="main-header">
                 <h1>Doctors Available</h1>
                 <div style="display:flex;gap:0.5rem">
-                    <button class="btn-primary" onclick="openPdfUploadModal()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">Upload Doctor PDF</button>
+                    <button class="btn-primary pro-only" onclick="openPdfUploadModal()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:middle;margin-right:4px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>AI PDF Extraction</button>
                     <button class="btn-primary" onclick="openDoctorModal()">+ Add Doctor</button>
                 </div>
             </div>
@@ -870,20 +1160,66 @@
 
         <!-- Feature 3: Recall & Retention -->
         <div id="page-recall" style="display:none">
-            <h2 class="page-title">Recall & Retention</h2>
+            <div class="main-header"><h1>Recall & Retention</h1></div>
+
+            <!-- Add Recall Rule -->
             <div class="section">
-                <h3 style="font-size:0.95rem;margin-bottom:0.8rem">Recall Rules</h3>
-                <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap">
-                    <input type="text" id="recallTreatment" class="form-input" placeholder="Treatment type" style="width:160px">
-                    <input type="number" id="recallDays" class="form-input" placeholder="Days" style="width:80px" value="180">
-                    <input type="text" id="recallTemplate" class="form-input" placeholder="Message template" style="flex:1;min-width:200px">
-                    <button class="manage-save-btn" onclick="addRecallRule()">+ Add Rule</button>
+                <div class="section-header">
+                    <div class="section-title">Recall Rules</div>
+                    <span style="font-size:0.78rem;color:var(--gray)">Automatically remind patients to come back</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 120px 1fr auto;gap:0.75rem;align-items:end;margin-bottom:1.5rem" class="recall-add-grid">
+                    <div>
+                        <label class="form-label" style="font-size:0.78rem;color:var(--gray);margin-bottom:0.3rem">Treatment / Service</label>
+                        <select id="recallTreatment" class="form-input" style="width:100%">
+                            <option value="">Select a service...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size:0.78rem;color:var(--gray);margin-bottom:0.3rem">Recall After</label>
+                        <div style="display:flex;align-items:center;gap:0.35rem">
+                            <input type="number" id="recallDays" class="form-input" placeholder="180" style="width:70px" value="180" min="1">
+                            <span style="color:var(--gray);font-size:0.82rem">days</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size:0.78rem;color:var(--gray);margin-bottom:0.3rem">Custom Message (optional)</label>
+                        <input type="text" id="recallTemplate" class="form-input" placeholder="e.g. Time for your checkup!" style="width:100%">
+                    </div>
+                    <button class="btn-primary" onclick="addRecallRule()" style="padding:0.55rem 1.25rem;border-radius:10px;font-size:0.85rem;white-space:nowrap;height:fit-content">+ Add Rule</button>
                 </div>
                 <div id="recallRulesList"></div>
             </div>
-            <div class="section" style="margin-top:1rem">
-                <h3 style="font-size:0.95rem;margin-bottom:0.8rem">Campaign Stats</h3>
-                <div id="recallStats"></div>
+
+            <!-- Campaign Stats -->
+            <div class="stats-row" style="margin-top:0">
+                <div class="stat-card">
+                    <div class="stat-label">Emails Sent</div>
+                    <div class="stat-value" id="recallStatSent">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Opened</div>
+                    <div class="stat-value" id="recallStatOpened">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Booked</div>
+                    <div class="stat-value" id="recallStatBooked">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Conversion Rate</div>
+                    <div class="stat-value" id="recallStatConversion">0%</div>
+                </div>
+            </div>
+
+            <!-- Recent Campaigns -->
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-title">Recent Recall Campaigns</div>
+                </div>
+                <table>
+                    <thead><tr><th>Patient</th><th>Service</th><th>Status</th><th>Sent</th><th>Booked</th></tr></thead>
+                    <tbody id="recallCampaignsList"><tr><td colspan="5" class="empty-msg">No campaigns yet.</td></tr></tbody>
+                </table>
             </div>
         </div>
 
@@ -901,24 +1237,34 @@
 
         <!-- Feature 5: Treatment Follow-Ups -->
         <div id="page-followups" style="display:none">
-            <h2 class="page-title">Treatment Follow-Ups</h2>
+            <div class="main-header"><h1>Treatment Follow-Ups</h1></div>
             <div class="section">
-                <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap">
-                    <input type="text" id="fuPatient" class="form-input" placeholder="Patient name" style="width:150px">
-                    <input type="text" id="fuTreatment" class="form-input" placeholder="Treatment" style="width:150px">
-                    <input type="email" id="fuEmail" class="form-input" placeholder="Email" style="width:180px">
-                    <input type="text" id="fuPhone" class="form-input" placeholder="Phone" style="width:140px">
-                    <button class="manage-save-btn" onclick="createFollowup()">+ Create Follow-Up</button>
+                <div class="section-header">
+                    <div class="section-title">Create Follow-Up</div>
                 </div>
-                <div style="margin-bottom:0.5rem">
+                <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;align-items:end">
+                    <div><label class="form-label" style="font-size:0.72rem;color:var(--gray);margin-bottom:0.2rem">Patient Name</label><input type="text" id="fuPatient" class="form-input" placeholder="Patient name" style="width:150px"></div>
+                    <div><label class="form-label" style="font-size:0.72rem;color:var(--gray);margin-bottom:0.2rem">Treatment</label><input type="text" id="fuTreatment" class="form-input" placeholder="Treatment" style="width:150px"></div>
+                    <div><label class="form-label" style="font-size:0.72rem;color:var(--gray);margin-bottom:0.2rem">Email</label><input type="email" id="fuEmail" class="form-input" placeholder="Email" style="width:180px"></div>
+                    <div><label class="form-label" style="font-size:0.72rem;color:var(--gray);margin-bottom:0.2rem">Phone</label><input type="text" id="fuPhone" class="form-input" placeholder="Phone" style="width:140px"></div>
+                    <button class="btn-primary" onclick="createFollowup()" style="padding:0.55rem 1.2rem;border-radius:10px;font-size:0.85rem;height:fit-content">+ Create Follow-Up</button>
+                </div>
+            </div>
+            <div class="section" style="margin-top:1rem">
+                <div class="section-header">
+                    <div class="section-title">Follow-Up List</div>
                     <select id="fuStatusFilter" class="form-input" style="width:150px" onchange="loadFollowups()">
                         <option value="">All</option>
                         <option value="pending">Pending</option>
                         <option value="sent">Sent</option>
+                        <option value="booked">Booked</option>
                         <option value="cancelled">Cancelled</option>
                     </select>
                 </div>
-                <div id="followupsList"></div>
+                <table>
+                    <thead><tr><th>Patient</th><th>Treatment</th><th>Status</th><th>Sent</th><th>Booked</th><th>Actions</th></tr></thead>
+                    <tbody id="followupsList"><tr><td colspan="6" class="empty-msg">No follow-ups.</td></tr></tbody>
+                </table>
             </div>
         </div>
 
@@ -1251,7 +1597,48 @@
             <div class="main-header"><h1>Return on Investment</h1></div>
             <p style="color:var(--gray);font-size:0.9rem;margin-bottom:1.5rem">Track the revenue generated by ChatGenius and measure your return on investment.</p>
 
-            <div class="stats-row" id="roiStatsRow">
+            <!-- Date Filter -->
+            <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap" id="roiDateFilter">
+                <button class="roi-range-btn" onclick="setRoiRange('today',this)">Today</button>
+                <button class="roi-range-btn" onclick="setRoiRange('week',this)">This Week</button>
+                <button class="roi-range-btn active" onclick="setRoiRange('month',this)">This Month</button>
+                <button class="roi-range-btn" onclick="setRoiRange('year',this)">This Year</button>
+                <button class="roi-range-btn" onclick="setRoiRange('all',this)">All Time</button>
+            </div>
+            <style>
+                .roi-range-btn{padding:0.45rem 1rem;border:1px solid rgba(255,255,255,0.08);background:transparent;color:var(--gray);border-radius:8px;cursor:pointer;font-size:0.82rem;font-family:inherit;transition:all .2s}
+                .roi-range-btn:hover{border-color:#8b5cf6;color:var(--white)}
+                .roi-range-btn.active{background:#8b5cf6;color:#fff;border-color:#8b5cf6}
+                .roi-section{margin-bottom:2rem}
+                .roi-section-hdr{display:flex;align-items:center;gap:0.6rem;margin-bottom:1rem;font-size:1rem;font-weight:600}
+                .roi-section-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:0.95rem}
+                .roi-chart-wrap{background:var(--navy-card);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:1.25rem;margin-bottom:1.25rem}
+                .roi-chart-wrap canvas{max-height:300px}
+                .roi-funnel-bar-wrap{display:flex;align-items:center;gap:0.75rem;margin-bottom:0.6rem}
+                .roi-funnel-label{font-size:0.82rem;color:var(--gray);min-width:160px}
+                .roi-funnel-bar{height:32px;background:var(--gradient);border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding:0 0.6rem;min-width:50px;transition:width .5s var(--ease)}
+                .roi-funnel-bar span{font-size:0.8rem;font-weight:600;color:#fff}
+                .roi-funnel-rate{font-size:0.82rem;font-weight:600;color:var(--green);min-width:55px;text-align:right}
+                .roi-insight-item{display:flex;align-items:flex-start;gap:0.6rem;padding:0.65rem 0;border-bottom:1px solid rgba(255,255,255,0.05)}
+                .roi-insight-item:last-child{border-bottom:none}
+                .roi-insight-dot{width:7px;height:7px;border-radius:50%;background:#8b5cf6;margin-top:7px;flex-shrink:0}
+                .roi-insight-txt{font-size:0.88rem;color:var(--gray);line-height:1.5}
+                .roi-loss-card .stat-value{color:var(--red)!important}
+            </style>
+
+            <!-- ROI Hero -->
+            <div style="background:var(--gradient);border-radius:18px;padding:2rem;text-align:center;margin-bottom:2rem;position:relative;overflow:hidden">
+                <div style="font-size:3.2rem;font-weight:800;color:#fff" id="roi_multiple">0.0<span style="font-size:1.5rem;opacity:0.8">x</span></div>
+                <div style="color:rgba(255,255,255,0.85);font-size:0.95rem;margin-top:0.3rem">Every $1 spent returns $<span id="roi_return">0.00</span></div>
+                <div style="display:flex;justify-content:center;gap:2rem;margin-top:1.25rem">
+                    <div style="text-align:center"><div style="font-size:1.3rem;font-weight:700;color:#fff" id="roi_monthly_cost">$0</div><div style="font-size:0.7rem;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px">Monthly Cost</div></div>
+                    <div style="text-align:center"><div style="font-size:1.3rem;font-weight:700;color:#fff" id="roi_revenue_hero">—</div><div style="font-size:0.7rem;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px">Revenue Generated</div></div>
+                    <div style="text-align:center"><div style="font-size:1.3rem;font-weight:700;color:#fff" id="roi_profit_hero">—</div><div style="font-size:0.7rem;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px">Profit</div></div>
+                </div>
+            </div>
+
+            <!-- Core ROI Metrics -->
+            <div class="stats-row" style="margin-bottom:2rem">
                 <div class="stat-card">
                     <div class="stat-label">Money Generated</div>
                     <div class="stat-value" id="roi_money_generated" style="color:var(--green)">—</div>
@@ -1274,7 +1661,7 @@
                 </div>
             </div>
 
-            <div class="stats-row">
+            <div class="stats-row" style="margin-bottom:2rem">
                 <div class="stat-card">
                     <div class="stat-label">Chat Sessions</div>
                     <div class="stat-value" id="roi_sessions">0</div>
@@ -1286,11 +1673,161 @@
                     <div class="stat-sub">Total appointments booked through the chatbot</div>
                 </div>
             </div>
+
+            <!-- Revenue Section -->
+            <div class="roi-section">
+                <div class="roi-section-hdr"><div class="roi-section-icon" style="background:rgba(52,211,153,0.12);color:var(--green)">$</div> Revenue Generated</div>
+                <div class="stats-row">
+                    <div class="stat-card"><div class="stat-label">Total Revenue</div><div class="stat-value" id="roi_total_rev" style="color:var(--green)">—</div><div class="stat-sub" id="roi_rev_change">+0% vs last period</div></div>
+                    <div class="stat-card"><div class="stat-label">From ChatGenius</div><div class="stat-value" id="roi_chatbot_rev">—</div><div class="stat-sub">Automated bookings</div></div>
+                    <div class="stat-card"><div class="stat-label">Avg Booking Value</div><div class="stat-value" id="roi_avg_bv">—</div><div class="stat-sub">Per appointment</div></div>
+                    <div class="stat-card"><div class="stat-label">Total Bookings</div><div class="stat-value" id="roi_bookings_rev">0</div><div class="stat-sub" id="roi_bk_change">+0% vs last period</div></div>
+                </div>
+                <div class="roi-chart-wrap"><canvas id="roiRevenueChart"></canvas></div>
+            </div>
+
+            <!-- Conversion Funnel -->
+            <div class="roi-section">
+                <div class="roi-section-hdr"><div class="roi-section-icon" style="background:rgba(99,102,241,0.12);color:#6366f1">&#x1f4ca;</div> Conversion Funnel</div>
+                <div class="roi-chart-wrap" id="roiFunnelBars">
+                    <div class="roi-funnel-bar-wrap"><div class="roi-funnel-label">Chatbot Visitors</div><div class="roi-funnel-bar" id="roi_f_visitors" style="width:100%"><span id="roi_f_visitors_n">0</span></div><div class="roi-funnel-rate" style="color:var(--gray)">&mdash;</div></div>
+                    <div class="roi-funnel-bar-wrap"><div class="roi-funnel-label">Chats Started</div><div class="roi-funnel-bar" id="roi_f_chats" style="width:0%"><span id="roi_f_chats_n">0</span></div><div class="roi-funnel-rate" id="roi_f_chat_rate">0%</div></div>
+                    <div class="roi-funnel-bar-wrap"><div class="roi-funnel-label">Leads Captured</div><div class="roi-funnel-bar" id="roi_f_leads" style="width:0%"><span id="roi_f_leads_n">0</span></div><div class="roi-funnel-rate" id="roi_f_lead_rate">0%</div></div>
+                    <div class="roi-funnel-bar-wrap"><div class="roi-funnel-label">Bookings Made</div><div class="roi-funnel-bar" id="roi_f_bookings" style="width:0%"><span id="roi_f_bookings_n">0</span></div><div class="roi-funnel-rate" id="roi_f_booking_rate">0%</div></div>
+                </div>
+                <div class="stats-row">
+                    <div class="stat-card"><div class="stat-label">Visitor &rarr; Chat</div><div class="stat-value" style="color:var(--green)" id="roi_v2c">100%</div></div>
+                    <div class="stat-card"><div class="stat-label">Chat &rarr; Lead</div><div class="stat-value" style="color:var(--green)" id="roi_c2l">0%</div></div>
+                    <div class="stat-card"><div class="stat-label">Lead &rarr; Booking</div><div class="stat-value" style="color:var(--green)" id="roi_l2b">0%</div></div>
+                    <div class="stat-card"><div class="stat-label">Bookings / 100 Chats</div><div class="stat-value" style="color:var(--cyan)" id="roi_bp100">0</div></div>
+                    <div class="stat-card"><div class="stat-label">AI Success Rate</div><div class="stat-value" style="color:var(--cyan)" id="roi_ai_rate">0%</div><div class="stat-sub">Bookings from chatbot visitors</div></div>
+                </div>
+            </div>
+
+            <!-- Loss Metrics -->
+            <div class="roi-section">
+                <div class="roi-section-hdr"><div class="roi-section-icon" style="background:rgba(239,68,68,0.12);color:var(--red)">&#x1f4c9;</div> Loss Metrics</div>
+                <div class="stats-row">
+                    <div class="stat-card roi-loss-card"><div class="stat-label">No-Shows</div><div class="stat-value" id="roi_ns_count">0</div><div class="stat-sub">No-show rate: <span id="roi_ns_rate">0%</span></div></div>
+                    <div class="stat-card roi-loss-card"><div class="stat-label">Cancellations</div><div class="stat-value" id="roi_cancel_count">0</div><div class="stat-sub">Cancel rate: <span id="roi_cancel_rate">0%</span></div></div>
+                    <div class="stat-card roi-loss-card"><div class="stat-label">Total Lost</div><div class="stat-value" id="roi_lost_total">0</div><div class="stat-sub">Loss rate: <span id="roi_lost_rate">0%</span></div></div>
+                    <div class="stat-card roi-loss-card"><div class="stat-label">Revenue Lost</div><div class="stat-value" id="roi_ns_rev">—</div><div class="stat-sub">From no-shows &amp; cancellations</div></div>
+                </div>
+                <div class="roi-chart-wrap"><canvas id="roiLossChart"></canvas></div>
+                <div class="roi-chart-wrap"><canvas id="roiMoneyLostChart"></canvas></div>
+            </div>
+
+            <!-- AI Insights -->
+            <div class="roi-section">
+                <div class="roi-section-hdr"><div class="roi-section-icon" style="background:rgba(236,72,153,0.12);color:#ec4899">&#x1f9e0;</div> AI Insights</div>
+                <div class="roi-chart-wrap" id="roiInsightsList"><div style="padding:0.5rem;color:var(--gray);text-align:center">Loading insights...</div></div>
+            </div>
+
+            <!-- Patient Metrics -->
+            <div class="roi-section">
+                <div class="roi-section-hdr"><div class="roi-section-icon" style="background:rgba(251,191,36,0.12);color:var(--yellow)">&#x1f465;</div> Patient Metrics</div>
+                <div class="stats-row">
+                    <div class="stat-card"><div class="stat-label">New Patients</div><div class="stat-value" style="color:var(--green)" id="roi_new_pat">0</div><div class="stat-sub">First-time this period</div></div>
+                    <div class="stat-card"><div class="stat-label">Returning Patients</div><div class="stat-value" style="color:var(--cyan)" id="roi_ret_pat">0</div><div class="stat-sub">Visited before</div></div>
+                    <div class="stat-card"><div class="stat-label">Avg Visits / Patient</div><div class="stat-value" style="color:var(--yellow)" id="roi_avg_vis">0</div><div class="stat-sub">This period</div></div>
+                </div>
+            </div>
+
+            <!-- Automation Impact -->
+            <div class="roi-section">
+                <div class="roi-section-hdr"><div class="roi-section-icon" style="background:rgba(139,92,246,0.12);color:var(--cyan)">&#x1f916;</div> Automation Impact</div>
+                <div class="stats-row">
+                    <div class="stat-card"><div class="stat-label">Automated Bookings</div><div class="stat-value" style="color:var(--cyan)" id="roi_auto_bk">0</div><div class="stat-sub" id="roi_auto_pct">0% of total</div></div>
+                    <div class="stat-card"><div class="stat-label">Lead Conversions</div><div class="stat-value" style="color:var(--green)" id="roi_lead_conv">0</div><div class="stat-sub">From chatbot</div></div>
+                    <div class="stat-card"><div class="stat-label">Staff Time Saved</div><div class="stat-value" style="color:var(--yellow)" id="roi_time_saved">0 hrs</div><div class="stat-sub">Automated interactions</div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- EMAIL BUILDER PAGE (Pro+ only) -->
+        <div id="page-email-style" style="display:none">
+            <!-- Top Bar -->
+            <div class="eb-topbar">
+                <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+                    <h1 style="font-size:1.25rem;margin:0">Email Builder</h1>
+                    <select id="ebTemplateSelect" onchange="ebLoadPreset(this.value)" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:var(--white);padding:0.3rem 0.6rem;border-radius:8px;font-size:0.8rem;cursor:pointer">
+                        <option value="booking_confirmation">Booking Confirmation</option>
+                        <option value="appointment_reminder">Appointment Reminder</option>
+                        <option value="waitlist_placed">Waitlist Notification</option>
+                        <option value="recall_email">Recall / Come Back</option>
+                        <option value="welcome_email">Welcome Email</option>
+                        <option value="followup_email">Follow-Up Email</option>
+                    </select>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap">
+                    <button class="eb-device-btn active" id="ebDevDesktop" onclick="ebSetDevice('desktop')">Desktop</button>
+                    <button class="eb-device-btn" id="ebDevMobile" onclick="ebSetDevice('mobile')">Mobile</button>
+                    <span style="width:1px;height:20px;background:rgba(255,255,255,0.08);margin:0 4px"></span>
+                    <button class="eb-action-btn" onclick="ebUndo()" title="Undo (Ctrl+Z)">&#8634; Undo</button>
+                    <button class="eb-action-btn" onclick="ebRedo()" title="Redo (Ctrl+Y)">&#8635; Redo</button>
+                    <span style="width:1px;height:20px;background:rgba(255,255,255,0.08);margin:0 4px"></span>
+                    <button class="eb-action-btn" onclick="ebSendTest()">Send Test</button>
+                    <button class="btn-primary" onclick="ebSave()" style="font-size:0.82rem;padding:0.4rem 1.1rem;border-radius:10px">Save Template</button>
+                </div>
+            </div>
+
+            <!-- Builder Layout -->
+            <div style="display:flex;gap:0.75rem;min-height:calc(100vh - 200px)">
+                <!-- Left: Block Palette + Variables -->
+                <div style="width:135px;flex-shrink:0;overflow-y:auto;max-height:calc(100vh - 180px)">
+                    <p style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray);margin:0 0 0.4rem">Blocks</p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;margin-bottom:1rem">
+                        <div class="eb-palette-item" draggable="true" ondragstart="ebDragNew(event,'heading')"><span class="eb-palette-icon">H</span>Heading</div>
+                        <div class="eb-palette-item" draggable="true" ondragstart="ebDragNew(event,'text')"><span class="eb-palette-icon">T</span>Text</div>
+                        <div class="eb-palette-item" draggable="true" ondragstart="ebDragNew(event,'image')"><span class="eb-palette-icon">&#128444;</span>Image</div>
+                        <div class="eb-palette-item" draggable="true" ondragstart="ebDragNew(event,'button')"><span class="eb-palette-icon">&#9635;</span>Button</div>
+                        <div class="eb-palette-item" draggable="true" ondragstart="ebDragNew(event,'divider')"><span class="eb-palette-icon">&mdash;</span>Divider</div>
+                        <div class="eb-palette-item" draggable="true" ondragstart="ebDragNew(event,'spacer')"><span class="eb-palette-icon">&#8661;</span>Spacer</div>
+                        <div class="eb-palette-item" draggable="true" ondragstart="ebDragNew(event,'logo')"><span class="eb-palette-icon">&#9670;</span>Logo</div>
+                        <div class="eb-palette-item" draggable="true" ondragstart="ebDragNew(event,'social')"><span class="eb-palette-icon">&#9741;</span>Social</div>
+                    </div>
+                    <p style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray);margin:0 0 0.4rem">Variables</p>
+                    <div style="display:flex;flex-wrap:wrap;gap:0.2rem;margin-bottom:1rem">
+                        <span class="eb-var-chip" onclick="ebInsertVar('patient_name')">patient_name</span>
+                        <span class="eb-var-chip" onclick="ebInsertVar('doctor_name')">doctor_name</span>
+                        <span class="eb-var-chip" onclick="ebInsertVar('date')">date</span>
+                        <span class="eb-var-chip" onclick="ebInsertVar('time')">time</span>
+                        <span class="eb-var-chip" onclick="ebInsertVar('clinic_name')">clinic_name</span>
+                        <span class="eb-var-chip" onclick="ebInsertVar('service_name')">service_name</span>
+                        <span class="eb-var-chip" onclick="ebInsertVar('confirm_link')">confirm_link</span>
+                        <span class="eb-var-chip" onclick="ebInsertVar('cancel_link')">cancel_link</span>
+                        <span class="eb-var-chip" onclick="ebInsertVar('booking_id')">booking_id</span>
+                        <span class="eb-var-chip" onclick="ebInsertVar('waitlist_position')">waitlist_position</span>
+                        <span class="eb-var-chip" onclick="ebInsertVar('recall_treatment')">recall_treatment</span>
+                        <span class="eb-var-chip" onclick="ebInsertVar('followup_date')">followup_date</span>
+                    </div>
+                    <p style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--gray);margin:0 0 0.4rem">Action Buttons</p>
+                    <div id="ebActionBtnsContainer" style="display:flex;flex-direction:column;gap:0.25rem;margin-bottom:1rem"></div>
+                    <button onclick="ebShowTheme()" style="width:100%;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);color:#a78bfa;padding:0.4rem;border-radius:8px;font-size:0.78rem;cursor:pointer">Theme Settings</button>
+                </div>
+
+                <!-- Center: Canvas -->
+                <div class="eb-canvas-outer" id="ebCanvasOuter">
+                    <div class="eb-canvas" id="ebCanvas" style="width:600px">
+                        <div id="ebCanvasInner"></div>
+                    </div>
+                </div>
+
+                <!-- Right: Settings Panel -->
+                <div style="width:250px;flex-shrink:0;overflow-y:auto;max-height:calc(100vh - 180px)" id="ebSettingsPanel">
+                    <div id="ebSettingsContent">
+                        <p style="color:var(--gray);text-align:center;padding:3rem 1rem;font-size:0.85rem">Click a block to edit its properties, or drag blocks from the left panel.</p>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- PMS INTEGRATION PAGE (admin only) -->
         <div id="page-pms" style="display:none">
-            <div class="main-header"><h1>PMS Integration</h1></div>
+            <div class="main-header" style="display:flex;align-items:center;justify-content:space-between">
+                <h1>PMS Integration</h1>
+                <button class="btn-primary admin-only" onclick="openAddAppointment()" style="font-size:0.85rem;padding:0.5rem 1.2rem;border-radius:10px">+ Add Appointment</button>
+            </div>
             <p style="color:var(--gray);font-size:0.9rem;margin-bottom:1.5rem">Connect ChatGenius with your Practice Management System and website.</p>
 
             <!-- Embed Chatbot Section (moved from Company Info) -->
@@ -1351,9 +1888,127 @@
                     </div>
                 </details>
             </div>
+
+            <!-- Appointment Integration Section -->
+        <div class="section" style="margin-top:1.5rem">
+            <div class="section-header"><div class="section-title">Appointment Integration</div></div>
+            <p style="color:var(--gray);font-size:0.85rem;margin-bottom:1rem">Sync appointments from your website or PMS with ChatGenius. When a patient books directly on your website, send the appointment to our API so the chatbot knows about it and avoids double-booking.</p>
+
+            <!-- How It Works -->
+            <details open style="margin-bottom:1rem">
+                <summary style="color:#e2e8f0;font-size:0.88rem;font-weight:600;cursor:pointer;margin-bottom:0.75rem">How It Works</summary>
+                <div style="background:#1a1d27;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:1.25rem;font-size:0.8rem;color:#94a3b8;line-height:1.8">
+
+                    <p style="color:#e2e8f0;font-weight:600;margin:0 0 8px">Overview</p>
+                    <p style="margin:0 0 12px">This integration allows your website or external PMS to push appointments directly into ChatGenius. Each company gets a <strong style="color:#a78bfa">permanent API key</strong> that never expires and never changes — use it in all your requests to authenticate which company the appointment belongs to.</p>
+
+                    <p style="color:#e2e8f0;font-weight:600;margin:0 0 8px">Booking Flow</p>
+                    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+                        <div style="display:flex;align-items:flex-start;gap:8px"><span style="color:#a78bfa;font-weight:700;min-width:20px">1.</span><span>Your website sends a <strong style="color:#e2e8f0">POST</strong> request with patient info, doctor name, date, and time.</span></div>
+                        <div style="display:flex;align-items:flex-start;gap:8px"><span style="color:#a78bfa;font-weight:700;min-width:20px">2.</span><span>We validate the doctor exists in your account and the time is within the doctor's working hours for that day.</span></div>
+                        <div style="display:flex;align-items:flex-start;gap:8px"><span style="color:#a78bfa;font-weight:700;min-width:20px">3.</span><span><strong style="color:#34d399">If the slot is free</strong> — the appointment is created and confirmed instantly. You get back a <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px">booking_id</code>.</span></div>
+                        <div style="display:flex;align-items:flex-start;gap:8px"><span style="color:#a78bfa;font-weight:700;min-width:20px">4.</span><span><strong style="color:#f59e0b">If the slot is taken</strong> — the patient is automatically added to the <strong style="color:#e2e8f0">waitlist</strong>. An email is sent to the patient with two buttons:</span></div>
+                        <div style="margin-left:28px;display:flex;flex-direction:column;gap:4px">
+                            <div style="display:flex;align-items:center;gap:6px"><span style="color:#34d399">&#9679;</span><span><strong style="color:#34d399">"Keep Me on Waitlist"</strong> — patient confirms they want to wait. If the main appointment is cancelled, they get moved in automatically.</span></div>
+                            <div style="display:flex;align-items:center;gap:6px"><span style="color:#ef4444">&#9679;</span><span><strong style="color:#ef4444">"Remove Me from Waitlist"</strong> — patient is removed and won't be contacted again for this slot.</span></div>
+                        </div>
+                    </div>
+
+                    <p style="color:#e2e8f0;font-weight:600;margin:0 0 8px">Time Handling</p>
+                    <p style="margin:0 0 12px">Send the start time only (e.g. <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px">14:00</code> or <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px">2:00 PM</code>). The end time is calculated automatically based on the doctor's appointment length setting. Supports both 24-hour and 12-hour formats.</p>
+
+                    <p style="color:#e2e8f0;font-weight:600;margin:0 0 8px">Working Hours Validation</p>
+                    <p style="margin:0 0 12px">Every request is validated against the doctor's schedule. If the doctor has a <strong style="color:#e2e8f0">flexible</strong> schedule, we check the specific day's hours. If <strong style="color:#e2e8f0">fixed</strong>, we use the general working hours. Requests on days off or outside working hours are rejected with a clear error message showing the doctor's actual hours.</p>
+
+                    <p style="color:#e2e8f0;font-weight:600;margin:0 0 8px">Patient Deduplication</p>
+                    <p style="margin:0 0 12px">Patients are matched by <strong style="color:#e2e8f0">email</strong> or <strong style="color:#e2e8f0">phone</strong>. If the same patient books multiple times, they are recognized as one person — not counted as duplicates. The response includes <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px">is_returning: true/false</code> so you know if this is a new or existing patient.</p>
+
+                    <p style="color:#e2e8f0;font-weight:600;margin:0 0 8px">Your API Key</p>
+                    <p style="margin:0">Your API key is <strong style="color:#a78bfa">permanent</strong> — it never expires and never changes, even if you log out. Each company has a unique key. Use it in the <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px">Authorization: Bearer</code> header for all requests.</p>
+
+                </div>
+            </details>
+
+            <div style="background:#1a1d27;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:1.25rem;margin-bottom:1rem">
+                <p style="color:#e2e8f0;font-size:0.85rem;font-weight:600;margin-bottom:0.75rem">API Endpoint</p>
+                <code style="background:rgba(139,92,246,0.15);padding:6px 12px;border-radius:6px;color:#a78bfa;font-size:0.82rem;display:block;margin-bottom:0.75rem">POST <span id="pmsApptEndpoint"></span>/api/external/booking</code>
+                <p style="color:var(--gray);font-size:0.8rem;margin-bottom:0.5rem"><strong style="color:#e2e8f0">Headers:</strong></p>
+                <code style="background:rgba(255,255,255,0.04);padding:4px 10px;border-radius:4px;color:#94a3b8;font-size:0.78rem;display:block;margin-bottom:0.5rem">Authorization: Bearer <span class="pms-appt-token-display">YOUR_TOKEN</span></code>
+                <code style="background:rgba(255,255,255,0.04);padding:4px 10px;border-radius:4px;color:#94a3b8;font-size:0.78rem;display:block">Content-Type: application/json</code>
+            </div>
+
+            <div style="background:#1a1d27;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:1.25rem;margin-bottom:1rem">
+                <p style="color:#e2e8f0;font-size:0.85rem;font-weight:600;margin-bottom:0.75rem">Create Appointment — Required JSON Body</p>
+<pre style="background:rgba(255,255,255,0.03);border-radius:8px;padding:1rem;font-size:0.78rem;color:#94a3b8;overflow-x:auto;line-height:1.7;margin:0">{
+  "patient_name": "John Doe",           <span style="color:#f87171">// Required — full name</span>
+  "patient_email": "john@example.com",   <span style="color:#f87171">// Required — used for deduplication</span>
+  "patient_phone": "+1234567890",        <span style="color:#f87171">// Required — used for deduplication</span>
+  "doctor_name": "Dr. Smith",            <span style="color:#f87171">// Required — must match a doctor in your account</span>
+  "service": "Root Canal",               <span style="color:#64748b">// Optional — if empty or omitted, will be set to "NA"</span>
+  "date": "2026-04-20",                  <span style="color:#f87171">// Required — YYYY-MM-DD format</span>
+  "time": "14:00",                       <span style="color:#f87171">// Required — HH:MM (24h format)</span>
+  "notes": "Patient prefers morning"     <span style="color:#64748b">// Optional</span>
+}</pre>
+                <p style="color:#64748b;font-size:0.75rem;margin-top:0.75rem">Duplicate patients (same email or phone) are automatically merged — they won't be counted as separate patients.</p>
+            </div>
+
+            <!-- Language tabs -->
+            <div style="margin-bottom:1rem">
+                <p style="color:#e2e8f0;font-size:0.85rem;font-weight:600;margin-bottom:0.75rem">Code Examples</p>
+                <div style="display:flex;gap:0.4rem;margin-bottom:0.75rem;flex-wrap:wrap">
+                    <button class="roi-range-btn active" onclick="showApptCode('js',this)">JavaScript</button>
+                    <button class="roi-range-btn" onclick="showApptCode('python',this)">Python</button>
+                    <button class="roi-range-btn" onclick="showApptCode('csharp',this)">C#</button>
+                    <button class="roi-range-btn" onclick="showApptCode('java',this)">Java</button>
+                    <button class="roi-range-btn" onclick="showApptCode('swift',this)">Swift</button>
+                    <button class="roi-range-btn" onclick="showApptCode('curl',this)">cURL</button>
+                </div>
+                <div style="position:relative">
+                    <pre id="pmsApptCodeBlock" style="background:#1a1d27;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:1rem;font-size:0.75rem;color:#94a3b8;overflow-x:auto;white-space:pre;line-height:1.6;max-height:320px"></pre>
+                    <button onclick="copyApptCode()" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;padding:4px 12px;font-size:0.78rem;cursor:pointer">Copy</button>
+                </div>
+                <span id="pmsApptCopyMsg" style="font-size:0.8rem;color:var(--cyan);display:none;margin-top:0.4rem">Copied to clipboard!</span>
+            </div>
+
+            <details style="margin-top:0.5rem">
+                <summary style="color:var(--gray);font-size:0.82rem;cursor:pointer">Response Format & Error Codes</summary>
+                <div style="background:#1a1d27;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:1rem;margin-top:0.5rem;font-size:0.78rem;color:#94a3b8;line-height:1.7">
+                    <strong style="color:#34d399">Success (201):</strong><br>
+                    <code style="background:rgba(255,255,255,0.04);padding:2px 6px;border-radius:4px">{"ok": true, "booking_id": 123, "patient_id": 45, "is_returning": false, "message": "Appointment synced successfully"}</code><br><br>
+                    <strong style="color:#f87171">Errors:</strong><br>
+                    <code style="background:rgba(255,255,255,0.04);padding:2px 6px;border-radius:4px">401</code> — Invalid or missing API key<br>
+                    <code style="background:rgba(255,255,255,0.04);padding:2px 6px;border-radius:4px">400</code> — Missing required fields (patient_name, patient_email, patient_phone, doctor_name, date, time)<br>
+                    <code style="background:rgba(255,255,255,0.04);padding:2px 6px;border-radius:4px">404</code> — Doctor not found in your account<br>
+                    <code style="background:rgba(255,255,255,0.04);padding:2px 6px;border-radius:4px">409</code> — Time slot already booked for that doctor
+                </div>
+            </details>
         </div>
 
+    </div>
+
     </main>
+</div>
+
+<!-- Add Appointment Modal -->
+<div class="modal-overlay" id="addApptModal">
+    <div class="modal" style="max-width:500px">
+        <h2>Add Appointment</h2>
+        <div class="form-group"><label class="form-label">Patient Name *</label><input type="text" class="form-input" id="appt_name" placeholder="Full name"></div>
+        <div class="form-group"><label class="form-label">Patient Email</label><input type="email" class="form-input" id="appt_email" placeholder="email@example.com"></div>
+        <div class="form-group"><label class="form-label">Patient Phone</label><input type="text" class="form-input" id="appt_phone" placeholder="+1234567890"></div>
+        <div class="form-group"><label class="form-label">Doctor *</label><select class="form-input" id="appt_doctor"></select></div>
+        <div class="form-group"><label class="form-label">Service</label><select class="form-input" id="appt_service"><option value="General Consultation">General Consultation</option></select></div>
+        <div style="display:flex;gap:0.75rem">
+            <div class="form-group" style="flex:1"><label class="form-label">Date *</label><input type="date" class="form-input" id="appt_date"></div>
+            <div class="form-group" style="flex:1"><label class="form-label">Time *</label><input type="time" class="form-input" id="appt_time"></div>
+        </div>
+        <div class="form-group"><label class="form-label">Notes</label><textarea class="form-input" id="appt_notes" rows="2" placeholder="Optional notes"></textarea></div>
+        <div style="display:flex;gap:0.5rem;margin-top:1rem">
+            <button class="btn-primary" onclick="submitAddAppointment()">Confirm Appointment</button>
+            <button class="btn-primary" onclick="document.getElementById('addApptModal').style.display='none'" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1)">Cancel</button>
+        </div>
+        <span id="addApptMsg" style="font-size:0.8rem;display:none;margin-top:0.5rem"></span>
+    </div>
 </div>
 
 <!-- Doctor Modal -->
@@ -1449,7 +2104,7 @@
 
     const PLAN_LABELS = { free_trial: 'Free Trial', basic: 'Basic', pro: 'Pro', agency: 'Agency' };
     const PLAN_CLASSES = { free_trial: 'plan-free', basic: 'plan-basic', pro: 'plan-pro', agency: 'plan-agency' };
-    const PLAN_DAILY_LIMITS = { free_trial: 25, basic: 100, pro: 500, agency: 999999 };
+    const PLAN_DAILY_LIMITS = { free_trial: 25, basic: 23, pro: 167, agency: 999999 };
 
     const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -1470,6 +2125,9 @@
         // Show invitations link only for admins NOT yet linked to a company
         const isUnlinkedAdmin = user && user.role === 'admin' && (!user.admin_id || user.admin_id === 0);
         document.querySelectorAll('.invited-admin-only').forEach(el => el.style.display = isUnlinkedAdmin ? '' : 'none');
+        // Plan-based nav visibility
+        const isPro = getUserPlanLevel() >= PLAN_LEVELS['pro'];
+        document.querySelectorAll('.pro-only').forEach(el => el.style.display = (isAdmin && isPro) ? '' : 'none');
 
         // Update role badge
         const roleEl = document.getElementById('sidebarRole');
@@ -1521,16 +2179,74 @@
 
         applyRoleUI();
         highlightCurrentPlan();
+        applyPlanGating();
     }
 
-    const PLAN_GATED_PAGES = ['company', 'analytics', 'manage', 'promotions', 'waitlist', 'roi', 'pms'];
+    function applyPlanGating() {
+        // Add lock icons + styling to sidebar items the user can't access
+        const userLevel = getUserPlanLevel();
+        document.querySelectorAll('.sidebar-nav a[onclick*="showPage"]').forEach(a => {
+            const match = a.getAttribute('onclick').match(/showPage\('([^']+)'\)/);
+            if (!match) return;
+            const page = match[1];
+            const required = PAGE_MIN_PLAN[page];
+            if (!required) return;
+            const reqLevel = PLAN_LEVELS[required] || 0;
+            // Remove old lock if any
+            const oldLock = a.querySelector('.plan-lock');
+            if (oldLock) oldLock.remove();
+            if (userLevel < reqLevel) {
+                a.style.opacity = '0.45';
+                const planLabel = required.charAt(0).toUpperCase() + required.slice(1);
+                const lock = document.createElement('span');
+                lock.className = 'plan-lock';
+                lock.style.cssText = 'margin-left:auto;font-size:0.65rem;background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px;color:#94a3b8;font-weight:600;letter-spacing:0.5px';
+                lock.textContent = planLabel;
+                a.style.display = 'flex';
+                a.style.alignItems = 'center';
+                a.appendChild(lock);
+            } else {
+                a.style.opacity = '';
+            }
+        });
+    }
+
+    // Plan feature gating — which pages require which plan minimum
+    const PLAN_LEVELS = { free_trial: 0, basic: 1, pro: 2, agency: 3 };
+    const PAGE_MIN_PLAN = {
+        // Basic+ (all paid plans)
+        'company': 'basic', 'manage': 'basic', 'doctors': 'basic',
+        // Pro+ features
+        'leads': 'pro', 'promotions': 'pro', 'waitlist': 'pro', 'roi': 'pro',
+        'recall': 'pro', 'followups': 'pro', 'config': 'pro', 'customers': 'pro',
+        // Pro+ features
+        'email-style': 'pro',
+        // Agency only
+        'analytics': 'agency', 'pms': 'agency',
+    };
+    const PLAN_UPGRADE_MSG = {
+        basic: 'This feature requires a Basic plan or higher.',
+        pro: 'This feature requires a Pro plan or higher. Upgrade to unlock lead capture, ROI dashboard, waitlist, promotions, and more.',
+        agency: 'This feature requires the Agency plan. Upgrade to unlock advanced analytics, API access, PMS integration, and more.'
+    };
     function hasActivePlan() {
         const p = user && user.plan;
-        return !!(p && String(p).trim() && p !== 'none');
+        return !!(p && String(p).trim() && p !== 'none' && p !== 'free_trial');
+    }
+    function getUserPlanLevel() {
+        return PLAN_LEVELS[user?.plan] || 0;
+    }
+    function canAccessPage(page) {
+        const required = PAGE_MIN_PLAN[page];
+        if (!required) return true; // no restriction
+        const userLevel = getUserPlanLevel();
+        const requiredLevel = PLAN_LEVELS[required] || 0;
+        return userLevel >= requiredLevel;
     }
     function showPage(page) {
-        if (PLAN_GATED_PAGES.includes(page) && !hasActivePlan()) {
-            showToast('You need to have a subscription first to access this feature.', 'warning');
+        if (!canAccessPage(page)) {
+            const required = PAGE_MIN_PLAN[page] || 'basic';
+            showToast(PLAN_UPGRADE_MSG[required] || 'Upgrade your plan to access this feature.', 'warning');
             return;
         }
         document.querySelectorAll('[id^="page-"]').forEach(p => p.style.display = 'none');
@@ -1564,8 +2280,10 @@
         if (page === 'gmb') loadGmb();
         if (page === 'security') loadSecurity();
         if (page === 'config') loadFeatureConfig();
-        if (page === 'roi') loadROI();
+        if (page === 'roi') setTimeout(loadROI, 50);
         if (page === 'pms') loadPMS();
+        if (page === 'email-style') loadEmailStyle();
+        if (page === 'plan') { highlightCurrentPlan(); loadSubscription(); }
         if (page === 'previous-bookings') loadPreviousBookings();
     }
 
@@ -1600,18 +2318,18 @@
                 : bookings.map(b => {
                     const isDone = b.status === 'cancelled' || b.status === 'no_show';
                     const rowStyle = isDone ? 'style="text-decoration:line-through;opacity:0.5;cursor:pointer"' : 'style="cursor:pointer"';
-                    const badgeClass = b.status === 'cancelled' ? 'badge-red' : b.status === 'no_show' ? 'badge-red' : (b.status === 'confirmed' ? 'badge-green' : 'badge-yellow');
+                    const badgeClass = b.status === 'cancelled' ? 'badge-red' : b.status === 'no_show' ? 'badge-red' : b.status === 'completed' ? 'badge-green' : (b.status === 'confirmed' ? 'badge-green' : 'badge-yellow');
+                    const statusLabel = b.status === 'no_show' ? 'Non-Attended' : b.status === 'completed' ? 'Attended' : b.status.charAt(0).toUpperCase() + b.status.slice(1);
                     const promo = b.promotion_code ? `<span class="badge badge-cyan">${escapeHtml(b.promotion_code)}</span>` : '<span style="color:var(--gray)">—</span>';
                     let actBtns = '';
                     if (!isDone) {
                         actBtns = `<button class="btn-danger" style="padding:6px 12px;font-size:12px" onclick="event.stopPropagation();deleteBooking(${b.id})">Delete</button>`;
-                        actBtns += ` <button style="padding:6px 12px;font-size:12px;background:#f59e0b;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600" onclick="event.stopPropagation();markNoShow(${b.id})">Non-Attended</button>`;
                     } else {
                         actBtns = '<span style="color:var(--gray)">—</span>';
                     }
                     const bType = b.service_id ? 'Service' : 'Appointment';
                     const typeBadge = b.service_id ? `<span class="badge badge-cyan">${escapeHtml(b.service || bType)}</span>` : `<span class="badge badge-blue">${bType}</span>`;
-                    return `<tr ${rowStyle} onclick="openBookingDetail(${b.id})"><td>${escapeHtml(b.customer_name)}</td><td>${typeBadge}</td><td>${b.doctor_name ? 'Dr. ' + escapeHtml(b.doctor_name) : '—'}</td><td>${escapeHtml(b.date)}</td><td>${escapeHtml(b.time)}</td><td>${promo}</td><td><span class="badge ${badgeClass}">${escapeHtml(b.status)}</span></td><td>${actBtns}</td></tr>`;
+                    return `<tr ${rowStyle} onclick="openBookingDetail(${b.id})"><td>${escapeHtml(b.customer_name)}</td><td>${typeBadge}</td><td>${b.doctor_name ? 'Dr. ' + escapeHtml(b.doctor_name) : '—'}</td><td>${escapeHtml(b.date)}</td><td>${escapeHtml(b.time)}</td><td>${promo}</td><td><span class="badge ${badgeClass}">${statusLabel}</span></td><td>${actBtns}</td></tr>`;
                 }).join('');
 
             // Leads table
@@ -1662,8 +2380,13 @@
     }
 
     async function selectPlan(plan) {
-        if (user.plan === plan) return;
-        if (!confirm(`Switch to the ${plan.charAt(0).toUpperCase() + plan.slice(1)} plan?`)) return;
+        if (user.plan === plan && !user.pending_plan) return;
+        const isPaid = user.plan && user.plan !== 'free_trial';
+        const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
+        const msg = isPaid
+            ? `Switch to the ${planLabel} plan? The change will take effect at your next billing cycle.`
+            : `Subscribe to the ${planLabel} plan?`;
+        if (!confirm(msg)) return;
         try {
             const res = await fetch('/auth/update-plan', {
                 method: 'POST', headers,
@@ -1671,17 +2394,22 @@
             });
             const d = await res.json();
             if (d.error) { showToast(d.error, 'error'); return; }
-            user.plan = plan;
             if (d.user) Object.assign(user, d.user);
             localStorage.setItem('user', JSON.stringify(user));
             initUI();
             highlightCurrentPlan();
-            showToast('Plan updated to ' + plan.charAt(0).toUpperCase() + plan.slice(1) + '!', 'success');
+            loadSubscription();
+            if (d.scheduled) {
+                showToast(d.message || `Plan change to ${planLabel} scheduled for next billing cycle.`, 'success');
+            } else {
+                showToast('Plan activated: ' + planLabel + '!', 'success');
+            }
         } catch(e) { showToast('Failed to update plan.', 'error'); }
     }
 
     function highlightCurrentPlan() {
         const p = user.plan || 'free_trial';
+        const pending = user.pending_plan || '';
         ['basic','pro','agency'].forEach(plan => {
             const card = document.getElementById('planCard-' + plan);
             if (!card) return;
@@ -1689,11 +2417,187 @@
             if (p === plan) {
                 card.classList.add('current');
                 if (btn) { btn.textContent = 'Current Plan'; btn.className = 'plan-btn plan-btn-current'; btn.onclick = null; }
+            } else if (pending === plan) {
+                card.classList.remove('current');
+                if (btn) { btn.textContent = 'Scheduled'; btn.className = 'plan-btn plan-btn-current'; btn.style.opacity = '0.7'; btn.onclick = null; }
             } else {
                 card.classList.remove('current');
-                if (btn) { btn.textContent = 'Choose ' + plan.charAt(0).toUpperCase() + plan.slice(1); btn.className = 'plan-btn plan-btn-outline'; btn.onclick = () => selectPlan(plan); }
+                if (btn) { btn.textContent = 'Choose ' + plan.charAt(0).toUpperCase() + plan.slice(1); btn.className = 'plan-btn plan-btn-outline'; btn.style.opacity = '1'; btn.onclick = () => selectPlan(plan); }
             }
         });
+    }
+
+    // ── Subscription Management ──
+    async function loadSubscription() {
+        try {
+            const res = await fetch('/auth/subscription', { headers });
+            if (!res.ok) return;
+            const s = await res.json();
+            const isPaid = s.plan && s.plan !== 'free_trial';
+            document.getElementById('subscriptionDetails').style.display = isPaid ? '' : 'none';
+            document.getElementById('freeTrialMsg').style.display = isPaid ? 'none' : '';
+            if (!isPaid) return;
+
+            const planLabel = PLAN_LABELS[s.plan] || s.plan;
+            const fmtDate = d => d ? new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '-';
+
+            // ── Hero Card ──
+            document.getElementById('subPlanType').textContent = planLabel;
+            document.getElementById('planPageBadge').textContent = planLabel;
+            document.getElementById('planPageBadge').className = 'plan-badge ' + (PLAN_CLASSES[s.plan] || 'plan-free');
+            document.getElementById('subCostBig').textContent = '$' + (s.monthly_cost || 0);
+            document.getElementById('subCostPeriod').textContent = 'per ' + (s.billing_cycle === 'yearly' ? 'year' : 'month');
+            document.getElementById('subCycle').textContent = s.billing_cycle === 'yearly' ? 'Yearly' : 'Monthly';
+            document.getElementById('subStarted').textContent = fmtDate(s.plan_started_at);
+            document.getElementById('subExpires').textContent = fmtDate(s.plan_expires_at);
+
+            // Status
+            const pending = s.pending_plan && s.pending_plan !== s.plan ? s.pending_plan : '';
+            const statusEl = document.getElementById('subStatus');
+            if (!s.auto_renew) {
+                statusEl.textContent = 'Cancelled';
+                statusEl.style.color = '#f87171';
+            } else if (pending && pending !== 'free_trial') {
+                statusEl.textContent = 'Changing';
+                statusEl.style.color = '#f59e0b';
+            } else {
+                statusEl.textContent = 'Active';
+                statusEl.style.color = '#10b981';
+            }
+
+            // ── Billing Timeline ──
+            document.getElementById('subTlStartDate').textContent = fmtDate(s.plan_started_at);
+            document.getElementById('subTlEndDate').textContent = fmtDate(s.plan_expires_at);
+            if (s.plan_started_at && s.plan_expires_at) {
+                const start = new Date(s.plan_started_at).getTime();
+                const end = new Date(s.plan_expires_at).getTime();
+                const now = Date.now();
+                const pct = Math.max(0, Math.min(100, ((now - start) / (end - start)) * 100));
+                document.getElementById('subTlProgress').style.width = pct + '%';
+                const daysLeft = Math.max(0, Math.ceil((end - now) / 86400000));
+                document.getElementById('subTlEnd').textContent = daysLeft + ' day' + (daysLeft !== 1 ? 's' : '') + ' until renewal';
+            }
+
+            // ── Pending Plan Banner ──
+            const pendingBanner = document.getElementById('subPendingBanner');
+            const cancelBanner = document.getElementById('subCancelBanner');
+            if (!s.auto_renew) {
+                // Cancelled
+                pendingBanner.style.display = 'none';
+                cancelBanner.style.display = '';
+                document.getElementById('subCancelPlan').textContent = planLabel;
+                document.getElementById('subCancelDate').textContent = fmtDate(s.plan_expires_at);
+                document.getElementById('subCancelBtn').style.display = 'none';
+                document.getElementById('subTlEnd').textContent = 'Plan ends';
+            } else if (pending && pending !== 'free_trial') {
+                // Plan change scheduled
+                cancelBanner.style.display = 'none';
+                pendingBanner.style.display = '';
+                document.getElementById('subPendingFrom').textContent = planLabel;
+                document.getElementById('subPendingTo').textContent = PLAN_LABELS[pending] || pending;
+                document.getElementById('subPendingDate').textContent = 'Effective ' + fmtDate(s.plan_expires_at);
+                document.getElementById('subCancelBtn').style.display = '';
+            } else {
+                pendingBanner.style.display = 'none';
+                cancelBanner.style.display = 'none';
+                document.getElementById('subCancelBtn').style.display = '';
+            }
+
+            // ── Auto-renew toggle ──
+            const cb = document.getElementById('subAutoRenew');
+            cb.checked = !!s.auto_renew;
+            _updateAutoRenewUI(!!s.auto_renew);
+
+            // ── Usage Ring ──
+            const used = s.conversations_used || 0;
+            const limit = s.conversations_limit || 50;
+            const isUnlimited = limit >= 999999;
+            const pct = isUnlimited ? 2 : Math.min(100, Math.round((used / limit) * 100));
+            const circumference = 2 * Math.PI * 14; // r=14
+            const offset = circumference - (pct / 100) * circumference;
+            const ring = document.getElementById('subUsageRing');
+            ring.style.strokeDasharray = circumference;
+            ring.style.strokeDashoffset = offset;
+            if (pct >= 90 && !isUnlimited) ring.style.stroke = '#f87171';
+            else ring.removeAttribute('style');
+            ring.style.strokeDasharray = circumference;
+            ring.style.strokeDashoffset = offset;
+            document.getElementById('subUsagePct').textContent = isUnlimited ? '~' : pct + '%';
+            document.getElementById('subConvCount').textContent = used.toLocaleString() + ' / ' + (isUnlimited ? 'Unlimited' : limit.toLocaleString()) + ' conversations';
+            if (pct >= 90 && !isUnlimited) {
+                document.getElementById('subConvNote').textContent = 'Approaching limit! Consider upgrading.';
+                document.getElementById('subConvNote').style.color = '#f59e0b';
+            } else {
+                document.getElementById('subConvNote').textContent = 'Resets at next billing cycle';
+                document.getElementById('subConvNote').style.color = '';
+            }
+
+            // ── Payment Card ──
+            const pmEl = document.getElementById('subPaymentInfo');
+            if (s.payment_method) {
+                const pm = s.payment_method;
+                pmEl.innerHTML = `<div class="sub-payment-card">
+                    <div class="card-brand">${pm.card_brand || 'Card'}</div>
+                    <div class="card-number">&bull;&bull;&bull;&bull;  &bull;&bull;&bull;&bull;  &bull;&bull;&bull;&bull;  ${pm.card_last4 || '****'}</div>
+                    <div class="card-bottom">
+                        <div class="card-holder">Card Holder<span>${pm.cardholder_name || 'N/A'}</span></div>
+                        <div class="card-expiry">Expires<span>${pm.expiry || 'N/A'}</span></div>
+                    </div>
+                </div>`;
+            } else {
+                pmEl.innerHTML = `<div style="text-align:center;padding:1.5rem 0">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--gray)" stroke-width="1.5" stroke-linecap="round" style="margin-bottom:0.5rem"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                    <p style="color:var(--gray);font-size:0.85rem">No payment method on file</p>
+                </div>`;
+            }
+        } catch(e) { console.error('Failed to load subscription', e); }
+    }
+
+    function _updateAutoRenewUI(on) {
+        const track = document.getElementById('subAutoRenewTrack');
+        const thumb = document.getElementById('subAutoRenewThumb');
+        if (track) track.style.background = on ? 'rgba(16,185,129,0.5)' : 'rgba(255,255,255,0.1)';
+        if (thumb) thumb.style.transform = on ? 'translateX(18px)' : 'translateX(0)';
+    }
+
+    async function toggleAutoRenew(enabled) {
+        _updateAutoRenewUI(enabled);
+        try {
+            const res = await fetch('/auth/toggle-auto-renew', { method:'POST', headers, body: JSON.stringify({enabled}) });
+            const d = await res.json();
+            if (d.error) { showToast(d.error, 'error'); return; }
+            if (d.user) Object.assign(user, d.user);
+            localStorage.setItem('user', JSON.stringify(user));
+            loadSubscription();
+            showToast(enabled ? 'Auto-renewal enabled' : 'Auto-renewal disabled', 'success');
+        } catch(e) { showToast('Failed to update', 'error'); }
+    }
+
+    async function cancelPlanChange() {
+        if (!confirm('Cancel the scheduled plan change? You will stay on your current plan.')) return;
+        try {
+            const res = await fetch('/auth/cancel-plan-change', { method:'POST', headers });
+            const d = await res.json();
+            if (d.error) { showToast(d.error, 'error'); return; }
+            if (d.user) Object.assign(user, d.user);
+            localStorage.setItem('user', JSON.stringify(user));
+            highlightCurrentPlan();
+            loadSubscription();
+            showToast('Scheduled plan change cancelled', 'success');
+        } catch(e) { showToast('Failed to cancel plan change', 'error'); }
+    }
+
+    async function cancelSubscription() {
+        if (!confirm('Are you sure you want to cancel your subscription? Your plan will remain active until the end of the current billing period.')) return;
+        try {
+            const res = await fetch('/auth/cancel-subscription', { method:'POST', headers });
+            const d = await res.json();
+            if (d.error) { showToast(d.error, 'error'); return; }
+            if (d.user) Object.assign(user, d.user);
+            localStorage.setItem('user', JSON.stringify(user));
+            loadSubscription();
+            showToast(d.message || 'Subscription cancelled', 'success');
+        } catch(e) { showToast('Failed to cancel', 'error'); }
     }
 
     function logout() {
@@ -1838,6 +2742,7 @@
             if (data.ok) {
                 showToast('Marked as non-attended — patient notified.', 'success');
                 loadData();
+                loadPreviousBookings();
             } else {
                 showToast(data.error || 'Failed to mark as non-attended.', 'error');
             }
@@ -1858,7 +2763,8 @@
             const typeBadge = d.booking_type === 'Service'
                 ? `<span class="badge badge-cyan">${escapeHtml(d.service_name)}</span>`
                 : `<span class="badge badge-blue">Appointment</span>`;
-            const statusBadge = d.status === 'cancelled' ? 'badge-red' : d.status === 'confirmed' ? 'badge-green' : 'badge-yellow';
+            const statusBadge = d.status === 'cancelled' ? 'badge-red' : d.status === 'no_show' ? 'badge-red' : d.status === 'completed' ? 'badge-green' : d.status === 'confirmed' ? 'badge-green' : 'badge-yellow';
+            const statusLabel = d.status === 'no_show' ? 'Non-Attended' : d.status === 'completed' ? 'Attended' : d.status.charAt(0).toUpperCase() + d.status.slice(1);
             const formBadge = d.form_status === 'submitted' ? '<span class="badge badge-green">Submitted</span>'
                 : d.form_status === 'pending' ? '<span class="badge badge-yellow">Pending</span>'
                 : '<span style="color:#8b95a8;font-size:0.8rem">No Form</span>';
@@ -1917,7 +2823,7 @@
                 <h2 style="margin:0 0 6px;color:#f1f5f9;font-size:1.3rem">${escapeHtml(d.customer_name)}</h2>
                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:18px">
                     ${typeBadge}
-                    <span class="badge ${statusBadge}">${escapeHtml(d.status)}</span>
+                    <span class="badge ${statusBadge}">${escapeHtml(statusLabel)}</span>
                     ${d.visit_count > 1 ? `<span class="badge badge-blue">${d.visit_count} visits</span>` : d.visit_count === 1 ? '<span class="badge badge-yellow">First visit</span>' : ''}
                     ${formBadge}
                 </div>
@@ -4083,7 +4989,7 @@
             const res = await fetch('/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: msg, session_id: demoSessionId, admin_id: adminId })
+                body: JSON.stringify({ message: msg, session_id: demoSessionId, admin_id: adminId, user_name: user?.name || '', user_email: user?.email || '', user_phone: user?.phone || '' })
             });
             const data = await res.json();
             const typingEl = document.getElementById('demoTyping');
@@ -4466,22 +5372,189 @@
     }
 
     // ═══════ ROI Dashboard ═══════
+    let roiRange = 'month';
+    let roiRevChart = null;
+    let roiLossChart = null;
+    let roiMoneyLostChart = null;
+    let roiCurSym = '$';
+
+    function roiFc(v) { return Number(v||0).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0}) + ' ' + roiCurSym.trim(); }
+
+    function setRoiRange(range, btn) {
+        roiRange = range;
+        document.querySelectorAll('.roi-range-btn').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        loadROI();
+    }
+
     async function loadROI() {
         try {
-            const res = await fetch('/api/roi', {headers});
+            const res = await fetch('/api/roi/stats?range=' + roiRange, {headers});
             const d = await res.json();
             if (d.error) { showToast(d.error, 'error'); return; }
-            const cur = d.currency || 'USD';
-            document.getElementById('roi_money_generated').textContent = d.money_generated.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ' + cur;
-            document.getElementById('roi_total_cost').textContent = d.total_cost.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + ' USD';
-            document.getElementById('roi_plan_cost').textContent = d.plan_cost.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + ' USD/mo';
-            document.getElementById('roi_percentage').textContent = d.roi + '%';
-            document.getElementById('roi_percentage').style.color = d.roi > 0 ? 'var(--green)' : 'var(--red)';
-            document.getElementById('roi_profit').textContent = (d.profit < 0 ? '-' : '') + Math.abs(d.profit).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ' + cur;
-            document.getElementById('roi_profit').style.color = d.profit >= 0 ? 'var(--green)' : 'var(--red)';
-            document.getElementById('roi_sessions').textContent = d.total_sessions.toLocaleString();
-            document.getElementById('roi_bookings').textContent = d.total_bookings.toLocaleString();
+            roiCurSym = d.currency_symbol || '$';
+
+            // Hero
+            const mult = d.roi?.multiple || 0;
+            document.getElementById('roi_multiple').innerHTML = mult.toFixed(1) + '<span style="font-size:1.5rem;opacity:0.8">x</span>';
+            document.getElementById('roi_return').textContent = mult.toFixed(2);
+            document.getElementById('roi_monthly_cost').textContent = '$' + (d.roi?.monthly_cost || 0);
+            document.getElementById('roi_revenue_hero').textContent = roiFc(d.revenue?.total_generated);
+            document.getElementById('roi_profit_hero').textContent = roiFc(d.roi?.profit);
+
+            // Core ROI cards
+            document.getElementById('roi_money_generated').textContent = roiFc(d.revenue?.total_generated);
+            document.getElementById('roi_total_cost').textContent = (d.roi?.total_cost || 0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) + ' USD';
+            document.getElementById('roi_plan_cost').textContent = (d.roi?.monthly_cost || 0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) + ' USD/mo';
+            document.getElementById('roi_percentage').textContent = (d.roi?.percentage || 0) + '%';
+            document.getElementById('roi_percentage').style.color = (d.roi?.percentage || 0) > 0 ? 'var(--green)' : 'var(--red)';
+            document.getElementById('roi_profit').textContent = roiFc(d.roi?.profit);
+            document.getElementById('roi_profit').style.color = (d.roi?.profit || 0) >= 0 ? 'var(--green)' : 'var(--red)';
+            document.getElementById('roi_sessions').textContent = (d.funnel?.visitors || 0).toLocaleString();
+            document.getElementById('roi_bookings').textContent = (d.revenue?.total_bookings || 0).toLocaleString();
+
+            // Revenue section cards
+            document.getElementById('roi_total_rev').textContent = roiFc(d.revenue?.total_generated);
+            document.getElementById('roi_chatbot_rev').textContent = roiFc(d.revenue?.chatbot_revenue);
+            document.getElementById('roi_avg_bv').textContent = roiFc(d.revenue?.avg_booking_value);
+            document.getElementById('roi_bookings_rev').textContent = (d.revenue?.total_bookings || 0).toLocaleString();
+
+            const rc = d.period_comparison?.revenue_change_pct || 0;
+            document.getElementById('roi_rev_change').textContent = (rc>=0?'+':'') + rc.toFixed(1) + '% vs last period';
+            document.getElementById('roi_rev_change').style.color = rc >= 0 ? 'var(--green)' : 'var(--red)';
+            const bc = d.period_comparison?.bookings_change_pct || 0;
+            document.getElementById('roi_bk_change').textContent = (bc>=0?'+':'') + bc.toFixed(1) + '% vs last period';
+            document.getElementById('roi_bk_change').style.color = bc >= 0 ? 'var(--green)' : 'var(--red)';
+
+            // Revenue chart
+            buildRoiRevChart(d.revenue?.daily || []);
+
+            // Funnel
+            const f = d.funnel || {};
+            const mx = Math.max(f.visitors || 1, 1);
+            roiSetBar('roi_f_visitors', f.visitors||0, 100);
+            roiSetBar('roi_f_chats', f.chats_started||0, (f.chats_started||0)/mx*100);
+            roiSetBar('roi_f_leads', f.leads_captured||0, (f.leads_captured||0)/mx*100);
+            roiSetBar('roi_f_bookings', f.bookings_made||0, (f.bookings_made||0)/mx*100);
+            document.getElementById('roi_f_chat_rate').textContent = (f.visitor_to_chat_pct||100) + '%';
+            document.getElementById('roi_f_lead_rate').textContent = (f.chat_to_lead_pct||0) + '%';
+            document.getElementById('roi_f_booking_rate').textContent = (f.lead_to_booking_pct||0) + '%';
+            document.getElementById('roi_v2c').textContent = (f.visitor_to_chat_pct||100) + '%';
+            document.getElementById('roi_c2l').textContent = (f.chat_to_lead_pct||0) + '%';
+            document.getElementById('roi_l2b').textContent = (f.lead_to_booking_pct||0) + '%';
+            document.getElementById('roi_bp100').textContent = f.bookings_per_100_conversations || 0;
+            document.getElementById('roi_ai_rate').textContent = (f.ai_success_rate||0) + '%';
+
+            // Loss metrics
+            const loss = d.loss_metrics || {};
+            document.getElementById('roi_ns_count').textContent = loss.noshow_count || 0;
+            document.getElementById('roi_ns_rate').textContent = (loss.noshow_rate||0) + '%';
+            document.getElementById('roi_cancel_count').textContent = loss.cancel_count || 0;
+            document.getElementById('roi_cancel_rate').textContent = (loss.cancel_rate||0) + '%';
+            document.getElementById('roi_lost_total').textContent = loss.total_lost_count || 0;
+            document.getElementById('roi_lost_rate').textContent = (loss.total_lost_rate||0) + '%';
+            document.getElementById('roi_ns_rev').textContent = roiFc(loss.revenue_lost);
+            buildRoiLossChart(loss.daily_losses||[], d.revenue?.daily||[]);
+            buildRoiMoneyLostChart(loss.daily_losses||[], d.revenue?.daily||[]);
+
+            // AI Insights
+            const sentences = d.insights?.sentences || [];
+            const il = document.getElementById('roiInsightsList');
+            if (!sentences.length) {
+                il.innerHTML = '<div style="padding:0.75rem;color:var(--gray);text-align:center">Not enough data yet. Keep using ChatGenius!</div>';
+            } else {
+                il.innerHTML = sentences.map(s => '<div class="roi-insight-item"><div class="roi-insight-dot"></div><div class="roi-insight-txt">' + s + '</div></div>').join('');
+            }
+
+            // Patient metrics
+            const p = d.patients || {};
+            document.getElementById('roi_new_pat').textContent = p.new_patients || 0;
+            document.getElementById('roi_ret_pat').textContent = p.returning_patients || 0;
+            document.getElementById('roi_avg_vis').textContent = p.avg_visits_per_patient || 0;
+
+            // Automation
+            const a = d.automation || {};
+            document.getElementById('roi_auto_bk').textContent = a.automated_bookings || 0;
+            document.getElementById('roi_auto_pct').textContent = (a.automation_rate||0) + '% of total';
+            document.getElementById('roi_lead_conv').textContent = a.lead_conversions || 0;
+            document.getElementById('roi_time_saved').textContent = (a.staff_time_saved_hours||0) + ' hrs';
+
         } catch(e) { console.error('ROI load error:', e); }
+    }
+
+    function roiSetBar(id, count, pct) {
+        document.getElementById(id + '_n').textContent = count.toLocaleString();
+        document.getElementById(id).style.width = Math.max(pct, 5) + '%';
+    }
+
+    function buildRoiRevChart(daily) {
+        const ctx = document.getElementById('roiRevenueChart').getContext('2d');
+        if (roiRevChart) roiRevChart.destroy();
+        const labels = daily.map(d => { const dt = new Date(d.date+'T00:00:00'); return dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}); });
+        roiRevChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    { label: 'Revenue ('+roiCurSym+')', data: daily.map(d=>d.revenue), borderColor:'#8b5cf6', backgroundColor:'rgba(139,92,246,0.1)', borderWidth:2.5, fill:true, tension:0.4, pointRadius:4, pointHoverRadius:7, pointBackgroundColor:'#8b5cf6', pointBorderColor:'#fff', pointBorderWidth:2, yAxisID:'y' },
+                    { label: 'Bookings', data: daily.map(d=>d.bookings), borderColor:'#34d399', backgroundColor:'rgba(52,211,153,0.08)', borderWidth:2, fill:true, tension:0.4, pointRadius:3, pointHoverRadius:6, pointBackgroundColor:'#34d399', pointBorderColor:'#fff', pointBorderWidth:2, yAxisID:'y1' }
+                ]
+            },
+            options: {
+                responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+                plugins: { legend:{ labels:{color:'#8b95a8',usePointStyle:true,padding:16,font:{size:11}} }, tooltip:{ backgroundColor:'#0c0f18',titleColor:'#f1f5f9',bodyColor:'#8b95a8',borderColor:'rgba(255,255,255,0.08)',borderWidth:1,cornerRadius:10,padding:10, callbacks:{label:function(c){return c.datasetIndex===0?' Revenue: '+c.parsed.y.toLocaleString()+' '+roiCurSym.trim():' Bookings: '+c.parsed.y;}} } },
+                scales: {
+                    x:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#8b95a8',font:{size:10}}},
+                    y:{position:'left',grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#a78bfa',font:{size:10},callback:v=>v.toLocaleString()+' '+roiCurSym.trim()},title:{display:true,text:'Revenue',color:'#a78bfa',font:{size:11}}},
+                    y1:{position:'right',grid:{drawOnChartArea:false},ticks:{color:'#34d399',font:{size:10}},title:{display:true,text:'Bookings',color:'#34d399',font:{size:11}}}
+                }
+            }
+        });
+    }
+
+    function buildRoiLossChart(losses, daily) {
+        const ctx = document.getElementById('roiLossChart').getContext('2d');
+        if (roiLossChart) roiLossChart.destroy();
+        const dateSet = new Set();
+        daily.forEach(d => dateSet.add(d.date));
+        losses.forEach(d => dateSet.add(d.date));
+        const allDates = [...dateSet].sort();
+        const lossMap = {}; losses.forEach(d => { lossMap[d.date] = d; });
+        const labels = allDates.map(d => { const dt = new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}); });
+        roiLossChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets: [
+                { label:'No-Shows', data:allDates.map(d=>(lossMap[d]?.noshows||0)), borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.08)', borderWidth:2.5, fill:true, tension:0.4, pointRadius:4, pointHoverRadius:7, pointBackgroundColor:'#ef4444', pointBorderColor:'#fff', pointBorderWidth:2 },
+                { label:'Cancellations', data:allDates.map(d=>(lossMap[d]?.cancellations||0)), borderColor:'#fbbf24', backgroundColor:'rgba(251,191,36,0.08)', borderWidth:2.5, fill:true, tension:0.4, pointRadius:4, pointHoverRadius:7, pointBackgroundColor:'#fbbf24', pointBorderColor:'#fff', pointBorderWidth:2 }
+            ] },
+            options: {
+                responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+                plugins:{ legend:{labels:{color:'#8b95a8',usePointStyle:true,padding:16,font:{size:11}}}, tooltip:{backgroundColor:'#0c0f18',titleColor:'#f1f5f9',bodyColor:'#8b95a8',borderColor:'rgba(255,255,255,0.08)',borderWidth:1,cornerRadius:10,padding:10} },
+                scales:{ x:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#8b95a8',font:{size:10}}}, y:{beginAtZero:true,grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#f87171',font:{size:10},stepSize:1},title:{display:true,text:'Count',color:'#f87171',font:{size:11}}} }
+            }
+        });
+    }
+
+    function buildRoiMoneyLostChart(losses, daily) {
+        const ctx = document.getElementById('roiMoneyLostChart').getContext('2d');
+        if (roiMoneyLostChart) roiMoneyLostChart.destroy();
+        const dateSet = new Set();
+        daily.forEach(d => dateSet.add(d.date));
+        losses.forEach(d => dateSet.add(d.date));
+        const allDates = [...dateSet].sort();
+        const lossMap = {}; losses.forEach(d => { lossMap[d.date] = d; });
+        const labels = allDates.map(d => { const dt = new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}); });
+        roiMoneyLostChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets: [
+                { label:'Revenue Lost ('+roiCurSym.trim()+')', data:allDates.map(d=>(lossMap[d]?.revenue_lost||0)), borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.12)', borderWidth:2.5, fill:true, tension:0.4, pointRadius:4, pointHoverRadius:7, pointBackgroundColor:'#ef4444', pointBorderColor:'#fff', pointBorderWidth:2 }
+            ] },
+            options: {
+                responsive:true, maintainAspectRatio:false,
+                plugins:{ legend:{labels:{color:'#8b95a8',usePointStyle:true,padding:16,font:{size:11}}}, tooltip:{backgroundColor:'#0c0f18',titleColor:'#f1f5f9',bodyColor:'#8b95a8',borderColor:'rgba(255,255,255,0.08)',borderWidth:1,cornerRadius:10,padding:10, callbacks:{label:function(c){return ' Lost: '+c.parsed.y.toLocaleString()+' '+roiCurSym.trim();}}} },
+                scales:{ x:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#8b95a8',font:{size:10}}}, y:{beginAtZero:true,grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#f87171',font:{size:10},callback:v=>v.toLocaleString()+' '+roiCurSym.trim()},title:{display:true,text:'Revenue Lost',color:'#f87171',font:{size:11}}} }
+            }
+        });
     }
 
     // ═══════ Previous Bookings ═══════
@@ -4491,15 +5564,33 @@
             const bookings = await res.json();
             const body = document.getElementById('prevBookingsBody');
             if (!bookings.length) {
-                body.innerHTML = '<tr><td colspan="7" class="empty-msg">No previous bookings</td></tr>';
+                body.innerHTML = '<tr><td colspan="8" class="empty-msg">No previous bookings</td></tr>';
                 return;
             }
             body.innerHTML = bookings.map(function(b) {
                 const badgeClass = b.status === 'cancelled' ? 'badge-red' : b.status === 'no_show' ? 'badge-red' : 'badge-green';
-                const statusLabel = b.status === 'no_show' ? 'Non-Attended' : b.status.charAt(0).toUpperCase() + b.status.slice(1);
+                const statusLabel = b.status === 'no_show' ? 'Non-Attended' : b.status === 'completed' ? 'Attended' : b.status.charAt(0).toUpperCase() + b.status.slice(1);
                 const promo = b.promotion_code ? '<span class="badge badge-cyan">' + escapeHtml(b.promotion_code) + '</span>' : '<span style="color:var(--gray)">—</span>';
                 const bType = b.service_id ? 'Service' : 'Appointment';
                 const typeBadge = b.service_id ? '<span class="badge badge-cyan">' + escapeHtml(b.service || bType) + '</span>' : '<span class="badge badge-blue">' + bType + '</span>';
+                // Show actions for completed bookings
+                let actionHtml = '';
+                if (b.status === 'completed') {
+                    // Check if within 2-hour window of appointment end time for Non-Attended button
+                    var showNoShow = false;
+                    try {
+                        var tParts = b.time.split(' - ');
+                        var endStr = tParts.length > 1 ? tParts[tParts.length - 1].trim() : tParts[0].trim();
+                        var endDt = new Date(b.date + ' ' + endStr);
+                        var nowMs = Date.now();
+                        var diffHrs = (nowMs - endDt.getTime()) / (1000 * 60 * 60);
+                        if (diffHrs >= 0 && diffHrs <= 2) showNoShow = true;
+                    } catch(e) {}
+                    if (showNoShow) {
+                        actionHtml = '<button onclick="event.stopPropagation();markNoShow(' + b.id + ')" style="padding:0.3rem 0.7rem;font-size:0.72rem;font-weight:600;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);color:#f59e0b;border-radius:8px;cursor:pointer;white-space:nowrap">Non-Attended</button> ';
+                    }
+                    actionHtml += '<button onclick="event.stopPropagation();addToFollowup(' + b.id + ')" style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);color:var(--cyan);padding:0.3rem 0.7rem;border-radius:8px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap">Add to Follow-up</button>';
+                }
                 return '<tr style="cursor:pointer" onclick="openBookingDetail(' + b.id + ')">'
                     + '<td>' + escapeHtml(b.customer_name) + '</td>'
                     + '<td>' + typeBadge + '</td>'
@@ -4508,13 +5599,744 @@
                     + '<td>' + escapeHtml(b.time) + '</td>'
                     + '<td>' + promo + '</td>'
                     + '<td><span class="badge ' + badgeClass + '">' + escapeHtml(statusLabel) + '</span></td>'
+                    + '<td>' + actionHtml + '</td>'
                     + '</tr>';
             }).join('');
         } catch(e) { console.error('Previous bookings load error:', e); }
     }
 
+    async function addToFollowup(bookingId) {
+        try {
+            const res = await fetch('/api/followup-from-booking', {
+                method: 'POST', headers,
+                body: JSON.stringify({booking_id: bookingId})
+            });
+            const d = await res.json();
+            if (d.error) { showToast(d.error, 'error'); return; }
+            showToast('Follow-up created & email sent to patient', 'success');
+            loadPreviousBookings();
+        } catch(e) { showToast('Failed to create follow-up', 'error'); }
+    }
+
     // ═══════ PMS Integration ═══════
     let _pmsEmbedId = '';
+    // ═══════ Email Builder (Drag & Drop) ═══════
+    let ebBlocks = [];
+    let ebSelectedId = null;
+    let ebTheme = {primaryColor:'#8b5cf6',secondaryColor:'#1a1a2e',bgColor:'#f0f0f0',buttonColor:'#8b5cf6',buttonTextColor:'#ffffff',buttonRadius:'8',fontFamily:'Helvetica Neue, Helvetica, Arial, sans-serif'};
+    let ebUndoStack = [];
+    let ebRedoStack = [];
+    let ebDevice = 'desktop';
+    let _ebLoaded = false;
+    let _ebDragNewType = null; // set when dragging from palette
+
+    // ── Block creation defaults ──
+    function ebNewBlock(type) {
+        const id = 'eb_' + Date.now() + '_' + Math.random().toString(36).substr(2,6);
+        const T = ebTheme;
+        const defs = {
+            heading: {type:'heading',id,content:{text:'Your Heading Here'},style:{padding:'24px 32px 8px',textAlign:'center',color:T.secondaryColor,fontSize:'26',fontWeight:'700',backgroundColor:''}},
+            text: {type:'text',id,content:{html:'<p>Type your text here. Use variables like {{patient_name}} to personalize your emails.</p>'},style:{padding:'12px 32px',textAlign:'left',color:'#444444',fontSize:'15',backgroundColor:''}},
+            image: {type:'image',id,content:{src:'',alt:'Image',link:''},style:{padding:'16px 32px',textAlign:'center',width:'100',borderRadius:'0',backgroundColor:''}},
+            button: {type:'button',id,content:{text:'Click Here',link:'{{confirm_link}}'},style:{padding:'20px 32px',textAlign:'center',buttonColor:T.buttonColor,buttonTextColor:T.buttonTextColor,buttonRadius:T.buttonRadius,buttonSize:'medium',fullWidth:false,preset:'rounded',backgroundColor:''}},
+            divider: {type:'divider',id,content:{lineStyle:'solid',color:'#e5e7eb',thickness:'1'},style:{padding:'12px 40px',backgroundColor:''}},
+            spacer: {type:'spacer',id,content:{height:'32'},style:{backgroundColor:''}},
+            logo: {type:'logo',id,content:{src:'',maxHeight:'60'},style:{padding:'28px 32px',textAlign:'center',backgroundColor:T.primaryColor}},
+            social: {type:'social',id,content:{facebook:'#',instagram:'#',twitter:'#',linkedin:''},style:{padding:'16px 32px',textAlign:'center',iconSize:'28',iconColor:T.primaryColor,backgroundColor:''}}
+        };
+        return JSON.parse(JSON.stringify(defs[type] || defs.text));
+    }
+
+    // ── Undo / Redo ──
+    function ebPushUndo() {
+        ebUndoStack.push(JSON.stringify({blocks:ebBlocks,theme:ebTheme}));
+        if (ebUndoStack.length > 60) ebUndoStack.shift();
+        ebRedoStack = [];
+    }
+    function ebUndo() {
+        if (!ebUndoStack.length) return showToast('Nothing to undo','info');
+        ebRedoStack.push(JSON.stringify({blocks:ebBlocks,theme:ebTheme}));
+        const state = JSON.parse(ebUndoStack.pop());
+        ebBlocks = state.blocks; ebTheme = state.theme;
+        ebSelectedId = null; ebRenderCanvas(); ebRenderSettings();
+    }
+    function ebRedo() {
+        if (!ebRedoStack.length) return showToast('Nothing to redo','info');
+        ebUndoStack.push(JSON.stringify({blocks:ebBlocks,theme:ebTheme}));
+        const state = JSON.parse(ebRedoStack.pop());
+        ebBlocks = state.blocks; ebTheme = state.theme;
+        ebSelectedId = null; ebRenderCanvas(); ebRenderSettings();
+    }
+    document.addEventListener('keydown', e => {
+        if ((e.ctrlKey||e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); ebUndo(); }
+        if ((e.ctrlKey||e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); ebRedo(); }
+    });
+
+    // ── Drag & Drop from palette ──
+    function ebDragNew(e, type) { _ebDragNewType = type; e.dataTransfer.setData('text/plain', type); e.dataTransfer.effectAllowed = 'copy'; document.getElementById('ebCanvas').classList.add('eb-is-dragging'); }
+
+    // ── Action button configs ──
+    const _ebActionConfigs = {
+        view_appointment:   {text:'View Appointment',    link:'{{confirm_link}}', color:'#d4af37', textColor:'#1a1a2e', preset:'pill',    buttonType:'view_appointment',   icon:'&#9432;', iconColor:'#d4af37'},
+        fill_form:          {text:'Fill Pre-Visit Form', link:'{{confirm_link}}', color:'#8b5cf6', textColor:'#ffffff', preset:'pill',    buttonType:'fill_form',          icon:'&#9998;', iconColor:'#8b5cf6'},
+        cancel_appointment: {text:'Cancel Appointment',  link:'{{cancel_link}}',  color:'transparent', textColor:'#999999', preset:'ghost', buttonType:'cancel_appointment', icon:'&#10005;', iconColor:'#ef4444'},
+        waitlist_confirm:   {text:'Confirm My Spot',     link:'{{confirm_link}}', color:'#059669', textColor:'#ffffff', preset:'pill',    buttonType:'waitlist_confirm',   icon:'&#10003;', iconColor:'#059669'},
+        waitlist_remove:    {text:'Cancel Waitlist',      link:'{{cancel_link}}',  color:'#dc2626', textColor:'#ffffff', preset:'rounded', buttonType:'waitlist_remove',    icon:'&#10005;', iconColor:'#dc2626'},
+        book_recall:        {text:'Book Now',              link:'{{confirm_link}}', color:'#059669', textColor:'#ffffff', preset:'pill',    buttonType:'book_recall',        icon:'&#128197;', iconColor:'#059669'},
+    };
+    // Which action buttons are allowed per template type
+    const _ebTemplateButtons = {
+        booking_confirmation: ['view_appointment', 'fill_form', 'cancel_appointment'],
+        appointment_reminder: ['view_appointment', 'fill_form', 'cancel_appointment'],
+        waitlist_placed:      ['waitlist_confirm', 'waitlist_remove'],
+        recall_email:         ['book_recall', 'view_appointment', 'fill_form'],
+        welcome_email:        ['view_appointment', 'fill_form'],
+        followup_email:       ['view_appointment', 'fill_form'],
+    };
+    let _ebCurrentTemplate = 'booking_confirmation';
+    function ebUpdateActionButtons() {
+        const container = document.getElementById('ebActionBtnsContainer');
+        if (!container) return;
+        const allowed = _ebTemplateButtons[_ebCurrentTemplate] || Object.keys(_ebActionConfigs);
+        let h = '';
+        allowed.forEach(key => {
+            const cfg = _ebActionConfigs[key];
+            if (!cfg) return;
+            h += `<div class="eb-action-btn" draggable="true" ondragstart="ebDragAction(event,'${key}')" title="Links to ${cfg.link}"><span style="color:${cfg.iconColor}">${cfg.icon}</span> ${cfg.text}</div>`;
+        });
+        container.innerHTML = h;
+    }
+    let _ebDragActionType = null;
+    function ebDragAction(e, actionType) {
+        _ebDragActionType = actionType;
+        _ebDragNewType = 'button'; // still creates a button block
+        e.dataTransfer.setData('text/plain', 'action_' + actionType);
+        e.dataTransfer.effectAllowed = 'copy';
+        document.getElementById('ebCanvas').classList.add('eb-is-dragging');
+    }
+    function _ebApplyAction(block) {
+        if (!_ebDragActionType) return block;
+        const cfg = _ebActionConfigs[_ebDragActionType];
+        if (!cfg) return block;
+        block.content.text = cfg.text;
+        block.content.link = cfg.link;
+        block.content.buttonType = cfg.buttonType || '';
+        block.style.buttonColor = cfg.color;
+        block.style.buttonTextColor = cfg.textColor;
+        block.style.preset = cfg.preset;
+        if (cfg.preset === 'ghost') {
+            block.style.buttonColor = 'transparent';
+        }
+        _ebDragActionType = null;
+        return block;
+    }
+
+    // ── Canvas rendering ──
+    function ebRenderCanvas() {
+        const inner = document.getElementById('ebCanvasInner');
+        if (!ebBlocks.length) {
+            inner.innerHTML = '<div class="eb-empty" ondragover="event.preventDefault();this.style.background=\'rgba(139,92,246,0.1)\'" ondragleave="this.style.background=\'\'" ondrop="ebDropOnEmpty(event)">Drag blocks here to start building your email</div>';
+            return;
+        }
+        let html = '<div class="eb-dropzone" data-idx="0" ondragover="ebDzOver(event)" ondragleave="ebDzLeave(event)" ondrop="ebDzDrop(event,0)"></div>';
+        ebBlocks.forEach((b, i) => {
+            const sel = b.id === ebSelectedId ? ' eb-selected' : '';
+            html += `<div class="eb-block-wrap${sel}" data-id="${b.id}" onclick="ebSelectBlock('${b.id}')" draggable="true" ondragstart="ebDragBlock(event,'${b.id}')">`;
+            html += `<div class="eb-block-bar"><button onclick="event.stopPropagation();ebMoveBlock('${b.id}',-1)" title="Move up">&uarr;</button><button onclick="event.stopPropagation();ebMoveBlock('${b.id}',1)" title="Move down">&darr;</button><button onclick="event.stopPropagation();ebDuplicateBlock('${b.id}')" title="Duplicate">&#10697;</button><button onclick="event.stopPropagation();ebDeleteBlock('${b.id}')" title="Delete" style="color:#f87171">&times;</button></div>`;
+            html += ebRenderBlockContent(b);
+            html += '</div>';
+            html += `<div class="eb-dropzone" data-idx="${i+1}" ondragover="ebDzOver(event)" ondragleave="ebDzLeave(event)" ondrop="ebDzDrop(event,${i+1})"></div>`;
+        });
+        inner.innerHTML = html;
+    }
+
+    function ebRenderBlockContent(b) {
+        const s = b.style || {};
+        const pad = s.padding || '16px 32px';
+        const bg = s.backgroundColor || '';
+        const align = s.textAlign || 'left';
+        const base = `padding:${pad};text-align:${align};${bg ? 'background-color:'+bg+';' : ''}`;
+        switch (b.type) {
+            case 'heading':
+                return `<div style="${base}color:${s.color||'#1a1a2e'};font-size:${s.fontSize||'26'}px;font-weight:${s.fontWeight||'700'};font-family:${ebTheme.fontFamily};">${b.content.text||'Heading'}</div>`;
+            case 'text':
+                return `<div style="${base}color:${s.color||'#444'};font-size:${s.fontSize||'15'}px;line-height:1.6;font-family:${ebTheme.fontFamily};">${b.content.html||''}</div>`;
+            case 'image':
+                const src = b.content.src;
+                if (!src) return `<div style="${base}color:#999;font-size:13px;border:2px dashed #ddd;border-radius:8px;padding:2rem;">Click to add image</div>`;
+                return `<div style="${base}"><img src="${src}" alt="${b.content.alt||''}" style="max-width:${s.width||'100'}%;border-radius:${s.borderRadius||'0'}px;display:block;margin:0 auto;"></div>`;
+            case 'button': {
+                const bc = s.buttonColor || ebTheme.buttonColor;
+                const btc = s.buttonTextColor || ebTheme.buttonTextColor;
+                const br = s.buttonRadius || ebTheme.buttonRadius;
+                const sz = {small:'10px 20px',medium:'14px 32px',large:'18px 44px'}[s.buttonSize||'medium'];
+                const fw = s.fullWidth ? 'display:block;width:100%;box-sizing:border-box;' : 'display:inline-block;';
+                const presetStyle = s.preset === 'pill' ? `border-radius:50px;` : s.preset === 'ghost' ? `background:transparent;border:2px solid ${bc};color:${bc};` : s.preset === 'gradient' ? `background:linear-gradient(135deg,${bc},${ebTheme.primaryColor});border-radius:${br}px;` : `border-radius:${br}px;`;
+                const baseBtn = s.preset === 'ghost' ? '' : `background:${bc};color:${btc};`;
+                return `<div style="${base}"><a style="${fw}${baseBtn}padding:${sz};${presetStyle}text-decoration:none;font-weight:600;font-size:15px;text-align:center;font-family:${ebTheme.fontFamily};">${b.content.text||'Button'}</a></div>`;
+            }
+            case 'divider':
+                return `<div style="${base}"><hr style="border:none;border-top:${b.content.thickness||'1'}px ${b.content.lineStyle||'solid'} ${b.content.color||'#e5e7eb'};margin:0;"></div>`;
+            case 'spacer':
+                return `<div style="height:${b.content.height||'32'}px;${bg ? 'background-color:'+bg+';' : ''}"></div>`;
+            case 'logo':
+                if (!b.content.src) return `<div style="${base}color:#999;font-size:13px;">Click to set logo image</div>`;
+                return `<div style="${base}"><img src="${b.content.src}" alt="Logo" style="max-height:${b.content.maxHeight||'60'}px;display:inline-block;"></div>`;
+            case 'social': {
+                const ic = s.iconColor || ebTheme.primaryColor;
+                const isz = s.iconSize || '28';
+                let icons = '';
+                ['facebook','instagram','twitter','linkedin'].forEach(p => {
+                    if (!b.content[p]) return;
+                    const labels = {facebook:'F',instagram:'IG',twitter:'X',linkedin:'in'};
+                    icons += `<a href="${b.content[p]}" style="display:inline-block;width:${isz}px;height:${isz}px;border-radius:50%;background:${ic};color:#fff;text-align:center;line-height:${isz}px;font-size:${Math.round(isz*0.45)}px;font-weight:700;text-decoration:none;margin:0 4px;">${labels[p]}</a>`;
+                });
+                return `<div style="${base}">${icons||'<span style="color:#999;font-size:13px;">Add social links in settings</span>'}</div>`;
+            }
+            default: return `<div style="${base}">Unknown block</div>`;
+        }
+    }
+
+    // ── Drop zone handlers ──
+    function ebDzOver(e) { e.preventDefault(); e.currentTarget.classList.add('eb-drag-over'); }
+    function ebDzLeave(e) { e.currentTarget.classList.remove('eb-drag-over'); }
+    function ebDzDrop(e, idx) {
+        e.preventDefault(); e.currentTarget.classList.remove('eb-drag-over');
+        document.getElementById('ebCanvas').classList.remove('eb-is-dragging');
+        const blockId = e.dataTransfer.getData('application/eb-block-id');
+        if (blockId) { // reorder existing
+            const fromIdx = ebBlocks.findIndex(b => b.id === blockId);
+            if (fromIdx === -1) return;
+            if (fromIdx === idx || fromIdx === idx - 1) { ebRenderCanvas(); return; } // dropped in same spot
+            ebPushUndo();
+            const [moved] = ebBlocks.splice(fromIdx, 1);
+            const toIdx = fromIdx < idx ? idx - 1 : idx;
+            ebBlocks.splice(toIdx, 0, moved);
+            ebSelectedId = moved.id;
+        } else if (_ebDragNewType) { // new block from palette
+            ebPushUndo();
+            const nb = _ebApplyAction(ebNewBlock(_ebDragNewType));
+            ebBlocks.splice(idx, 0, nb);
+            ebSelectedId = nb.id;
+        }
+        _ebDragNewType = null;
+        ebRenderCanvas(); ebRenderSettings();
+    }
+    function ebDropOnEmpty(e) {
+        e.preventDefault(); e.currentTarget.style.background = '';
+        document.getElementById('ebCanvas').classList.remove('eb-is-dragging');
+        if (_ebDragNewType) { ebPushUndo(); const nb = _ebApplyAction(ebNewBlock(_ebDragNewType)); ebBlocks.push(nb); ebSelectedId = nb.id; }
+        _ebDragNewType = null; _ebDragActionType = null;
+        ebRenderCanvas(); ebRenderSettings();
+    }
+    function ebDragBlock(e, id) {
+        e.dataTransfer.setData('application/eb-block-id', id);
+        e.dataTransfer.effectAllowed = 'move';
+        _ebDragNewType = null; _ebDragActionType = null;
+        // Visual: mark block as dragging, show all dropzones
+        const wrap = e.currentTarget; wrap.classList.add('eb-dragging');
+        document.getElementById('ebCanvas').classList.add('eb-is-dragging');
+        e.dataTransfer.setDragImage(wrap, wrap.offsetWidth / 2, 20);
+    }
+    // Clean up drag state when drag ends (dropped outside or cancelled)
+    document.addEventListener('dragend', function(e) {
+        document.getElementById('ebCanvas')?.classList.remove('eb-is-dragging');
+        document.querySelectorAll('.eb-dragging').forEach(el => el.classList.remove('eb-dragging'));
+        document.querySelectorAll('.eb-drag-over').forEach(el => el.classList.remove('eb-drag-over'));
+    });
+
+    // ── Block operations ──
+    function ebSelectBlock(id) { ebSelectedId = id; ebRenderCanvas(); ebRenderSettings(); }
+    function ebMoveBlock(id, dir) {
+        const i = ebBlocks.findIndex(b => b.id === id); if (i === -1) return;
+        const ni = i + dir; if (ni < 0 || ni >= ebBlocks.length) return;
+        ebPushUndo(); [ebBlocks[i], ebBlocks[ni]] = [ebBlocks[ni], ebBlocks[i]];
+        ebRenderCanvas(); ebRenderSettings();
+    }
+    function ebDuplicateBlock(id) {
+        const i = ebBlocks.findIndex(b => b.id === id); if (i === -1) return;
+        ebPushUndo();
+        const clone = JSON.parse(JSON.stringify(ebBlocks[i]));
+        clone.id = 'eb_' + Date.now() + '_' + Math.random().toString(36).substr(2,6);
+        ebBlocks.splice(i + 1, 0, clone);
+        ebSelectedId = clone.id; ebRenderCanvas(); ebRenderSettings();
+    }
+    function ebDeleteBlock(id) {
+        ebPushUndo(); ebBlocks = ebBlocks.filter(b => b.id !== id);
+        if (ebSelectedId === id) ebSelectedId = null;
+        ebRenderCanvas(); ebRenderSettings();
+    }
+
+
+
+    // ── Settings panel ──
+    function ebRenderSettings() {
+        const panel = document.getElementById('ebSettingsContent');
+        if (!ebSelectedId) { panel.innerHTML = '<p style="color:var(--gray);text-align:center;padding:3rem 1rem;font-size:0.85rem">Click a block to edit, or drag blocks from the left.</p>'; return; }
+        const b = ebBlocks.find(x => x.id === ebSelectedId);
+        if (!b) { panel.innerHTML = ''; return; }
+        const s = b.style || {};
+        let h = `<div style="font-size:0.9rem;font-weight:700;color:var(--white);margin-bottom:0.5rem;text-transform:capitalize">${b.type} Block</div>`;
+
+        // Type-specific settings
+        if (b.type === 'heading') {
+            h += ebSettingsField('Text','text',b.content.text,'content.text');
+            h += ebSettingsColorField('Text Color',s.color||'#1a1a2e','style.color');
+            h += ebSettingsField('Font Size (px)','number',s.fontSize||'26','style.fontSize');
+            h += ebSettingsSelect('Font Weight',s.fontWeight||'700',[['400','Normal'],['600','Semi-Bold'],['700','Bold'],['800','Extra Bold']],'style.fontWeight');
+        } else if (b.type === 'text') {
+            h += `<div class="eb-settings-row"><label>Content</label>`;
+            h += `<div class="eb-rte-toolbar" id="ebRteToolbar">`;
+            h += `<button onclick="ebRteCmd('bold')" title="Bold"><b>B</b></button>`;
+            h += `<button onclick="ebRteCmd('italic')" title="Italic"><i>I</i></button>`;
+            h += `<button onclick="ebRteCmd('underline')" title="Underline"><u>U</u></button>`;
+            h += `<span class="eb-sep"></span>`;
+            h += `<button onclick="ebRteHeading('H1')" title="Heading 1" style="font-size:0.85rem;font-weight:800">H1</button>`;
+            h += `<button onclick="ebRteHeading('H2')" title="Heading 2" style="font-size:0.78rem;font-weight:700">H2</button>`;
+            h += `<button onclick="ebRteHeading('H3')" title="Heading 3" style="font-size:0.72rem;font-weight:700">H3</button>`;
+            h += `<button onclick="ebRteHeading('P')" title="Normal text" style="font-size:0.72rem">P</button>`;
+            h += `<span class="eb-sep"></span>`;
+            h += `<button onclick="ebRteCmd('insertUnorderedList')" title="Bullet list">&#8226; List</button>`;
+            h += `<button onclick="ebRteCmd('insertOrderedList')" title="Numbered list">1. List</button>`;
+            h += `<span class="eb-sep"></span>`;
+            h += `<button onclick="ebRteLink()" title="Insert link">&#128279;</button>`;
+            h += `<button onclick="ebRteCmd('formatBlock','blockquote')" title="Quote">&#8220;</button>`;
+            h += `</div>`;
+            h += `<div class="eb-rte-editor" contenteditable="true" id="ebRteEditor" oninput="ebRteSave()" onblur="ebRteSave()">${b.content.html||'<p>Type your text here...</p>'}</div>`;
+            h += `</div>`;
+            h += ebSettingsColorField('Text Color',s.color||'#444444','style.color');
+            h += ebSettingsField('Font Size (px)','number',s.fontSize||'15','style.fontSize');
+        } else if (b.type === 'image') {
+            h += `<div class="eb-settings-row"><label>Image</label><div style="display:flex;gap:0.3rem"><input type="text" value="${b.content.src||''}" oninput="ebUpd('content.src',this.value)" placeholder="URL or upload"><label style="cursor:pointer;background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:#a78bfa;padding:0.35rem 0.6rem;border-radius:6px;font-size:0.75rem;white-space:nowrap">Upload<input type="file" accept="image/*" style="display:none" onchange="ebUploadImg(event)"></label></div></div>`;
+            h += ebSettingsField('Alt Text','text',b.content.alt||'','content.alt');
+            h += ebSettingsField('Width (%)','number',s.width||'100','style.width');
+            h += ebSettingsField('Border Radius (px)','number',s.borderRadius||'0','style.borderRadius');
+            h += ebSettingsField('Link URL','text',b.content.link||'','content.link');
+        } else if (b.type === 'button') {
+            // Show read-only button type if set
+            const btnType = b.content.buttonType || '';
+            const btnTypeLabels = {view_appointment:'View Appointment',fill_form:'Fill Pre-Visit Form',cancel_appointment:'Cancel Appointment',waitlist_confirm:'Confirm Waitlist',waitlist_remove:'Cancel Waitlist'};
+            if (btnType) {
+                h += `<div class="eb-settings-row"><label>Button Type</label><input type="text" value="${btnTypeLabels[btnType]||btnType}" readonly style="opacity:0.6;cursor:not-allowed;background:rgba(139,92,246,0.08);border-color:rgba(139,92,246,0.2);color:#a78bfa"></div>`;
+            }
+            h += ebSettingsField('Button Text','text',b.content.text||'','content.text');
+            if (!btnType) {
+                h += ebSettingsField('Link URL','text',b.content.link||'','content.link');
+            } else {
+                h += `<div class="eb-settings-row"><label>Link URL</label><input type="text" value="${b.content.link||''}" readonly style="opacity:0.6;cursor:not-allowed"></div>`;
+            }
+            h += '<div class="eb-settings-title">Style Presets</div>';
+            h += `<div class="eb-preset-grid">`;
+            ['rounded','pill','ghost','gradient'].forEach(p => {
+                h += `<div class="eb-preset-btn${(s.preset||'rounded')===p?' active':''}" onclick="ebUpd('style.preset','${p}')">${p.charAt(0).toUpperCase()+p.slice(1)}</div>`;
+            });
+            h += '</div>';
+            h += ebSettingsColorField('Button Color',s.buttonColor||ebTheme.buttonColor,'style.buttonColor');
+            h += ebSettingsColorField('Text Color',s.buttonTextColor||ebTheme.buttonTextColor,'style.buttonTextColor');
+            h += ebSettingsField('Border Radius (px)','number',s.buttonRadius||'8','style.buttonRadius');
+            h += ebSettingsSelect('Size',s.buttonSize||'medium',[['small','Small'],['medium','Medium'],['large','Large']],'style.buttonSize');
+            h += `<div class="eb-settings-row"><label><input type="checkbox" ${s.fullWidth?'checked':''} onchange="ebUpd('style.fullWidth',this.checked)"> Full Width</label></div>`;
+        } else if (b.type === 'divider') {
+            h += ebSettingsSelect('Line Style',b.content.lineStyle||'solid',[['solid','Solid'],['dashed','Dashed'],['dotted','Dotted']],'content.lineStyle');
+            h += ebSettingsColorField('Color',b.content.color||'#e5e7eb','content.color');
+            h += ebSettingsField('Thickness (px)','number',b.content.thickness||'1','content.thickness');
+        } else if (b.type === 'spacer') {
+            h += ebSettingsField('Height (px)','number',b.content.height||'32','content.height');
+        } else if (b.type === 'logo') {
+            h += `<div class="eb-settings-row"><label>Logo Image</label><div style="display:flex;gap:0.3rem"><input type="text" value="${b.content.src||''}" oninput="ebUpd('content.src',this.value)" placeholder="URL or upload"><label style="cursor:pointer;background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);color:#a78bfa;padding:0.35rem 0.6rem;border-radius:6px;font-size:0.75rem;white-space:nowrap">Upload<input type="file" accept="image/*" style="display:none" onchange="ebUploadImg(event)"></label></div></div>`;
+            h += ebSettingsField('Max Height (px)','number',b.content.maxHeight||'60','content.maxHeight');
+        } else if (b.type === 'social') {
+            h += ebSettingsField('Facebook URL','text',b.content.facebook||'','content.facebook');
+            h += ebSettingsField('Instagram URL','text',b.content.instagram||'','content.instagram');
+            h += ebSettingsField('Twitter/X URL','text',b.content.twitter||'','content.twitter');
+            h += ebSettingsField('LinkedIn URL','text',b.content.linkedin||'','content.linkedin');
+            h += ebSettingsColorField('Icon Color',s.iconColor||ebTheme.primaryColor,'style.iconColor');
+            h += ebSettingsField('Icon Size (px)','number',s.iconSize||'28','style.iconSize');
+        }
+
+        // Common settings
+        h += '<div class="eb-settings-title">Layout</div>';
+        h += ebSettingsSelect('Alignment',s.textAlign||'left',[['left','Left'],['center','Center'],['right','Right']],'style.textAlign');
+        h += ebSettingsField('Padding','text',s.padding||'16px 32px','style.padding');
+        h += ebSettingsColorField('Background',s.backgroundColor||'','style.backgroundColor');
+        panel.innerHTML = h;
+    }
+
+    // Settings helpers — path is like 'content.text' or 'style.color'
+    function ebSettingsField(label, type, val, path, rows) {
+        const oc = `ebUpd(&quot;${path}&quot;,this.value)`;
+        const dp = `data-path="${path}"`;
+        if (type === 'textarea') return `<div class="eb-settings-row"><label>${label}</label><textarea rows="${rows||3}" ${dp} oninput="${oc}">${val}</textarea></div>`;
+        return `<div class="eb-settings-row"><label>${label}</label><input type="${type}" value="${String(val).replace(/"/g,'&quot;')}" ${dp} oninput="${oc}"></div>`;
+    }
+    function ebSettingsColorField(label, val, path) {
+        const oc = `ebUpd(&quot;${path}&quot;,this.value)`;
+        return `<div class="eb-settings-row"><label>${label}</label><div class="eb-color-row"><input type="color" value="${val||'#ffffff'}" data-path="${path}_picker" onchange="${oc}"><input type="text" value="${val}" data-path="${path}" oninput="${oc}"></div></div>`;
+    }
+    function ebSettingsSelect(label, val, opts, path) {
+        const oc = `ebUpd(&quot;${path}&quot;,this.value)`;
+        let h = `<div class="eb-settings-row"><label>${label}</label><select data-path="${path}" onchange="${oc}">`;
+        opts.forEach(([v,t]) => h += `<option value="${v}"${v===val?' selected':''}>${t}</option>`);
+        return h + '</select></div>';
+    }
+
+    // Update a nested property on the selected block
+    function ebUpd(path, val) {
+        const b = ebBlocks.find(x => x.id === ebSelectedId);
+        if (!b) return;
+        ebPushUndo();
+        const parts = path.split('.'); let obj = b;
+        for (let i = 0; i < parts.length - 1; i++) { if (!obj[parts[i]]) obj[parts[i]] = {}; obj = obj[parts[i]]; }
+        obj[parts[parts.length-1]] = val;
+        ebRenderCanvas();
+        // Remember which input had focus and cursor position
+        const active = document.activeElement;
+        const activeTag = active ? active.tagName : '';
+        const activePath = active ? active.getAttribute('data-path') : null;
+        const selStart = active && active.selectionStart != null ? active.selectionStart : -1;
+        const selEnd = active && active.selectionEnd != null ? active.selectionEnd : -1;
+        ebRenderSettings();
+        // Restore focus and cursor
+        if (activePath) {
+            const restored = document.querySelector(`[data-path="${activePath}"]`);
+            if (restored) {
+                restored.focus();
+                if (selStart >= 0) { try { restored.setSelectionRange(selStart, selEnd); } catch(e){} }
+            }
+        }
+    }
+
+    // ── Rich text editor helpers ──
+    function ebRteCmd(cmd, val) {
+        const ed = document.getElementById('ebRteEditor');
+        if (!ed) return;
+        ed.focus();
+        document.execCommand(cmd, false, val || null);
+        ebRteSave();
+    }
+    function ebRteHeading(tag) {
+        const ed = document.getElementById('ebRteEditor');
+        if (!ed) return;
+        ed.focus();
+        document.execCommand('formatBlock', false, tag);
+        ebRteSave();
+    }
+    function ebRteLink() {
+        const url = prompt('Enter URL:');
+        if (!url) return;
+        const ed = document.getElementById('ebRteEditor');
+        if (!ed) return;
+        ed.focus();
+        const sel = window.getSelection();
+        if (!sel.rangeCount || sel.isCollapsed) {
+            // No selection — insert the URL as linked text
+            document.execCommand('insertHTML', false, `<a href="${url}">${url}</a>`);
+        } else {
+            document.execCommand('createLink', false, url);
+        }
+        ebRteSave();
+    }
+    let _ebRteDirty = false;
+    function ebRteSave() {
+        const ed = document.getElementById('ebRteEditor');
+        if (!ed || !ebSelectedId) return;
+        const b = ebBlocks.find(x => x.id === ebSelectedId);
+        if (!b || b.type !== 'text') return;
+        if (!_ebRteDirty) { _ebRteDirty = true; ebPushUndo(); }
+        b.content.html = ed.innerHTML;
+        ebRenderCanvas();
+        // Don't re-render settings — would lose cursor position
+    }
+    // Reset dirty flag on blur so next edit session gets its own undo entry
+    document.addEventListener('focusout', function(e) {
+        if (e.target && e.target.id === 'ebRteEditor') _ebRteDirty = false;
+    });
+    // ── Insert variable into selected block ──
+    function ebInsertVar(name) {
+        const b = ebSelectedId ? ebBlocks.find(x => x.id === ebSelectedId) : null;
+        if (b && b.type === 'text') {
+            const ed = document.getElementById('ebRteEditor');
+            if (ed) {
+                ed.focus();
+                const varTag = `<span style="background:rgba(139,92,246,0.15);border-radius:3px;padding:0 3px;font-family:monospace;font-size:0.85em;color:#c4b5fd;">{{${name}}}</span>`;
+                document.execCommand('insertHTML', false, varTag);
+                ebRteSave();
+                return;
+            }
+        }
+        // Fallback for heading/button blocks
+        if (!ebSelectedId) return showToast('Select a text or heading block first','info');
+        if (!b) return;
+        ebPushUndo();
+        if (b.type === 'heading') b.content.text = (b.content.text || '') + `{{${name}}}`;
+        else if (b.type === 'button') b.content.text = (b.content.text || '') + `{{${name}}}`;
+        else return showToast('Variables work in text, heading, or button blocks','info');
+        ebRenderCanvas(); ebRenderSettings();
+    }
+
+    // Upload image for selected block
+    async function ebUploadImg(event) {
+        const file = event.target.files[0]; if (!file) return;
+        const fd = new FormData(); fd.append('image', file);
+        try {
+            const res = await fetch('/api/email-template/upload-image', { method:'POST', headers:{'Authorization':headers.Authorization}, body:fd });
+            const d = await res.json();
+            if (res.ok && d.url) { ebUpd('content.src', d.url); showToast('Image uploaded!','success'); }
+            else showToast(d.error||'Upload failed','error');
+        } catch(e) { showToast('Upload failed','error'); }
+    }
+
+    // ── Device toggle ──
+    function ebSetDevice(dev) {
+        ebDevice = dev;
+        document.getElementById('ebDevDesktop').classList.toggle('active', dev==='desktop');
+        document.getElementById('ebDevMobile').classList.toggle('active', dev==='mobile');
+        document.getElementById('ebCanvas').style.width = dev === 'mobile' ? '375px' : '600px';
+    }
+
+    // ── Theme settings panel ──
+    function _ebThemeColor(label, val, key) {
+        const oc = `ebThemeUpd(&quot;${key}&quot;,this.value)`;
+        return `<div class="eb-settings-row"><label>${label}</label><div class="eb-color-row"><input type="color" value="${val||'#ffffff'}" onchange="${oc}"><input type="text" value="${val}" oninput="${oc}"></div></div>`;
+    }
+    function ebShowTheme() {
+        ebSelectedId = null; ebRenderCanvas();
+        const T = ebTheme;
+        let h = '<div style="font-size:0.9rem;font-weight:700;color:var(--white);margin-bottom:0.5rem">Theme Settings</div>';
+        h += _ebThemeColor('Primary Color',T.primaryColor,'primaryColor');
+        h += _ebThemeColor('Secondary Color',T.secondaryColor,'secondaryColor');
+        h += _ebThemeColor('Email Background',T.bgColor,'bgColor');
+        h += _ebThemeColor('Default Button Color',T.buttonColor,'buttonColor');
+        h += _ebThemeColor('Default Button Text',T.buttonTextColor,'buttonTextColor');
+        h += `<div class="eb-settings-row"><label>Button Radius (px)</label><input type="number" value="${T.buttonRadius||'8'}" oninput="ebThemeUpd(&quot;buttonRadius&quot;,this.value)"></div>`;
+        h += `<div class="eb-settings-row"><label>Font Family</label><select onchange="ebThemeUpd(&quot;fontFamily&quot;,this.value)">`;
+        [['Helvetica Neue, Helvetica, Arial, sans-serif','Helvetica'],['Georgia, Times New Roman, serif','Georgia'],['Verdana, Geneva, sans-serif','Verdana'],['Trebuchet MS, sans-serif','Trebuchet'],['Courier New, monospace','Courier']].forEach(([v,t]) => {
+            h += `<option value="${v}"${T.fontFamily===v?' selected':''}>${t}</option>`;
+        });
+        h += '</select></div>';
+        h += `<div style="margin-top:1rem"><button onclick="ebResetAll()" style="width:100%;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);color:#f87171;padding:0.4rem;border-radius:8px;font-size:0.78rem;cursor:pointer">Reset to Default</button></div>`;
+        document.getElementById('ebSettingsContent').innerHTML = h;
+    }
+    function ebThemeUpd(key, val) { ebPushUndo(); ebTheme[key] = val; ebRenderCanvas(); }
+    function ebResetAll() {
+        if (!confirm('Delete all blocks and reset theme?')) return;
+        ebPushUndo(); ebBlocks = [];
+        ebTheme = {primaryColor:'#8b5cf6',secondaryColor:'#1a1a2e',bgColor:'#f0f0f0',buttonColor:'#8b5cf6',buttonTextColor:'#ffffff',buttonRadius:'8',fontFamily:'Helvetica Neue, Helvetica, Arial, sans-serif'};
+        ebSelectedId = null;
+        fetch('/api/email-template', {method:'DELETE',headers}).then(() => showToast('Template reset','success'));
+        ebRenderCanvas(); ebShowTheme();
+    }
+
+    // ── Compile blocks to email HTML ──
+    function ebAbsUrl(url) {
+        if (!url) return '';
+        if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+        return window.location.origin + (url.startsWith('/') ? '' : '/') + url;
+    }
+    function ebCompileHtml() {
+        const T = ebTheme;
+        let rows = '';
+        ebBlocks.forEach(b => {
+            const s = b.style || {};
+            const pad = s.padding || '16px 32px';
+            const bg = s.backgroundColor ? `background-color:${s.backgroundColor};` : '';
+            const align = s.textAlign || 'left';
+            switch (b.type) {
+                case 'heading':
+                    rows += `<tr><td style="padding:${pad};text-align:${align};${bg}"><h2 style="margin:0;color:${s.color||T.secondaryColor};font-size:${s.fontSize||'26'}px;font-weight:${s.fontWeight||'700'};font-family:${T.fontFamily};">${b.content.text||''}</h2></td></tr>`;
+                    break;
+                case 'text':
+                    rows += `<tr><td style="padding:${pad};text-align:${align};color:${s.color||'#444'};font-size:${s.fontSize||'15'}px;line-height:1.6;font-family:${T.fontFamily};${bg}">${b.content.html||''}</td></tr>`;
+                    break;
+                case 'image':
+                    if (!b.content.src) break;
+                    const imgSrc = ebAbsUrl(b.content.src);
+                    const imgTag = `<img src="${imgSrc}" alt="${b.content.alt||''}" style="max-width:${s.width||'100'}%;border-radius:${s.borderRadius||'0'}px;display:block;margin:0 auto;">`;
+                    rows += `<tr><td style="padding:${pad};text-align:${align};${bg}">${b.content.link ? '<a href="'+b.content.link+'">'+imgTag+'</a>' : imgTag}</td></tr>`;
+                    break;
+                case 'button': {
+                    const bc = s.buttonColor || T.buttonColor;
+                    const btc = s.buttonTextColor || T.buttonTextColor;
+                    const br = s.buttonRadius || T.buttonRadius;
+                    const sz = {small:'10px 20px',medium:'14px 32px',large:'18px 44px'}[s.buttonSize||'medium'];
+                    const fw = s.fullWidth ? 'display:block;width:100%;box-sizing:border-box;' : 'display:inline-block;';
+                    let btnStyle = `${fw}padding:${sz};text-decoration:none;font-weight:600;font-size:15px;text-align:center;font-family:${T.fontFamily};`;
+                    if (s.preset === 'pill') btnStyle += `background:${bc};color:${btc};border-radius:50px;`;
+                    else if (s.preset === 'ghost') btnStyle += `background:transparent;border:2px solid ${bc};color:${bc};border-radius:${br}px;`;
+                    else if (s.preset === 'gradient') btnStyle += `background:linear-gradient(135deg,${bc},${T.primaryColor});color:${btc};border-radius:${br}px;`;
+                    else btnStyle += `background:${bc};color:${btc};border-radius:${br}px;`;
+                    rows += `<tr><td style="padding:${pad};text-align:${align};${bg}"><a href="${b.content.link||'#'}" style="${btnStyle}">${b.content.text||'Button'}</a></td></tr>`;
+                    break;
+                }
+                case 'divider':
+                    rows += `<tr><td style="padding:${pad};${bg}"><hr style="border:none;border-top:${b.content.thickness||'1'}px ${b.content.lineStyle||'solid'} ${b.content.color||'#e5e7eb'};margin:0;"></td></tr>`;
+                    break;
+                case 'spacer':
+                    rows += `<tr><td style="padding:0;height:${b.content.height||'32'}px;${bg}"></td></tr>`;
+                    break;
+                case 'logo':
+                    if (b.content.src) rows += `<tr><td style="padding:${pad};text-align:${align};${bg}"><img src="${ebAbsUrl(b.content.src)}" alt="Logo" style="max-height:${b.content.maxHeight||'60'}px;"></td></tr>`;
+                    break;
+                case 'social': {
+                    const ic = s.iconColor || T.primaryColor;
+                    const isz = s.iconSize || '28';
+                    let icons = '';
+                    const labels = {facebook:'F',instagram:'IG',twitter:'X',linkedin:'in'};
+                    ['facebook','instagram','twitter','linkedin'].forEach(p => {
+                        if (!b.content[p]) return;
+                        icons += `<a href="${b.content[p]}" style="display:inline-block;width:${isz}px;height:${isz}px;border-radius:50%;background:${ic};color:#fff;text-align:center;line-height:${isz}px;font-size:${Math.round(isz*0.45)}px;font-weight:700;text-decoration:none;margin:0 4px;">${labels[p]}</a>`;
+                    });
+                    if (icons) rows += `<tr><td style="padding:${pad};text-align:${align};${bg}">${icons}</td></tr>`;
+                    break;
+                }
+            }
+        });
+        return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head><body style="margin:0;padding:0;background:${T.bgColor};font-family:'${T.fontFamily}';"><table width="100%" cellpadding="0" cellspacing="0" style="background:${T.bgColor};padding:40px 20px;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.1);"><tr><td style="height:4px;background:linear-gradient(90deg,${T.primaryColor},${T.buttonColor},${T.primaryColor});"></td></tr>${rows}<tr><td style="height:4px;background:linear-gradient(90deg,${T.primaryColor},${T.buttonColor},${T.primaryColor});"></td></tr></table><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;margin-top:24px;"><tr><td style="text-align:center;padding:0 20px;"><p style="color:#999;font-size:12px;line-height:1.5;margin:0;font-family:'${T.fontFamily}';">Powered by <strong style="color:#777;">ChatGenius AI</strong><br><span style="color:#bbb;">Please do not reply to this email.</span></p></td></tr></table></td></tr></table></body></html>`;
+    }
+
+    // ── Save ──
+    async function ebSave() {
+        const compiled = ebCompileHtml();
+        const data = {
+            blocks_json: JSON.stringify(ebBlocks),
+            compiled_html: compiled,
+            name: _ebCurrentTemplate,
+            primary_color: ebTheme.primaryColor, secondary_color: ebTheme.secondaryColor,
+            bg_color: ebTheme.bgColor, button_color: ebTheme.buttonColor,
+            button_text_color: ebTheme.buttonTextColor, button_radius: ebTheme.buttonRadius,
+            font_family: ebTheme.fontFamily, source_type: 'builder',
+            is_active: 1, header_html: '', body_html: compiled, footer_html: ''
+        };
+        try {
+            const res = await fetch('/api/email-template', { method:'POST', headers:{...headers,'Content-Type':'application/json'}, body:JSON.stringify(data) });
+            const d = await res.json();
+            if (res.ok) { console.log('Email template saved, blocks:', ebBlocks.length, 'theme:', JSON.stringify(ebTheme)); showToast('Email template saved!','success'); }
+            else { console.error('Save failed:', d); showToast(d.error||'Save failed','error'); }
+        } catch(e) { showToast('Save failed','error'); }
+    }
+
+    // ── Send test ──
+    async function ebSendTest() {
+        const email = prompt('Send test email to:', user?.email || '');
+        if (!email) return;
+        // Save first so the template is current
+        await ebSave();
+        try {
+            const res = await fetch('/api/email-template/send-test', { method:'POST', headers:{...headers,'Content-Type':'application/json'}, body:JSON.stringify({email}) });
+            const d = await res.json();
+            if (res.ok) showToast(d.message||'Test sent!','success');
+            else showToast(d.error||'Failed','error');
+        } catch(e) { showToast('Failed to send','error'); }
+    }
+
+    // ── Pre-built templates ──
+    const EB_PRESETS = {
+        booking_confirmation: [
+            {type:'logo',content:{src:'',maxHeight:'50'},style:{padding:'24px 32px',textAlign:'center',backgroundColor:'#1a1a2e'}},
+            {type:'heading',content:{text:'Appointment Confirmed'},style:{padding:'28px 32px 8px',textAlign:'center',color:'#1a1a2e',fontSize:'28',fontWeight:'700'}},
+            {type:'text',content:{html:'<p>Dear <strong>{{patient_name}}</strong>,</p><p>Your appointment has been successfully booked for <strong>{{date}}</strong> at <strong>{{time}}</strong> with <strong>{{doctor_name}}</strong>.</p><p>Service: {{service_name}}</p>'},style:{padding:'12px 32px',textAlign:'left',color:'#444',fontSize:'15'}},
+            {type:'button',content:{text:'View Appointment Details',link:'{{confirm_link}}'},style:{padding:'20px 32px',textAlign:'center',buttonSize:'large',preset:'rounded'}},
+            {type:'divider',content:{lineStyle:'solid',color:'#e5e7eb',thickness:'1'},style:{padding:'16px 40px'}},
+            {type:'text',content:{html:'<p style="font-size:13px;color:#999;">Please arrive 10 minutes early. If you need to cancel, click <a href="{{cancel_link}}">here</a>.</p>'},style:{padding:'8px 32px 24px',textAlign:'center',color:'#999',fontSize:'13'}},
+        ],
+        appointment_reminder: [
+            {type:'logo',content:{src:'',maxHeight:'50'},style:{padding:'24px 32px',textAlign:'center',backgroundColor:'#0891b2'}},
+            {type:'heading',content:{text:'Appointment Reminder'},style:{padding:'28px 32px 8px',textAlign:'center',color:'#0891b2',fontSize:'26',fontWeight:'700'}},
+            {type:'text',content:{html:'<p>Hi <strong>{{patient_name}}</strong>,</p><p>This is a friendly reminder that your appointment is coming up:</p><p><strong>Date:</strong> {{date}}<br><strong>Time:</strong> {{time}}<br><strong>Doctor:</strong> {{doctor_name}}</p>'},style:{padding:'12px 32px',color:'#444',fontSize:'15'}},
+            {type:'button',content:{text:'Confirm Attendance',link:'{{confirm_link}}'},style:{padding:'20px 32px',textAlign:'center',buttonColor:'#0891b2',preset:'pill'}},
+            {type:'spacer',content:{height:'16'},style:{}},
+            {type:'text',content:{html:'<p>Need to reschedule? <a href="{{cancel_link}}">Click here</a></p>'},style:{padding:'8px 32px 24px',textAlign:'center',color:'#888',fontSize:'13'}},
+        ],
+        waitlist_placed: [
+            {type:'heading',content:{text:'You\'re on the Waitlist'},style:{padding:'32px 32px 8px',textAlign:'center',color:'#d97706',fontSize:'26',fontWeight:'700'}},
+            {type:'text',content:{html:'<p>Hi <strong>{{patient_name}}</strong>,</p><p>The time slot you requested on <strong>{{date}}</strong> at <strong>{{time}}</strong> with <strong>{{doctor_name}}</strong> is currently full.</p><p>You\'re at position <strong>{{waitlist_position}}</strong> in the queue. We\'ll notify you if a spot opens up!</p>'},style:{padding:'12px 32px',color:'#444',fontSize:'15'}},
+            {type:'button',content:{text:'Keep Me on Waitlist',link:'{{confirm_link}}'},style:{padding:'16px 32px 8px',textAlign:'center',buttonColor:'#16a34a',preset:'rounded'}},
+            {type:'button',content:{text:'Remove Me',link:'{{cancel_link}}'},style:{padding:'8px 32px 24px',textAlign:'center',buttonColor:'#dc2626',preset:'ghost'}},
+        ],
+        recall_email: [
+            {type:'logo',content:{src:'',maxHeight:'50'},style:{padding:'24px 32px',textAlign:'center',backgroundColor:'#7c3aed'}},
+            {type:'heading',content:{text:'Time for Your Checkup!'},style:{padding:'28px 32px 8px',textAlign:'center',color:'#7c3aed',fontSize:'28',fontWeight:'700'}},
+            {type:'text',content:{html:'<p>Hi <strong>{{patient_name}}</strong>,</p><p>It\'s been a while since your last <strong>{{recall_treatment}}</strong>. Regular visits help keep your smile healthy and bright!</p><p>We\'d love to see you again at <strong>{{clinic_name}}</strong>.</p>'},style:{padding:'12px 32px',color:'#444',fontSize:'15'}},
+            {type:'button',content:{text:'Book My Appointment',link:'{{confirm_link}}'},style:{padding:'20px 32px',textAlign:'center',buttonColor:'#7c3aed',preset:'gradient',buttonSize:'large'}},
+            {type:'spacer',content:{height:'24'},style:{}},
+            {type:'social',content:{facebook:'#',instagram:'#',twitter:''},style:{padding:'16px 32px',textAlign:'center',iconColor:'#7c3aed'}},
+        ],
+        welcome_email: [
+            {type:'logo',content:{src:'',maxHeight:'50'},style:{padding:'28px 32px',textAlign:'center',backgroundColor:'#1a1a2e'}},
+            {type:'heading',content:{text:'Welcome to {{clinic_name}}!'},style:{padding:'24px 32px 8px',textAlign:'center',color:'#1a1a2e',fontSize:'28',fontWeight:'700'}},
+            {type:'text',content:{html:'<p>Hi <strong>{{patient_name}}</strong>,</p><p>Thank you for choosing us for your dental care. We\'re committed to providing you with the best experience possible.</p><p>You can book appointments online anytime, manage your profile, and stay on top of your dental health.</p>'},style:{padding:'12px 32px',color:'#444',fontSize:'15'}},
+            {type:'button',content:{text:'Book Your First Appointment',link:'{{confirm_link}}'},style:{padding:'20px 32px',textAlign:'center',preset:'rounded',buttonSize:'large'}},
+            {type:'divider',content:{lineStyle:'solid',color:'#e5e7eb',thickness:'1'},style:{padding:'16px 40px'}},
+            {type:'social',content:{facebook:'#',instagram:'#',twitter:'#'},style:{padding:'12px 32px',textAlign:'center'}},
+        ],
+        followup_email: [
+            {type:'heading',content:{text:'How Are You Feeling?'},style:{padding:'28px 32px 8px',textAlign:'center',color:'#059669',fontSize:'26',fontWeight:'700'}},
+            {type:'text',content:{html:'<p>Hi <strong>{{patient_name}}</strong>,</p><p>We hope you\'re recovering well after your recent visit with <strong>{{doctor_name}}</strong> on {{date}}.</p><p>Your recommended follow-up is on <strong>{{followup_date}}</strong>. Please don\'t hesitate to reach out if you have any concerns.</p>'},style:{padding:'12px 32px',color:'#444',fontSize:'15'}},
+            {type:'button',content:{text:'Schedule Follow-Up',link:'{{confirm_link}}'},style:{padding:'20px 32px',textAlign:'center',buttonColor:'#059669',preset:'rounded'}},
+            {type:'text',content:{html:'<p>Wishing you a speedy recovery!<br><strong>{{clinic_name}}</strong></p>'},style:{padding:'12px 32px 28px',textAlign:'left',color:'#666',fontSize:'14'}},
+        ],
+    };
+
+    function ebLoadPreset(name) {
+        if (!name) return;
+        if (ebBlocks.length && !confirm('This will replace your current design. Continue?')) {
+            document.getElementById('ebTemplateSelect').value = _ebCurrentTemplate; return;
+        }
+        ebPushUndo();
+        const preset = EB_PRESETS[name];
+        if (!preset) return;
+        _ebCurrentTemplate = name;
+        ebBlocks = preset.map(b => {
+            const block = ebNewBlock(b.type);
+            block.content = {...block.content, ...b.content};
+            block.style = {...block.style, ...b.style};
+            return block;
+        });
+        ebSelectedId = null;
+        ebUpdateActionButtons();
+        ebRenderCanvas(); ebRenderSettings();
+        showToast('Template loaded! Customize it to match your brand.','success');
+    }
+
+    // ── Load saved template from server ──
+    function _ebLoadDefault() {
+        if (ebBlocks.length) return;
+        _ebCurrentTemplate = 'booking_confirmation';
+        const preset = EB_PRESETS['booking_confirmation'];
+        if (preset) ebBlocks = preset.map(b => { const block = ebNewBlock(b.type); block.content = {...block.content, ...b.content}; block.style = {...block.style, ...b.style}; return block; });
+        ebUpdateActionButtons();
+        ebRenderCanvas(); ebRenderSettings();
+    }
+    async function loadEmailStyle() {
+        if (_ebLoaded) return;
+        _ebLoaded = true;
+        // Show default immediately so canvas isn't blank during fetch
+        _ebLoadDefault();
+        try {
+            const res = await fetch('/api/email-template', { headers });
+            if (!res.ok) return;
+            const t = await res.json();
+            console.log('Loaded email template:', t ? 'found' : 'empty', 'blocks_json:', t?.blocks_json ? t.blocks_json.length + ' chars' : 'none');
+            if (t && t.blocks_json) {
+                try { const parsed = JSON.parse(t.blocks_json); if (Array.isArray(parsed) && parsed.length) ebBlocks = parsed; } catch(e) { console.error('Failed to parse blocks_json', e, t.blocks_json); }
+            }
+            if (t) {
+                if (t.name && _ebTemplateButtons[t.name]) _ebCurrentTemplate = t.name;
+                if (t.primary_color != null && t.primary_color !== '') ebTheme.primaryColor = t.primary_color;
+                if (t.secondary_color != null && t.secondary_color !== '') ebTheme.secondaryColor = t.secondary_color;
+                if (t.bg_color != null && t.bg_color !== '') ebTheme.bgColor = t.bg_color;
+                if (t.button_color != null && t.button_color !== '') ebTheme.buttonColor = t.button_color;
+                if (t.button_text_color != null && t.button_text_color !== '') ebTheme.buttonTextColor = t.button_text_color;
+                if (t.button_radius != null && t.button_radius !== '') ebTheme.buttonRadius = t.button_radius;
+                if (t.font_family != null && t.font_family !== '') ebTheme.fontFamily = t.font_family;
+            }
+        } catch(e) { console.error('Failed to load email template', e); }
+        ebUpdateActionButtons();
+        const _tplSel = document.getElementById('ebTemplateSelect');
+        if (_tplSel) _tplSel.value = _ebCurrentTemplate;
+        ebRenderCanvas(); ebRenderSettings();
+    }
+
     async function loadPMS() {
         // Load embed ID
         try {
@@ -4594,29 +6416,338 @@
         } catch(e) { showToast('Test failed', 'error'); }
     }
 
+    // ═══════ Appointment Integration (PMS) ═══════
+    let _externalApiKey = '';
+    const _apptCodeSnippets = {};
+    // Fetch external API key immediately on page load
+    (async function() {
+        try {
+            const r = await fetch('/api/company-info', {headers: {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'}});
+            const d = await r.json();
+            if (d.external_api_key) { _externalApiKey = d.external_api_key; localStorage.setItem('external_api_key', d.external_api_key); }
+        } catch(e) {}
+        if (!_externalApiKey) _externalApiKey = localStorage.getItem('external_api_key') || '';
+    })();
+    function initApptCodeSnippets() {
+        const server = window.location.origin;
+        const tk = _externalApiKey || localStorage.getItem('external_api_key') || 'KEY_NOT_FOUND';
+        _apptCodeSnippets.js = `// JavaScript (Node.js / Browser fetch)
+const response = await fetch("${server}/api/external/booking", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer ${tk}",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    patient_name: "John Doe",
+    patient_email: "john@example.com",
+    patient_phone: "+1234567890",
+    doctor_name: "Dr. Smith",
+    service: "Root Canal",
+    date: "2026-04-20",
+    time: "14:00",
+    notes: ""
+  })
+});
+const data = await response.json();
+console.log(data);
+// { ok: true, booking_id: 123, patient_id: 45, is_returning: false }`;
+
+        _apptCodeSnippets.python = `# Python (requests)
+import requests
+
+response = requests.post(
+    "${server}/api/external/booking",
+    headers={
+        "Authorization": "Bearer ${tk}",
+        "Content-Type": "application/json"
+    },
+    json={
+        "patient_name": "John Doe",
+        "patient_email": "john@example.com",
+        "patient_phone": "+1234567890",
+        "doctor_name": "Dr. Smith",
+        "service": "Root Canal",
+        "date": "2026-04-20",
+        "time": "14:00",
+        "notes": ""
+    }
+)
+print(response.json())
+# {"ok": True, "booking_id": 123, "patient_id": 45, "is_returning": False}`;
+
+        _apptCodeSnippets.csharp = `// C# (HttpClient)
+using var client = new HttpClient();
+client.DefaultRequestHeaders.Add("Authorization", "Bearer ${tk}");
+
+var body = new {
+    patient_name = "John Doe",
+    patient_email = "john@example.com",
+    patient_phone = "+1234567890",
+    doctor_name = "Dr. Smith",
+    service = "Root Canal",
+    date = "2026-04-20",
+    time = "14:00",
+    notes = ""
+};
+
+var json = System.Text.Json.JsonSerializer.Serialize(body);
+var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+var response = await client.PostAsync("${server}/api/external/booking", content);
+var result = await response.Content.ReadAsStringAsync();
+Console.WriteLine(result);`;
+
+        _apptCodeSnippets.java = `// Java (HttpURLConnection)
+URL url = new URL("${server}/api/external/booking");
+HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+conn.setRequestMethod("POST");
+conn.setRequestProperty("Authorization", "Bearer ${tk}");
+conn.setRequestProperty("Content-Type", "application/json");
+conn.setDoOutput(true);
+
+String json = "{\\"patient_name\\":\\"John Doe\\","
+    + "\\"patient_email\\":\\"john@example.com\\","
+    + "\\"patient_phone\\":\\"+1234567890\\","
+    + "\\"doctor_name\\":\\"Dr. Smith\\","
+    + "\\"service\\":\\"Root Canal\\","
+    + "\\"date\\":\\"2026-04-20\\","
+    + "\\"time\\":\\"14:00\\"}";
+
+conn.getOutputStream().write(json.getBytes("UTF-8"));
+BufferedReader reader = new BufferedReader(
+    new InputStreamReader(conn.getInputStream()));
+System.out.println(reader.readLine());`;
+
+        _apptCodeSnippets.swift = `// Swift (URLSession)
+let url = URL(string: "${server}/api/external/booking")!
+var request = URLRequest(url: url)
+request.httpMethod = "POST"
+request.setValue("Bearer ${tk}", forHTTPHeaderField: "Authorization")
+request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+let body: [String: Any] = [
+    "patient_name": "John Doe",
+    "patient_email": "john@example.com",
+    "patient_phone": "+1234567890",
+    "doctor_name": "Dr. Smith",
+    "service": "Root Canal",
+    "date": "2026-04-20",
+    "time": "14:00"
+]
+request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+URLSession.shared.dataTask(with: request) { data, _, _ in
+    if let data = data {
+        print(String(data: data, encoding: .utf8) ?? "")
+    }
+}.resume()`;
+
+        _apptCodeSnippets.curl = `# cURL
+curl -X POST "${server}/api/external/booking" \\
+  -H "Authorization: Bearer ${tk}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "patient_name": "John Doe",
+    "patient_email": "john@example.com",
+    "patient_phone": "+1234567890",
+    "doctor_name": "Dr. Smith",
+    "service": "Root Canal",
+    "date": "2026-04-20",
+    "time": "14:00"
+  }'`;
+    }
+
+    function showApptCode(lang, btn) {
+        if (!_apptCodeSnippets.js) initApptCodeSnippets();
+        document.getElementById('pmsApptCodeBlock').textContent = _apptCodeSnippets[lang] || '';
+        btn.parentElement.querySelectorAll('.roi-range-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+
+    function copyApptCode() {
+        const code = document.getElementById('pmsApptCodeBlock').textContent;
+        navigator.clipboard.writeText(code).then(() => {
+            const msg = document.getElementById('pmsApptCopyMsg');
+            msg.style.display = 'inline';
+            setTimeout(() => msg.style.display = 'none', 2000);
+        });
+    }
+
+    // Update loadPMS to also init appointment integration
+    const _origLoadPMS = loadPMS;
+    loadPMS = async function() {
+        await _origLoadPMS();
+        document.getElementById('pmsApptEndpoint').textContent = window.location.origin;
+        // Wait a moment for the async key fetch to complete if it hasn't yet
+        if (!_externalApiKey) {
+            try {
+                const res = await fetch('/api/company-info', {headers: {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'}});
+                const data = await res.json();
+                _externalApiKey = data.external_api_key || '';
+                if (_externalApiKey) localStorage.setItem('external_api_key', _externalApiKey);
+            } catch(e) {}
+            if (!_externalApiKey) _externalApiKey = localStorage.getItem('external_api_key') || '';
+        }
+        document.querySelectorAll('.pms-appt-token-display').forEach(el => el.textContent = _externalApiKey || 'No key found');
+        initApptCodeSnippets();
+        document.getElementById('pmsApptCodeBlock').textContent = _apptCodeSnippets.js || '';
+    };
+
+    // ═══════ Add Appointment Modal ═══════
+    async function openAddAppointment() {
+        document.getElementById('addApptModal').style.display = 'flex';
+        document.getElementById('appt_name').value = '';
+        document.getElementById('appt_email').value = '';
+        document.getElementById('appt_phone').value = '';
+        document.getElementById('appt_notes').value = '';
+        document.getElementById('appt_date').value = '';
+        document.getElementById('appt_time').value = '';
+        document.getElementById('addApptMsg').style.display = 'none';
+        // Load doctors
+        try {
+            const res = await fetch('/api/doctors', {headers});
+            const doctors = await res.json();
+            const sel = document.getElementById('appt_doctor');
+            sel.innerHTML = doctors.map(d => '<option value="'+d.id+'">Dr. '+escapeHtml(d.name)+' — '+(d.specialty||'General')+'</option>').join('');
+        } catch(e) {}
+        // Load services
+        try {
+            const res = await fetch('/api/services', {headers});
+            const services = await res.json();
+            const sel = document.getElementById('appt_service');
+            sel.innerHTML = '<option value="General Consultation">General Consultation</option>' +
+                services.map(s => '<option value="'+escapeHtml(s.name)+'">'+escapeHtml(s.name)+' ('+s.price+' '+s.currency+')</option>').join('');
+        } catch(e) {}
+    }
+
+    async function submitAddAppointment() {
+        const name = document.getElementById('appt_name').value.trim();
+        const email = document.getElementById('appt_email').value.trim();
+        const phone = document.getElementById('appt_phone').value.trim();
+        const doctorId = document.getElementById('appt_doctor').value;
+        const service = document.getElementById('appt_service').value;
+        const date = document.getElementById('appt_date').value;
+        const time = document.getElementById('appt_time').value;
+        const notes = document.getElementById('appt_notes').value.trim();
+        const msg = document.getElementById('addApptMsg');
+
+        if (!name || !doctorId || !date || !time) {
+            msg.textContent = 'Please fill all required fields (Name, Doctor, Date, Time)';
+            msg.style.color = 'var(--red)';
+            msg.style.display = 'block';
+            return;
+        }
+        try {
+            const res = await fetch('/api/bookings/manual', {
+                method: 'POST', headers,
+                body: JSON.stringify({ patient_name: name, patient_email: email, patient_phone: phone, doctor_id: parseInt(doctorId), service, date, time, notes })
+            });
+            const d = await res.json();
+            if (d.ok) {
+                showToast('Appointment added successfully', 'success');
+                document.getElementById('addApptModal').style.display = 'none';
+                loadBookings();
+            } else {
+                msg.textContent = d.error || 'Failed to add appointment';
+                msg.style.color = 'var(--red)';
+                msg.style.display = 'block';
+            }
+        } catch(e) {
+            msg.textContent = 'Error adding appointment';
+            msg.style.color = 'var(--red)';
+            msg.style.display = 'block';
+        }
+    }
+
     // ═══════ Feature 3: Recall ═══════
     async function loadRecall() {
         try {
-            const [rulesRes, campRes] = await Promise.all([fetch('/api/recall-rules',{headers}), fetch('/api/recall-campaigns',{headers})]);
+            // Load services into dropdown
+            const svcRes = await fetch('/api/company-services', {headers});
+            const svcData = await svcRes.json();
+            const services = svcData.services || svcData || [];
+            const sel = document.getElementById('recallTreatment');
+            const curVal = sel.value;
+            sel.innerHTML = '<option value="">Select a service...</option>' +
+                services.filter(s => s.is_active !== 0).map(s =>
+                    `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`
+                ).join('');
+            if (curVal) sel.value = curVal;
+
+            const [rulesRes, campRes] = await Promise.all([
+                fetch('/api/recall-rules',{headers}),
+                fetch('/api/recall-campaigns',{headers})
+            ]);
             const rules = await rulesRes.json();
             const camp = await campRes.json();
-            document.getElementById('recallRulesList').innerHTML = rules.length ? rules.map(r =>
-                `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;border-bottom:1px solid rgba(255,255,255,0.05)"><div><strong>${escapeHtml(r.treatment_type)}</strong> — recall after ${r.recall_days} days</div><button onclick="deleteRecallRule(${r.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.8rem">Delete</button></div>`
-            ).join('') : '<span class="empty-msg">No recall rules configured.</span>';
+
+            // Rules list
+            document.getElementById('recallRulesList').innerHTML = rules.length ? rules.map(r => {
+                const months = r.recall_days >= 30 ? Math.round(r.recall_days / 30) : 0;
+                const timeLabel = months >= 1 ? `${months} month${months > 1 ? 's' : ''} (${r.recall_days} days)` : `${r.recall_days} days`;
+                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem 0.5rem;border-bottom:1px solid rgba(255,255,255,0.04)">
+                    <div style="display:flex;align-items:center;gap:0.75rem">
+                        <div style="width:36px;height:36px;border-radius:10px;background:rgba(139,92,246,0.12);display:flex;align-items:center;justify-content:center">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+                        </div>
+                        <div>
+                            <div style="font-weight:600;font-size:0.9rem;color:var(--white)">${escapeHtml(r.treatment_type)}</div>
+                            <div style="font-size:0.78rem;color:var(--gray)">Recall after ${timeLabel}${r.message_template ? ' · Custom message' : ''}</div>
+                        </div>
+                    </div>
+                    <button onclick="deleteRecallRule(${r.id})" style="background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);color:#f87171;cursor:pointer;font-size:0.78rem;padding:0.3rem 0.75rem;border-radius:8px">Remove</button>
+                </div>`;
+            }).join('') : '<p class="empty-msg" style="text-align:center;padding:1.5rem 0">No recall rules configured. Add one above to start automated patient recall.</p>';
+
+            // Stats
             const s = camp.stats || {};
-            document.getElementById('recallStats').innerHTML = `<div style="display:flex;gap:1rem;flex-wrap:wrap"><div>Sent: <strong>${s.sent||0}</strong></div><div>Opened: <strong>${s.opened||0}</strong></div><div>Booked: <strong>${s.booked||0}</strong></div></div>`;
-        } catch(e) { console.error(e); }
+            const sent = s.sent || 0;
+            const booked = s.booked || 0;
+            document.getElementById('recallStatSent').textContent = sent;
+            document.getElementById('recallStatOpened').textContent = s.opened || 0;
+            document.getElementById('recallStatBooked').textContent = booked;
+            document.getElementById('recallStatConversion').textContent = sent > 0 ? Math.round((booked / sent) * 100) + '%' : '0%';
+
+            // Campaigns table
+            const campaigns = camp.campaigns || [];
+            const tbody = document.getElementById('recallCampaignsList');
+            if (campaigns.length) {
+                tbody.innerHTML = campaigns.slice(0, 50).map(c => {
+                    const statusColors = {pending:'var(--gray)',sent:'#3b82f6',opened:'#f59e0b',booked:'#10b981'};
+                    const statusBg = {pending:'rgba(139,149,168,0.1)',sent:'rgba(59,130,246,0.1)',opened:'rgba(245,158,11,0.1)',booked:'rgba(16,185,129,0.1)'};
+                    return `<tr>
+                        <td>${escapeHtml(c.patient_name||'-')}<br><span style="color:var(--gray);font-size:0.75rem">${escapeHtml(c.patient_email||'')}</span></td>
+                        <td>${escapeHtml(c.service_name||c.recall_type||'recall')}</td>
+                        <td><span style="padding:0.2rem 0.6rem;border-radius:50px;font-size:0.75rem;font-weight:600;background:${statusBg[c.status]||statusBg.pending};color:${statusColors[c.status]||statusColors.pending}">${(c.status||'pending').charAt(0).toUpperCase()+(c.status||'pending').slice(1)}</span></td>
+                        <td style="font-size:0.82rem;color:var(--gray)">${c.sent_at ? new Date(c.sent_at).toLocaleDateString() : '-'}</td>
+                        <td style="font-size:0.82rem;color:var(--gray)">${c.booked_at ? new Date(c.booked_at).toLocaleDateString() : '-'}</td>
+                    </tr>`;
+                }).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-msg">No campaigns yet. Campaigns are created automatically when recall dates arrive.</td></tr>';
+            }
+        } catch(e) { console.error('loadRecall error:', e); }
     }
 
     async function addRecallRule() {
         const t = document.getElementById('recallTreatment').value;
-        if (!t) { showToast('Enter treatment type','warning'); return; }
-        await fetch('/api/recall-rules', {method:'POST',headers,body:JSON.stringify({treatment_type:t,recall_days:parseInt(document.getElementById('recallDays').value)||180,message_template:document.getElementById('recallTemplate').value})});
+        if (!t) { showToast('Please select a service','warning'); return; }
+        const days = parseInt(document.getElementById('recallDays').value) || 180;
+        const msg = document.getElementById('recallTemplate').value;
+        const res = await fetch('/api/recall-rules', {method:'POST',headers,body:JSON.stringify({treatment_type:t,recall_days:days,message_template:msg})});
+        const d = await res.json();
+        if (d.error) { showToast(d.error, 'error'); return; }
         document.getElementById('recallTreatment').value = '';
+        document.getElementById('recallTemplate').value = '';
+        showToast('Recall rule added for ' + t, 'success');
         loadRecall();
     }
 
-    async function deleteRecallRule(id) { await fetch(`/api/recall-rules/${id}`,{method:'DELETE',headers}); loadRecall(); }
+    async function deleteRecallRule(id) {
+        if (!confirm('Remove this recall rule?')) return;
+        await fetch(`/api/recall-rules/${id}`,{method:'DELETE',headers});
+        loadRecall();
+    }
 
     // ═══════ Feature 4: Missed Calls ═══════
     async function loadMissedCalls() {
@@ -4641,9 +6772,28 @@
         const status = document.getElementById('fuStatusFilter').value;
         const res = await fetch(`/api/treatment-followups?${status?'status='+status:''}`, {headers});
         const data = await res.json();
-        const c = document.getElementById('followupsList');
-        if (!data.length) { c.innerHTML = '<span class="empty-msg">No follow-ups.</span>'; return; }
-        c.innerHTML = data.map(f => `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem;border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.82rem"><div><strong>${escapeHtml(f.patient_name)}</strong> — ${escapeHtml(f.treatment_name)} (Day ${f.followup_day})</div><div style="display:flex;gap:0.5rem;align-items:center"><span class="badge ${f.status==='pending'?'badge-yellow':f.status==='sent'?'badge-green':'badge-gray'}">${escapeHtml(f.status)}</span>${f.status==='pending'?`<button onclick="cancelFollowup(${f.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.75rem">Cancel</button>`:''}</div></div>`).join('');
+        const tbody = document.getElementById('followupsList');
+        if (!data.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">No follow-ups.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.map(f => {
+            const statusColors = {pending:'var(--yellow)',sent:'#3b82f6',booked:'#10b981',cancelled:'var(--gray)'};
+            const statusBg = {pending:'rgba(251,191,36,0.1)',sent:'rgba(59,130,246,0.1)',booked:'rgba(16,185,129,0.1)',cancelled:'rgba(139,149,168,0.1)'};
+            const dayLabel = f.followup_day > 0 ? ` (Day ${f.followup_day})` : '';
+            let actions = '';
+            if (f.status === 'pending' || f.status === 'sent') {
+                actions = `<button onclick="cancelFollowup(${f.id})" style="background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);color:#f87171;cursor:pointer;font-size:0.72rem;padding:0.25rem 0.6rem;border-radius:8px">Cancel</button>`;
+            }
+            return `<tr>
+                <td>${escapeHtml(f.patient_name)}<br><span style="color:var(--gray);font-size:0.72rem">${escapeHtml(f.patient_email||'')}</span></td>
+                <td>${escapeHtml(f.treatment_name)}${dayLabel}</td>
+                <td><span style="padding:0.2rem 0.6rem;border-radius:50px;font-size:0.72rem;font-weight:600;background:${statusBg[f.status]||statusBg.pending};color:${statusColors[f.status]||statusColors.pending}">${(f.status||'pending').charAt(0).toUpperCase()+(f.status||'').slice(1)}</span></td>
+                <td style="font-size:0.82rem;color:var(--gray)">${f.sent_at ? new Date(f.sent_at).toLocaleDateString() : '—'}</td>
+                <td style="font-size:0.82rem;color:var(--gray)">${f.booked_at ? new Date(f.booked_at).toLocaleDateString() : '—'}</td>
+                <td>${actions}</td>
+            </tr>`;
+        }).join('');
     }
 
     async function createFollowup() {
@@ -4651,11 +6801,19 @@
         const treatment = document.getElementById('fuTreatment').value;
         if (!name || !treatment) { showToast('Patient name and treatment required','warning'); return; }
         await fetch('/api/treatment-followups', {method:'POST',headers,body:JSON.stringify({patient_name:name,treatment_name:treatment,patient_email:document.getElementById('fuEmail').value,patient_phone:document.getElementById('fuPhone').value})});
+        document.getElementById('fuPatient').value = '';
+        document.getElementById('fuTreatment').value = '';
+        document.getElementById('fuEmail').value = '';
+        document.getElementById('fuPhone').value = '';
         showToast('Follow-up sequence created','success');
         loadFollowups();
     }
 
-    async function cancelFollowup(id) { await fetch(`/api/treatment-followups/${id}/cancel`,{method:'POST',headers}); loadFollowups(); }
+    async function cancelFollowup(id) {
+        if (!confirm('Cancel this follow-up?')) return;
+        await fetch(`/api/treatment-followups/${id}/cancel`,{method:'POST',headers});
+        loadFollowups();
+    }
 
     // ═══════ Feature 7: Gallery ═══════
     async function loadGallery() {

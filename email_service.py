@@ -44,8 +44,100 @@ def _send_email(to_email, subject, html_body):
         return False
 
 
-def _wrap_luxury(content):
-    """Wrap content in a luxury email shell."""
+def _get_base_url():
+    """Get the server base URL for making relative URLs absolute in emails."""
+    try:
+        from flask import request
+        return request.host_url.rstrip("/")
+    except (RuntimeError, ImportError):
+        # Outside request context — fall back to env or localhost
+        host = os.getenv("SERVER_URL", "").rstrip("/")
+        return host or "http://localhost:8080"
+
+
+def _make_urls_absolute(html):
+    """Convert relative src/href URLs to absolute so images load in email clients."""
+    import re
+    base = _get_base_url()
+    def fix_url(match):
+        attr = match.group(1)  # src or href
+        url = match.group(2)
+        if url.startswith(('data:', 'mailto:', '#', '{{', '//')):
+            return match.group(0)
+        # Replace localhost/127.0.0.1 URLs with the real server URL
+        if url.startswith(('http://localhost', 'http://127.0.0.1')):
+            path = re.sub(r'^https?://[^/]+', '', url)
+            return f'{attr}="{base}{path}"'
+        if url.startswith(('http://', 'https://')):
+            return match.group(0)
+        return f'{attr}="{base}{url}"'
+    # Match src="..." or href="..." (both relative and absolute)
+    return re.sub(r'(src|href)="([^"]*)"', fix_url, html)
+
+
+def _get_admin_plan(admin_id):
+    """Get the plan for an admin user. Returns plan string or 'free_trial'."""
+    if not admin_id:
+        return "free_trial"
+    try:
+        import database as db
+        conn = db.get_db()
+        row = conn.execute("SELECT plan FROM users WHERE id=?", (admin_id,)).fetchone()
+        conn.close()
+        return row["plan"] if row else "free_trial"
+    except Exception:
+        return "free_trial"
+
+
+def _strip_watermark(html):
+    """Remove ChatGenius watermark from compiled HTML for paid plans."""
+    import re
+    # Remove the footer table containing the watermark
+    html = re.sub(
+        r'<table[^>]*>\s*<tr>\s*<td[^>]*text-align:\s*center[^>]*>\s*<p[^>]*>.*?Powered by.*?ChatGenius AI.*?</p>\s*</td>\s*</tr>\s*</table>',
+        '', html, flags=re.DOTALL | re.IGNORECASE)
+    return html
+
+
+def _wrap_luxury(content, admin_id=None, variables=None):
+    """Wrap content in a luxury email shell, using custom template if available."""
+    template = None
+    plan = _get_admin_plan(admin_id)
+    hide_watermark = plan in ("pro", "agency")
+
+    if admin_id:
+        try:
+            import database as db
+            template = db.get_email_template(admin_id)
+        except Exception:
+            pass
+
+    # If the admin built a custom email via the drag-and-drop builder, use it directly
+    if template and template.get("compiled_html"):
+        html = template["compiled_html"]
+        # Convert any remaining relative image URLs to absolute
+        html = _make_urls_absolute(html)
+        if hide_watermark:
+            html = _strip_watermark(html)
+        if variables:
+            html = render_template_variables(html, variables)
+        return html
+
+    if template and (template.get("header_html") or template.get("footer_html")):
+        return _wrap_custom_template(content, template, hide_watermark=hide_watermark)
+
+    watermark = ""
+    if not hide_watermark:
+        watermark = f"""<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;margin-top:24px;">
+<tr><td style="text-align:center;padding:0 20px;">
+    <p style="color:#999;font-size:12px;line-height:1.5;margin:0;">
+        Powered by <strong style="color:#777;">ChatGenius AI</strong><br>
+        You received this email because of your interaction with {BUSINESS_NAME}.<br>
+        <span style="color:#bbb;">Please do not reply to this email.</span>
+    </p>
+</td></tr>
+</table>"""
+
     return f"""
 <!DOCTYPE html>
 <html>
@@ -56,25 +148,99 @@ def _wrap_luxury(content):
 <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.1);">
 {content}
 </table>
-<!-- Footer -->
-<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;margin-top:24px;">
-<tr><td style="text-align:center;padding:0 20px;">
-    <p style="color:#999;font-size:12px;line-height:1.5;margin:0;">
-        Powered by <strong style="color:#777;">ChatGenius AI</strong><br>
-        You received this email because of your interaction with {BUSINESS_NAME}.<br>
-        <span style="color:#bbb;">Please do not reply to this email.</span>
-    </p>
-</td></tr>
-</table>
+{watermark}
 </td></tr>
 </table>
 </body>
 </html>"""
 
 
+def _wrap_custom_template(content, template, hide_watermark=False):
+    """Wrap email content using custom admin template with their colors, images, fonts."""
+    bg = template.get("bg_color", "#f0f0f0") or "#f0f0f0"
+    primary = template.get("primary_color", "#8b5cf6") or "#8b5cf6"
+    secondary = template.get("secondary_color", "#1a1a2e") or "#1a1a2e"
+    btn_color = template.get("button_color", "#8b5cf6") or "#8b5cf6"
+    btn_text = template.get("button_text_color", "#ffffff") or "#ffffff"
+    btn_radius = template.get("button_radius", "8") or "8"
+    font = template.get("font_family", "Helvetica Neue, Helvetica, Arial, sans-serif") or "Helvetica Neue, Helvetica, Arial, sans-serif"
+    header_html = template.get("header_html", "") or ""
+    footer_html = template.get("footer_html", "") or ""
+    logo_url = template.get("logo_url", "") or ""
+    header_img = template.get("header_image_url", "") or ""
+
+    # Build logo row
+    logo_row = ""
+    if logo_url:
+        logo_row = f'<tr><td style="padding:20px 40px 10px;text-align:center;"><img src="{logo_url}" alt="Logo" style="max-height:60px;max-width:200px;"></td></tr>'
+
+    # Build header image
+    header_img_row = ""
+    if header_img:
+        header_img_row = f'<tr><td><img src="{header_img}" alt="" style="width:100%;max-height:200px;object-fit:cover;display:block;"></td></tr>'
+
+    # Custom header content
+    header_content = ""
+    if header_html.strip():
+        header_content = f'<tr><td style="padding:20px 40px;color:{secondary};font-family:{font};">{header_html}</td></tr>'
+
+    # Custom footer content
+    footer_content = ""
+    if footer_html.strip():
+        footer_content = f'<tr><td style="padding:20px 40px;color:#666;font-family:{font};font-size:13px;">{footer_html}</td></tr>'
+
+    # Inject button styling into content via CSS override
+    styled_content = content
+    # Replace default button colors in content with custom ones
+    styled_content = styled_content.replace("background:#c9a84c", f"background:{btn_color}")
+    styled_content = styled_content.replace("background:#d4af37", f"background:{btn_color}")
+    styled_content = styled_content.replace("background-color:#c9a84c", f"background-color:{btn_color}")
+    styled_content = styled_content.replace("background-color:#d4af37", f"background-color:{btn_color}")
+    styled_content = styled_content.replace("color:#c9a84c", f"color:{primary}")
+    styled_content = styled_content.replace("border-radius:8px", f"border-radius:{btn_radius}px")
+
+    return f"""
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:{bg};font-family:'{font}';">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{bg};padding:40px 20px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.1);">
+<tr><td style="height:4px;background:linear-gradient(90deg,{primary},{btn_color},{primary});"></td></tr>
+{header_img_row}
+{logo_row}
+{header_content}
+{styled_content}
+{footer_content}
+<tr><td style="height:4px;background:linear-gradient(90deg,{primary},{btn_color},{primary});"></td></tr>
+</table>
+{"" if hide_watermark else f'''<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;margin-top:24px;">
+<tr><td style="text-align:center;padding:0 20px;">
+    <p style="color:#999;font-size:12px;line-height:1.5;margin:0;font-family:&#39;{font}&#39;;">
+        Powered by <strong style="color:#777;">ChatGenius AI</strong><br>
+        <span style="color:#bbb;">Please do not reply to this email.</span>
+    </p>
+</td></tr>
+</table>'''}
+</td></tr>
+</table>
+</body>
+</html>"""
+
+
+def render_template_variables(html, variables):
+    """Replace {{variable}} placeholders with actual values."""
+    import re
+    def replacer(match):
+        key = match.group(1)
+        return str(variables.get(key, match.group(0)))
+    return re.sub(r'\{\{(\w+)\}\}', replacer, html)
+
+
 # ── Booking Confirmation (Customer) ─────────────────────────────────────────
 
-def send_booking_confirmation_customer(customer_name, customer_email, date_display, time_display, doctor_name="", confirm_url="", service_name="", duration_minutes=0, price="", preparation_instructions=""):
+def send_booking_confirmation_customer(customer_name, customer_email, date_display, time_display, doctor_name="", confirm_url="", cancel_url="", service_name="", duration_minutes=0, price="", preparation_instructions="", admin_id=None):
     """Send beautiful booking confirmation to the customer with a clickable link."""
     subject = f"Your Appointment is Confirmed — {date_display}"
 
@@ -107,14 +273,23 @@ def send_booking_confirmation_customer(customer_name, customer_email, date_displ
         </tr>"""
 
     btn_html = ""
-    if confirm_url:
+    if confirm_url or cancel_url:
+        btn_parts = ""
+        if confirm_url:
+            btn_parts += f"""
+                <a href="{confirm_url}" style="display:inline-block;background:linear-gradient(135deg,#c9a84c,#d4af37,#e8c547);color:#1a1a2e;padding:16px 36px;border-radius:50px;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:0.5px;box-shadow:0 8px 24px rgba(201,168,76,0.4);text-transform:uppercase;margin:6px;">
+                    View Details
+                </a>"""
+        if cancel_url:
+            btn_parts += f"""
+                <a href="{cancel_url}" style="display:inline-block;background:transparent;color:#999;padding:14px 28px;border-radius:50px;text-decoration:none;font-weight:600;font-size:13px;border:1px solid #ddd;margin:6px;">
+                    Cancel Appointment
+                </a>"""
         btn_html = f"""
-        <tr><td style="padding:32px 40px 0;">
+        <tr><td style="padding:32px 40px 0;text-align:center;">
             <table width="100%" cellpadding="0" cellspacing="0">
             <tr><td align="center">
-                <a href="{confirm_url}" style="display:inline-block;background:linear-gradient(135deg,#c9a84c,#d4af37,#e8c547);color:#1a1a2e;padding:16px 48px;border-radius:50px;text-decoration:none;font-weight:700;font-size:15px;letter-spacing:0.5px;box-shadow:0 8px 24px rgba(201,168,76,0.4);text-transform:uppercase;">
-                    View Appointment Details
-                </a>
+                {btn_parts}
             </td></tr>
             </table>
         </td></tr>"""
@@ -202,7 +377,18 @@ def send_booking_confirmation_customer(customer_name, customer_email, date_displ
     <!-- Gold bottom bar -->
     <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>"""
 
-    return _send_email(customer_email, subject, _wrap_luxury(content))
+    variables = {
+        "patient_name": customer_name,
+        "doctor_name": doctor_name or "",
+        "date": date_display,
+        "time": time_display,
+        "service_name": service_name or "",
+        "confirm_link": confirm_url or "#",
+        "cancel_link": cancel_url or "#",
+        "booking_id": "",
+        "clinic_name": BUSINESS_NAME,
+    }
+    return _send_email(customer_email, subject, _wrap_luxury(content, admin_id=admin_id, variables=variables))
 
 
 # ── Booking Notification (Owner) ─────────────────────────────────────────────
@@ -292,7 +478,7 @@ def send_customer_verification(to_email, business_name, verification_url):
 
 # ── Pre-Visit Form Email ────────────────────────────────────────────────────
 
-def send_previsit_form(to_email, patient_name, form_url, date_display, time_display, doctor_name=""):
+def send_previsit_form(to_email, patient_name, form_url, date_display, time_display, doctor_name="", admin_id=None):
     """Send pre-visit form link to patient before appointment."""
     doctor_line = f" with <strong>Dr. {doctor_name}</strong>" if doctor_name else ""
     subject = f"Complete Your Pre-Visit Form — {date_display}"
@@ -332,12 +518,13 @@ def send_previsit_form(to_email, patient_name, form_url, date_display, time_disp
     </td></tr>
     <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>"""
 
-    return _send_email(to_email, subject, _wrap_luxury(content))
+    variables = {"patient_name": patient_name, "doctor_name": doctor_name or "", "date": date_display, "time": time_display, "clinic_name": BUSINESS_NAME, "confirm_link": form_url}
+    return _send_email(to_email, subject, _wrap_luxury(content, admin_id=admin_id, variables=variables))
 
 
 # ── Waitlist Notification Email ──────────────────────────────────────────────
 
-def send_waitlist_notification(to_email, patient_name, date_display, time_slot, confirm_deadline, confirm_url="", doctor_name=""):
+def send_waitlist_notification(to_email, patient_name, date_display, time_slot, confirm_deadline, confirm_url="", doctor_name="", admin_id=None):
     """Notify waitlisted patient that a slot opened up.
     Includes patient name, doctor name, date/time, deadline, and confirm link."""
     subject = f"A Slot Opened Up — {date_display} at {time_slot}"
@@ -383,12 +570,66 @@ def send_waitlist_notification(to_email, patient_name, date_display, time_slot, 
     </td></tr>
     <tr><td style="height:4px;background:linear-gradient(90deg,#059669,#10b981,#34d399,#10b981,#059669);"></td></tr>"""
 
-    return _send_email(to_email, subject, _wrap_luxury(content))
+    variables = {"patient_name": patient_name, "doctor_name": doctor_name or "", "date": date_display, "time": time_slot, "clinic_name": BUSINESS_NAME, "confirm_link": confirm_url or "#"}
+    return _send_email(to_email, subject, _wrap_luxury(content, admin_id=admin_id, variables=variables))
+
+
+# ── External Waitlist Placement Email ────────────────────────────────────────
+
+def send_waitlist_placed_email(to_email, patient_name, date_display, time_slot, doctor_name="", confirm_url="", remove_url="", position=1, admin_id=None):
+    """Notify patient from external booking that they've been placed on a waitlist.
+    Includes confirm (stay on waitlist) and remove (leave waitlist) buttons."""
+    subject = f"You've Been Placed on a Waitlist — {date_display}"
+
+    doctor_html = ""
+    if doctor_name:
+        doctor_html = f'<p style="margin:4px 0;font-size:15px;"><strong style="color:#92400e;">Doctor:</strong> <span style="color:#1a1a2e;">Dr. {doctor_name}</span></p>'
+
+    content = f"""
+    <tr><td style="height:4px;background:linear-gradient(90deg,#d97706,#f59e0b,#fbbf24,#f59e0b,#d97706);"></td></tr>
+    <tr><td style="background:linear-gradient(145deg,#78350f,#92400e);padding:48px 40px;text-align:center;">
+        <div style="width:64px;height:64px;margin:0 auto 16px;border-radius:50%;background:linear-gradient(135deg,#fbbf24,#f59e0b);line-height:64px;">
+            <span style="font-size:28px;">&#9200;</span>
+        </div>
+        <h1 style="margin:0;color:#fff;font-size:24px;font-weight:300;">You're on the <strong>Waitlist</strong></h1>
+    </td></tr>
+    <tr><td style="padding:36px 40px;">
+        <p style="color:#555;font-size:15px;line-height:1.6;margin:0;">
+            Hi <strong style="color:#1a1a2e;">{patient_name}</strong>,
+            the time slot you requested is currently taken. You've been placed on the waitlist at <strong>position #{position}</strong>.
+            If the current appointment is cancelled, you'll be automatically moved in.
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#fffbeb;border-radius:12px;border:1px solid #fde68a;margin:20px 0;">
+        <tr><td style="padding:24px;">
+            {doctor_html}
+            <p style="margin:4px 0;font-size:15px;"><strong style="color:#92400e;">Date:</strong> <span style="color:#1a1a2e;">{date_display}</span></p>
+            <p style="margin:4px 0;font-size:15px;"><strong style="color:#92400e;">Time:</strong> <span style="color:#1a1a2e;">{time_slot}</span></p>
+            <p style="margin:4px 0;font-size:15px;"><strong style="color:#92400e;">Position:</strong> <span style="color:#1a1a2e;">#{position} in queue</span></p>
+        </td></tr>
+        </table>
+    </td></tr>
+    <tr><td style="padding:0 40px 12px;text-align:center;">
+        <a href="{confirm_url}" style="display:inline-block;background:linear-gradient(135deg,#059669,#10b981);color:#fff;padding:16px 40px;border-radius:50px;text-decoration:none;font-weight:700;font-size:14px;box-shadow:0 8px 24px rgba(5,150,105,0.3);margin-right:12px;">
+            Yes, Keep Me on Waitlist
+        </a>
+    </td></tr>
+    <tr><td style="padding:0 40px 36px;text-align:center;">
+        <a href="{remove_url}" style="display:inline-block;background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;padding:16px 40px;border-radius:50px;text-decoration:none;font-weight:700;font-size:14px;box-shadow:0 8px 24px rgba(220,38,38,0.3);">
+            No, Remove Me from Waitlist
+        </a>
+    </td></tr>
+    <tr><td style="padding:0 40px 24px;text-align:center;">
+        <p style="color:#999;font-size:12px;margin:0;">If you do nothing, you'll remain on the waitlist.</p>
+    </td></tr>
+    <tr><td style="height:4px;background:linear-gradient(90deg,#d97706,#f59e0b,#fbbf24,#f59e0b,#d97706);"></td></tr>"""
+
+    variables = {"patient_name": patient_name, "doctor_name": doctor_name or "", "date": date_display, "time": time_slot, "clinic_name": BUSINESS_NAME, "confirm_link": confirm_url or "#", "cancel_link": remove_url or "#", "waitlist_position": str(position)}
+    return _send_email(to_email, subject, _wrap_luxury(content, admin_id=admin_id, variables=variables))
 
 
 # ── Waitlist Expired Notification ────────────────────────────────────────────
 
-def send_waitlist_expired_notification(to_email, patient_name, date_display, time_slot, doctor_name=""):
+def send_waitlist_expired_notification(to_email, patient_name, date_display, time_slot, doctor_name="", admin_id=None):
     """Send email to patient who didn't fill the pre-visit form in time."""
     subject = f"Your Waitlist Reservation Has Expired — {date_display}"
 
@@ -430,12 +671,12 @@ def send_waitlist_expired_notification(to_email, patient_name, date_display, tim
     </td></tr>
     <tr><td style="height:4px;background:linear-gradient(90deg,#dc2626,#ef4444,#f87171,#ef4444,#dc2626);"></td></tr>"""
 
-    return _send_email(to_email, subject, _wrap_luxury(content))
+    return _send_email(to_email, subject, _wrap_luxury(content, admin_id=admin_id))
 
 
 # ── Recall / Retention Email ─────────────────────────────────────────────────
 
-def send_recall_email(to_email, patient_name, treatment_type, message="", booking_url=""):
+def send_recall_email(to_email, patient_name, treatment_type, message="", booking_url="", admin_id=None):
     """Send recall reminder to patient for follow-up treatment."""
     subject = f"Time for Your {treatment_type} Check-Up"
     if not message:
@@ -468,12 +709,13 @@ def send_recall_email(to_email, patient_name, treatment_type, message="", bookin
     </td></tr>
     <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>"""
 
-    return _send_email(to_email, subject, _wrap_luxury(content))
+    variables = {"patient_name": patient_name, "clinic_name": BUSINESS_NAME, "recall_treatment": treatment_type or "", "confirm_link": booking_url or "#"}
+    return _send_email(to_email, subject, _wrap_luxury(content, admin_id=admin_id, variables=variables))
 
 
 # ── Treatment Follow-Up Email ────────────────────────────────────────────────
 
-def send_treatment_followup(to_email, patient_name, treatment_name, day_number, booking_url=""):
+def send_treatment_followup(to_email, patient_name, treatment_name, day_number, booking_url="", admin_id=None):
     """Send treatment follow-up check-in email."""
     if day_number <= 2:
         subject = f"How Are You Feeling After Your {treatment_name}?"
@@ -514,12 +756,13 @@ def send_treatment_followup(to_email, patient_name, treatment_name, day_number, 
     </td></tr>
     <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>"""
 
-    return _send_email(to_email, subject, _wrap_luxury(content))
+    variables = {"patient_name": patient_name, "clinic_name": BUSINESS_NAME, "confirm_link": booking_url or "#", "followup_date": ""}
+    return _send_email(to_email, subject, _wrap_luxury(content, admin_id=admin_id, variables=variables))
 
 
 # ── Booking Cancellation (Customer) ─────────────────────────────────────────
 
-def send_booking_cancellation(to_email, customer_name, date_display, time_display, doctor_name="", reason=""):
+def send_booking_cancellation(to_email, customer_name, date_display, time_display, doctor_name="", reason="", admin_id=None):
     """Notify the customer that their appointment has been cancelled by the clinic."""
     subject = f"Your Appointment Has Been Cancelled — {date_display}"
 
@@ -576,12 +819,13 @@ def send_booking_cancellation(to_email, customer_name, date_display, time_displa
     </td></tr>
     <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>"""
 
-    return _send_email(to_email, subject, _wrap_luxury(content))
+    variables = {"patient_name": customer_name, "doctor_name": doctor_name or "", "date": date_display, "time": time_display, "clinic_name": BUSINESS_NAME}
+    return _send_email(to_email, subject, _wrap_luxury(content, admin_id=admin_id, variables=variables))
 
 
 # ── Lead Follow-Up Email ──────────────────────────────────────────────────────
 
-def send_lead_followup(to_email, lead_name, treatment_interest="", day_number=1):
+def send_lead_followup(to_email, lead_name, treatment_interest="", day_number=1, admin_id=None):
     """Send a personalized follow-up email to a lead based on day number."""
     first_name = (lead_name or "there").split()[0]
     treatment = treatment_interest or "dental care"
@@ -632,10 +876,10 @@ def send_lead_followup(to_email, lead_name, treatment_interest="", day_number=1)
     </td></tr>
     <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>"""
 
-    return _send_email(to_email, subject, _wrap_luxury(content))
+    return _send_email(to_email, subject, _wrap_luxury(content, admin_id=admin_id))
 
 
-def send_service_available_notification(to_email, patient_name, service_name, doctor_names=None):
+def send_service_available_notification(to_email, patient_name, service_name, doctor_names=None, admin_id=None):
     """Notify a patient that a doctor is now available for a service they were interested in."""
     subject = f"Great News — {service_name} Now Available!"
     docs_text = ""
@@ -668,7 +912,7 @@ def send_service_available_notification(to_email, patient_name, service_name, do
     </td></tr>
     <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>"""
 
-    return _send_email(to_email, subject, _wrap_luxury(content))
+    return _send_email(to_email, subject, _wrap_luxury(content, admin_id=admin_id))
 
 
 def send_doctor_booking_notification(to_email, doctor_name, patient_name, service_name,
@@ -724,7 +968,7 @@ def send_doctor_booking_notification(to_email, doctor_name, patient_name, servic
 
 # ── No-Show Email (Patient) ──────────────────────────────────────────────────
 
-def send_noshow_email(to_email, patient_name, date_display, time_display, doctor_name="", reason_url=""):
+def send_noshow_email(to_email, patient_name, date_display, time_display, doctor_name="", reason_url="", admin_id=None):
     """Ask patient why they missed their appointment, with a link to provide a reason."""
     subject = f"We Missed You — {date_display}"
 
@@ -786,7 +1030,8 @@ def send_noshow_email(to_email, patient_name, date_display, time_display, doctor
     </td></tr>
     <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>"""
 
-    return _send_email(to_email, subject, _wrap_luxury(content))
+    variables = {"patient_name": patient_name, "doctor_name": doctor_name or "", "date": date_display, "time": time_display, "clinic_name": BUSINESS_NAME}
+    return _send_email(to_email, subject, _wrap_luxury(content, admin_id=admin_id, variables=variables))
 
 
 # ── No-Show Reason → Doctor Notification ─────────────────────────────────────
