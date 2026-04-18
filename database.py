@@ -757,6 +757,36 @@ def init_db():
             UNIQUE(admin_id, feature_key)
         );
 
+        -- Chatbot Customization
+        CREATE TABLE IF NOT EXISTS chatbot_customization (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER UNIQUE NOT NULL,
+            dropdown_style TEXT DEFAULT 'default',
+            msg_font_size INTEGER DEFAULT 13,
+            msg_bot_bg TEXT DEFAULT '',
+            msg_bot_color TEXT DEFAULT '',
+            msg_user_bg TEXT DEFAULT '',
+            msg_user_color TEXT DEFAULT '',
+            chatbot_bg_color TEXT DEFAULT '',
+            header_bg TEXT DEFAULT '',
+            header_text_color TEXT DEFAULT '',
+            input_bg TEXT DEFAULT '',
+            input_text_color TEXT DEFAULT '',
+            send_btn_color TEXT DEFAULT '',
+            chatbot_title TEXT DEFAULT '',
+            msg_animation TEXT DEFAULT 'slide_up',
+            celebration_enabled INTEGER DEFAULT 0,
+            doctor_show_experience INTEGER DEFAULT 0,
+            doctor_show_languages INTEGER DEFAULT 0,
+            doctor_show_gender INTEGER DEFAULT 0,
+            doctor_show_qualifications INTEGER DEFAULT 0,
+            doctor_show_category INTEGER DEFAULT 0,
+            calendar_style TEXT DEFAULT 'default',
+            calendar_marker_color TEXT DEFAULT '#f87171',
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (admin_id) REFERENCES users(id)
+        );
+
         -- White-Label Configuration
         CREATE TABLE IF NOT EXISTS whitelabel_config (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -5574,6 +5604,72 @@ def get_email_template(admin_id):
 def delete_email_template(admin_id):
     conn = get_db()
     conn.execute("DELETE FROM email_templates WHERE admin_id=?", (admin_id,))
+    conn.commit()
+    conn.close()
+
+
+def get_chatbot_customization(admin_id):
+    """Get chatbot customization settings for an admin."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM chatbot_customization WHERE admin_id=?", (admin_id,)).fetchone()
+    conn.close()
+    if row:
+        return dict(row)
+    # Return defaults
+    return {
+        "admin_id": admin_id,
+        "dropdown_style": "default",
+        "msg_font_size": 13,
+        "msg_bot_bg": "",
+        "msg_bot_color": "",
+        "msg_user_bg": "",
+        "msg_user_color": "",
+        "chatbot_bg_color": "",
+        "header_bg": "",
+        "header_text_color": "",
+        "input_bg": "",
+        "input_text_color": "",
+        "send_btn_color": "",
+        "chatbot_title": "",
+        "msg_animation": "slide_up",
+        "celebration_enabled": 0,
+        "doctor_show_experience": 0,
+        "doctor_show_languages": 0,
+        "doctor_show_gender": 0,
+        "doctor_show_qualifications": 0,
+        "doctor_show_category": 0,
+        "calendar_style": "default",
+        "calendar_marker_color": "#f87171",
+    }
+
+
+def save_chatbot_customization(admin_id, data):
+    """Save chatbot customization settings (upsert)."""
+    allowed = [
+        "dropdown_style", "msg_font_size", "msg_bot_bg", "msg_bot_color",
+        "msg_user_bg", "msg_user_color", "chatbot_bg_color",
+        "header_bg", "header_text_color", "input_bg", "input_text_color",
+        "send_btn_color", "chatbot_title", "msg_animation",
+        "celebration_enabled", "doctor_show_experience", "doctor_show_languages",
+        "doctor_show_gender", "doctor_show_qualifications", "doctor_show_category",
+        "calendar_style", "calendar_marker_color",
+    ]
+    filtered = {k: v for k, v in data.items() if k in allowed}
+    if not filtered:
+        return
+    conn = get_db()
+    existing = conn.execute("SELECT id FROM chatbot_customization WHERE admin_id=?", (admin_id,)).fetchone()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if existing:
+        set_clause = ", ".join(f"{k}=?" for k in filtered)
+        values = list(filtered.values()) + [now, admin_id]
+        conn.execute(f"UPDATE chatbot_customization SET {set_clause}, updated_at=? WHERE admin_id=?", values)
+    else:
+        filtered["admin_id"] = admin_id
+        filtered["updated_at"] = now
+        cols = ", ".join(filtered.keys())
+        placeholders = ", ".join(["?"] * len(filtered))
+        conn.execute(f"INSERT INTO chatbot_customization ({cols}) VALUES ({placeholders})", list(filtered.values()))
     conn.commit()
     conn.close()
 

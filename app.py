@@ -66,7 +66,7 @@ app = Flask(__name__, static_folder="static")
 
 # ── CORS for embedded chatbot ──
 from flask_cors import CORS
-CORS(app, resources={r"/chat": {"origins": "*"}, r"/static/chatbot-embed.js": {"origins": "*"}})
+CORS(app, resources={r"/chat": {"origins": "*"}, r"/static/chatbot-embed.js": {"origins": "*"}, r"/api/chatbot-customization/public/*": {"origins": "*"}})
 
 # ── Load knowledge base ──
 KB_PATH = os.path.join(os.path.dirname(__file__), "data", "knowledge_base.json")
@@ -809,7 +809,8 @@ def _doctor_avail_str(doctor):
 def _doctor_dropdown_item(d):
     """Build a doctor dropdown item dict with working days from schedule config."""
     return {"name": d["name"], "specialty": d.get("specialty", "General"), "availability": _doctor_avail_str(d),
-            "years_of_experience": d.get("years_of_experience", 0), "gender": d.get("gender", "")}
+            "years_of_experience": d.get("years_of_experience", 0), "gender": d.get("gender", ""),
+            "languages": d.get("languages", ""), "qualifications": d.get("qualifications", "")}
 
 
 def _get_customer_booked_dates(session, admin_id):
@@ -3012,6 +3013,9 @@ def handle_booking(session, user_message, corrected_message=None):
             })
         except Exception:
             pass
+
+        # Flag booking as confirmed for the /chat response
+        session["_booking_confirmed"] = True
 
         # Reset session
         session["flow"] = None
@@ -5289,6 +5293,8 @@ def chat():
         response = {"reply": reply}
         if session.get("_ui_options"):
             response["options"] = session.pop("_ui_options")
+        if session.pop("_booking_confirmed", False):
+            response["booking_confirmed"] = True
         return jsonify(response)
     except Exception as e:
         print(f"Error: {e}")
@@ -5340,6 +5346,8 @@ def patient_chat():
         response = {"reply": reply}
         if session.get("_ui_options"):
             response["options"] = session.pop("_ui_options")
+        if session.pop("_booking_confirmed", False):
+            response["booking_confirmed"] = True
         return jsonify(response)
     except Exception as e:
         print(f"Patient chat error: {e}")
@@ -7403,6 +7411,61 @@ def api_save_feature_config():
     data = request.get_json() or {}
     db.save_feature_config(admin_id, data)
     return jsonify({"ok": True})
+
+
+# ── Chatbot Customization (Agency plan only) ──
+
+@app.route("/api/chatbot-customization", methods=["GET"])
+def get_chatbot_customization_api():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    plan = user.get("plan", "free_trial")
+    if plan != "agency":
+        return jsonify({"error": "Chatbot customization requires Agency plan."}), 403
+    admin_id = get_effective_admin_id(user)
+    customization = db.get_chatbot_customization(admin_id)
+    return jsonify(customization or {})
+
+
+@app.route("/api/chatbot-customization", methods=["POST"])
+def save_chatbot_customization_api():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if not is_admin_role(user):
+        return jsonify({"error": "Only administrators can edit chatbot customization."}), 403
+    plan = user.get("plan", "free_trial")
+    if plan != "agency":
+        return jsonify({"error": "Chatbot customization requires Agency plan."}), 403
+    admin_id = get_effective_admin_id(user)
+    data = request.get_json() or {}
+    db.save_chatbot_customization(admin_id, data)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/chatbot-customization/public/<admin_id_raw>")
+def get_chatbot_customization_public(admin_id_raw):
+    """Public endpoint for the embedded widget — no auth required."""
+    admin_id_str = str(admin_id_raw).strip()
+    if not admin_id_str.isdigit():
+        resolved_user = db.get_user_by_public_id(admin_id_str)
+        if not resolved_user:
+            return jsonify({})
+        admin_id = resolved_user["id"]
+        user = resolved_user
+    else:
+        admin_id = int(admin_id_str)
+        user = db.get_user_by_id(admin_id)
+    if not user:
+        return jsonify({})
+    plan = user.get("plan", "free_trial")
+    if plan != "agency":
+        return jsonify({})
+    customization = db.get_chatbot_customization(admin_id)
+    return jsonify(customization or {})
 
 
 # ══════════════════════════════════════════════════════════════════

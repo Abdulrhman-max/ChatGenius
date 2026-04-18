@@ -602,6 +602,7 @@
             <li class="admin-only"><a href="#" onclick="showPage('config')"><i data-lucide="sliders" style="width:18px;height:18px"></i><span class="icon">&#9881;</span> Configuration</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('roi')"><i data-lucide="trending-up" style="width:18px;height:18px"></i><span class="icon">&#128200;</span> ROI</a></li>
             <li class="admin-only pro-only"><a href="#" onclick="showPage('email-style')"><i data-lucide="palette" style="width:18px;height:18px"></i><span class="icon">&#127912;</span> Email Style</a></li>
+            <li class="admin-only agency-only"><a href="#" onclick="showPage('chatbot-customize')"><i data-lucide="paintbrush" style="width:18px;height:18px"></i> Chatbot Style</a></li>
             <li class="admin-only"><a href="#" onclick="showPage('pms')"><i data-lucide="plug" style="width:18px;height:18px"></i><span class="icon">&#128268;</span> PMS Integration</a></li>
         </ul>
         <div class="sidebar-user">
@@ -815,7 +816,7 @@
             <div class="plans-grid" id="plansSection">
                 <div class="plan-card" id="planCard-basic"><h3>Basic</h3><div class="plan-price">$99<small>/mo</small></div><ul class="plan-features"><li>Up to 700 conversations/month</li><li>1 chatbot (with watermark)</li><li>AI chatbot (website only)</li><li>Smart appointment booking</li><li>Calendar & doctor scheduling</li><li>Email reminders (48h, 24h)</li><li>Basic patient profiles</li><li>Pre-visit forms</li><li>Basic analytics</li></ul><button class="plan-btn plan-btn-outline" onclick="selectPlan('basic')">Choose Basic</button></div>
                 <div class="plan-card" id="planCard-pro"><h3>Pro <span style="color:var(--cyan);font-size:0.75rem">MOST POPULAR</span></h3><div class="plan-price">$249<small>/mo</small></div><ul class="plan-features"><li>Up to 5,000 conversations/month</li><li>4 chatbots (no watermark)</li><li>Everything in Basic +</li><li>Advanced reminders (48h, 24h, 2h)</li><li>No-show detection & recovery</li><li>ROI dashboard</li><li>Lead capture + auto follow-ups</li><li>Waitlist system</li><li>Promotions & loyalty program</li><li>Multi-language chatbot</li><li>Treatment follow-ups</li><li>Customer integration</li><li>Customizable chatbot</li><li>AI PDF extraction</li><li>Configurable emails</li></ul><button class="plan-btn plan-btn-primary" onclick="selectPlan('pro')">Choose Pro</button></div>
-                <div class="plan-card" id="planCard-agency"><h3>Agency</h3><div class="plan-price">$599<small>/mo</small></div><ul class="plan-features"><li>Unlimited conversations</li><li>Everything in Pro +</li><li>AI no-show prediction reminders</li><li>Advanced analytics & reports</li><li>Custom workflows</li><li>API access (integrations)</li><li>Appointment database integrations</li><li>PMS/CRM integration</li><li>Full doctor portal access</li><li>Priority support</li><li>Customizable emails</li><li>Use your own email to send</li></ul><button class="plan-btn plan-btn-outline" onclick="selectPlan('agency')">Choose Agency</button></div>
+                <div class="plan-card" id="planCard-agency"><h3>Agency</h3><div class="plan-price">$599<small>/mo</small></div><ul class="plan-features"><li>Unlimited conversations</li><li>Everything in Pro +</li><li>AI no-show prediction reminders</li><li>Advanced analytics & reports</li><li>Custom workflows</li><li>API access (integrations)</li><li>Appointment database integrations</li><li>PMS/CRM integration</li><li>Full doctor portal access</li><li>Priority support</li><li>Customizable emails</li><li>Use your own email to send</li><li>Chatbot Customization</li></ul><button class="plan-btn plan-btn-outline" onclick="selectPlan('agency')">Choose Agency</button></div>
             </div>
         </div>
 
@@ -1984,6 +1985,249 @@
             </details>
         </div>
 
+        <!-- CHATBOT CUSTOMIZATION PAGE (agency only) -->
+        <div id="page-chatbot-customize" class="page" style="display:none">
+            <div class="main-header"><h1>Chatbot Customization</h1></div>
+            <p style="color:var(--gray);font-size:0.9rem;margin-bottom:1.5rem">Customize the appearance and behavior of your chatbot widget. Changes will apply to all embedded chatbots.</p>
+
+            <style>
+                .cbc-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem}
+                .cbc-option-card{background:rgba(255,255,255,0.03);border:2px solid rgba(255,255,255,0.06);border-radius:16px;padding:1.25rem;cursor:pointer;transition:all .3s var(--ease);position:relative}
+                .cbc-option-card:hover{border-color:rgba(139,92,246,0.25);background:rgba(255,255,255,0.05);transform:translateY(-2px)}
+                .cbc-option-card.selected{border-color:#8b5cf6;background:rgba(139,92,246,0.08);box-shadow:0 0 20px rgba(139,92,246,0.1)}
+                .cbc-option-card.selected::after{content:'\2713';position:absolute;top:10px;right:12px;background:#8b5cf6;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700}
+                .cbc-option-title{font-size:0.92rem;font-weight:700;color:var(--white);margin-bottom:0.25rem}
+                .cbc-option-desc{font-size:0.78rem;color:var(--gray);line-height:1.4}
+                .cbc-preview{background:rgba(0,0,0,0.3);border-radius:10px;padding:0.75rem;margin-bottom:0.75rem;min-height:70px;display:flex;flex-direction:column;gap:0.35rem;overflow:hidden}
+                .cbc-color-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem}
+                .cbc-color-item{display:flex;align-items:center;gap:0.75rem}
+                .cbc-color-item label{font-size:0.82rem;color:var(--gray);white-space:nowrap}
+                .cbc-color-item input[type="color"]{width:42px;height:32px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;background:none;cursor:pointer;padding:2px}
+                .cbc-slider-wrap{display:flex;align-items:center;gap:1rem;margin-bottom:0.5rem}
+                .cbc-slider-wrap input[type="range"]{flex:1;accent-color:#8b5cf6;height:6px}
+                .cbc-slider-val{font-size:0.85rem;font-weight:600;color:var(--white);min-width:30px;text-align:center}
+                .cbc-anim-card .cbc-preview{display:flex;align-items:center;justify-content:center;min-height:60px}
+                .cbc-anim-card:hover .cbc-anim-preview{animation-play-state:running}
+                @keyframes cbcSlideUp{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}
+                @keyframes cbcFadeIn{0%{opacity:0}100%{opacity:1}}
+                @keyframes cbcBounce{0%{opacity:0;transform:translateY(15px)}60%{transform:translateY(-4px)}100%{opacity:1;transform:translateY(0)}}
+                @keyframes cbcScale{0%{opacity:0;transform:scale(0.5)}100%{opacity:1;transform:scale(1)}}
+                @keyframes cbcTypewriter{0%{width:0}100%{width:100%}}
+                .cbc-anim-card:hover .anim-slide{animation:cbcSlideUp 0.5s ease forwards}
+                .cbc-anim-card:hover .anim-fade{animation:cbcFadeIn 0.6s ease forwards}
+                .cbc-anim-card:hover .anim-bounce{animation:cbcBounce 0.5s ease forwards}
+                .cbc-anim-card:hover .anim-scale{animation:cbcScale 0.4s ease forwards}
+                .cbc-anim-card:hover .anim-typewriter{overflow:hidden;white-space:nowrap;animation:cbcTypewriter 1s steps(12) forwards;border-right:2px solid var(--cyan)}
+                .cbc-anim-bubble{background:rgba(139,92,246,0.2);color:var(--white);font-size:0.72rem;padding:0.3rem 0.6rem;border-radius:8px;opacity:0;display:inline-block}
+                .cbc-toggle-row{display:flex;align-items:center;gap:1rem;padding:0.75rem 1rem;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:12px}
+                .cbc-toggle-row .config-slider{flex-shrink:0}
+                .cbc-checkbox-grid{display:flex;flex-direction:column;gap:0.6rem;padding:0.5rem 0}
+                .cbc-checkbox-item{display:flex;align-items:center;gap:0.75rem;padding:0.6rem 1rem;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:12px;cursor:pointer;transition:background .2s,border-color .2s}
+                .cbc-checkbox-item:hover{background:rgba(255,255,255,0.04);border-color:rgba(139,92,246,0.2)}
+                .cbc-checkbox-item input[type="checkbox"]{accent-color:#8b5cf6;width:16px;height:16px;cursor:pointer}
+                .cbc-checkbox-item span{font-size:0.88rem;color:var(--white);font-weight:500}
+            </style>
+
+            <!-- Section 1: Dropdown Style -->
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-header"><div class="section-title">Dropdown Style</div></div>
+                <p style="color:var(--gray);font-size:0.82rem;margin-bottom:1rem">Choose how dropdown menus appear in the chatbot conversation.</p>
+                <div class="cbc-card-grid" id="cbcDropdownGrid">
+                    <div class="cbc-option-card selected" onclick="cbcSelectOption('dropdown','default',this)">
+                        <div class="cbc-preview">
+                            <div style="background:rgba(255,255,255,0.08);padding:0.35rem 0.6rem;border-radius:6px;font-size:0.7rem;color:var(--gray)">General Checkup</div>
+                            <div style="background:rgba(255,255,255,0.08);padding:0.35rem 0.6rem;border-radius:6px;font-size:0.7rem;color:var(--gray)">Teeth Cleaning</div>
+                            <div style="background:rgba(139,92,246,0.15);padding:0.35rem 0.6rem;border-radius:6px;font-size:0.7rem;color:var(--cyan)">Root Canal</div>
+                        </div>
+                        <div class="cbc-option-title">Default</div>
+                        <div class="cbc-option-desc">Current card-style dropdown with rounded items</div>
+                    </div>
+                    <div class="cbc-option-card" onclick="cbcSelectOption('dropdown','pill',this)">
+                        <div class="cbc-preview">
+                            <div style="background:rgba(255,255,255,0.06);padding:0.35rem 0.6rem;border-radius:20px;font-size:0.7rem;color:var(--gray);border-left:3px solid #8b5cf6">General Checkup</div>
+                            <div style="background:rgba(255,255,255,0.06);padding:0.35rem 0.6rem;border-radius:20px;font-size:0.7rem;color:var(--gray);border-left:3px solid #3b82f6">Teeth Cleaning</div>
+                            <div style="background:rgba(255,255,255,0.06);padding:0.35rem 0.6rem;border-radius:20px;font-size:0.7rem;color:var(--cyan);border-left:3px solid #34d399">Root Canal</div>
+                        </div>
+                        <div class="cbc-option-title">Pill</div>
+                        <div class="cbc-option-desc">Rounded pill-shaped items with colored left border</div>
+                    </div>
+                    <div class="cbc-option-card" onclick="cbcSelectOption('dropdown','glassmorphic',this)">
+                        <div class="cbc-preview">
+                            <div style="background:rgba(255,255,255,0.1);backdrop-filter:blur(8px);padding:0.35rem 0.6rem;border-radius:8px;font-size:0.7rem;color:rgba(255,255,255,0.8);border:1px solid rgba(255,255,255,0.12)">General Checkup</div>
+                            <div style="background:rgba(255,255,255,0.1);backdrop-filter:blur(8px);padding:0.35rem 0.6rem;border-radius:8px;font-size:0.7rem;color:rgba(255,255,255,0.8);border:1px solid rgba(255,255,255,0.12)">Teeth Cleaning</div>
+                            <div style="background:rgba(255,255,255,0.15);backdrop-filter:blur(8px);padding:0.35rem 0.6rem;border-radius:8px;font-size:0.7rem;color:#fff;border:1px solid rgba(255,255,255,0.18)">Root Canal</div>
+                        </div>
+                        <div class="cbc-option-title">Glassmorphic</div>
+                        <div class="cbc-option-desc">Frosted glass effect with blur and transparency</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 2: Message Appearance -->
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-header"><div class="section-title">Message Appearance</div></div>
+                <div style="margin-bottom:1.25rem">
+                    <label class="form-label">Font Size</label>
+                    <div class="cbc-slider-wrap">
+                        <span style="font-size:0.75rem;color:var(--gray)">11px</span>
+                        <input type="range" id="cbcFontSize" min="11" max="18" value="13" oninput="document.getElementById('cbcFontSizeVal').textContent=this.value+'px'">
+                        <span style="font-size:0.75rem;color:var(--gray)">18px</span>
+                        <span class="cbc-slider-val" id="cbcFontSizeVal">13px</span>
+                    </div>
+                </div>
+                <label class="form-label">Message Colors</label>
+                <div class="cbc-color-grid">
+                    <div class="cbc-color-item"><input type="color" id="cbcBotMsgBg" value="#1e293b"><label>Bot message background</label></div>
+                    <div class="cbc-color-item"><input type="color" id="cbcBotMsgText" value="#e2e8f0"><label>Bot text color</label></div>
+                    <div class="cbc-color-item"><input type="color" id="cbcUserMsgBg" value="#8b5cf6"><label>User message background</label></div>
+                    <div class="cbc-color-item"><input type="color" id="cbcUserMsgText" value="#ffffff"><label>User text color</label></div>
+                </div>
+            </div>
+
+            <!-- Section 3: Chatbot Colors -->
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-header"><div class="section-title">Chatbot Colors</div></div>
+                <div class="cbc-color-grid">
+                    <div class="cbc-color-item"><input type="color" id="cbcChatBg" value="#0f172a"><label>Chatbot background</label></div>
+                    <div class="cbc-color-item"><input type="color" id="cbcHeaderBg" value="#1e293b"><label>Header background</label></div>
+                    <div class="cbc-color-item"><input type="color" id="cbcHeaderText" value="#f1f5f9"><label>Header text color</label></div>
+                    <div class="cbc-color-item"><input type="color" id="cbcInputBg" value="#1e293b"><label>Input area background</label></div>
+                    <div class="cbc-color-item"><input type="color" id="cbcInputText" value="#e2e8f0"><label>Input text color</label></div>
+                    <div class="cbc-color-item"><input type="color" id="cbcSendBtn" value="#8b5cf6"><label>Send button color</label></div>
+                </div>
+            </div>
+
+            <!-- Section 4: Chatbot Title -->
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-header"><div class="section-title">Chatbot Title</div></div>
+                <div class="form-group" style="max-width:400px">
+                    <label class="form-label">Title Text</label>
+                    <input type="text" class="form-input" id="cbcTitle" placeholder="Chat with us">
+                </div>
+            </div>
+
+            <!-- Section 5: Message Animations -->
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-header"><div class="section-title">Message Animations</div></div>
+                <p style="color:var(--gray);font-size:0.82rem;margin-bottom:1rem">Choose how new messages appear in the chat. Hover over each card to preview the animation.</p>
+                <div class="cbc-card-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))" id="cbcAnimGrid">
+                    <div class="cbc-option-card cbc-anim-card selected" onclick="cbcSelectOption('animation','slide-up',this)">
+                        <div class="cbc-preview">
+                            <span class="cbc-anim-bubble anim-slide">Hello there!</span>
+                        </div>
+                        <div class="cbc-option-title">Slide Up</div>
+                        <div class="cbc-option-desc">Messages slide up from below</div>
+                    </div>
+                    <div class="cbc-option-card cbc-anim-card" onclick="cbcSelectOption('animation','fade-in',this)">
+                        <div class="cbc-preview">
+                            <span class="cbc-anim-bubble anim-fade">Hello there!</span>
+                        </div>
+                        <div class="cbc-option-title">Fade In</div>
+                        <div class="cbc-option-desc">Messages fade in smoothly</div>
+                    </div>
+                    <div class="cbc-option-card cbc-anim-card" onclick="cbcSelectOption('animation','bounce',this)">
+                        <div class="cbc-preview">
+                            <span class="cbc-anim-bubble anim-bounce">Hello there!</span>
+                        </div>
+                        <div class="cbc-option-title">Bounce</div>
+                        <div class="cbc-option-desc">Messages bounce into view</div>
+                    </div>
+                    <div class="cbc-option-card cbc-anim-card" onclick="cbcSelectOption('animation','scale',this)">
+                        <div class="cbc-preview">
+                            <span class="cbc-anim-bubble anim-scale">Hello there!</span>
+                        </div>
+                        <div class="cbc-option-title">Scale</div>
+                        <div class="cbc-option-desc">Messages scale up from small</div>
+                    </div>
+                    <div class="cbc-option-card cbc-anim-card" onclick="cbcSelectOption('animation','typewriter',this)">
+                        <div class="cbc-preview">
+                            <span class="cbc-anim-bubble anim-typewriter" style="opacity:1">Hello there!</span>
+                        </div>
+                        <div class="cbc-option-title">Typewriter</div>
+                        <div class="cbc-option-desc">Text appears letter by letter</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 6: Celebration Effect -->
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-header"><div class="section-title">Celebration Effect</div></div>
+                <div class="cbc-toggle-row">
+                    <label class="config-toggle" style="flex:1;margin:0;padding:0;border:none;background:none">
+                        <input type="checkbox" id="cbcConfetti">
+                        <span class="config-slider"></span>
+                        <div>
+                            <strong>Confetti Celebration</strong>
+                            <span class="config-desc">Show confetti animation when a patient successfully books an appointment</span>
+                        </div>
+                    </label>
+                    <button class="btn-primary" onclick="cbcPreviewConfetti()" style="font-size:0.78rem;padding:0.4rem 1rem;border-radius:8px;white-space:nowrap;flex-shrink:0">Preview</button>
+                </div>
+            </div>
+
+            <!-- Section 7: Doctor Card Customization -->
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-header"><div class="section-title">Doctor Card Customization</div></div>
+                <p style="color:var(--gray);font-size:0.82rem;margin-bottom:1rem">Choose what information to display on doctor selection cards in the chatbot.</p>
+                <div class="cbc-checkbox-grid">
+                    <label class="cbc-checkbox-item"><input type="checkbox" id="cbcShowExperience" checked><span>Show years of experience</span></label>
+                    <label class="cbc-checkbox-item"><input type="checkbox" id="cbcShowSpecialty" checked><span>Show specialty category</span></label>
+                    <label class="cbc-checkbox-item"><input type="checkbox" id="cbcShowGender"><span>Show gender</span></label>
+                    <label class="cbc-checkbox-item"><input type="checkbox" id="cbcShowLanguages"><span>Show languages spoken</span></label>
+                    <label class="cbc-checkbox-item"><input type="checkbox" id="cbcShowQualifications"><span>Show qualifications</span></label>
+                </div>
+            </div>
+
+            <!-- Section 8: Calendar Style -->
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-header"><div class="section-title">Calendar Style</div></div>
+                <p style="color:var(--gray);font-size:0.82rem;margin-bottom:1rem">Choose the calendar appearance for appointment date selection.</p>
+                <div class="cbc-card-grid" id="cbcCalendarGrid">
+                    <div class="cbc-option-card selected" onclick="cbcSelectOption('calendar','default',this)">
+                        <div class="cbc-preview" style="padding:0.5rem">
+                            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;font-size:0.55rem">
+                                <span style="color:var(--gray)">Mo</span><span style="color:var(--gray)">Tu</span><span style="color:var(--gray)">We</span><span style="color:var(--gray)">Th</span><span style="color:var(--gray)">Fr</span><span style="color:var(--gray)">Sa</span><span style="color:var(--gray)">Su</span>
+                                <span style="color:var(--gray);padding:2px">1</span><span style="color:var(--gray);padding:2px">2</span><span style="background:#8b5cf6;color:#fff;border-radius:4px;padding:2px">3</span><span style="color:var(--gray);padding:2px">4</span><span style="color:var(--gray);padding:2px">5</span><span style="color:var(--gray);padding:2px">6</span><span style="color:var(--gray);padding:2px">7</span>
+                            </div>
+                        </div>
+                        <div class="cbc-option-title">Default</div>
+                        <div class="cbc-option-desc">Standard calendar with square day cells</div>
+                    </div>
+                    <div class="cbc-option-card" onclick="cbcSelectOption('calendar','rounded',this)">
+                        <div class="cbc-preview" style="padding:0.5rem">
+                            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;font-size:0.55rem">
+                                <span style="color:var(--gray)">Mo</span><span style="color:var(--gray)">Tu</span><span style="color:var(--gray)">We</span><span style="color:var(--gray)">Th</span><span style="color:var(--gray)">Fr</span><span style="color:var(--gray)">Sa</span><span style="color:var(--gray)">Su</span>
+                                <span style="color:var(--gray);padding:2px">1</span><span style="color:var(--gray);padding:2px">2</span><span style="background:rgba(139,92,246,0.3);color:#fff;border-radius:50%;padding:2px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;margin:auto">3</span><span style="color:var(--gray);padding:2px">4</span><span style="color:var(--gray);padding:2px">5</span><span style="color:var(--gray);padding:2px">6</span><span style="color:var(--gray);padding:2px">7</span>
+                            </div>
+                        </div>
+                        <div class="cbc-option-title">Rounded</div>
+                        <div class="cbc-option-desc">Circular day cells with softer colors</div>
+                    </div>
+                    <div class="cbc-option-card" onclick="cbcSelectOption('calendar','minimal',this)">
+                        <div class="cbc-preview" style="padding:0.5rem">
+                            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;font-size:0.55rem">
+                                <span style="color:var(--gray)">Mo</span><span style="color:var(--gray)">Tu</span><span style="color:var(--gray)">We</span><span style="color:var(--gray)">Th</span><span style="color:var(--gray)">Fr</span><span style="color:var(--gray)">Sa</span><span style="color:var(--gray)">Su</span>
+                                <span style="color:var(--gray);padding:2px">1</span><span style="color:var(--gray);padding:2px">2</span><span style="color:var(--cyan);font-weight:700;padding:2px;border-bottom:2px solid #8b5cf6">3</span><span style="color:var(--gray);padding:2px">4</span><span style="color:var(--gray);padding:2px">5</span><span style="color:var(--gray);padding:2px">6</span><span style="color:var(--gray);padding:2px">7</span>
+                            </div>
+                        </div>
+                        <div class="cbc-option-title">Minimal</div>
+                        <div class="cbc-option-desc">Flat design, no borders, subtle highlight</div>
+                    </div>
+                </div>
+                <div style="margin-top:1.25rem">
+                    <div class="cbc-color-item">
+                        <input type="color" id="cbcApptMarker" value="#f59e0b">
+                        <label>Appointment marker color (highlight dates with existing bookings)</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 9: Save Button -->
+            <div style="display:flex;justify-content:flex-end;padding-top:0.5rem;padding-bottom:2rem">
+                <button class="btn-primary" onclick="saveChatbotCustomize()" style="font-size:0.95rem;padding:0.75rem 2.5rem">Save Changes</button>
+            </div>
+        </div>
+
     </div>
 
     </main>
@@ -2222,7 +2466,7 @@
         // Pro+ features
         'email-style': 'pro',
         // Agency only
-        'analytics': 'agency', 'pms': 'agency',
+        'analytics': 'agency', 'pms': 'agency', 'chatbot-customize': 'agency',
     };
     const PLAN_UPGRADE_MSG = {
         basic: 'This feature requires a Basic plan or higher.',
@@ -2283,6 +2527,7 @@
         if (page === 'roi') setTimeout(loadROI, 50);
         if (page === 'pms') loadPMS();
         if (page === 'email-style') loadEmailStyle();
+        if (page === 'chatbot-customize') loadChatbotCustomize();
         if (page === 'plan') { highlightCurrentPlan(); loadSubscription(); }
         if (page === 'previous-bookings') loadPreviousBookings();
     }
@@ -6307,6 +6552,135 @@
         ebUpdateActionButtons();
         ebRenderCanvas(); ebRenderSettings();
     }
+    // ── Chatbot Customization ──
+    let _cbcState = { dropdown: 'default', animation: 'slide-up', calendar: 'default' };
+
+    function cbcSelectOption(group, value, el) {
+        _cbcState[group] = value;
+        const gridId = group === 'dropdown' ? 'cbcDropdownGrid' : group === 'animation' ? 'cbcAnimGrid' : 'cbcCalendarGrid';
+        document.querySelectorAll('#' + gridId + ' .cbc-option-card').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+    }
+
+    function cbcPreviewConfetti() {
+        // Simple confetti preview with CSS
+        const container = document.createElement('div');
+        container.style.cssText = 'position:fixed;inset:0;z-index:99999;pointer-events:none;overflow:hidden';
+        document.body.appendChild(container);
+        const colors = ['#8b5cf6','#3b82f6','#34d399','#fbbf24','#f87171','#ec4899'];
+        for (let i = 0; i < 80; i++) {
+            const c = document.createElement('div');
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            c.style.cssText = `position:absolute;width:${6+Math.random()*6}px;height:${6+Math.random()*6}px;background:${color};left:${Math.random()*100}%;top:-10px;border-radius:${Math.random()>0.5?'50%':'2px'};opacity:0.9`;
+            container.appendChild(c);
+            const dur = 1000 + Math.random() * 1500;
+            const drift = (Math.random() - 0.5) * 200;
+            c.animate([
+                { transform: `translateY(0) translateX(0) rotate(0deg)`, opacity: 1 },
+                { transform: `translateY(${window.innerHeight + 50}px) translateX(${drift}px) rotate(${360 + Math.random()*360}deg)`, opacity: 0 }
+            ], { duration: dur, easing: 'cubic-bezier(0.25,0.46,0.45,0.94)' });
+        }
+        setTimeout(() => container.remove(), 3000);
+        showToast('Confetti preview!', 'success');
+    }
+
+    function loadChatbotCustomize() {
+        fetch('/api/chatbot-customization', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(r => r.json())
+        .then(data => {
+            if (!data || data.error) return;
+            // Dropdown style
+            if (data.dropdown_style) {
+                _cbcState.dropdown = data.dropdown_style;
+                document.querySelectorAll('#cbcDropdownGrid .cbc-option-card').forEach(c => c.classList.remove('selected'));
+                document.querySelectorAll('#cbcDropdownGrid .cbc-option-card').forEach(c => {
+                    if (c.getAttribute('onclick')?.includes("'" + data.dropdown_style + "'")) c.classList.add('selected');
+                });
+            }
+            // Animation
+            if (data.message_animation) {
+                _cbcState.animation = data.message_animation;
+                document.querySelectorAll('#cbcAnimGrid .cbc-option-card').forEach(c => c.classList.remove('selected'));
+                document.querySelectorAll('#cbcAnimGrid .cbc-option-card').forEach(c => {
+                    if (c.getAttribute('onclick')?.includes("'" + data.message_animation + "'")) c.classList.add('selected');
+                });
+            }
+            // Calendar style
+            if (data.calendar_style) {
+                _cbcState.calendar = data.calendar_style;
+                document.querySelectorAll('#cbcCalendarGrid .cbc-option-card').forEach(c => c.classList.remove('selected'));
+                document.querySelectorAll('#cbcCalendarGrid .cbc-option-card').forEach(c => {
+                    if (c.getAttribute('onclick')?.includes("'" + data.calendar_style + "'")) c.classList.add('selected');
+                });
+            }
+            // Font size
+            if (data.font_size) {
+                document.getElementById('cbcFontSize').value = data.font_size;
+                document.getElementById('cbcFontSizeVal').textContent = data.font_size + 'px';
+            }
+            // Color pickers
+            const colorMap = {
+                bot_msg_bg: 'cbcBotMsgBg', bot_msg_text: 'cbcBotMsgText',
+                user_msg_bg: 'cbcUserMsgBg', user_msg_text: 'cbcUserMsgText',
+                chat_bg: 'cbcChatBg', header_bg: 'cbcHeaderBg', header_text: 'cbcHeaderText',
+                input_bg: 'cbcInputBg', input_text: 'cbcInputText', send_btn: 'cbcSendBtn',
+                appt_marker: 'cbcApptMarker'
+            };
+            Object.entries(colorMap).forEach(([key, id]) => {
+                if (data[key]) { const el = document.getElementById(id); if (el) el.value = data[key]; }
+            });
+            // Title
+            if (data.title) document.getElementById('cbcTitle').value = data.title;
+            // Confetti toggle
+            if (data.confetti_enabled !== undefined) document.getElementById('cbcConfetti').checked = data.confetti_enabled;
+            // Doctor card checkboxes
+            const checkMap = {
+                show_experience: 'cbcShowExperience', show_specialty: 'cbcShowSpecialty',
+                show_gender: 'cbcShowGender', show_languages: 'cbcShowLanguages',
+                show_qualifications: 'cbcShowQualifications'
+            };
+            Object.entries(checkMap).forEach(([key, id]) => {
+                if (data[key] !== undefined) { const el = document.getElementById(id); if (el) el.checked = data[key]; }
+            });
+        }).catch(() => {});
+    }
+
+    function saveChatbotCustomize() {
+        const data = {
+            dropdown_style: _cbcState.dropdown,
+            message_animation: _cbcState.animation,
+            calendar_style: _cbcState.calendar,
+            font_size: parseInt(document.getElementById('cbcFontSize').value),
+            bot_msg_bg: document.getElementById('cbcBotMsgBg').value,
+            bot_msg_text: document.getElementById('cbcBotMsgText').value,
+            user_msg_bg: document.getElementById('cbcUserMsgBg').value,
+            user_msg_text: document.getElementById('cbcUserMsgText').value,
+            chat_bg: document.getElementById('cbcChatBg').value,
+            header_bg: document.getElementById('cbcHeaderBg').value,
+            header_text: document.getElementById('cbcHeaderText').value,
+            input_bg: document.getElementById('cbcInputBg').value,
+            input_text: document.getElementById('cbcInputText').value,
+            send_btn: document.getElementById('cbcSendBtn').value,
+            appt_marker: document.getElementById('cbcApptMarker').value,
+            title: document.getElementById('cbcTitle').value,
+            confetti_enabled: document.getElementById('cbcConfetti').checked,
+            show_experience: document.getElementById('cbcShowExperience').checked,
+            show_specialty: document.getElementById('cbcShowSpecialty').checked,
+            show_gender: document.getElementById('cbcShowGender').checked,
+            show_languages: document.getElementById('cbcShowLanguages').checked,
+            show_qualifications: document.getElementById('cbcShowQualifications').checked
+        };
+        fetch('/api/chatbot-customization', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify(data)
+        }).then(r => r.json()).then(() => {
+            showToast('Customization saved!', 'success');
+        }).catch(() => {
+            showToast('Failed to save customization', 'error');
+        });
+    }
+
     async function loadEmailStyle() {
         if (_ebLoaded) return;
         _ebLoaded = true;

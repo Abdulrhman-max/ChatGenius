@@ -17,6 +17,9 @@
         return;
     }
 
+    // ── Customization settings ──
+    var cbCustom = {};
+
     // ── Session ──
     var SESSION_KEY = 'cg_session_' + ADMIN_ID;
     var sessionId = localStorage.getItem(SESSION_KEY);
@@ -80,6 +83,9 @@
         '.cg-msg-bot{align-self:flex-start;background:rgba(255,255,255,0.04);color:#cbd5e1;border-radius:2px 14px 14px 14px;border:1px solid rgba(255,255,255,0.04)}',
         '.cg-msg-user{align-self:flex-end;background:linear-gradient(135deg,' + COLOR + ',#6366f1);color:#fff;border-radius:14px 14px 2px 14px;box-shadow:0 2px 12px rgba(139,92,246,0.25)}',
         '@keyframes cgSlideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}',
+        '@keyframes cgFadeIn{from{opacity:0}to{opacity:1}}',
+        '@keyframes cgBounceIn{0%{transform:translateY(30px);opacity:0}60%{transform:translateY(-5px)}100%{transform:translateY(0);opacity:1}}',
+        '@keyframes cgScaleIn{0%{transform:scale(0.3);opacity:0}80%{transform:scale(1.05)}100%{transform:scale(1);opacity:1}}',
 
         // Typing indicator
         '.cg-typing{align-self:flex-start;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.04);padding:12px 18px;border-radius:2px 14px 14px 14px;display:flex;gap:4px;align-items:center;animation:cgSlideUp .3s cubic-bezier(.4,0,.2,1) both}',
@@ -215,6 +221,124 @@
     var isOpen = false;
     var sending = false;
 
+    // ── Fetch customization settings ──
+    try {
+        fetch(SERVER + '/api/chatbot-customization/public/' + ADMIN_ID)
+            .then(function(resp) { if (resp.ok) return resp.json(); return {}; })
+            .then(function(data) {
+                cbCustom = data || {};
+                applyCustomization();
+            })
+            .catch(function() {});
+    } catch(e) {}
+
+    // ── Apply customization styles ──
+    function applyCustomization() {
+        var css = '';
+        if (cbCustom.chatbot_bg_color) css += '#cg-messages { background: ' + cbCustom.chatbot_bg_color + ' !important; }';
+        if (cbCustom.header_bg) css += '#cg-header { background: ' + cbCustom.header_bg + ' !important; }';
+        if (cbCustom.header_text_color) css += '#cg-header, #cg-header * { color: ' + cbCustom.header_text_color + ' !important; }';
+        if (cbCustom.msg_bot_bg) css += '.cg-msg-bot { background: ' + cbCustom.msg_bot_bg + ' !important; }';
+        if (cbCustom.msg_bot_color) css += '.cg-msg-bot { color: ' + cbCustom.msg_bot_color + ' !important; }';
+        if (cbCustom.msg_user_bg) css += '.cg-msg-user { background: ' + cbCustom.msg_user_bg + ' !important; }';
+        if (cbCustom.msg_user_color) css += '.cg-msg-user { color: ' + cbCustom.msg_user_color + ' !important; }';
+        if (cbCustom.msg_font_size) css += '.cg-msg { font-size: ' + cbCustom.msg_font_size + 'px !important; }';
+        if (cbCustom.input_bg) css += '#cg-input-area, #cg-input { background: ' + cbCustom.input_bg + ' !important; }';
+        if (cbCustom.input_text_color) css += '#cg-input { color: ' + cbCustom.input_text_color + ' !important; }';
+        if (cbCustom.send_btn_color) css += '#cg-send { background: ' + cbCustom.send_btn_color + ' !important; }';
+        if (cbCustom.calendar_marker_color) css += '.cg-cal-day.booked { background: ' + cbCustom.calendar_marker_color + ' !important; }';
+        // Dropdown styles
+        if (cbCustom.dropdown_style === 'pill') {
+            css += '.cg-opt-card { border-radius: 50px !important; border-left: 4px solid var(--cg-accent, #6366f1) !important; padding: 12px 20px !important; }';
+        } else if (cbCustom.dropdown_style === 'glassmorphic') {
+            css += '.cg-opt-card { backdrop-filter: blur(12px) !important; -webkit-backdrop-filter: blur(12px) !important; background: rgba(255,255,255,0.08) !important; border: 1px solid rgba(255,255,255,0.15) !important; border-radius: 16px !important; box-shadow: 0 4px 30px rgba(0,0,0,0.1) !important; }';
+        }
+        // Calendar styles
+        if (cbCustom.calendar_style === 'rounded') {
+            css += '.cg-cal-day { border-radius: 50% !important; width: 36px !important; height: 36px !important; display: flex !important; align-items: center !important; justify-content: center !important; margin: 2px auto !important; }';
+        } else if (cbCustom.calendar_style === 'minimal') {
+            css += '.cg-calendar { border: none !important; background: transparent !important; }';
+            css += '.cg-cal-day { border: none !important; border-bottom: 2px solid transparent !important; border-radius: 0 !important; }';
+            css += '.cg-cal-day:hover { border-bottom-color: var(--cg-accent, #6366f1) !important; }';
+            css += '.cg-cal-day.selected { border-bottom-color: var(--cg-accent, #6366f1) !important; font-weight: bold !important; }';
+        }
+        // Chatbot title
+        if (cbCustom.chatbot_title) {
+            var titleEl = shadow.getElementById('cg-header-title');
+            if (titleEl) titleEl.textContent = cbCustom.chatbot_title;
+        }
+        // Create/update style element
+        var existingStyle = shadow.querySelector('#cg-custom-style');
+        if (existingStyle) existingStyle.remove();
+        if (css) {
+            var styleEl = document.createElement('style');
+            styleEl.id = 'cg-custom-style';
+            styleEl.textContent = css;
+            shadow.appendChild(styleEl);
+        }
+    }
+
+    // ── Celebration animation (confetti) ──
+    function showCelebration() {
+        if (!cbCustom.celebration_enabled) return;
+        var container = shadow.getElementById('cg-messages') || shadow.getElementById('cg-window');
+        if (!container) return;
+        var canvas = document.createElement('canvas');
+        canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;';
+        container.style.position = 'relative';
+        container.appendChild(canvas);
+        var ctx = canvas.getContext('2d');
+        canvas.width = container.offsetWidth;
+        canvas.height = container.offsetHeight;
+        var particles = [];
+        var colors = ['#f87171','#fbbf24','#34d399','#60a5fa','#a78bfa','#f472b6','#fb923c'];
+        for (var i = 0; i < 80; i++) {
+            particles.push({
+                x: Math.random() * canvas.width,
+                y: -10 - Math.random() * 50,
+                w: 6 + Math.random() * 6,
+                h: 4 + Math.random() * 4,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                vy: 1.5 + Math.random() * 3,
+                vx: (Math.random() - 0.5) * 2,
+                rot: Math.random() * 360,
+                rv: (Math.random() - 0.5) * 10
+            });
+        }
+        var frame = 0;
+        function animate() {
+            if (frame++ > 180) { canvas.remove(); return; }
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(function(p) {
+                p.y += p.vy;
+                p.x += p.vx;
+                p.rot += p.rv;
+                p.vy += 0.03;
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rot * Math.PI / 180);
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+                ctx.restore();
+            });
+            requestAnimationFrame(animate);
+        }
+        animate();
+    }
+
+    // ── Get animation name based on customization ──
+    function getMsgAnimation() {
+        var anim = cbCustom.msg_animation || 'slide_up';
+        var map = {
+            'slide_up': 'cgSlideUp .35s cubic-bezier(.4,0,.2,1) both',
+            'fade': 'cgFadeIn .35s ease both',
+            'bounce': 'cgBounceIn .5s cubic-bezier(.4,0,.2,1) both',
+            'scale': 'cgScaleIn .4s cubic-bezier(.4,0,.2,1) both',
+            'typewriter': 'cgFadeIn .8s ease both'
+        };
+        return map[anim] || map['slide_up'];
+    }
+
     // ── Reset chat (new session) ──
     resetBtn.addEventListener('click', function() {
         sessionId = 'web_' + ADMIN_ID + '_' + Math.random().toString(36).substr(2, 12);
@@ -282,6 +406,9 @@
             if (typing.parentNode) typing.remove();
             addMessage(data.reply || 'Sorry, something went wrong.', false);
             if (data.options) renderOptions(data.options);
+            if (data.booking_confirmed) {
+                setTimeout(function() { showCelebration(); }, 500);
+            }
             if (!isOpen) {
                 badge.style.display = 'flex';
             }
@@ -299,6 +426,7 @@
     function addMessage(text, isUser) {
         var div = document.createElement('div');
         div.className = 'cg-msg ' + (isUser ? 'cg-msg-user' : 'cg-msg-bot');
+        div.style.animation = getMsgAnimation();
         div.innerHTML = isUser ? escapeHtml(text) : formatMarkdown(text);
         messages.appendChild(div);
         messages.scrollTop = messages.scrollHeight;
@@ -380,7 +508,16 @@
 
             var sub = document.createElement('div');
             sub.className = 'cg-opt-sub';
-            if (isDoctor && item.specialty) sub.textContent = item.specialty + (item.availability ? ' \u2022 ' + item.availability : '');
+            if (isDoctor && item.specialty) {
+                var subtitle = item.specialty + (item.availability ? ' \u2022 ' + item.availability : '');
+                if (cbCustom.doctor_show_experience && item.years_of_experience) {
+                    subtitle += ' \u2022 ' + item.years_of_experience + ' yrs exp';
+                }
+                if (cbCustom.doctor_show_languages && item.languages) {
+                    subtitle += ' \u2022 ' + item.languages;
+                }
+                sub.textContent = subtitle;
+            }
             else if (isBooked) sub.textContent = 'Fully booked \u2014 tap to join waitlist';
             else if (isTime) sub.textContent = 'Available';
             else if (isCancel) sub.textContent = 'Tap to select';
