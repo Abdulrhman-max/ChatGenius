@@ -21,12 +21,11 @@
     var cbCustom = {};
 
     // ── Session ──
+    // Generate a fresh session on every page load so no old messages or flows persist
     var SESSION_KEY = 'cg_session_' + ADMIN_ID;
-    var sessionId = localStorage.getItem(SESSION_KEY);
-    if (!sessionId) {
-        sessionId = 'web_' + ADMIN_ID + '_' + Math.random().toString(36).substr(2, 12);
-        localStorage.setItem(SESSION_KEY, sessionId);
-    }
+    var sessionId = 'web_' + ADMIN_ID + '_' + Math.random().toString(36).substr(2, 12);
+    // Clear any stale session from localStorage
+    try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
 
     // ── Styles ──
     var css = document.createElement('style');
@@ -235,18 +234,18 @@
     // ── Apply customization styles ──
     function applyCustomization() {
         var css = '';
-        if (cbCustom.chatbot_bg_color) css += '#cg-messages { background: ' + cbCustom.chatbot_bg_color + ' !important; }';
+        if (cbCustom.chat_bg) css += '#cg-messages { background: ' + cbCustom.chat_bg + ' !important; }';
         if (cbCustom.header_bg) css += '#cg-header { background: ' + cbCustom.header_bg + ' !important; }';
-        if (cbCustom.header_text_color) css += '#cg-header, #cg-header * { color: ' + cbCustom.header_text_color + ' !important; }';
-        if (cbCustom.msg_bot_bg) css += '.cg-msg-bot { background: ' + cbCustom.msg_bot_bg + ' !important; }';
-        if (cbCustom.msg_bot_color) css += '.cg-msg-bot { color: ' + cbCustom.msg_bot_color + ' !important; }';
-        if (cbCustom.msg_user_bg) css += '.cg-msg-user { background: ' + cbCustom.msg_user_bg + ' !important; }';
-        if (cbCustom.msg_user_color) css += '.cg-msg-user { color: ' + cbCustom.msg_user_color + ' !important; }';
-        if (cbCustom.msg_font_size) css += '.cg-msg { font-size: ' + cbCustom.msg_font_size + 'px !important; }';
+        if (cbCustom.header_text) css += '#cg-header, #cg-header * { color: ' + cbCustom.header_text + ' !important; }';
+        if (cbCustom.bot_msg_bg) css += '.cg-msg-bot { background: ' + cbCustom.bot_msg_bg + ' !important; }';
+        if (cbCustom.bot_msg_text) css += '.cg-msg-bot { color: ' + cbCustom.bot_msg_text + ' !important; }';
+        if (cbCustom.user_msg_bg) css += '.cg-msg-user { background: ' + cbCustom.user_msg_bg + ' !important; }';
+        if (cbCustom.user_msg_text) css += '.cg-msg-user { color: ' + cbCustom.user_msg_text + ' !important; }';
+        if (cbCustom.font_size) css += '.cg-msg { font-size: ' + cbCustom.font_size + 'px !important; }';
         if (cbCustom.input_bg) css += '#cg-input-area, #cg-input { background: ' + cbCustom.input_bg + ' !important; }';
-        if (cbCustom.input_text_color) css += '#cg-input { color: ' + cbCustom.input_text_color + ' !important; }';
-        if (cbCustom.send_btn_color) css += '#cg-send { background: ' + cbCustom.send_btn_color + ' !important; }';
-        if (cbCustom.calendar_marker_color) css += '.cg-cal-day.booked { background: ' + cbCustom.calendar_marker_color + ' !important; }';
+        if (cbCustom.input_text) css += '#cg-input { color: ' + cbCustom.input_text + ' !important; }';
+        if (cbCustom.send_btn) css += '#cg-send { background: ' + cbCustom.send_btn + ' !important; }';
+        if (cbCustom.appt_marker) css += '.cg-cal-day.booked { background: ' + cbCustom.appt_marker + ' !important; }';
         // Dropdown styles
         if (cbCustom.dropdown_style === 'pill') {
             css += '.cg-opt-card { border-radius: 50px !important; border-left: 4px solid var(--cg-accent, #6366f1) !important; padding: 12px 20px !important; }';
@@ -262,10 +261,35 @@
             css += '.cg-cal-day:hover { border-bottom-color: var(--cg-accent, #6366f1) !important; }';
             css += '.cg-cal-day.selected { border-bottom-color: var(--cg-accent, #6366f1) !important; font-weight: bold !important; }';
         }
+        // Launcher button
+        if (cbCustom.launcher_bg) {
+            css += '#cg-bubble { background: ' + cbCustom.launcher_bg + ' !important; }';
+            css += '#cg-bubble:hover { box-shadow: 0 8px 32px ' + cbCustom.launcher_bg + '80 !important; }';
+        }
+        if (cbCustom.launcher_icon && cbCustom.launcher_icon !== 'chat') {
+            var bubble = shadow.getElementById('cg-bubble');
+            if (bubble) {
+                var chatIcon = bubble.querySelector('.cg-chat-icon');
+                if (chatIcon) {
+                    if (cbCustom.launcher_icon === 'robot') {
+                        chatIcon.setAttribute('viewBox', '0 0 24 24');
+                        chatIcon.innerHTML = '<rect x="3" y="11" width="18" height="10" rx="2" fill="#fff"/><circle cx="12" cy="5" r="2" fill="none" stroke="#fff" stroke-width="2"/><line x1="12" y1="7" x2="12" y2="11" stroke="#fff" stroke-width="2"/><circle cx="8" cy="16" r="1.5" fill="#0c0c18"/><circle cx="16" cy="16" r="1.5" fill="#0c0c18"/><rect x="9" y="19" width="6" height="1" rx="0.5" fill="#0c0c18"/>';
+                    } else if (cbCustom.launcher_icon === 'magic') {
+                        chatIcon.setAttribute('viewBox', '0 0 24 24');
+                        chatIcon.innerHTML = '<path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8L19 13M15 9h.01M17.8 6.2L19 5M11 6.2L9.7 5M11 11.8L9.7 13" stroke="#fff" stroke-width="2" stroke-linecap="round"/><path d="M2 21l9.5-9.5M9.5 13.5L11 12" stroke="#fff" stroke-width="2" stroke-linecap="round"/>';
+                    }
+                }
+            }
+        }
+        // Hide watermark for agency plan
+        if (cbCustom.hide_watermark) {
+            var powered = shadow.getElementById('cg-powered');
+            if (powered) powered.style.display = 'none';
+        }
         // Chatbot title
-        if (cbCustom.chatbot_title) {
+        if (cbCustom.title) {
             var titleEl = shadow.getElementById('cg-header-title');
-            if (titleEl) titleEl.textContent = cbCustom.chatbot_title;
+            if (titleEl) titleEl.textContent = cbCustom.title;
         }
         // Create/update style element
         var existingStyle = shadow.querySelector('#cg-custom-style');
@@ -280,7 +304,7 @@
 
     // ── Celebration animation (confetti) ──
     function showCelebration() {
-        if (!cbCustom.celebration_enabled) return;
+        if (!cbCustom.confetti_enabled) return;
         var container = shadow.getElementById('cg-messages') || shadow.getElementById('cg-window');
         if (!container) return;
         var canvas = document.createElement('canvas');
@@ -328,7 +352,7 @@
 
     // ── Get animation name based on customization ──
     function getMsgAnimation() {
-        var anim = cbCustom.msg_animation || 'slide_up';
+        var anim = cbCustom.message_animation || 'slide_up';
         var map = {
             'slide_up': 'cgSlideUp .35s cubic-bezier(.4,0,.2,1) both',
             'fade': 'cgFadeIn .35s ease both',
@@ -342,7 +366,6 @@
     // ── Reset chat (new session) ──
     resetBtn.addEventListener('click', function() {
         sessionId = 'web_' + ADMIN_ID + '_' + Math.random().toString(36).substr(2, 12);
-        localStorage.setItem(SESSION_KEY, sessionId);
         messages.innerHTML = '';
         addMessage(WELCOME, false);
     });
@@ -426,9 +449,39 @@
     function addMessage(text, isUser) {
         var div = document.createElement('div');
         div.className = 'cg-msg ' + (isUser ? 'cg-msg-user' : 'cg-msg-bot');
-        div.style.animation = getMsgAnimation();
-        div.innerHTML = isUser ? escapeHtml(text) : formatMarkdown(text);
-        messages.appendChild(div);
+        var anim = cbCustom.message_animation || 'slide_up';
+        if (!isUser && anim === 'typewriter') {
+            // Real typewriter: reveal characters one by one, max 20 seconds
+            var html = formatMarkdown(text);
+            div.innerHTML = '';
+            div.style.opacity = '1';
+            messages.appendChild(div);
+            var temp = document.createElement('div');
+            temp.innerHTML = html;
+            var fullText = temp.textContent || temp.innerText || '';
+            var len = fullText.length;
+            // Speed: at most 20s total, minimum 5ms per char
+            var perChar = Math.max(5, Math.min(30, Math.floor(20000 / Math.max(len, 1))));
+            var idx = 0;
+            var timer = setInterval(function() {
+                idx += 1;
+                // Show partial text by slicing the full HTML up to idx visible chars
+                div.innerHTML = html;
+                // Use a span to clip: show idx chars worth of content
+                var shown = fullText.substring(0, idx);
+                div.textContent = shown;
+                // Re-apply markdown once fully revealed
+                if (idx >= len) {
+                    clearInterval(timer);
+                    div.innerHTML = html;
+                }
+                messages.scrollTop = messages.scrollHeight;
+            }, perChar);
+        } else {
+            div.style.animation = getMsgAnimation();
+            div.innerHTML = isUser ? escapeHtml(text) : formatMarkdown(text);
+            messages.appendChild(div);
+        }
         messages.scrollTop = messages.scrollHeight;
     }
 
@@ -508,15 +561,15 @@
 
             var sub = document.createElement('div');
             sub.className = 'cg-opt-sub';
-            if (isDoctor && item.specialty) {
-                var subtitle = item.specialty + (item.availability ? ' \u2022 ' + item.availability : '');
-                if (cbCustom.doctor_show_experience && item.years_of_experience) {
-                    subtitle += ' \u2022 ' + item.years_of_experience + ' yrs exp';
-                }
-                if (cbCustom.doctor_show_languages && item.languages) {
-                    subtitle += ' \u2022 ' + item.languages;
-                }
-                sub.textContent = subtitle;
+            if (isDoctor) {
+                var parts = [];
+                if (cbCustom.show_specialty && item.specialty) parts.push(item.specialty);
+                if (item.availability) parts.push(item.availability);
+                if (cbCustom.show_experience && item.years_of_experience) parts.push(item.years_of_experience + ' yrs exp');
+                if (cbCustom.show_gender && item.gender) parts.push(item.gender);
+                if (cbCustom.show_languages && item.languages) parts.push(item.languages);
+                if (cbCustom.show_qualifications && item.qualifications) parts.push(item.qualifications);
+                sub.textContent = parts.join(' \u2022 ');
             }
             else if (isBooked) sub.textContent = 'Fully booked \u2014 tap to join waitlist';
             else if (isTime) sub.textContent = 'Available';

@@ -179,6 +179,7 @@ def process_pending_followups():
                 lead_name=fu.get("name", ""),
                 treatment_interest=fu.get("treatment_interest", ""),
                 day_number=fu["day_number"],
+                admin_id=fu.get("admin_id"),
             )
             db.mark_lead_followup_sent(fu["id"])
             sent_count += 1

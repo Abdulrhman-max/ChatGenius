@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Case Studies — ChatGeniusX | Real Results from Real Practices</title>
+    <meta name="description" content="See how clinics and practices are growing with ChatGeniusX. Real case studies with measurable results in bookings, revenue, and patient engagement.">
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        html{font-size:90%}
+        *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --bg:#050710;--bg2:#0a0e1a;--card:rgba(255,255,255,0.028);--card-hover:rgba(255,255,255,0.045);
+            --border:rgba(255,255,255,0.06);--border-hover:rgba(139,92,246,0.2);
+            --purple:#8b5cf6;--indigo:#6366f1;--blue:#3b82f6;--cyan:#06b6d4;--green:#34d399;--amber:#fbbf24;--red:#f87171;
+            --gradient:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);
+            --gradient2:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);
+            --gradient3:linear-gradient(135deg,#8b5cf6,#ec4899);
+            --text:#f1f5f9;--text-muted:#8b95a8;--text-dim:#64748b;
+            --ease:cubic-bezier(0.22,1,0.36,1);
+            --glow:0 0 60px rgba(139,92,246,0.08);
+        }
+        ::selection{background:rgba(139,92,246,0.35)}
+        html{scroll-behavior:smooth}
+        body{font-family:'Outfit','Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+        body::after{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:0.018;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+        /* Aurora */
+        .aurora{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+        .aurora div{position:absolute;border-radius:50%;filter:blur(120px);opacity:0.1;animation:aurMove 20s ease-in-out infinite}
+        .aurora div:nth-child(1){width:60vw;height:60vw;top:-20%;left:-15%;background:conic-gradient(from 0deg,#8b5cf6,#6366f1,#3b82f6,#8b5cf6);animation-duration:24s}
+        .aurora div:nth-child(2){width:50vw;height:50vw;top:30%;right:-15%;background:conic-gradient(from 120deg,#3b82f6,#06b6d4,#8b5cf6);animation-duration:30s;animation-delay:-8s}
+        .aurora div:nth-child(3){width:45vw;height:45vw;bottom:-15%;left:20%;background:conic-gradient(from 240deg,#ec4899,#8b5cf6,#6366f1);animation-duration:26s;animation-delay:-15s}
+        @keyframes aurMove{0%{transform:translate(0,0) rotate(0) scale(1)}33%{transform:translate(40px,-30px) rotate(120deg) scale(1.06)}66%{transform:translate(-30px,20px) rotate(240deg) scale(.95)}100%{transform:translate(0,0) rotate(360deg) scale(1)}}
+
+        /* Animations */
+        @keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+        @keyframes gradText{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+        @keyframes countUp{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
+        .anim{opacity:0;transform:translateY(30px);transition:opacity .8s var(--ease),transform .8s var(--ease)}.anim.visible{opacity:1;transform:translateY(0)}
+
+        /* ═══ NAV ═══ */
+        nav{position:fixed;top:0;width:100%;z-index:1000;background:rgba(5,7,16,0.6);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);border-bottom:1px solid rgba(255,255,255,0.04);transition:all .4s var(--ease)}
+        nav.scrolled{background:rgba(5,7,16,0.85);border-bottom-color:rgba(255,255,255,0.06)}
+        .nav-inner{max-width:1200px;margin:auto;display:flex;align-items:center;justify-content:space-between;height:72px;padding:0 2rem}
+        .logo{font-size:1.5rem;font-weight:800;letter-spacing:-.5px;text-decoration:none;color:var(--text)}
+        .logo span{background:var(--gradient2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .nav-links{display:flex;gap:2.5rem;list-style:none;align-items:center}
+        .nav-links a{color:var(--text-muted);text-decoration:none;font-size:.88rem;font-weight:500;transition:color .3s;position:relative}
+        .nav-links a::after{content:'';position:absolute;bottom:-4px;left:50%;width:0;height:2px;background:var(--gradient);border-radius:2px;transition:all .3s var(--ease);transform:translateX(-50%)}
+        .nav-links a:hover{color:#fff}
+        .nav-links a:hover::after{width:100%}
+        .nav-btn{background:var(--gradient);color:#fff;border:none;padding:.6rem 1.6rem;border-radius:50px;font-weight:600;cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .35s var(--ease);box-shadow:0 4px 20px rgba(139,92,246,0.25);text-decoration:none;display:inline-flex;align-items:center;gap:.4rem}
+        .nav-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(139,92,246,0.35)}
+        .nav-btn-outline{background:transparent;border:1px solid var(--border);color:var(--text);padding:.55rem 1.4rem;border-radius:50px;font-weight:500;cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .3s var(--ease);text-decoration:none}
+        .nav-btn-outline:hover{border-color:var(--border-hover);background:rgba(139,92,246,0.05)}
+        .hamburger{display:none;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;padding:.5rem}
+        .mobile-menu{display:none;position:fixed;top:72px;left:0;right:0;background:rgba(5,7,16,0.95);backdrop-filter:blur(20px);padding:1.5rem 2rem;border-bottom:1px solid var(--border);flex-direction:column;gap:1rem}
+        .mobile-menu.open{display:flex}
+        .mobile-menu a{color:var(--text-muted);text-decoration:none;font-size:1rem;padding:.75rem 0;border-bottom:1px solid var(--border);font-weight:500}
+        .mobile-menu a:last-child{border:none}
+
+        /* ═══ SHARED ═══ */
+        section{padding:7rem 2rem;position:relative}
+        .container{max-width:1140px;margin:auto}
+        .section-label{text-transform:uppercase;font-size:.7rem;letter-spacing:4px;font-weight:700;margin-bottom:1rem;display:inline-block;padding:.4rem 1.2rem;border-radius:50px;background:rgba(139,92,246,0.08);color:#c4b5fd;border:1px solid rgba(139,92,246,0.12)}
+        .section-title{font-size:clamp(2rem,4.5vw,3rem);font-weight:800;margin-bottom:1rem;letter-spacing:-.03em;line-height:1.15}
+        .section-sub{color:var(--text-muted);max-width:620px;margin:0 auto 3.5rem;font-size:1.05rem;line-height:1.85}
+        .gradient-text{background:var(--gradient2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .btn-primary{display:inline-flex;align-items:center;gap:.5rem;color:#fff;padding:.95rem 2.4rem;border-radius:50px;font-weight:700;text-decoration:none;font-size:1rem;border:none;cursor:pointer;font-family:inherit;background:var(--gradient);transition:all .4s var(--ease);box-shadow:0 4px 25px rgba(139,92,246,0.3),inset 0 1px 0 rgba(255,255,255,0.1);position:relative;overflow:hidden}
+        .btn-primary::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.1),transparent);background-size:200% 100%;animation:shimmer 3s ease infinite}
+        .btn-primary:hover{transform:translateY(-3px);box-shadow:0 8px 35px rgba(139,92,246,0.4),inset 0 1px 0 rgba(255,255,255,0.15)}
+
+        /* ═══ HERO ═══ */
+        .page-hero{padding:10rem 2rem 5rem;text-align:center;position:relative;overflow:hidden}
+        .page-hero::after{content:'';position:absolute;bottom:0;left:0;right:0;height:200px;background:linear-gradient(to top,var(--bg),transparent);pointer-events:none}
+        .page-hero h1{font-size:clamp(2.4rem,5.5vw,3.8rem);font-weight:900;line-height:1.1;margin-bottom:1.25rem;letter-spacing:-.04em;animation:fadeUp .7s var(--ease) both}
+        .page-hero p{color:var(--text-muted);font-size:clamp(1rem,1.8vw,1.15rem);max-width:600px;margin:0 auto;line-height:1.85;animation:fadeUp .7s var(--ease) .1s both}
+
+        /* ═══ STATS BANNER ═══ */
+        .stats-banner{padding:0 2rem 4rem;position:relative;z-index:2}
+        .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;max-width:1140px;margin:auto}
+        .stat-card{text-align:center;padding:2rem 1.5rem;background:var(--card);border-radius:20px;border:1px solid var(--border);backdrop-filter:blur(10px);transition:all .35s var(--ease)}
+        .stat-card:hover{border-color:var(--border-hover);transform:translateY(-4px);box-shadow:var(--glow)}
+        .stat-num{font-size:2.2rem;font-weight:900;letter-spacing:-.02em;margin-bottom:.3rem;background:var(--gradient2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .stat-label{font-size:.82rem;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:1.5px}
+
+        /* ═══ CASE STUDIES ═══ */
+        .case-studies{padding:3rem 2rem 7rem}
+        .case-studies-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:2rem;max-width:1140px;margin:auto}
+        .case-card{background:var(--card);border-radius:24px;border:1px solid var(--border);padding:2.5rem;backdrop-filter:blur(10px);transition:all .45s var(--ease);position:relative;overflow:hidden}
+        .case-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(139,92,246,0.2),transparent);opacity:0;transition:opacity .45s}
+        .case-card:hover{transform:translateY(-6px);border-color:var(--border-hover);box-shadow:0 24px 48px rgba(0,0,0,0.25),var(--glow)}
+        .case-card:hover::before{opacity:1}
+
+        .case-header{display:flex;align-items:center;gap:1.25rem;margin-bottom:1.75rem}
+        .case-avatar{width:56px;height:56px;border-radius:16px;background:var(--gradient);display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:800;color:#fff;flex-shrink:0;box-shadow:0 8px 20px rgba(139,92,246,0.2)}
+        .case-header-info h3{font-size:1.1rem;font-weight:700;margin-bottom:.15rem}
+        .case-header-info p{color:var(--text-muted);font-size:.82rem;font-weight:500}
+
+        .case-headline{font-size:1.25rem;font-weight:800;margin-bottom:1.5rem;line-height:1.35;color:#fff}
+        .case-headline span{background:var(--gradient2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+        .case-detail{margin-bottom:1.25rem}
+        .case-detail-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#c4b5fd;margin-bottom:.5rem}
+        .case-detail p{color:var(--text-muted);font-size:.9rem;line-height:1.75}
+
+        .case-results{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--border)}
+        .case-result{text-align:center;padding:.75rem .5rem;background:rgba(139,92,246,0.04);border-radius:12px;border:1px solid rgba(139,92,246,0.06)}
+        .case-result-num{font-size:1.1rem;font-weight:800;color:var(--green);margin-bottom:.15rem}
+        .case-result-label{font-size:.7rem;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:1px}
+
+        .case-meta{display:flex;align-items:center;gap:.6rem;margin-bottom:1.5rem;color:var(--text-dim);font-size:.82rem}
+        .case-meta-dot{width:4px;height:4px;border-radius:50%;background:var(--text-dim)}
+
+        /* ═══ CTA ═══ */
+        .cta-section{padding:5rem 2rem;text-align:center}
+        .cta-inner{max-width:700px;margin:auto;background:linear-gradient(135deg,rgba(139,92,246,0.06),rgba(99,102,241,0.03));border:1px solid rgba(139,92,246,0.12);border-radius:28px;padding:4rem 3rem;position:relative;overflow:hidden}
+        .cta-inner::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(139,92,246,0.4),transparent)}
+        .cta-inner h2{font-size:clamp(1.8rem,3.5vw,2.4rem);font-weight:900;margin-bottom:.75rem;letter-spacing:-.03em}
+        .cta-inner p{color:var(--text-muted);font-size:1rem;margin-bottom:2rem;line-height:1.85;max-width:480px;margin-left:auto;margin-right:auto}
+        .cta-btns{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+
+        /* ═══ FOOTER ═══ */
+        footer{padding:3rem 2rem;border-top:1px solid var(--border);background:rgba(5,7,16,0.5)}
+        .footer-inner{max-width:1140px;margin:auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1.5rem}
+        .footer-logo{font-size:1.2rem;font-weight:800;letter-spacing:-.5px}
+        .footer-logo span{background:var(--gradient2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .footer-links{display:flex;gap:2rem;list-style:none;flex-wrap:wrap}
+        .footer-links a{color:var(--text-dim);text-decoration:none;font-size:.85rem;transition:color .3s}
+        .footer-links a:hover{color:var(--text)}
+        .footer-copy{color:var(--text-dim);font-size:.8rem}
+
+        /* ═══ RESPONSIVE ═══ */
+        @media(max-width:900px){
+            .nav-links{display:none}.hamburger{display:block}
+            .stats-grid{grid-template-columns:repeat(2,1fr)}
+            .case-studies-grid{grid-template-columns:1fr}
+            .footer-inner{flex-direction:column;text-align:center}
+        }
+        @media(max-width:580px){
+            .stats-grid{grid-template-columns:1fr 1fr}
+            .case-results{grid-template-columns:1fr}
+            .cta-inner{padding:3rem 1.5rem}
+        }
+    </style>
+</head>
+<body>
+
+<div class="aurora"><div></div><div></div><div></div></div>
+
+<!-- ═══ NAV ═══ -->
+<nav id="mainNav">
+    <div class="nav-inner">
+        <a href="/" class="logo">Chat<span>GeniusX</span></a>
+        <ul class="nav-links">
+            <li><a href="/">Home</a></li>
+            <li><a href="/#features">Features</a></li>
+            <li><a href="/pricing-plans">Pricing</a></li>
+            <li><a href="/demo">Demo</a></li>
+            <li><a href="/case-studies">Case Studies</a></li>
+            <li><a href="/blog">Blog</a></li>
+            <li><a href="/login" class="nav-btn-outline">Login</a></li>
+            <li><a href="/login?signup=1" class="nav-btn">Start Free</a></li>
+        </ul>
+        <button class="hamburger" onclick="document.getElementById('mobileMenu').classList.toggle('open')">&#9776;</button>
+    </div>
+</nav>
+<div class="mobile-menu" id="mobileMenu">
+    <a href="/">Home</a>
+    <a href="/#features">Features</a>
+    <a href="/pricing-plans">Pricing</a>
+    <a href="/demo">Demo</a>
+    <a href="/case-studies">Case Studies</a>
+    <a href="/blog">Blog</a>
+    <a href="/login">Login</a>
+    <a href="/login?signup=1">Start Free</a>
+</div>
+
+<!-- ═══ HERO ═══ -->
+<section class="page-hero">
+    <div class="section-label">Case Studies</div>
+    <h1>Real Results from <span class="gradient-text">Real Practices</span></h1>
+    <p>See how clinics and practices are growing with ChatGeniusX</p>
+</section>
+
+<!-- ═══ STATS BANNER ═══ -->
+<section class="stats-banner">
+    <div class="stats-grid">
+        <div class="stat-card anim">
+            <div class="stat-num">34%</div>
+            <div class="stat-label">More Bookings</div>
+        </div>
+        <div class="stat-card anim">
+            <div class="stat-num">40%</div>
+            <div class="stat-label">Fewer No-Shows</div>
+        </div>
+        <div class="stat-card anim">
+            <div class="stat-num">3.2x</div>
+            <div class="stat-label">ROI</div>
+        </div>
+        <div class="stat-card anim">
+            <div class="stat-num">$127K</div>
+            <div class="stat-label">Revenue Generated</div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ CASE STUDIES ═══ -->
+<section class="case-studies">
+    <div class="case-studies-grid">
+
+        <!-- Case Study 1 -->
+        <div class="case-card anim">
+            <div class="case-header">
+                <div class="case-avatar">SC</div>
+                <div class="case-header-info">
+                    <h3>Smile Dental Clinic</h3>
+                    <p>Dr. Sarah Chen, Owner</p>
+                </div>
+            </div>
+            <div class="case-meta">
+                <span>Solo Practice</span>
+                <span class="case-meta-dot"></span>
+                <span>3 Staff</span>
+            </div>
+            <div class="case-headline">Increased bookings by <span>34% in 30 days</span></div>
+            <div class="case-detail">
+                <div class="case-detail-label">Challenge</div>
+                <p>Missed after-hours calls were costing the practice dozens of potential new patients each month. With a small team, there was no way to answer every inquiry.</p>
+            </div>
+            <div class="case-detail">
+                <div class="case-detail-label">Solution</div>
+                <p>Deployed a ChatGeniusX chatbot on their website and Facebook page, handling appointment requests 24/7 with instant responses.</p>
+            </div>
+            <div class="case-results">
+                <div class="case-result">
+                    <div class="case-result-num">+34%</div>
+                    <div class="case-result-label">Bookings</div>
+                </div>
+                <div class="case-result">
+                    <div class="case-result-num">-28%</div>
+                    <div class="case-result-label">No-Shows</div>
+                </div>
+                <div class="case-result">
+                    <div class="case-result-num">$12K/mo</div>
+                    <div class="case-result-label">Added Revenue</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Case Study 2 -->
+        <div class="case-card anim">
+            <div class="case-header">
+                <div class="case-avatar" style="background:linear-gradient(135deg,#6366f1,#3b82f6)">MF</div>
+                <div class="case-header-info">
+                    <h3>Metro Family Medicine</h3>
+                    <p>Dr. James Rodriguez, Practice Manager</p>
+                </div>
+            </div>
+            <div class="case-meta">
+                <span>Multi-Provider</span>
+                <span class="case-meta-dot"></span>
+                <span>5 Providers</span>
+            </div>
+            <div class="case-headline">Reduced no-shows from <span>22% to 8%</span></div>
+            <div class="case-detail">
+                <div class="case-detail-label">Challenge</div>
+                <p>A 22% no-show rate was causing significant revenue loss and scheduling chaos across five providers, with staff spending hours on manual reminder calls.</p>
+            </div>
+            <div class="case-detail">
+                <div class="case-detail-label">Solution</div>
+                <p>Implemented ChatGeniusX smart reminders with automated SMS and chat follow-ups, allowing patients to confirm or reschedule instantly.</p>
+            </div>
+            <div class="case-results">
+                <div class="case-result">
+                    <div class="case-result-num">-63%</div>
+                    <div class="case-result-label">No-Show Rate</div>
+                </div>
+                <div class="case-result">
+                    <div class="case-result-num">$8K/mo</div>
+                    <div class="case-result-label">Saved</div>
+                </div>
+                <div class="case-result">
+                    <div class="case-result-num">14 to 8%</div>
+                    <div class="case-result-label">No-Show Drop</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Case Study 3 -->
+        <div class="case-card anim">
+            <div class="case-header">
+                <div class="case-avatar" style="background:linear-gradient(135deg,#ec4899,#8b5cf6)">LB</div>
+                <div class="case-header-info">
+                    <h3>Luxe Beauty Spa</h3>
+                    <p>Maria Santos, Owner</p>
+                </div>
+            </div>
+            <div class="case-meta">
+                <span>Beauty &amp; Wellness</span>
+                <span class="case-meta-dot"></span>
+                <span>8 Stylists</span>
+            </div>
+            <div class="case-headline"><span>3.2x ROI</span> in first quarter</div>
+            <div class="case-detail">
+                <div class="case-detail-label">Challenge</div>
+                <p>Phone-only booking was creating a bottleneck. Clients calling during busy hours would hang up, and the team was missing potential bookings every day.</p>
+            </div>
+            <div class="case-detail">
+                <div class="case-detail-label">Solution</div>
+                <p>Launched an AI-powered booking assistant that handles scheduling, upsells add-on services, and integrates with their loyalty program.</p>
+            </div>
+            <div class="case-results">
+                <div class="case-result">
+                    <div class="case-result-num">+47%</div>
+                    <div class="case-result-label">Appointments</div>
+                </div>
+                <div class="case-result">
+                    <div class="case-result-num">+89%</div>
+                    <div class="case-result-label">Loyalty Engage</div>
+                </div>
+                <div class="case-result">
+                    <div class="case-result-num">3.2x</div>
+                    <div class="case-result-label">ROI</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Case Study 4 -->
+        <div class="case-card anim">
+            <div class="case-header">
+                <div class="case-avatar" style="background:linear-gradient(135deg,#06b6d4,#3b82f6)">PA</div>
+                <div class="case-header-info">
+                    <h3>Park Avenue Orthodontics</h3>
+                    <p>Dr. Emily Park, Orthodontist</p>
+                </div>
+            </div>
+            <div class="case-meta">
+                <span>Orthodontics</span>
+                <span class="case-meta-dot"></span>
+                <span>2 Locations</span>
+            </div>
+            <div class="case-headline">Saved <span>20 hours/week</span> on patient communication</div>
+            <div class="case-detail">
+                <div class="case-detail-label">Challenge</div>
+                <p>Managing treatment follow-ups across two locations was overwhelming. Staff spent 20+ hours weekly on manual calls, texts, and reminders to keep patients on track.</p>
+            </div>
+            <div class="case-detail">
+                <div class="case-detail-label">Solution</div>
+                <p>Automated the entire patient follow-up workflow with ChatGeniusX, including treatment reminders, appointment scheduling, and compliance check-ins.</p>
+            </div>
+            <div class="case-results">
+                <div class="case-result">
+                    <div class="case-result-num">+45%</div>
+                    <div class="case-result-label">Compliance</div>
+                </div>
+                <div class="case-result">
+                    <div class="case-result-num">20 hrs</div>
+                    <div class="case-result-label">Saved/Week</div>
+                </div>
+                <div class="case-result">
+                    <div class="case-result-num">2x</div>
+                    <div class="case-result-label">Capacity</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<!-- ═══ CTA ═══ -->
+<section class="cta-section">
+    <div class="cta-inner anim">
+        <h2>Ready to see results <span class="gradient-text">like these?</span></h2>
+        <p>Join hundreds of practices already growing with ChatGeniusX. Start your free trial today and see results in your first week.</p>
+        <div class="cta-btns">
+            <a href="/login?signup=1" class="btn-primary">Start Free Trial &rarr;</a>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer>
+    <div class="footer-inner">
+        <div class="footer-logo">Chat<span>GeniusX</span></div>
+        <ul class="footer-links">
+            <li><a href="/">Home</a></li>
+            <li><a href="/pricing-plans">Pricing</a></li>
+            <li><a href="/blog">Blog</a></li>
+            <li><a href="/case-studies">Case Studies</a></li>
+            <li><a href="/privacy">Privacy</a></li>
+            <li><a href="/terms">Terms</a></li>
+        </ul>
+        <div class="footer-copy">&copy; 2026 ChatGeniusX. All rights reserved.</div>
+    </div>
+</footer>
+
+<script>
+// Nav scroll effect
+window.addEventListener('scroll',function(){
+    document.getElementById('mainNav').classList.toggle('scrolled',window.scrollY>50);
+});
+// Animate on scroll
+const obs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');obs.unobserve(e.target)}})},{threshold:0.1});
+document.querySelectorAll('.anim').forEach(el=>obs.observe(el));
+</script>
+</body>
+</html>

@@ -12,12 +12,28 @@
     <!-- Facebook SDK -->
     <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
     <style>
+        html{font-size:90%}
         *{margin:0;padding:0;box-sizing:border-box}
         :root{--bg:#06080d;--card:rgba(255,255,255,0.035);--card-border:rgba(255,255,255,0.05);--primary:#8b5cf6;--gradient:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);--text:#f1f5f9;--text-muted:#8b95a8;--text-dim:#475569;--success:#34d399;--warning:#fbbf24;--danger:#f87171;--glow:0 4px 25px rgba(139,92,246,0.3)}
         body{font-family:'Outfit','Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
         body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.022;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
         @keyframes aur{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(3%,5%) scale(1.05)}66%{transform:translate(-3%,-3%) scale(0.97)}}
 
+        .auth-container{display:grid;grid-template-columns:1fr 1fr;gap:0;width:100%;max-width:920px;position:relative;z-index:1;border-radius:28px;overflow:hidden;border:1px solid rgba(255,255,255,0.05);box-shadow:0 20px 60px rgba(0,0,0,0.4)}
+        .auth-features{background:linear-gradient(135deg,rgba(139,92,246,0.06),rgba(99,102,241,0.03));padding:3rem 2.5rem;display:flex;flex-direction:column;justify-content:center;border-right:1px solid rgba(255,255,255,0.04)}
+        .auth-features h3{font-size:1.3rem;font-weight:800;margin-bottom:1.5rem}
+        .auth-feat-list{list-style:none;margin-bottom:2rem}
+        .auth-feat-list li{padding:.6rem 0;font-size:.9rem;color:var(--text-muted);display:flex;align-items:center;gap:.75rem}
+        .auth-feat-list li span{font-size:1.2rem}
+        .auth-feat-social{margin-top:auto;padding-top:1.5rem;border-top:1px solid rgba(255,255,255,0.06)}
+        .auth-feat-social p{font-size:.82rem;color:var(--text-dim);margin-bottom:.5rem}
+        .auth-feat-logos{display:flex;gap:1rem;opacity:.5}
+        .auth-feat-logos span{font-size:.78rem;font-weight:700;color:var(--text-dim);letter-spacing:.5px}
+        .auth-feat-badge{display:inline-flex;align-items:center;gap:.4rem;background:rgba(52,211,153,0.08);color:var(--success);font-size:.78rem;font-weight:600;padding:.3rem .8rem;border-radius:50px;margin-top:1rem}
+        .auth-feat-demo{margin-top:1rem}
+        .auth-feat-demo a{color:var(--primary);font-size:.85rem;text-decoration:none;font-weight:600}
+        .auth-feat-demo a:hover{text-decoration:underline}
+        @media(max-width:700px){.auth-container{grid-template-columns:1fr;max-width:440px}.auth-features{padding:2rem;border-right:none;border-bottom:1px solid rgba(255,255,255,0.04)}}
         .auth-wrapper{width:100%;max-width:440px;position:relative;z-index:1}
         .auth-logo{text-align:center;margin-bottom:2rem;font-size:1.8rem;font-weight:800;letter-spacing:-0.5px}
         .auth-logo span{background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
@@ -84,10 +100,35 @@
 <body>
 <div style="position:fixed;inset:0;z-index:-1;overflow:hidden"><div style="position:absolute;width:55vw;height:55vw;top:-15%;left:-10%;border-radius:50%;filter:blur(100px);opacity:0.1;background:conic-gradient(from 0deg,#8b5cf6,#6366f1,#3b82f6,#8b5cf6);animation:aur 22s ease-in-out infinite"></div><div style="position:absolute;width:40vw;height:40vw;bottom:-10%;right:-5%;border-radius:50%;filter:blur(100px);opacity:0.1;background:conic-gradient(from 180deg,#3b82f6,#06b6d4,#8b5cf6);animation:aur 28s ease-in-out infinite;animation-delay:-7s"></div></div>
 
-<div class="auth-wrapper">
-    <div class="auth-logo">Chat<span>Genius</span></div>
+<div class="auth-container">
+    <!-- Feature Preview Side -->
+    <div class="auth-features">
+        <div class="auth-logo" style="text-align:left;margin-bottom:2rem">Chat<span>Genius</span></div>
+        <h3>What you get with ChatGeniusX:</h3>
+        <ul class="auth-feat-list">
+            <li><span>&#129302;</span> AI chatbot — 24/7 automated booking</li>
+            <li><span>&#128197;</span> Automated scheduling &amp; reminders</li>
+            <li><span>&#127919;</span> Lead capture &amp; scoring (1-10)</li>
+            <li><span>&#128200;</span> Real-time analytics &amp; ROI dashboard</li>
+            <li><span>&#128274;</span> Bank-grade AES-256 encryption</li>
+        </ul>
+        <div class="auth-feat-badge">&#128274; No credit card required for trial</div>
+        <div class="auth-feat-social">
+            <p>Trusted by 500+ practices worldwide</p>
+            <div class="auth-feat-logos">
+                <span>Dental Plus</span>
+                <span>MediCare Hub</span>
+                <span>Glow Spa</span>
+            </div>
+        </div>
+        <div class="auth-feat-demo">Want to try first? <a href="/demo">See live demo &rarr;</a></div>
+    </div>
 
-    <div class="auth-card">
+    <!-- Form Side -->
+    <div class="auth-wrapper" style="max-width:none;padding:2.5rem">
+    <div style="text-align:center;margin-bottom:1.5rem;display:none" class="auth-logo-mobile">Chat<span>Genius</span></div>
+
+    <div class="auth-card" style="border:none;box-shadow:none;padding:0;background:transparent">
         <!-- LOGIN FORM (default) -->
         <div id="loginForm">
             <h2>Welcome back</h2>
@@ -214,6 +255,32 @@
             <p class="auth-footer" style="margin-top:1rem"><a href="#" onclick="backToSignupStep1()">&larr; Back</a></p>
         </div>
 
+        <!-- SIGNUP FORM — Step 3: Email Verification -->
+        <div id="verifyForm" style="display:none">
+            <h2>Verify your email</h2>
+            <p class="subtitle">We sent a 6-digit code to <strong id="verifyEmailDisplay"></strong></p>
+
+            <div class="alert alert-error" id="verifyError"></div>
+            <div class="alert alert-success" id="verifySuccess"></div>
+
+            <div style="display:flex;gap:8px;justify-content:center;margin:2rem 0">
+                <input type="text" maxlength="1" class="otp-input" data-otp="0" oninput="otpMove(this,1)" onkeydown="otpBack(event,this,-1)" style="width:48px;height:56px;text-align:center;font-size:1.5rem;font-weight:700;border-radius:10px;border:2px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);color:#fff;outline:none;transition:border .2s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'">
+                <input type="text" maxlength="1" class="otp-input" data-otp="1" oninput="otpMove(this,2)" onkeydown="otpBack(event,this,0)" style="width:48px;height:56px;text-align:center;font-size:1.5rem;font-weight:700;border-radius:10px;border:2px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);color:#fff;outline:none;transition:border .2s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'">
+                <input type="text" maxlength="1" class="otp-input" data-otp="2" oninput="otpMove(this,3)" onkeydown="otpBack(event,this,1)" style="width:48px;height:56px;text-align:center;font-size:1.5rem;font-weight:700;border-radius:10px;border:2px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);color:#fff;outline:none;transition:border .2s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'">
+                <input type="text" maxlength="1" class="otp-input" data-otp="3" oninput="otpMove(this,4)" onkeydown="otpBack(event,this,2)" style="width:48px;height:56px;text-align:center;font-size:1.5rem;font-weight:700;border-radius:10px;border:2px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);color:#fff;outline:none;transition:border .2s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'">
+                <input type="text" maxlength="1" class="otp-input" data-otp="4" oninput="otpMove(this,5)" onkeydown="otpBack(event,this,3)" style="width:48px;height:56px;text-align:center;font-size:1.5rem;font-weight:700;border-radius:10px;border:2px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);color:#fff;outline:none;transition:border .2s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'">
+                <input type="text" maxlength="1" class="otp-input" data-otp="5" oninput="otpMove(this,-1)" onkeydown="otpBack(event,this,4)" style="width:48px;height:56px;text-align:center;font-size:1.5rem;font-weight:700;border-radius:10px;border:2px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);color:#fff;outline:none;transition:border .2s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'">
+            </div>
+
+            <button class="submit-btn" id="verifyBtn" onclick="handleVerify()">Verify & Continue</button>
+
+            <p style="color:#999;font-size:0.85rem;margin-top:1.25rem;text-align:center">
+                Didn't receive the code? <a href="#" onclick="handleResend()" id="resendLink" style="color:var(--primary)">Resend code</a>
+                <span id="resendTimer" style="display:none;color:var(--gray)"></span>
+            </p>
+            <p class="auth-footer" style="margin-top:0.5rem"><a href="#" onclick="showLogin()">&larr; Back to login</a></p>
+        </div>
+
         <!-- FORGOT PASSWORD -->
         <div id="forgotForm" style="display:none">
             <h2>Reset password</h2>
@@ -239,7 +306,8 @@
         <span style="color:var(--gray);margin:0 0.5rem">|</span>
         <a href="/privacy" style="color:var(--gray);font-size:0.85rem">Privacy Policy</a>
     </div>
-</div>
+    </div><!-- end auth-wrapper -->
+</div><!-- end auth-container -->
 
 <!-- Role Picker Overlay (shown when new user logs in via social without an account) -->
 <div id="rolePickerOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center">
@@ -379,6 +447,7 @@
         document.getElementById('loginForm').style.display = 'block';
         document.getElementById('signupForm').style.display = 'none';
         document.getElementById('roleForm').style.display = 'none';
+        document.getElementById('verifyForm').style.display = 'none';
         document.getElementById('forgotForm').style.display = 'none';
         clearAlerts();
     }
@@ -386,6 +455,7 @@
         document.getElementById('loginForm').style.display = 'none';
         document.getElementById('signupForm').style.display = 'block';
         document.getElementById('roleForm').style.display = 'none';
+        document.getElementById('verifyForm').style.display = 'none';
         document.getElementById('forgotForm').style.display = 'none';
         clearAlerts();
     }
@@ -393,6 +463,7 @@
         document.getElementById('loginForm').style.display = 'none';
         document.getElementById('signupForm').style.display = 'none';
         document.getElementById('roleForm').style.display = 'none';
+        document.getElementById('verifyForm').style.display = 'none';
         document.getElementById('forgotForm').style.display = 'block';
         clearAlerts();
     }
@@ -484,7 +555,7 @@
     function googleSignIn() {
         clearAlerts();
         if (!GOOGLE_CLIENT_ID) {
-            sendSocialToken('google', 'demo_google_token', 'Google User', 'demo.user@gmail.com', '');
+            showAlert('loginError', 'Google Sign-In is not available right now. Please use email login or try again later.');
             return;
         }
         if (!googleClient) initGoogle();
@@ -519,7 +590,7 @@
     function facebookSignIn() {
         clearAlerts();
         if (!FACEBOOK_APP_ID) {
-            sendSocialToken('facebook', 'demo_facebook_token', 'Facebook User', 'demo.user@facebook.com', '');
+            showAlert('loginError', 'Facebook Login is not available right now. Please use email login or try again later.');
             return;
         }
         if (!fbReady) {
@@ -553,6 +624,9 @@
             const data = await res.json();
             if (data.error) {
                 showAlert('loginError', data.error);
+            } else if (data.needs_verification) {
+                pendingVerificationEmail = data.email;
+                showVerifyStep(data.email);
             } else {
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
@@ -577,6 +651,8 @@
         bar.style.width = pct + '%';
         bar.style.background = pct <= 40 ? '#ef4444' : pct <= 70 ? '#f5a623' : '#22c55e';
     }
+
+    let pendingVerificationEmail = '';
 
     async function handleSignup() {
         clearAlerts();
@@ -603,6 +679,9 @@
             const data = await res.json();
             if (data.error) {
                 showAlert('roleError', data.error);
+            } else if (data.needs_verification) {
+                pendingVerificationEmail = data.email;
+                showVerifyStep(data.email);
             } else {
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
@@ -612,6 +691,114 @@
             showAlert('roleError', 'Could not reach the server. Please try again.');
         }
         btn.disabled = false; btn.textContent = 'Create Account';
+    }
+
+    function showVerifyStep(email) {
+        document.getElementById('roleForm').style.display = 'none';
+        document.getElementById('signupForm').style.display = 'none';
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('verifyForm').style.display = 'block';
+        document.getElementById('verifyEmailDisplay').textContent = email;
+        // Focus first OTP input
+        const first = document.querySelector('.otp-input[data-otp="0"]');
+        if (first) first.focus();
+        startResendCooldown();
+    }
+
+    function otpMove(el, nextIdx) {
+        el.value = el.value.replace(/[^0-9]/g, '');
+        if (el.value && nextIdx >= 0 && nextIdx <= 5) {
+            const next = document.querySelector('.otp-input[data-otp="' + nextIdx + '"]');
+            if (next) next.focus();
+        }
+        if (nextIdx === -1) {
+            // Last digit entered, auto-submit
+            const code = getOtpCode();
+            if (code.length === 6) handleVerify();
+        }
+    }
+
+    function otpBack(e, el, prevIdx) {
+        if (e.key === 'Backspace' && !el.value && prevIdx >= 0) {
+            const prev = document.querySelector('.otp-input[data-otp="' + prevIdx + '"]');
+            if (prev) { prev.value = ''; prev.focus(); }
+        }
+    }
+
+    function getOtpCode() {
+        let code = '';
+        document.querySelectorAll('.otp-input').forEach(inp => { code += inp.value; });
+        return code;
+    }
+
+    async function handleVerify() {
+        clearAlerts();
+        const code = getOtpCode();
+        if (code.length !== 6) {
+            showAlert('verifyError', 'Please enter the full 6-digit code.');
+            return;
+        }
+        const btn = document.getElementById('verifyBtn');
+        btn.disabled = true; btn.textContent = 'Verifying...';
+        try {
+            const res = await fetch('/auth/verify-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: pendingVerificationEmail, code: code })
+            });
+            const data = await res.json();
+            if (data.error) {
+                showAlert('verifyError', data.error);
+            } else {
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+                window.location.href = '/user-dashboard';
+            }
+        } catch (err) {
+            showAlert('verifyError', 'Could not reach the server. Please try again.');
+        }
+        btn.disabled = false; btn.textContent = 'Verify & Continue';
+    }
+
+    let resendCooldown = 0;
+    function startResendCooldown() {
+        resendCooldown = 60;
+        const link = document.getElementById('resendLink');
+        const timer = document.getElementById('resendTimer');
+        link.style.display = 'none';
+        timer.style.display = 'inline';
+        const tick = setInterval(() => {
+            resendCooldown--;
+            timer.textContent = '(resend in ' + resendCooldown + 's)';
+            if (resendCooldown <= 0) {
+                clearInterval(tick);
+                link.style.display = 'inline';
+                timer.style.display = 'none';
+            }
+        }, 1000);
+    }
+
+    async function handleResend() {
+        if (resendCooldown > 0) return;
+        try {
+            const res = await fetch('/auth/resend-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: pendingVerificationEmail })
+            });
+            const data = await res.json();
+            if (data.error) {
+                showAlert('verifyError', data.error);
+            } else {
+                showAlert('verifySuccess', 'A new code has been sent to your email.');
+                // Clear old OTP inputs
+                document.querySelectorAll('.otp-input').forEach(inp => { inp.value = ''; });
+                document.querySelector('.otp-input[data-otp="0"]').focus();
+                startResendCooldown();
+            }
+        } catch (err) {
+            showAlert('verifyError', 'Could not reach the server.');
+        }
     }
 
     // Forgot password

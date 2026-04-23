@@ -133,7 +133,8 @@ def _notify_next_patient(admin_id, doctor_id, date, time_slot):
                 time_slot=time_slot,
                 confirm_deadline=deadline_display,
                 confirm_url=confirm_url,
-                doctor_name=doctor_name
+                doctor_name=doctor_name,
+                admin_id=admin_id,
             )
             logger.info(f"Waitlist: notification email sent to {patient['patient_email']}")
         except Exception as e:
@@ -210,7 +211,8 @@ def _process_expired_waitlist_notifications():
                     doctor_name = doctor["name"] if doctor else ""
                     email_svc.send_waitlist_expired_notification(
                         entry["patient_email"], entry["patient_name"],
-                        date_display, entry["time_slot"], doctor_name=doctor_name
+                        date_display, entry["time_slot"], doctor_name=doctor_name,
+                        admin_id=entry.get("admin_id"),
                     )
                 except Exception as e:
                     logger.error(f"Waitlist: failed to send expiry email to {entry.get('patient_email')}: {e}")

@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
+        html { font-size: 90%; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Outfit','Inter',sans-serif;
@@ -18,486 +19,191 @@
         }
         body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.022;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 
-        /* ── Loading State ── */
         .state-loading {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            color: #f1f5f9;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 100vh; color: #f1f5f9;
         }
         .spinner {
-            width: 48px; height: 48px;
-            border: 3px solid rgba(139,92,246,0.2);
-            border-top-color: #8b5cf6;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin-bottom: 20px;
+            width: 48px; height: 48px; border: 3px solid rgba(139,92,246,0.2);
+            border-top-color: #8b5cf6; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 20px;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         .state-loading p { color: #8b95a8; font-size: 15px; letter-spacing: 0.5px; }
 
-        /* ── Error / Already Submitted States ── */
         .state-message {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            text-align: center;
-            padding: 2rem;
-            color: #f1f5f9;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 100vh; text-align: center; padding: 2rem; color: #f1f5f9;
         }
         .state-icon {
-            width: 80px; height: 80px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 40px;
-            margin-bottom: 24px;
+            width: 80px; height: 80px; border-radius: 50%; display: flex;
+            align-items: center; justify-content: center; font-size: 40px; margin-bottom: 24px;
         }
-        .state-icon.success {
-            background: linear-gradient(135deg, #8b5cf6, #6366f1);
-            color: #fff;
-        }
-        .state-icon.error {
-            background: linear-gradient(135deg, #f87171, #ef4444);
-            color: #fff;
-        }
-        .state-icon.check {
-            background: linear-gradient(135deg, #8b5cf6, #34d399);
-            color: #fff;
-            animation: scaleIn 0.5s ease;
-        }
-        @keyframes scaleIn {
-            0% { transform: scale(0); opacity: 0; }
-            60% { transform: scale(1.2); }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        .state-message h2 {
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 12px;
-            color: #f1f5f9;
-        }
-        .state-message p {
-            font-size: 15px;
-            color: #8b95a8;
-            line-height: 1.6;
-            max-width: 400px;
-        }
+        .state-icon.success { background: linear-gradient(135deg, #8b5cf6, #6366f1); color: #fff; }
+        .state-icon.error { background: linear-gradient(135deg, #f87171, #ef4444); color: #fff; }
+        .state-icon.check { background: linear-gradient(135deg, #8b5cf6, #34d399); color: #fff; animation: scaleIn 0.5s ease; }
+        @keyframes scaleIn { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.2); } 100% { transform: scale(1); opacity: 1; } }
+        .state-message h2 { font-size: 24px; font-weight: 700; margin-bottom: 12px; color: #f1f5f9; }
+        .state-message p { font-size: 15px; color: #8b95a8; line-height: 1.6; max-width: 400px; }
 
-        /* ── Form Container ── */
-        .form-wrapper {
-            max-width: 640px;
-            margin: 0 auto;
-            padding: 0 0 40px;
-            position: relative;
-            z-index: 1;
-        }
-
-        /* ── Purple Bar + Header ── */
-        .gold-bar {
-            height: 4px;
-            background: linear-gradient(90deg, #8b5cf6, #6366f1, #3b82f6, #6366f1, #8b5cf6);
-        }
+        .form-wrapper { max-width: 640px; margin: 0 auto; padding: 0 0 40px; position: relative; z-index: 1; }
+        .gold-bar { height: 4px; background: linear-gradient(90deg, #8b5cf6, #6366f1, #3b82f6, #6366f1, #8b5cf6); }
         .form-header {
-            background: rgba(255,255,255,0.035);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            padding: 40px 24px 32px;
-            text-align: center;
+            background: rgba(255,255,255,0.035); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            padding: 40px 24px 32px; text-align: center;
         }
-        .form-header h1 {
-            color: #f1f5f9;
-            font-size: 24px;
-            font-weight: 300;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
-        }
-        .form-header h1 strong {
-            font-weight: 700;
-        }
-        .form-header .subtitle {
-            color: #8b5cf6;
-            font-size: 12px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-        }
+        .form-header h1 { color: #f1f5f9; font-size: 24px; font-weight: 300; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .form-header h1 strong { font-weight: 700; }
+        .form-header .subtitle { color: #8b5cf6; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
 
-        /* ── Appointment Info Banner ── */
         .appt-info {
-            background: rgba(255,255,255,0.035);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 16px;
-            margin: -16px 16px 0;
-            padding: 20px;
-            position: relative;
-            z-index: 2;
-            display: none;
+            background: rgba(255,255,255,0.035); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.05); border-radius: 16px;
+            margin: -16px 16px 0; padding: 20px; position: relative; z-index: 2; display: none;
         }
-        .appt-info .info-row {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-        }
-        .appt-info .info-item {
-            flex: 1;
-            text-align: center;
-        }
-        .appt-info .info-label {
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            color: #8b95a8;
-            margin-bottom: 4px;
-        }
-        .appt-info .info-value {
-            font-size: 15px;
-            font-weight: 700;
-            color: #f1f5f9;
-        }
+        .appt-info .info-row { display: flex; justify-content: space-between; gap: 12px; }
+        .appt-info .info-item { flex: 1; text-align: center; }
+        .appt-info .info-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #8b95a8; margin-bottom: 4px; }
+        .appt-info .info-value { font-size: 15px; font-weight: 700; color: #f1f5f9; }
 
-        /* ── Form Card ── */
         .form-card {
-            background: rgba(255,255,255,0.035);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            margin: 16px 16px 0;
-            border-radius: 20px;
-            padding: 24px 20px;
-            border: 1px solid rgba(255,255,255,0.05);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            background: rgba(255,255,255,0.035); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            margin: 16px 16px 0; border-radius: 20px; padding: 24px 20px;
+            border: 1px solid rgba(255,255,255,0.05); box-shadow: 0 8px 32px rgba(0,0,0,0.2);
         }
         .section-number {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 28px; height: 28px;
-            border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 28px; height: 28px; border-radius: 50%;
             background: linear-gradient(135deg, #8b5cf6, #6366f1, #3b82f6);
-            color: #fff;
-            font-size: 13px;
-            font-weight: 800;
-            margin-right: 10px;
+            color: #fff; font-size: 13px; font-weight: 800; margin-right: 10px;
         }
         .section-title {
-            display: flex;
-            align-items: center;
-            font-size: 16px;
-            font-weight: 700;
-            color: #f1f5f9;
-            margin-bottom: 20px;
+            display: flex; align-items: center; font-size: 16px; font-weight: 700;
+            color: #f1f5f9; margin-bottom: 20px;
         }
         .section-title .optional-badge {
-            margin-left: auto;
-            font-size: 11px;
-            font-weight: 600;
-            color: #8b95a8;
-            background: rgba(255,255,255,0.06);
-            padding: 3px 10px;
-            border-radius: 20px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            margin-left: auto; font-size: 11px; font-weight: 600; color: #8b95a8;
+            background: rgba(255,255,255,0.06); padding: 3px 10px; border-radius: 20px;
+            text-transform: uppercase; letter-spacing: 0.5px;
         }
 
-        /* ── Form Fields ── */
         .form-group { margin-bottom: 16px; }
-        .form-label {
-            display: block;
-            font-size: 13px;
-            font-weight: 600;
-            color: #8b95a8;
-            margin-bottom: 6px;
-        }
+        .form-label { display: block; font-size: 13px; font-weight: 600; color: #8b95a8; margin-bottom: 6px; }
         .form-label .req { color: #f87171; margin-left: 2px; }
-        .form-input, .form-textarea {
-            width: 100%;
-            padding: 12px 14px;
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 12px;
-            font-size: 15px;
-            font-family: 'Outfit','Inter',sans-serif;
-            background: rgba(255,255,255,0.04);
-            color: #f1f5f9;
-            transition: border-color 0.2s, box-shadow 0.2s;
-            -webkit-appearance: none;
-            appearance: none;
-            outline: none;
+        .form-input, .form-textarea, .form-select {
+            width: 100%; padding: 12px 14px; border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px; font-size: 15px; font-family: 'Outfit','Inter',sans-serif;
+            background: rgba(255,255,255,0.04); color: #f1f5f9;
+            transition: border-color 0.2s, box-shadow 0.2s; -webkit-appearance: none; appearance: none; outline: none;
         }
-        .form-input::placeholder, .form-textarea::placeholder {
-            color: rgba(139,149,168,0.5);
-        }
-        .form-input:focus, .form-textarea:focus {
-            border-color: rgba(139,92,246,0.3);
-            box-shadow: 0 0 0 4px rgba(139,92,246,0.06);
-        }
-        .form-textarea {
-            resize: vertical;
-            min-height: 90px;
-        }
+        .form-input::placeholder, .form-textarea::placeholder { color: rgba(139,149,168,0.5); }
+        .form-input:focus, .form-textarea:focus, .form-select:focus { border-color: rgba(139,92,246,0.3); box-shadow: 0 0 0 4px rgba(139,92,246,0.06); }
+        .form-textarea { resize: vertical; min-height: 90px; }
+        .form-select option { background: #1a1a2e; color: #f1f5f9; }
 
-        /* ── Radio Buttons ── */
-        .radio-group {
-            display: flex;
-            gap: 10px;
-        }
-        .radio-option {
-            flex: 1;
-            position: relative;
-        }
-        .radio-option input {
-            position: absolute;
-            opacity: 0;
-            width: 0; height: 0;
-        }
+        .radio-group { display: flex; gap: 10px; }
+        .radio-option { flex: 1; position: relative; }
+        .radio-option input { position: absolute; opacity: 0; width: 0; height: 0; }
         .radio-option label {
-            display: block;
-            text-align: center;
-            padding: 10px 8px;
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 12px;
-            font-size: 14px;
-            font-weight: 600;
-            color: #8b95a8;
-            cursor: pointer;
-            transition: all 0.2s;
-            background: rgba(255,255,255,0.04);
+            display: block; text-align: center; padding: 10px 8px;
+            border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;
+            font-size: 14px; font-weight: 600; color: #8b95a8; cursor: pointer;
+            transition: all 0.2s; background: rgba(255,255,255,0.04);
         }
         .radio-option input:checked + label {
-            border-color: rgba(139,92,246,0.4);
-            background: rgba(139,92,246,0.1);
-            color: #f1f5f9;
-            box-shadow: 0 0 0 3px rgba(139,92,246,0.08);
+            border-color: rgba(139,92,246,0.4); background: rgba(139,92,246,0.1);
+            color: #f1f5f9; box-shadow: 0 0 0 3px rgba(139,92,246,0.08);
         }
 
-        /* ── Checkboxes ── */
-        .checkbox-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-        }
+        .checkbox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .checkbox-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 12px;
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-            background: rgba(255,255,255,0.04);
+            display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+            border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;
+            cursor: pointer; transition: all 0.2s; background: rgba(255,255,255,0.04);
         }
-        .checkbox-item:hover {
-            border-color: rgba(255,255,255,0.1);
-        }
-        .checkbox-item.checked {
-            border-color: rgba(139,92,246,0.4);
-            background: rgba(139,92,246,0.1);
-        }
-        .checkbox-item input {
-            width: 18px; height: 18px;
-            accent-color: #8b5cf6;
-            flex-shrink: 0;
-        }
-        .checkbox-item span {
-            font-size: 13px;
-            font-weight: 500;
-            color: #f1f5f9;
-        }
-        .other-text-wrapper {
-            margin-top: 10px;
-            display: none;
-        }
-        .other-text-wrapper.visible {
-            display: block;
-        }
+        .checkbox-item:hover { border-color: rgba(255,255,255,0.1); }
+        .checkbox-item.checked { border-color: rgba(139,92,246,0.4); background: rgba(139,92,246,0.1); }
+        .checkbox-item input { width: 18px; height: 18px; accent-color: #8b5cf6; flex-shrink: 0; }
+        .checkbox-item span { font-size: 13px; font-weight: 500; color: #f1f5f9; }
 
-        /* ── Signature Pad ── */
+        .consent-checkbox {
+            display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px;
+            border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;
+            background: rgba(255,255,255,0.04); cursor: pointer; transition: all 0.2s;
+        }
+        .consent-checkbox:hover { border-color: rgba(255,255,255,0.1); }
+        .consent-checkbox.checked { border-color: rgba(139,92,246,0.4); background: rgba(139,92,246,0.1); }
+        .consent-checkbox input { width: 20px; height: 20px; accent-color: #8b5cf6; flex-shrink: 0; margin-top: 2px; }
+        .consent-checkbox span { font-size: 13px; font-weight: 500; color: #f1f5f9; line-height: 1.5; }
+
         .signature-container {
-            border: 2px dashed rgba(255,255,255,0.15);
-            border-radius: 12px;
-            overflow: hidden;
-            background: #f8fafc;
-            position: relative;
+            border: 2px dashed rgba(255,255,255,0.15); border-radius: 12px;
+            overflow: hidden; background: #f8fafc; position: relative;
         }
-        .signature-container.has-signature {
-            border-style: solid;
-            border-color: #8b5cf6;
-        }
-        .sig-canvas {
-            width: 100%;
-            height: 150px;
-            display: block;
-            cursor: crosshair;
-            touch-action: none;
-        }
+        .signature-container.has-signature { border-style: solid; border-color: #8b5cf6; }
+        .sig-canvas { width: 100%; height: 150px; display: block; cursor: crosshair; touch-action: none; }
         .sig-placeholder {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            color: #999;
-            font-size: 14px;
-            pointer-events: none;
-            transition: opacity 0.3s;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #999; font-size: 14px; pointer-events: none; transition: opacity 0.3s;
         }
-        .signature-container.has-signature .sig-placeholder {
-            opacity: 0;
-        }
+        .signature-container.has-signature .sig-placeholder { opacity: 0; }
         .sig-clear-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            margin-top: 8px;
-            padding: 6px 14px;
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 10px;
-            font-size: 13px;
-            font-weight: 500;
-            font-family: 'Outfit','Inter',sans-serif;
-            background: rgba(255,255,255,0.04);
-            color: #8b95a8;
-            cursor: pointer;
-            transition: all 0.2s;
+            display: inline-flex; align-items: center; gap: 6px; margin-top: 8px;
+            padding: 6px 14px; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px;
+            font-size: 13px; font-weight: 500; font-family: 'Outfit','Inter',sans-serif;
+            background: rgba(255,255,255,0.04); color: #8b95a8; cursor: pointer; transition: all 0.2s;
         }
-        .sig-clear-btn:hover {
-            border-color: rgba(139,92,246,0.3);
-            color: #8b5cf6;
-        }
-        .consent-text {
-            font-size: 12px;
-            color: #475569;
-            line-height: 1.5;
-            margin-top: 12px;
-        }
+        .sig-clear-btn:hover { border-color: rgba(139,92,246,0.3); color: #8b5cf6; }
+        .consent-text { font-size: 12px; color: #475569; line-height: 1.5; margin-top: 12px; }
 
-        /* ── Submit Button ── */
-        .submit-wrapper {
-            margin: 24px 16px 0;
-        }
+        .submit-wrapper { margin: 24px 16px 0; }
         .submit-btn {
-            display: block;
-            width: 100%;
-            padding: 16px;
-            border: none;
-            border-radius: 50px;
-            font-size: 16px;
-            font-weight: 700;
-            font-family: 'Outfit','Inter',sans-serif;
-            cursor: pointer;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
+            display: block; width: 100%; padding: 16px; border: none; border-radius: 50px;
+            font-size: 16px; font-weight: 700; font-family: 'Outfit','Inter',sans-serif;
+            cursor: pointer; letter-spacing: 0.5px; text-transform: uppercase;
             background: linear-gradient(135deg, #8b5cf6, #6366f1, #3b82f6);
-            color: #fff;
-            box-shadow: 0 4px 25px rgba(139,92,246,0.3);
-            transition: all 0.3s;
+            color: #fff; box-shadow: 0 4px 25px rgba(139,92,246,0.3); transition: all 0.3s;
         }
-        .submit-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 35px rgba(139,92,246,0.4);
-        }
-        .submit-btn:active:not(:disabled) {
-            transform: translateY(0);
-        }
-        .submit-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
+        .submit-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 35px rgba(139,92,246,0.4); }
+        .submit-btn:active:not(:disabled) { transform: translateY(0); }
+        .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
         .submit-btn .btn-spinner {
-            display: inline-block;
-            width: 18px; height: 18px;
-            border: 2px solid rgba(255,255,255,0.2);
-            border-top-color: #fff;
-            border-radius: 50%;
-            animation: spin 0.7s linear infinite;
-            vertical-align: middle;
-            margin-right: 8px;
+            display: inline-block; width: 18px; height: 18px;
+            border: 2px solid rgba(255,255,255,0.2); border-top-color: #fff;
+            border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px;
         }
 
-        /* ── Bottom Purple Bar ── */
-        .gold-bar-bottom {
-            height: 4px;
-            background: linear-gradient(90deg, #8b5cf6, #6366f1, #3b82f6, #6366f1, #8b5cf6);
-            margin-top: 32px;
-        }
-
-        /* ── Footer ── */
-        .form-footer {
-            text-align: center;
-            padding: 20px 16px 40px;
-            color: #475569;
-            font-size: 12px;
-        }
+        .gold-bar-bottom { height: 4px; background: linear-gradient(90deg, #8b5cf6, #6366f1, #3b82f6, #6366f1, #8b5cf6); margin-top: 32px; }
+        .form-footer { text-align: center; padding: 20px 16px 40px; color: #475569; font-size: 12px; }
         .form-footer a { color: #8b5cf6; text-decoration: none; }
 
-        /* ── Toast Notifications ── */
         .toast {
-            position: fixed;
-            top: 16px;
-            left: 50%;
-            transform: translateX(-50%) translateY(-100px);
-            padding: 12px 24px;
-            border-radius: 12px;
-            color: #fff;
-            font-size: 14px;
-            font-weight: 600;
-            z-index: 9999;
-            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-            max-width: 90%;
-            text-align: center;
+            position: fixed; top: 16px; left: 50%; transform: translateX(-50%) translateY(-100px);
+            padding: 12px 24px; border-radius: 12px; color: #fff; font-size: 14px; font-weight: 600;
+            z-index: 9999; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            max-width: 90%; text-align: center;
         }
         .toast.show { transform: translateX(-50%) translateY(0); }
         .toast-error { background: #ef4444; }
         .toast-success { background: #059669; }
 
-        /* ── Animated Checkmark for Success State ── */
         .animated-check {
-            width: 80px; height: 80px;
-            border-radius: 50%;
+            width: 80px; height: 80px; border-radius: 50%;
             background: linear-gradient(135deg, #8b5cf6, #34d399);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 24px;
-            animation: scaleIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 24px; animation: scaleIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-        .animated-check svg {
-            width: 40px; height: 40px;
-            stroke: #fff;
-            stroke-width: 3;
-            fill: none;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }
-        .animated-check svg path {
-            stroke-dasharray: 60;
-            stroke-dashoffset: 60;
-            animation: drawCheck 0.6s 0.3s ease forwards;
-        }
-        @keyframes drawCheck {
-            to { stroke-dashoffset: 0; }
-        }
+        .animated-check svg { width: 40px; height: 40px; stroke: #fff; stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+        .animated-check svg path { stroke-dasharray: 60; stroke-dashoffset: 60; animation: drawCheck 0.6s 0.3s ease forwards; }
+        @keyframes drawCheck { to { stroke-dashoffset: 0; } }
 
-        /* ── Responsive ── */
         @media (min-width: 640px) {
             body { padding: 24px; }
-            .form-wrapper {
-                border-radius: 20px;
-                overflow: hidden;
-                box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-            }
+            .form-wrapper { border-radius: 20px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
             .form-card { margin: 16px 24px 0; }
             .appt-info { margin: -16px 24px 0; }
             .submit-wrapper { margin: 24px 24px 0; }
         }
 
-        /* ── Hidden by default ── */
         .hidden { display: none !important; }
     </style>
 </head>
@@ -561,125 +267,13 @@
         </div>
 
         <form id="patientForm" autocomplete="off">
+            <!-- Dynamic fields will be injected here -->
+            <div id="dynamicFields"></div>
 
-            <!-- Section 1: Personal Info -->
+            <!-- Signature Section (always shown) -->
             <div class="form-card">
                 <div class="section-title">
-                    <span class="section-number">1</span>
-                    Personal Information
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Full Name<span class="req">*</span></label>
-                    <input type="text" class="form-input" id="fullName" required placeholder="Enter your full name">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Date of Birth<span class="req">*</span></label>
-                    <input type="date" class="form-input" id="dateOfBirth" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Gender</label>
-                    <div class="radio-group">
-                        <div class="radio-option">
-                            <input type="radio" name="gender" id="genderMale" value="male">
-                            <label for="genderMale">Male</label>
-                        </div>
-                        <div class="radio-option">
-                            <input type="radio" name="gender" id="genderFemale" value="female">
-                            <label for="genderFemale">Female</label>
-                        </div>
-                        <div class="radio-option">
-                            <input type="radio" name="gender" id="genderOther" value="other">
-                            <label for="genderOther">Other</label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Section 2: Medical History -->
-            <div class="form-card">
-                <div class="section-title">
-                    <span class="section-number">2</span>
-                    Medical History
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Do you have any of the following conditions?</label>
-                    <div class="checkbox-grid" id="medicalCheckboxes">
-                        <label class="checkbox-item" onclick="toggleCheckbox(this)">
-                            <input type="checkbox" value="diabetes"> <span>Diabetes</span>
-                        </label>
-                        <label class="checkbox-item" onclick="toggleCheckbox(this)">
-                            <input type="checkbox" value="hypertension"> <span>Hypertension</span>
-                        </label>
-                        <label class="checkbox-item" onclick="toggleCheckbox(this)">
-                            <input type="checkbox" value="heart_disease"> <span>Heart Disease</span>
-                        </label>
-                        <label class="checkbox-item" onclick="toggleCheckbox(this)">
-                            <input type="checkbox" value="blood_thinners"> <span>Blood Thinners</span>
-                        </label>
-                        <label class="checkbox-item" onclick="toggleCheckbox(this)">
-                            <input type="checkbox" value="allergies"> <span>Allergies</span>
-                        </label>
-                        <label class="checkbox-item" onclick="toggleCheckbox(this)">
-                            <input type="checkbox" value="pregnancy"> <span>Pregnancy</span>
-                        </label>
-                        <label class="checkbox-item" onclick="toggleCheckbox(this)">
-                            <input type="checkbox" value="asthma"> <span>Asthma</span>
-                        </label>
-                        <label class="checkbox-item" onclick="toggleCheckbox(this)" id="otherCheckboxItem">
-                            <input type="checkbox" value="other" id="otherCheckbox"> <span>Other</span>
-                        </label>
-                    </div>
-                    <div class="other-text-wrapper" id="otherTextWrapper">
-                        <input type="text" class="form-input" id="otherMedicalText" placeholder="Please specify other conditions...">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Section 3: Current Medications -->
-            <div class="form-card">
-                <div class="section-title">
-                    <span class="section-number">3</span>
-                    Current Medications
-                </div>
-                <div class="form-group">
-                    <label class="form-label">List any medications you are currently taking</label>
-                    <textarea class="form-textarea" id="medications" placeholder="e.g. Metformin 500mg, Aspirin 81mg daily..."></textarea>
-                </div>
-            </div>
-
-            <!-- Section 4: Known Allergies -->
-            <div class="form-card">
-                <div class="section-title">
-                    <span class="section-number">4</span>
-                    Known Allergies
-                </div>
-                <div class="form-group">
-                    <label class="form-label">List any known allergies (medications, latex, anesthesia, etc.)</label>
-                    <textarea class="form-textarea" id="allergiesField" placeholder="e.g. Penicillin, latex, local anesthesia..." rows="3"></textarea>
-                </div>
-            </div>
-
-            <!-- Section 5: Insurance (Optional) -->
-            <div class="form-card">
-                <div class="section-title">
-                    <span class="section-number">5</span>
-                    Insurance Information
-                    <span class="optional-badge">Optional</span>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Insurance Provider</label>
-                    <input type="text" class="form-input" id="insuranceProvider" placeholder="e.g. Bupa, Aetna, Delta Dental...">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Policy Number</label>
-                    <input type="text" class="form-input" id="insurancePolicy" placeholder="Your policy or member ID number">
-                </div>
-            </div>
-
-            <!-- Section 6: Digital Signature -->
-            <div class="form-card">
-                <div class="section-title">
-                    <span class="section-number">6</span>
+                    <span class="section-number" id="sigSectionNum">2</span>
                     Digital Signature<span class="req" style="margin-left:4px">*</span>
                 </div>
                 <div class="signature-container" id="sigContainer">
@@ -714,18 +308,15 @@
     (function() {
         'use strict';
 
-        // ── Extract token from URL ──
         const pathParts = window.location.pathname.split('/form/');
         const token = pathParts[1] || '';
 
-        // ── DOM References ──
         const stateLoading = document.getElementById('stateLoading');
         const stateInvalid = document.getElementById('stateInvalid');
         const stateAlreadySubmitted = document.getElementById('stateAlreadySubmitted');
         const stateSuccess = document.getElementById('stateSuccess');
         const stateForm = document.getElementById('stateForm');
 
-        // ── Show a specific state, hide others ──
         function showState(state) {
             [stateLoading, stateInvalid, stateAlreadySubmitted, stateSuccess, stateForm].forEach(function(el) {
                 el.classList.add('hidden');
@@ -733,39 +324,235 @@
             state.classList.remove('hidden');
         }
 
-        // ── Load form data ──
-        if (!token) {
-            showState(stateInvalid);
-            return;
+        if (!token) { showState(stateInvalid); return; }
+
+        // ── Field rendering logic ──
+        // Map field keys to input types/renderers
+        const FIELD_RENDERERS = {
+            'full_name': function(field, key) { return textInput(key, field.label, field.required, 'Enter your full name'); },
+            'date_of_birth': function(field, key) { return dateInput(key, field.label, field.required); },
+            'gender': function(field, key) { return genderRadio(key, field.label, field.required); },
+            'national_id': function(field, key) { return textInput(key, field.label, field.required, 'National ID or passport number'); },
+            'profile_photo': function(field, key) { return fileInput(key, field.label, field.required); },
+            'home_address': function(field, key) { return textInput(key, field.label, field.required, 'Your home address'); },
+            'city': function(field, key) { return textInput(key, field.label, field.required, 'City'); },
+            'emergency_contact_name': function(field, key) { return textInput(key, field.label, field.required, 'Emergency contact full name'); },
+            'emergency_contact_relationship': function(field, key) { return textInput(key, field.label, field.required, 'e.g. Spouse, Parent, Sibling'); },
+            'emergency_contact_phone': function(field, key) { return textInput(key, field.label, field.required, 'Phone number'); },
+            'current_medications': function(field, key) { return textareaInput(key, field.label, field.required, 'List current medications...'); },
+            'drug_allergies': function(field, key) { return textareaInput(key, field.label, field.required, 'List known drug allergies...'); },
+            'material_allergies': function(field, key) { return textareaInput(key, field.label, field.required, 'e.g. Latex, metals...'); },
+            'blood_type': function(field, key) { return selectInput(key, field.label, field.required, ['','A+','A-','B+','B-','AB+','AB-','O+','O-']); },
+            'medical_conditions': function(field, key) { return medicalConditionsCheckbox(key, field.label, field.required); },
+            'bleeding_disorders': function(field, key) { return yesNoRadio(key, field.label, field.required); },
+            'fainting_anxiety': function(field, key) { return yesNoRadio(key, field.label, field.required); },
+            'last_dental_visit': function(field, key) { return dateInput(key, field.label, field.required); },
+            'last_xray_date': function(field, key) { return dateInput(key, field.label, field.required); },
+            'dental_concerns': function(field, key) { return textareaInput(key, field.label, field.required, 'Describe your current concerns...'); },
+            'insurance_provider': function(field, key) { return textInput(key, field.label, field.required, 'e.g. Bupa, Aetna, Delta Dental...'); },
+            'insurance_policy': function(field, key) { return textInput(key, field.label, field.required, 'Your policy number'); },
+            'insurance_member_id': function(field, key) { return textInput(key, field.label, field.required, 'Member ID'); },
+            'policy_holder_name': function(field, key) { return textInput(key, field.label, field.required, 'Policy holder full name'); },
+            'policy_holder_dob': function(field, key) { return dateInput(key, field.label, field.required); },
+            'billing_address': function(field, key) { return textInput(key, field.label, field.required, 'Billing address'); },
+            'how_heard_about_us': function(field, key) { return textInput(key, field.label, field.required, 'e.g. Google, friend referral...'); },
+            'consent_treatment': function(field, key) { return consentCheckbox(key, 'I consent to receiving dental examination and treatment as recommended.', field.required); },
+            'consent_data_storage': function(field, key) { return consentCheckbox(key, 'I consent to the secure storage of my personal and medical data.', field.required); },
+            'consent_reminders': function(field, key) { return consentCheckbox(key, 'I consent to receiving appointment reminders via SMS/email.', field.required); },
+        };
+
+        function textInput(key, label, required, placeholder) {
+            var reqHtml = required ? '<span class="req">*</span>' : '';
+            return '<div class="form-group"><label class="form-label">' + escHtml(label) + reqHtml + '</label>' +
+                '<input type="text" class="form-input" id="field_' + key + '"' + (required ? ' required' : '') +
+                ' placeholder="' + escHtml(placeholder || '') + '" data-field-key="' + key + '"></div>';
+        }
+        function dateInput(key, label, required) {
+            var reqHtml = required ? '<span class="req">*</span>' : '';
+            return '<div class="form-group"><label class="form-label">' + escHtml(label) + reqHtml + '</label>' +
+                '<input type="date" class="form-input" id="field_' + key + '"' + (required ? ' required' : '') +
+                ' data-field-key="' + key + '"></div>';
+        }
+        function textareaInput(key, label, required, placeholder) {
+            var reqHtml = required ? '<span class="req">*</span>' : '';
+            return '<div class="form-group"><label class="form-label">' + escHtml(label) + reqHtml + '</label>' +
+                '<textarea class="form-textarea" id="field_' + key + '"' + (required ? ' required' : '') +
+                ' placeholder="' + escHtml(placeholder || '') + '" data-field-key="' + key + '"></textarea></div>';
+        }
+        function selectInput(key, label, required, options) {
+            var reqHtml = required ? '<span class="req">*</span>' : '';
+            var opts = options.map(function(o) {
+                return '<option value="' + escHtml(o) + '">' + (o || 'Select...') + '</option>';
+            }).join('');
+            return '<div class="form-group"><label class="form-label">' + escHtml(label) + reqHtml + '</label>' +
+                '<select class="form-select form-input" id="field_' + key + '"' + (required ? ' required' : '') +
+                ' data-field-key="' + key + '">' + opts + '</select></div>';
+        }
+        function fileInput(key, label, required) {
+            var reqHtml = required ? '<span class="req">*</span>' : '';
+            return '<div class="form-group"><label class="form-label">' + escHtml(label) + reqHtml + '</label>' +
+                '<input type="file" class="form-input" id="field_' + key + '" accept="image/*"' +
+                (required ? ' required' : '') + ' data-field-key="' + key + '"></div>';
+        }
+        function genderRadio(key, label, required) {
+            var reqHtml = required ? '<span class="req">*</span>' : '';
+            return '<div class="form-group"><label class="form-label">' + escHtml(label) + reqHtml + '</label>' +
+                '<div class="radio-group">' +
+                '<div class="radio-option"><input type="radio" name="field_' + key + '" id="field_' + key + '_male" value="male"' + (required ? ' required' : '') + '><label for="field_' + key + '_male">Male</label></div>' +
+                '<div class="radio-option"><input type="radio" name="field_' + key + '" id="field_' + key + '_female" value="female"><label for="field_' + key + '_female">Female</label></div>' +
+                '<div class="radio-option"><input type="radio" name="field_' + key + '" id="field_' + key + '_other" value="other"><label for="field_' + key + '_other">Other</label></div>' +
+                '</div></div>';
+        }
+        function yesNoRadio(key, label, required) {
+            var reqHtml = required ? '<span class="req">*</span>' : '';
+            return '<div class="form-group"><label class="form-label">' + escHtml(label) + reqHtml + '</label>' +
+                '<div class="radio-group">' +
+                '<div class="radio-option"><input type="radio" name="field_' + key + '" id="field_' + key + '_yes" value="yes"' + (required ? ' required' : '') + '><label for="field_' + key + '_yes">Yes</label></div>' +
+                '<div class="radio-option"><input type="radio" name="field_' + key + '" id="field_' + key + '_no" value="no"><label for="field_' + key + '_no">No</label></div>' +
+                '</div></div>';
+        }
+        function medicalConditionsCheckbox(key, label, required) {
+            var conditions = ['Diabetes','Hypertension','Heart Disease','Blood Thinners','Allergies','Pregnancy','Asthma'];
+            var items = conditions.map(function(c) {
+                var val = c.toLowerCase().replace(/\s+/g, '_');
+                return '<label class="checkbox-item" onclick="toggleCheckbox(this)"><input type="checkbox" value="' + val + '"> <span>' + c + '</span></label>';
+            }).join('');
+            items += '<label class="checkbox-item" onclick="toggleCheckbox(this)"><input type="checkbox" value="other" id="otherCheckbox"> <span>Other</span></label>';
+            return '<div class="form-group"><label class="form-label">' + escHtml(label) + (required ? '<span class="req">*</span>' : '') + '</label>' +
+                '<div class="checkbox-grid" id="medicalCheckboxes" data-field-key="' + key + '">' + items + '</div>' +
+                '<div class="other-text-wrapper" id="otherTextWrapper"><input type="text" class="form-input" id="otherMedicalText" placeholder="Please specify other conditions..."></div></div>';
+        }
+        function consentCheckbox(key, text, required) {
+            return '<div class="form-group"><label class="consent-checkbox" onclick="toggleConsent(this)"><input type="checkbox" id="field_' + key + '"' +
+                (required ? ' required' : '') + ' data-field-key="' + key + '"> <span>' + escHtml(text) + '</span></label></div>';
         }
 
+        // Custom field renderer based on field_type
+        function renderCustomField(cf) {
+            var key = 'custom_' + cf.id;
+            var reqHtml = cf.required ? '<span class="req">*</span>' : '';
+            var label = escHtml(cf.field_name);
+            if (cf.field_type === 'text') {
+                return '<div class="form-group"><label class="form-label">' + label + reqHtml + '</label>' +
+                    '<input type="text" class="form-input" id="field_' + key + '"' + (cf.required ? ' required' : '') +
+                    ' data-custom-field-id="' + cf.id + '" placeholder="Enter ' + label.toLowerCase() + '"></div>';
+            } else if (cf.field_type === 'integer' || cf.field_type === 'number') {
+                return '<div class="form-group"><label class="form-label">' + label + reqHtml + '</label>' +
+                    '<input type="number" class="form-input" id="field_' + key + '"' + (cf.required ? ' required' : '') +
+                    ' data-custom-field-id="' + cf.id + '" placeholder="Enter number"></div>';
+            } else if (cf.field_type === 'date') {
+                return '<div class="form-group"><label class="form-label">' + label + reqHtml + '</label>' +
+                    '<input type="date" class="form-input" id="field_' + key + '"' + (cf.required ? ' required' : '') +
+                    ' data-custom-field-id="' + cf.id + '"></div>';
+            } else {
+                return '<div class="form-group"><label class="form-label">' + label + reqHtml + '</label>' +
+                    '<textarea class="form-textarea" id="field_' + key + '"' + (cf.required ? ' required' : '') +
+                    ' data-custom-field-id="' + cf.id + '" placeholder="Enter ' + label.toLowerCase() + '"></textarea></div>';
+            }
+        }
+
+        function escHtml(str) {
+            var div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function buildFormSections(enabledFields, customFields) {
+            var container = document.getElementById('dynamicFields');
+            container.innerHTML = '';
+
+            // Group fields by their group
+            var groups = {};
+            var groupOrder = ['Personal Information', 'Contact Information', 'Emergency Contact', 'Medical History', 'Insurance', 'Other', 'Consent'];
+            Object.keys(enabledFields).forEach(function(key) {
+                var f = enabledFields[key];
+                var g = f.group || 'Other';
+                if (!groups[g]) groups[g] = [];
+                groups[g].push({ key: key, field: f });
+            });
+
+            var sectionNum = 1;
+
+            groupOrder.forEach(function(groupName) {
+                if (!groups[groupName] || groups[groupName].length === 0) return;
+
+                var allOptional = groups[groupName].every(function(item) { return !item.field.required; });
+                var cardHtml = '<div class="form-card"><div class="section-title"><span class="section-number">' + sectionNum + '</span>' +
+                    escHtml(groupName);
+                if (allOptional) {
+                    cardHtml += '<span class="optional-badge">Optional</span>';
+                }
+                cardHtml += '</div>';
+
+                groups[groupName].forEach(function(item) {
+                    var renderer = FIELD_RENDERERS[item.key];
+                    if (renderer) {
+                        cardHtml += renderer(item.field, item.key);
+                    } else {
+                        // Fallback: text input
+                        cardHtml += textInput(item.key, item.field.label, item.field.required, '');
+                    }
+                });
+
+                cardHtml += '</div>';
+                container.innerHTML += cardHtml;
+                sectionNum++;
+            });
+
+            // Custom fields section
+            if (customFields && customFields.length > 0) {
+                var customHtml = '<div class="form-card"><div class="section-title"><span class="section-number">' + sectionNum + '</span>Additional Information</div>';
+                customFields.forEach(function(cf) {
+                    customHtml += renderCustomField(cf);
+                });
+                customHtml += '</div>';
+                container.innerHTML += customHtml;
+                sectionNum++;
+            }
+
+            // Update signature section number
+            document.getElementById('sigSectionNum').textContent = sectionNum;
+        }
+
+        // ── Load form data ──
         fetch('/api/forms/' + token)
             .then(function(r) {
-                if (r.status === 404) {
-                    showState(stateInvalid);
-                    throw new Error('invalid');
-                }
+                if (r.status === 404) { showState(stateInvalid); throw new Error('invalid'); }
                 return r.json();
             })
             .then(function(data) {
-                if (data.error) {
-                    showState(stateInvalid);
-                    return;
-                }
-                if (data.already_submitted) {
-                    showState(stateAlreadySubmitted);
-                    return;
-                }
+                if (data.error) { showState(stateInvalid); return; }
+                if (data.already_submitted) { showState(stateAlreadySubmitted); return; }
 
-                // Show form
                 showState(stateForm);
 
-                // Re-init signature canvas now that form is visible
+                // Build dynamic fields
+                var enabledFields = data.enabled_fields || {};
+                var customFields = data.custom_fields || [];
+
+                // If no config returned (fallback for old forms), show default fields
+                if (Object.keys(enabledFields).length === 0) {
+                    enabledFields = {
+                        'full_name': { label: 'Full Name', group: 'Personal Information', required: true },
+                        'date_of_birth': { label: 'Date of Birth', group: 'Personal Information', required: true },
+                        'gender': { label: 'Gender', group: 'Personal Information', required: true },
+                        'medical_conditions': { label: 'Medical Conditions', group: 'Medical History', required: false },
+                        'current_medications': { label: 'Current Medications', group: 'Medical History', required: false },
+                        'drug_allergies': { label: 'Known Allergies', group: 'Medical History', required: false },
+                        'insurance_provider': { label: 'Insurance Provider', group: 'Insurance', required: false },
+                        'insurance_policy': { label: 'Policy Number', group: 'Insurance', required: false }
+                    };
+                }
+
+                buildFormSections(enabledFields, customFields);
+
+                // Re-init signature canvas
                 setTimeout(function() { resizeCanvas(); }, 50);
 
                 // Pre-fill name
                 if (data.full_name) {
-                    document.getElementById('fullName').value = data.full_name;
+                    var nameField = document.getElementById('field_full_name');
+                    if (nameField) nameField.value = data.full_name;
                 }
 
                 // Show appointment info
@@ -781,30 +568,30 @@
                 }
             })
             .catch(function(err) {
-                if (err.message !== 'invalid') {
-                    showState(stateInvalid);
-                }
+                if (err.message !== 'invalid') showState(stateInvalid);
             });
 
         // ── Checkbox toggle styling ──
         window.toggleCheckbox = function(el) {
             setTimeout(function() {
                 var cb = el.querySelector('input[type="checkbox"]');
-                if (cb.checked) {
-                    el.classList.add('checked');
-                } else {
-                    el.classList.remove('checked');
-                }
-                // Show/hide "Other" text field
+                if (cb.checked) el.classList.add('checked');
+                else el.classList.remove('checked');
                 if (cb.id === 'otherCheckbox') {
                     var wrapper = document.getElementById('otherTextWrapper');
-                    if (cb.checked) {
-                        wrapper.classList.add('visible');
-                        document.getElementById('otherMedicalText').focus();
-                    } else {
-                        wrapper.classList.remove('visible');
+                    if (wrapper) {
+                        if (cb.checked) { wrapper.classList.add('visible'); document.getElementById('otherMedicalText').focus(); }
+                        else wrapper.classList.remove('visible');
                     }
                 }
+            }, 10);
+        };
+
+        window.toggleConsent = function(el) {
+            setTimeout(function() {
+                var cb = el.querySelector('input[type="checkbox"]');
+                if (cb.checked) el.classList.add('checked');
+                else el.classList.remove('checked');
             }, 10);
         };
 
@@ -828,76 +615,28 @@
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
         }
-
-        // Resize on load and on window resize
         resizeCanvas();
-        window.addEventListener('resize', function() {
-            if (!hasDrawn) resizeCanvas();
-        });
+        window.addEventListener('resize', function() { if (!hasDrawn) resizeCanvas(); });
 
         function getPos(e) {
             var rect = canvas.getBoundingClientRect();
-            if (e.touches && e.touches.length > 0) {
-                return {
-                    x: e.touches[0].clientX - rect.left,
-                    y: e.touches[0].clientY - rect.top
-                };
-            }
-            return {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
-            };
+            if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
         }
+        function startDraw(e) { isDrawing = true; hasDrawn = true; sigContainer.classList.add('has-signature'); var pos = getPos(e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y); }
+        function draw(e) { if (!isDrawing) return; var pos = getPos(e); ctx.lineTo(pos.x, pos.y); ctx.stroke(); }
+        function stopDraw() { isDrawing = false; }
 
-        function startDraw(e) {
-            isDrawing = true;
-            hasDrawn = true;
-            sigContainer.classList.add('has-signature');
-            var pos = getPos(e);
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
-        }
-
-        function draw(e) {
-            if (!isDrawing) return;
-            var pos = getPos(e);
-            ctx.lineTo(pos.x, pos.y);
-            ctx.stroke();
-        }
-
-        function stopDraw() {
-            isDrawing = false;
-        }
-
-        // Mouse events
         canvas.addEventListener('mousedown', startDraw);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stopDraw);
         canvas.addEventListener('mouseleave', stopDraw);
-
-        // Touch events
-        function startDrawTouch(e) {
-            e.preventDefault();
-            startDraw(e);
-        }
-        function drawTouch(e) {
-            e.preventDefault();
-            draw(e);
-        }
-
-        canvas.addEventListener('touchstart', startDrawTouch, { passive: false });
-        canvas.addEventListener('touchmove', drawTouch, { passive: false });
+        canvas.addEventListener('touchstart', function(e) { e.preventDefault(); startDraw(e); }, { passive: false });
+        canvas.addEventListener('touchmove', function(e) { e.preventDefault(); draw(e); }, { passive: false });
         canvas.addEventListener('touchend', stopDraw);
 
-        // Get signature as base64
-        function getSignatureData() {
-            return canvas.toDataURL('image/png');
-        }
-
-        function isCanvasBlank() {
-            return !hasDrawn;
-        }
-
+        function getSignatureData() { return canvas.toDataURL('image/png'); }
+        function isCanvasBlank() { return !hasDrawn; }
         window.clearSignature = function() {
             var rect = canvas.getBoundingClientRect();
             var dpr = window.devicePixelRatio || 1;
@@ -913,59 +652,74 @@
         form.addEventListener('submit', function(e) {
             e.preventDefault();
 
-            // Validate signature
             if (isCanvasBlank()) {
                 showToast('Please provide your digital signature', 'error');
                 document.getElementById('sigContainer').scrollIntoView({ behavior: 'smooth', block: 'center' });
                 return;
             }
 
-            // Validate required fields
-            var fullName = document.getElementById('fullName').value.trim();
-            var dob = document.getElementById('dateOfBirth').value;
-            if (!fullName) {
-                showToast('Please enter your full name', 'error');
-                return;
-            }
-            if (!dob) {
-                showToast('Please enter your date of birth', 'error');
-                return;
-            }
+            // Collect all field values
+            var submitData = {};
 
-            // Collect medical history
-            var medicalChecked = [];
-            var checkboxes = document.querySelectorAll('#medicalCheckboxes input[type="checkbox"]:checked');
-            checkboxes.forEach(function(cb) {
-                medicalChecked.push(cb.value);
-            });
-            var otherText = '';
-            if (document.getElementById('otherCheckbox').checked) {
-                otherText = document.getElementById('otherMedicalText').value.trim();
-            }
-
-            // Build medical history object
-            var medicalHistory = JSON.stringify({
-                conditions: medicalChecked,
-                other_text: otherText
+            // Standard text/date/select fields
+            var inputs = form.querySelectorAll('[data-field-key]');
+            inputs.forEach(function(el) {
+                var key = el.getAttribute('data-field-key');
+                if (el.type === 'checkbox') {
+                    submitData[key] = el.checked ? '1' : '0';
+                } else if (el.type === 'file') {
+                    // Skip file for now (would need FormData)
+                } else {
+                    submitData[key] = el.value.trim();
+                }
             });
 
-            // Get gender
-            var genderEl = document.querySelector('input[name="gender"]:checked');
-            var gender = genderEl ? genderEl.value : '';
+            // Radio fields (gender, yes/no)
+            var radios = form.querySelectorAll('input[type="radio"]:checked');
+            radios.forEach(function(r) {
+                var name = r.name; // field_gender, field_bleeding_disorders etc
+                var key = name.replace('field_', '');
+                submitData[key] = r.value;
+            });
 
-            var submitData = {
-                full_name: fullName,
-                date_of_birth: dob,
-                gender: gender,
-                medical_history: medicalHistory,
-                medications: document.getElementById('medications').value.trim(),
-                allergies: document.getElementById('allergiesField').value.trim(),
-                insurance_provider: document.getElementById('insuranceProvider').value.trim(),
-                insurance_policy: document.getElementById('insurancePolicy').value.trim(),
-                signature_data: getSignatureData()
-            };
+            // Medical conditions checkbox
+            var medCheckboxes = document.getElementById('medicalCheckboxes');
+            if (medCheckboxes) {
+                var checked = [];
+                medCheckboxes.querySelectorAll('input[type="checkbox"]:checked').forEach(function(cb) {
+                    checked.push(cb.value);
+                });
+                var otherText = '';
+                var otherCb = document.getElementById('otherCheckbox');
+                if (otherCb && otherCb.checked) {
+                    var otherInput = document.getElementById('otherMedicalText');
+                    otherText = otherInput ? otherInput.value.trim() : '';
+                }
+                submitData['medical_conditions'] = JSON.stringify({ conditions: checked, other_text: otherText });
+            }
 
-            // Disable button
+            // Custom fields
+            var customData = {};
+            var customInputs = form.querySelectorAll('[data-custom-field-id]');
+            customInputs.forEach(function(el) {
+                var cfId = el.getAttribute('data-custom-field-id');
+                customData[cfId] = el.value.trim();
+            });
+            if (Object.keys(customData).length > 0) {
+                submitData['custom_fields'] = JSON.stringify(customData);
+            }
+
+            // Legacy field mapping for backend compatibility
+            submitData['full_name'] = submitData['full_name'] || '';
+            submitData['date_of_birth'] = submitData['date_of_birth'] || '';
+            submitData['gender'] = submitData['gender'] || '';
+            submitData['medical_history'] = submitData['medical_conditions'] || '{}';
+            submitData['medications'] = submitData['current_medications'] || '';
+            submitData['allergies'] = submitData['drug_allergies'] || '';
+            submitData['insurance_provider'] = submitData['insurance_provider'] || '';
+            submitData['insurance_policy'] = submitData['insurance_policy'] || '';
+            submitData['signature_data'] = getSignatureData();
+
             var btn = document.getElementById('submitBtn');
             btn.disabled = true;
             btn.innerHTML = '<span class="btn-spinner"></span> Submitting...';
@@ -993,22 +747,14 @@
             });
         });
 
-        // ── Toast Notification ──
         function showToast(msg, type) {
-            // Remove existing toasts
             var existing = document.querySelectorAll('.toast');
             existing.forEach(function(t) { t.remove(); });
-
             var toast = document.createElement('div');
             toast.className = 'toast toast-' + type;
             toast.textContent = msg;
             document.body.appendChild(toast);
-
-            // Trigger animation
-            requestAnimationFrame(function() {
-                toast.classList.add('show');
-            });
-
+            requestAnimationFrame(function() { toast.classList.add('show'); });
             setTimeout(function() {
                 toast.classList.remove('show');
                 setTimeout(function() { toast.remove(); }, 400);

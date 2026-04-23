@@ -217,7 +217,8 @@ def process_second_reminders():
         try:
             email_svc.send_recall_email(
                 camp["patient_email"], camp["patient_name"],
-                camp["treatment_type"], message, booking_url
+                camp["treatment_type"], message, booking_url,
+                admin_id=camp.get("admin_id"),
             )
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             conn.execute(
@@ -301,7 +302,8 @@ def process_birthday_greetings():
         try:
             email_svc.send_recall_email(
                 patient["email"], patient["name"],
-                "Birthday Special", message, booking_url
+                "Birthday Special", message, booking_url,
+                admin_id=patient["admin_id"],
             )
             logger.info(f"Birthday greeting sent to {patient['email']}")
         except Exception as e:
@@ -361,7 +363,8 @@ def process_reengagement():
         try:
             email_svc.send_recall_email(
                 patient["email"], patient["name"],
-                "We Miss You", message, booking_url
+                "We Miss You", message, booking_url,
+                admin_id=patient["admin_id"],
             )
             logger.info(f"Re-engagement sent to {patient['email']}")
         except Exception as e:

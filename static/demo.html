@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Free Demo | ChatGeniusX AI Chatbot</title>
+    <meta name="description" content="Try our AI chatbot free. Book appointments, capture leads, and see how it works for your business.">
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        html{font-size:90%}
+        *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#050710;--card:rgba(255,255,255,0.028);--border:rgba(255,255,255,0.06);--purple:#8b5cf6;--green:#34d399;--text:#f1f5f9;--text-muted:#8b95a8;--text-dim:#64748b;--gradient:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);--ease:cubic-bezier(0.22,1,0.36,1)}
+        body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);line-height:1.7;overflow-x:hidden}
+        body::after{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:0.018;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+        .aurora{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+        .aurora div{position:absolute;border-radius:50%;filter:blur(120px);opacity:0.1;animation:aurMove 20s ease-in-out infinite}
+        .aurora div:nth-child(1){width:60vw;height:60vw;top:-20%;left:-15%;background:conic-gradient(from 0deg,#8b5cf6,#6366f1,#3b82f6,#8b5cf6);animation-duration:24s}
+        .aurora div:nth-child(2){width:50vw;height:50vw;top:30%;right:-15%;background:conic-gradient(from 120deg,#3b82f6,#06b6d4,#8b5cf6);animation-duration:30s;animation-delay:-8s}
+        @keyframes aurMove{0%{transform:translate(0,0) rotate(0) scale(1)}33%{transform:translate(40px,-30px) rotate(120deg) scale(1.06)}66%{transform:translate(-30px,20px) rotate(240deg) scale(.95)}100%{transform:translate(0,0) rotate(360deg) scale(1)}}
+        nav{position:fixed;top:0;width:100%;z-index:1000;background:rgba(5,7,16,0.85);backdrop-filter:blur(24px);border-bottom:1px solid var(--border);padding:0 2rem}
+        .nav-inner{max-width:1200px;margin:auto;display:flex;align-items:center;justify-content:space-between;height:72px}
+        .logo{font-size:1.5rem;font-weight:800;letter-spacing:-.5px;text-decoration:none;color:var(--text)}.logo span{background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .nav-links{display:flex;gap:2rem;list-style:none;align-items:center}
+        .nav-links a{color:var(--text-muted);text-decoration:none;font-size:.88rem;font-weight:500;transition:color .3s}.nav-links a:hover{color:#fff}
+        .nav-btn{background:var(--gradient);color:#fff;border:none;padding:.6rem 1.6rem;border-radius:50px;font-weight:600;cursor:pointer;font-size:.88rem;text-decoration:none;box-shadow:0 4px 20px rgba(139,92,246,0.25)}
+        section{padding:5rem 2rem;position:relative}.container{max-width:1140px;margin:auto}
+        .section-label{text-transform:uppercase;font-size:.7rem;letter-spacing:4px;font-weight:700;display:inline-block;padding:.4rem 1.2rem;border-radius:50px;background:rgba(139,92,246,0.08);color:#c4b5fd;border:1px solid rgba(139,92,246,0.12);margin-bottom:1rem}
+        .section-title{font-size:clamp(2rem,4.5vw,3rem);font-weight:800;margin-bottom:1rem;letter-spacing:-.03em;line-height:1.15}
+        .section-sub{color:var(--text-muted);max-width:620px;margin:0 auto 2rem;font-size:1.05rem;line-height:1.85}
+        .gradient-text{background:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .btn-primary{display:inline-flex;align-items:center;gap:.5rem;color:#fff;padding:.95rem 2.4rem;border-radius:50px;font-weight:700;text-decoration:none;font-size:1rem;background:var(--gradient);box-shadow:0 4px 25px rgba(139,92,246,0.3);transition:all .4s var(--ease);border:none;cursor:pointer;font-family:inherit}
+        .btn-primary:hover{transform:translateY(-3px);box-shadow:0 8px 35px rgba(139,92,246,0.4)}
+        .btn-secondary{display:inline-flex;align-items:center;gap:.5rem;color:#c4b5fd;padding:.95rem 2.4rem;border-radius:50px;font-weight:600;text-decoration:none;font-size:1rem;border:1px solid rgba(139,92,246,0.2);background:rgba(139,92,246,0.04);transition:all .35s var(--ease)}
+        .btn-secondary:hover{background:rgba(139,92,246,0.1);transform:translateY(-2px)}
+
+        /* Hero */
+        .demo-hero{text-align:center;padding-top:120px;padding-bottom:3rem}
+
+        /* Industry Tabs */
+        .industry-tabs{display:flex;justify-content:center;gap:.75rem;margin-bottom:2rem;flex-wrap:wrap}
+        .industry-tab{padding:.7rem 1.5rem;border-radius:50px;font-size:.9rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--text-muted);transition:all .3s var(--ease);font-family:inherit}
+        .industry-tab:hover{border-color:rgba(139,92,246,0.3);color:var(--text)}
+        .industry-tab.active{background:var(--gradient);color:#fff;border-color:transparent;box-shadow:0 4px 20px rgba(139,92,246,0.3)}
+
+        /* Chat embed */
+        .demo-chat-wrap{max-width:500px;margin:0 auto}
+        .demo-chat{background:rgba(10,14,26,0.9);border-radius:24px;overflow:hidden;border:1px solid rgba(139,92,246,0.15);box-shadow:0 40px 80px rgba(0,0,0,0.5)}
+        .dc-header{background:linear-gradient(135deg,rgba(139,92,246,0.08),rgba(99,102,241,0.04));padding:1.1rem 1.5rem;display:flex;align-items:center;gap:.75rem;border-bottom:1px solid var(--border)}
+        .dc-dot{width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 10px rgba(52,211,153,0.5)}
+        .dc-header-info h4{font-size:.9rem;font-weight:700}.dc-header-info p{font-size:.72rem;color:var(--text-dim)}
+        .dc-badge{background:rgba(251,191,36,0.12);color:#fbbf24;font-size:.65rem;font-weight:700;padding:.15rem .5rem;border-radius:50px;margin-left:auto}
+        .dc-body{height:400px;overflow-y:auto;padding:1.25rem;display:flex;flex-direction:column;gap:.6rem;scroll-behavior:smooth}
+        .dc-body::-webkit-scrollbar{width:3px}.dc-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.06);border-radius:3px}
+        .dc-msg{max-width:82%;padding:.75rem 1.1rem;border-radius:16px;font-size:.88rem;line-height:1.7}
+        .dc-msg.bot{background:rgba(255,255,255,0.04);align-self:flex-start;border:1px solid rgba(255,255,255,0.04)}
+        .dc-msg.user{background:linear-gradient(135deg,#7c3aed,#6d28d9);align-self:flex-end}
+        .dc-quick{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem}
+        .dc-quick button{background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.15);border-radius:50px;padding:.3rem .7rem;font-size:.75rem;color:#c4b5fd;cursor:pointer;font-family:inherit;transition:all .2s}
+        .dc-quick button:hover{background:rgba(139,92,246,0.15);color:#fff}
+        .dc-input{display:flex;gap:.5rem;padding:.75rem 1rem;border-top:1px solid var(--border);background:rgba(255,255,255,0.02)}
+        .dc-input input{flex:1;background:none;border:none;color:var(--text);font-size:.88rem;font-family:inherit;outline:none}
+        .dc-input input::placeholder{color:var(--text-dim)}
+        .dc-input button{background:var(--gradient);border:none;color:#fff;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:1rem}
+
+        /* What Happens Next */
+        .next-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:2rem}
+        .next-card{background:var(--card);border-radius:20px;padding:2rem 1.5rem;border:1px solid var(--border);text-align:center;transition:all .4s var(--ease)}
+        .next-card:hover{transform:translateY(-4px);border-color:rgba(139,92,246,0.2)}
+        .next-icon{font-size:2.5rem;margin-bottom:1rem}
+        .next-card h3{font-size:1rem;font-weight:700;margin-bottom:.4rem}
+        .next-card p{color:var(--text-muted);font-size:.85rem;line-height:1.7}
+
+        /* Features */
+        .feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;margin-top:2rem}
+        .feat-card{background:var(--card);border-radius:16px;padding:1.5rem;border:1px solid var(--border);text-align:center;transition:all .35s var(--ease)}
+        .feat-card:hover{border-color:rgba(139,92,246,0.2);transform:translateY(-3px)}
+        .feat-icon{font-size:2rem;margin-bottom:.5rem}
+        .feat-card h4{font-size:.9rem;font-weight:700;margin-bottom:.3rem}
+        .feat-card p{color:var(--text-muted);font-size:.8rem}
+
+        /* CTA */
+        .cta-box{background:var(--card);border-radius:32px;padding:4rem 2.5rem;border:1px solid rgba(139,92,246,0.1);text-align:center;position:relative;overflow:hidden}
+        .cta-box::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 20%,rgba(139,92,246,0.06),transparent 50%);pointer-events:none}
+
+        footer{padding:2rem;border-top:1px solid var(--border);text-align:center;background:rgba(5,7,16,0.5)}
+        .footer-links{display:flex;justify-content:center;gap:2rem;flex-wrap:wrap;margin-bottom:.75rem}
+        .footer-links a{color:var(--text-dim);font-size:.85rem;text-decoration:none}.footer-links a:hover{color:var(--text)}
+        .footer-copy{color:var(--text-dim);font-size:.8rem}
+
+        @media(max-width:900px){.nav-links{display:none}.next-grid,.feat-grid{grid-template-columns:1fr}.demo-hero h1{font-size:2rem}}
+    </style>
+</head>
+<body>
+<div class="aurora"><div></div><div></div></div>
+
+<nav><div class="nav-inner">
+    <a href="/" class="logo">Chat<span>GeniusX</span></a>
+    <ul class="nav-links">
+        <li><a href="/">Home</a></li>
+        <li><a href="/#features">Features</a></li>
+        <li><a href="/pricing-plans">Pricing</a></li>
+        <li><a href="/demo">Demo</a></li>
+        <li><a href="/case-studies">Case Studies</a></li>
+        <li><a href="/blog">Blog</a></li>
+        <li><a href="/login">Login</a></li>
+        <li><a href="/login?signup=1" class="nav-btn">Start Free</a></li>
+    </ul>
+</div></nav>
+
+<!-- Hero -->
+<section class="demo-hero">
+    <div class="container">
+        <div class="section-label">Live Demo</div>
+        <h1 class="section-title">Try ChatGeniusX Live — <span class="gradient-text">No Account Required</span></h1>
+        <p class="section-sub">Book a demo appointment in under 60 seconds. See exactly what your customers will experience.</p>
+    </div>
+</section>
+
+<!-- Industry Selector + Chat -->
+<section style="padding-top:0">
+    <div class="container" style="text-align:center">
+        <div class="industry-tabs">
+            <button class="industry-tab active" onclick="switchIndustry('dental',this)">&#129657; Dental</button>
+            <button class="industry-tab" onclick="switchIndustry('medical',this)">&#127973; Medical</button>
+            <button class="industry-tab" onclick="switchIndustry('salon',this)">&#128136; Salon</button>
+            <button class="industry-tab" onclick="switchIndustry('consulting',this)">&#128188; Consulting</button>
+        </div>
+
+        <div class="demo-chat-wrap">
+            <div class="demo-chat">
+                <div class="dc-header">
+                    <div class="dc-dot"></div>
+                    <div class="dc-header-info">
+                        <h4 id="dcBizName">Smile Dental Clinic</h4>
+                        <p>Online — typically replies instantly</p>
+                    </div>
+                    <span class="dc-badge">DEMO</span>
+                </div>
+                <div class="dc-body" id="dcBody"></div>
+                <div class="dc-input">
+                    <input type="text" id="dcInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendDemoMsg()">
+                    <button onclick="sendDemoMsg()">&#10148;</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- What Happens Next -->
+<section style="text-align:center">
+    <div class="container">
+        <div class="section-label">After Booking</div>
+        <h2 class="section-title">What Happens Next</h2>
+        <p class="section-sub">Here's the complete journey from chat to confirmed appointment.</p>
+        <div class="next-grid">
+            <div class="next-card">
+                <div class="next-icon">&#128231;</div>
+                <h3>Confirmation Email</h3>
+                <p>Patient receives instant booking confirmation with appointment details, doctor info, and pre-visit form link.</p>
+            </div>
+            <div class="next-card">
+                <div class="next-icon">&#128197;</div>
+                <h3>Doctor Sees Booking</h3>
+                <p>The appointment appears in the doctor's portal immediately. They can view patient details and prepare accordingly.</p>
+            </div>
+            <div class="next-card">
+                <div class="next-icon">&#128276;</div>
+                <h3>Smart Reminders Sent</h3>
+                <p>Automated reminders go out at 48h, 24h, and 2h before the appointment to minimize no-shows.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Feature Highlights -->
+<section style="text-align:center">
+    <div class="container">
+        <div class="section-label">Features</div>
+        <h2 class="section-title">Powered by Intelligent AI</h2>
+        <div class="feat-grid">
+            <div class="feat-card"><div class="feat-icon">&#129302;</div><h4>AI Replies</h4><p>Context-aware responses in 10+ languages</p></div>
+            <div class="feat-card"><div class="feat-icon">&#128197;</div><h4>Smart Booking</h4><p>Auto-scheduling with calendar sync</p></div>
+            <div class="feat-card"><div class="feat-icon">&#127919;</div><h4>Lead Capture</h4><p>Auto-collect visitor info and score leads</p></div>
+            <div class="feat-card"><div class="feat-icon">&#128276;</div><h4>Reminders</h4><p>Multi-tier reminders reduce no-shows</p></div>
+            <div class="feat-card"><div class="feat-icon">&#127760;</div><h4>Multi-Language</h4><p>Auto-detect and reply in visitor's language</p></div>
+            <div class="feat-card"><div class="feat-icon">&#128200;</div><h4>Analytics</h4><p>Real-time booking and conversion data</p></div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section style="text-align:center">
+    <div class="container">
+        <div class="cta-box">
+            <h2 class="section-title">Ready to Automate Your Bookings?</h2>
+            <p class="section-sub" style="margin-bottom:2rem">Start your free 14-day trial. No credit card required. Setup in under 10 minutes.</p>
+            <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+                <a href="/login?signup=1" class="btn-primary">Start Free Trial &rarr;</a>
+                <a href="/pricing-plans" class="btn-secondary">View Pricing</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<footer>
+    <div class="footer-links">
+        <a href="/">Home</a><a href="/pricing-plans">Pricing</a><a href="/case-studies">Case Studies</a>
+        <a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/refund">Refund</a>
+    </div>
+    <p class="footer-copy">&copy; 2026 ChatGeniusX. All rights reserved.</p>
+</footer>
+
+<script>
+var industries={
+    dental:{name:'Smile Dental Clinic',welcome:'Hi! Welcome to Smile Dental Clinic. I can help you book an appointment, check our services, or answer questions.',services:['Cleaning — $99','Whitening — $199','Consultation — Free'],doctor:'Dr. Sarah Johnson',hours:'Mon-Fri 9AM-5PM',location:'123 Main St, Demo City'},
+    medical:{name:'Metro Family Medicine',welcome:'Hello! Welcome to Metro Family Medicine. I can help you schedule a visit, find a provider, or answer health questions.',services:['General Checkup — $120','Physical Exam — $180','Sick Visit — $95','Vaccination — $45'],doctor:'Dr. James Rodriguez',hours:'Mon-Fri 8AM-6PM, Sat 9AM-1PM',location:'456 Health Ave, Metro City'},
+    salon:{name:'Luxe Beauty Spa',welcome:'Hey there! Welcome to Luxe Beauty Spa. Ready to book your next appointment? I can help with services, pricing, or availability.',services:['Haircut & Style — $65','Facial Treatment — $89','Full Body Massage — $120','Manicure & Pedicure — $55'],doctor:'Maria Santos (Stylist)',hours:'Tue-Sat 10AM-7PM',location:'789 Beauty Blvd, Glamour City'},
+    consulting:{name:'Strategic Consulting Group',welcome:'Welcome to Strategic Consulting Group. I can help you schedule a discovery call, learn about our services, or get pricing info.',services:['Discovery Call — Free','Strategy Session — $250','Full Audit — $500','Monthly Retainer — $2,000/mo'],doctor:'Alex Chen (Consultant)',hours:'Mon-Fri 9AM-6PM',location:'101 Business Park, Innovation City'}
+};
+var currentIndustry='dental';
+var demoStep=0;
+var demoData={service:'',date:'',time:'',name:''};
+
+function switchIndustry(key,btn){
+    currentIndustry=key;
+    demoStep=0;
+    document.querySelectorAll('.industry-tab').forEach(function(t){t.classList.remove('active')});
+    btn.classList.add('active');
+    var ind=industries[key];
+    document.getElementById('dcBizName').textContent=ind.name;
+    var body=document.getElementById('dcBody');
+    body.innerHTML='';
+    addBotMsg(ind.welcome+'<div class="dc-quick"><button onclick="sendQuick(\'Book an appointment\')">Book Appointment</button><button onclick="sendQuick(\'Services & pricing\')">Services</button><button onclick="sendQuick(\'Hours & location\')">Hours</button></div>');
+}
+
+function addBotMsg(html){
+    var body=document.getElementById('dcBody');
+    var el=document.createElement('div');el.className='dc-msg bot';el.innerHTML=html;
+    body.appendChild(el);body.scrollTop=body.scrollHeight;
+}
+function addUserMsg(text){
+    var body=document.getElementById('dcBody');
+    var el=document.createElement('div');el.className='dc-msg user';el.textContent=text;
+    body.appendChild(el);body.scrollTop=body.scrollHeight;
+}
+function sendQuick(msg){document.getElementById('dcInput').value=msg;sendDemoMsg()}
+
+function sendDemoMsg(){
+    var input=document.getElementById('dcInput');
+    var msg=input.value.trim();if(!msg)return;
+    input.value='';
+    addUserMsg(msg);
+    var ind=industries[currentIndustry];
+    var lower=msg.toLowerCase();
+
+    setTimeout(function(){
+        if(demoStep===1){
+            var svcIdx=parseInt(msg)-1;
+            demoData.service=svcIdx>=0&&svcIdx<ind.services.length?ind.services[svcIdx]:ind.services[0];
+            demoStep=2;
+            addBotMsg('Great choice: <strong>'+demoData.service+'</strong> with '+ind.doctor+'.<br><br>What date works for you? (e.g., "Tomorrow", "Monday")');
+        } else if(demoStep===2){
+            demoData.date=msg;demoStep=3;
+            addBotMsg('Perfect — '+demoData.date+'. What time?<br><br>Available: 9:00 AM, 10:30 AM, 1:00 PM, 2:30 PM, 4:00 PM');
+        } else if(demoStep===3){
+            demoData.time=msg;demoStep=4;
+            addBotMsg('Almost done! What\'s your name?');
+        } else if(demoStep===4){
+            demoData.name=msg;demoStep=0;
+            addBotMsg('&#9989; <strong>Booking Confirmed!</strong><br><br>&#128203; '+demoData.service+'<br>&#128104;&#8205;&#9877;&#65039; '+ind.doctor+'<br>&#128197; '+demoData.date+'<br>&#128336; '+demoData.time+'<br>&#128100; '+demoData.name+'<br>&#128205; '+ind.location+'<br><br>&#128231; Confirmation sent to demo@chatgeniusx.com<br><br>&#9889; <em>This was a demo — imagine this on YOUR website!</em><br><a href="/login?signup=1" style="color:#c4b5fd;font-weight:600">Start your free trial &rarr;</a>');
+        } else if(lower.includes('book')||lower.includes('appointment')||lower.includes('schedule')){
+            demoStep=1;
+            var svcList=ind.services.map(function(s,i){return(i+1)+'. '+s}).join('<br>');
+            addBotMsg('Let\'s book your appointment! Which service?<br><br>'+svcList);
+        } else if(lower.includes('service')||lower.includes('price')||lower.includes('cost')){
+            var svcList2=ind.services.map(function(s){return '• '+s}).join('<br>');
+            addBotMsg('Here are our services:<br><br>'+svcList2+'<br><br>Would you like to book any of these?<div class="dc-quick"><button onclick="sendQuick(\'Book an appointment\')">Book Now</button></div>');
+        } else if(lower.includes('hour')||lower.includes('location')||lower.includes('where')||lower.includes('open')){
+            addBotMsg('&#128336; Hours: '+ind.hours+'<br>&#128205; Location: '+ind.location+'<br><br>Would you like to book a visit?<div class="dc-quick"><button onclick="sendQuick(\'Book an appointment\')">Book Now</button></div>');
+        } else if(lower.includes('hello')||lower.includes('hi')){
+            addBotMsg('Hello! How can I help you today? I can book appointments, share pricing, or answer questions about '+ind.name+'.');
+        } else {
+            addBotMsg('I can help you with booking, services, pricing, hours, or location at '+ind.name+'. What would you like to know?<div class="dc-quick"><button onclick="sendQuick(\'Book an appointment\')">Book</button><button onclick="sendQuick(\'Services & pricing\')">Services</button></div>');
+        }
+    },700);
+}
+
+// Init
+switchIndustry('dental',document.querySelector('.industry-tab.active'));
+</script>
+</body>
+</html>

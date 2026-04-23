@@ -1,5 +1,6 @@
 flask
 flask-cors
+gunicorn
 torch
 transformers
 datasets
@@ -9,6 +10,7 @@ sentencepiece
 protobuf
 python-dotenv
 google-auth
+google-auth-oauthlib
 requests
 PyJWT
 cryptography
@@ -19,3 +21,8 @@ langdetect
 APScheduler
 SQLAlchemy
 Pillow
+openpyxl
+openai
+anthropic
+scikit-learn
+python-dateutil

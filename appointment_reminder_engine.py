@@ -20,8 +20,8 @@ BASE_URL = os.getenv("BASE_URL", "http://localhost:5000")
 
 # ── Scheduling ───────────────────────────────────────────────────────────────
 
-def _is_high_risk_patient(booking, admin_id):
-    """Check if patient has 4+ cancellations (cancelled + no-shows).
+def _is_high_risk_patient(booking, admin_id, threshold=4):
+    """Check if patient has threshold+ cancellations (cancelled + no-shows).
     Returns True if high risk."""
     patient_id = booking.get("patient_id")
     if patient_id:
@@ -33,7 +33,7 @@ def _is_high_risk_patient(booking, admin_id):
         conn.close()
         if row:
             total = (row["total_cancelled"] or 0) + (row["total_no_shows"] or 0)
-            return total >= 4
+            return total >= threshold
     # Fallback: check by email/phone from bookings table
     email = booking.get("customer_email", "")
     phone = booking.get("customer_phone", "")
@@ -53,7 +53,7 @@ def _is_high_risk_patient(booking, admin_id):
             ).fetchone()
             cancelled_count = row["c"] if row else 0
         conn.close()
-        return cancelled_count >= 4
+        return cancelled_count >= threshold
     return False
 
 
@@ -61,7 +61,7 @@ def schedule_reminders(booking_id, admin_id):
     """Schedule reminders for a booking based on cancellation risk.
 
     Normal patients: 24h reminder only.
-    High-risk patients (4+ cancellations/no-shows): 24h + 6h reminders.
+    High-risk patients (4+ cancellations/no-shows): 48h + 24h + 6h reminders.
 
     Reads the admin's reminder_config for quiet-hour boundaries.
     Creates reminder rows with ``status='pending'``.
@@ -78,14 +78,19 @@ def schedule_reminders(booking_id, admin_id):
     start_time = raw_time.split(" - ")[0].strip() if " - " in raw_time else raw_time.strip()
     appt_dt = datetime.strptime(f"{booking['date']} {start_time}", "%Y-%m-%d %I:%M %p")
 
-    # Determine cancellation risk
-    high_risk = _is_high_risk_patient(booking, admin_id)
+    # Determine cancellation risk (only if high-risk reminders are enabled)
+    high_risk_enabled = config.get("high_risk_enabled", 1)
+    high_risk_threshold = config.get("high_risk_threshold", 4)
+    high_risk = False
+    if high_risk_enabled:
+        high_risk = _is_high_risk_patient(booking, admin_id, threshold=high_risk_threshold)
     if high_risk:
-        print(f"[Reminders] Booking {booking_id}: HIGH RISK patient — scheduling 24h + 6h reminders")
+        print(f"[Reminders] Booking {booking_id}: HIGH RISK patient (threshold={high_risk_threshold}) — scheduling 48h + 24h + 6h reminders")
 
     # Build tiers based on risk level
     if high_risk:
         tiers = [
+            ("48h", 48, True),
             ("24h", 24, True),
             ("6h", 6, True),
         ]

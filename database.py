@@ -64,7 +64,10 @@ def init_db():
             admin_id INTEGER DEFAULT 0,
             token TEXT DEFAULT '',
             token_expires_at TIMESTAMP DEFAULT '',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            is_verified INTEGER DEFAULT 1,
+            verification_code TEXT DEFAULT '',
+            verification_code_expires TIMESTAMP DEFAULT ''
         );
 
         CREATE TABLE IF NOT EXISTS company_info (
@@ -157,6 +160,30 @@ def init_db():
             intent TEXT DEFAULT '',
             intent_confidence REAL DEFAULT 0,
             resulted_in_booking INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Checkout Sessions (for PayPal payment verification)
+        CREATE TABLE IF NOT EXISTS checkout_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            plan TEXT NOT NULL,
+            token TEXT NOT NULL UNIQUE,
+            transaction_id TEXT DEFAULT '',
+            used INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            activated_at TIMESTAMP DEFAULT ''
+        );
+
+        -- Admin Audit Log
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            user_name TEXT DEFAULT '',
+            user_email TEXT DEFAULT '',
+            action TEXT NOT NULL,
+            details TEXT DEFAULT '',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -552,6 +579,8 @@ def init_db():
             hours_before_third INTEGER DEFAULT 2,
             quiet_hours_start INTEGER DEFAULT 23,
             quiet_hours_end INTEGER DEFAULT 8,
+            high_risk_enabled INTEGER DEFAULT 1,
+            high_risk_threshold INTEGER DEFAULT 4,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -757,6 +786,35 @@ def init_db():
             UNIQUE(admin_id, feature_key)
         );
 
+        CREATE TABLE IF NOT EXISTS form_config (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER NOT NULL,
+            send_form_after_booking INTEGER DEFAULT 1,
+            one_time_form INTEGER DEFAULT 0,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(admin_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS form_fields_config (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER NOT NULL,
+            field_key TEXT NOT NULL,
+            enabled INTEGER DEFAULT 0,
+            required INTEGER DEFAULT 1,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(admin_id, field_key)
+        );
+
+        CREATE TABLE IF NOT EXISTS form_custom_fields (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER NOT NULL,
+            field_name TEXT NOT NULL,
+            field_type TEXT DEFAULT 'text',
+            required INTEGER DEFAULT 0,
+            sort_order INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
         -- Chatbot Customization
         CREATE TABLE IF NOT EXISTS chatbot_customization (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -783,7 +841,21 @@ def init_db():
             doctor_show_category INTEGER DEFAULT 0,
             calendar_style TEXT DEFAULT 'default',
             calendar_marker_color TEXT DEFAULT '#f87171',
+            launcher_bg TEXT DEFAULT '',
+            launcher_icon TEXT DEFAULT 'chat',
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (admin_id) REFERENCES users(id)
+        );
+
+        -- Active chatbot domains — tracks which domains have the chatbot embedded
+        CREATE TABLE IF NOT EXISTS chatbot_active_domains (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER NOT NULL,
+            domain TEXT NOT NULL,
+            first_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            is_active INTEGER DEFAULT 1,
+            UNIQUE(admin_id, domain),
             FOREIGN KEY (admin_id) REFERENCES users(id)
         );
 
@@ -954,6 +1026,11 @@ def init_db():
         ("recall_campaigns", "doctor_name", "TEXT DEFAULT ''"),
         # Followup booking tokens
         ("treatment_followups", "followup_token", "TEXT DEFAULT ''"),
+        ("users", "is_verified", "INTEGER DEFAULT 1"),
+        ("users", "verification_code", "TEXT DEFAULT ''"),
+        ("users", "verification_code_expires", "TIMESTAMP DEFAULT ''"),
+        ("reminder_config", "high_risk_enabled", "INTEGER DEFAULT 1"),
+        ("reminder_config", "high_risk_threshold", "INTEGER DEFAULT 4"),
     ]
     for table, col, col_type in migrations:
         try:
@@ -1971,16 +2048,34 @@ def _token_expiry():
 
 def create_user(name, email, password="", company="", provider="email", provider_id="", role="admin", specialty=""):
     import uuid as _uuid
+    import random
     conn = get_db()
     token = _generate_token()
     expires = _token_expiry()
     password_hash = _hash_password(password) if password else ""
     public_id = str(_uuid.uuid4())
+    # Email signups require verification; social auth is auto-verified
+    is_verified = 0 if provider == "email" else 1
+    verification_code = ""
+    verification_code_expires = ""
+    if not is_verified:
+        verification_code = str(random.randint(100000, 999999))
+        verification_code_expires = (datetime.now() + timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
+    # Check if email is already taken and give a specific error message
+    existing = conn.execute("SELECT provider FROM users WHERE email = ?", (email,)).fetchone()
+    if existing:
+        existing_provider = existing["provider"]
+        conn.close()
+        if existing_provider in ("google", "facebook", "apple"):
+            provider_name = existing_provider.capitalize()
+            return None, f"This email is already linked to a {provider_name} account. Please sign in with {provider_name} instead."
+        return None, "An account with this email already exists."
+
     try:
         conn.execute(
-            """INSERT INTO users (name, email, password_hash, company, role, plan, provider, provider_id, token, token_expires_at, specialty, public_id)
-               VALUES (?, ?, ?, ?, ?, 'free_trial', ?, ?, ?, ?, ?, ?)""",
-            (name, email, password_hash, company, role, provider, provider_id, token, expires, specialty, public_id),
+            """INSERT INTO users (name, email, password_hash, company, role, plan, provider, provider_id, token, token_expires_at, specialty, public_id, is_verified, verification_code, verification_code_expires)
+               VALUES (?, ?, ?, ?, ?, 'free_trial', ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (name, email, password_hash, company, role, provider, provider_id, token, expires, specialty, public_id, is_verified, verification_code, verification_code_expires),
         )
         conn.commit()
         user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
@@ -1989,6 +2084,52 @@ def create_user(name, email, password="", company="", provider="email", provider
     except sqlite3.IntegrityError:
         conn.close()
         return None, "An account with this email already exists."
+
+
+def verify_user_code(email, code):
+    """Verify the 6-digit signup code. Returns (user, error)."""
+    conn = get_db()
+    user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+    if not user:
+        conn.close()
+        return None, "Account not found."
+    user = dict(user)
+    if user.get("is_verified", 1) == 1:
+        conn.close()
+        return user, None  # Already verified
+    if user.get("verification_code") != code:
+        conn.close()
+        return None, "Invalid verification code."
+    if user.get("verification_code_expires"):
+        exp = datetime.strptime(user["verification_code_expires"], "%Y-%m-%d %H:%M:%S")
+        if datetime.now() > exp:
+            conn.close()
+            return None, "Verification code has expired. Please request a new one."
+    conn.execute("UPDATE users SET is_verified = 1, verification_code = '', verification_code_expires = '' WHERE id = ?", (user["id"],))
+    conn.commit()
+    user = conn.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
+    conn.close()
+    return dict(user), None
+
+
+def resend_verification_code(email):
+    """Generate a new verification code for an unverified user. Returns (user, code, error)."""
+    import random
+    conn = get_db()
+    user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+    if not user:
+        conn.close()
+        return None, None, "Account not found."
+    user = dict(user)
+    if user.get("is_verified", 1) == 1:
+        conn.close()
+        return user, None, "Account is already verified."
+    new_code = str(random.randint(100000, 999999))
+    new_expires = (datetime.now() + timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("UPDATE users SET verification_code = ?, verification_code_expires = ? WHERE id = ?", (new_code, new_expires, user["id"]))
+    conn.commit()
+    conn.close()
+    return user, new_code, None
 
 
 def get_user_by_id(user_id):
@@ -2115,8 +2256,9 @@ def set_user_admin_id(user_id, admin_id):
     conn.close()
 
 
-PLAN_COSTS = {"free_trial": 0, "basic": 99, "pro": 249, "agency": 599}
+PLAN_COSTS = {"free_trial": 0, "basic": 149, "pro": 349, "agency": 799}
 PLAN_MONTHLY_CONVERSATIONS = {"free_trial": 50, "basic": 700, "pro": 5000, "agency": 999999999}
+PLAN_MAX_CHATBOTS = {"free_trial": 1, "basic": 1, "pro": 4, "agency": 999999999}
 
 
 def get_monthly_conversation_count(admin_id):
@@ -2126,6 +2268,18 @@ def get_monthly_conversation_count(admin_id):
     month_start = now.strftime("%Y-%m-01 00:00:00")
     row = conn.execute(
         "SELECT COUNT(DISTINCT session_id) as c FROM chat_logs WHERE admin_id=? AND created_at >= ?",
+        (admin_id, month_start)).fetchone()
+    conn.close()
+    return row["c"] if row else 0
+
+
+def get_monthly_message_count(admin_id):
+    """Count total chat messages sent TO this admin's chatbot in the current month."""
+    conn = get_db()
+    now = datetime.now()
+    month_start = now.strftime("%Y-%m-01 00:00:00")
+    row = conn.execute(
+        "SELECT COUNT(*) as c FROM chat_logs WHERE admin_id=? AND created_at >= ?",
         (admin_id, month_start)).fetchone()
     conn.close()
     return row["c"] if row else 0
@@ -2142,6 +2296,79 @@ def is_conversation_limit_reached(admin_id):
     limit = PLAN_MONTHLY_CONVERSATIONS.get(plan, 50)
     count = get_monthly_conversation_count(admin_id)
     return count >= limit
+
+
+# ── Chatbot domain limit enforcement ──
+
+def get_active_chatbot_domains(admin_id):
+    """Get list of active domains where this admin's chatbot is embedded."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT domain, first_seen_at, last_seen_at FROM chatbot_active_domains WHERE admin_id=? AND is_active=1 ORDER BY first_seen_at",
+        (admin_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_active_chatbot_domain_count(admin_id):
+    """Count active domains for this admin."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT COUNT(*) as c FROM chatbot_active_domains WHERE admin_id=? AND is_active=1",
+        (admin_id,)).fetchone()
+    conn.close()
+    return row["c"] if row else 0
+
+
+def register_chatbot_domain(admin_id, domain):
+    """Register or update a domain for chatbot usage. Returns (ok, error_msg)."""
+    conn = get_db()
+    # Check if domain already registered for this admin
+    existing = conn.execute(
+        "SELECT id, is_active FROM chatbot_active_domains WHERE admin_id=? AND domain=?",
+        (admin_id, domain)).fetchone()
+
+    if existing:
+        # Already registered — update last_seen and ensure active
+        conn.execute(
+            "UPDATE chatbot_active_domains SET last_seen_at=CURRENT_TIMESTAMP, is_active=1 WHERE id=?",
+            (existing["id"],))
+        conn.commit()
+        conn.close()
+        return True, None
+
+    # New domain — check plan limit
+    user = conn.execute("SELECT plan FROM users WHERE id=?", (admin_id,)).fetchone()
+    plan = user["plan"] if user else "free_trial"
+    max_chatbots = PLAN_MAX_CHATBOTS.get(plan, 1)
+
+    current_count = conn.execute(
+        "SELECT COUNT(*) as c FROM chatbot_active_domains WHERE admin_id=? AND is_active=1",
+        (admin_id,)).fetchone()["c"]
+
+    if current_count >= max_chatbots:
+        conn.close()
+        plan_name = plan.replace("_", " ").title()
+        return False, f"Your {plan_name} plan allows {max_chatbots} chatbot{'s' if max_chatbots > 1 else ''} only. Please upgrade your plan to add more."
+
+    # Register new domain
+    conn.execute(
+        "INSERT INTO chatbot_active_domains (admin_id, domain) VALUES (?, ?)",
+        (admin_id, domain))
+    conn.commit()
+    conn.close()
+    return True, None
+
+
+def deactivate_chatbot_domain(admin_id, domain):
+    """Deactivate a domain so the admin can use their slot for another domain."""
+    conn = get_db()
+    conn.execute(
+        "UPDATE chatbot_active_domains SET is_active=0 WHERE admin_id=? AND domain=?",
+        (admin_id, domain))
+    conn.commit()
+    conn.close()
+
 
 def update_user_plan(user_id, plan, billing_cycle="monthly"):
     """Activate a plan immediately (used for first-time subscription from free_trial)."""
@@ -3116,6 +3343,43 @@ def get_doctors_by_category(admin_id, category_name):
 
 
 # ══════════════════════════════════════════════
+#  Admin Audit Log
+# ══════════════════════════════════════════════
+
+def log_admin_action(admin_id, user, action, details=""):
+    """Log an admin action for the audit trail."""
+    try:
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO audit_log (admin_id, user_id, user_name, user_email, action, details, created_at) VALUES (?,?,?,?,?,?,?)",
+            (admin_id, user.get("id", 0), user.get("name", ""), user.get("email", ""), action, details, now)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[audit] Failed to log: {e}", flush=True)
+
+
+def get_audit_log(admin_id, limit=200, offset=0, search=""):
+    """Get audit log entries for an admin."""
+    conn = get_db()
+    if search:
+        like = f"%{search}%"
+        rows = conn.execute(
+            "SELECT * FROM audit_log WHERE admin_id=? AND (action LIKE ? OR details LIKE ? OR user_name LIKE ? OR user_email LIKE ?) ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (admin_id, like, like, like, like, limit, offset)
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM audit_log WHERE admin_id=? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (admin_id, limit, offset)
+        ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+# ══════════════════════════════════════════════
 #  Chat Logging & Analytics
 # ══════════════════════════════════════════════
 
@@ -3508,6 +3772,127 @@ def save_feature_config(admin_id, config_dict):
             "ON CONFLICT(admin_id, feature_key) DO UPDATE SET enabled=excluded.enabled, updated_at=CURRENT_TIMESTAMP",
             (admin_id, key, int(bool(enabled)))
         )
+    conn.commit()
+    conn.close()
+
+
+# ── Form Configuration ──
+
+FORM_FIELD_DEFAULTS = {
+    # Personal Info - enabled by default
+    "full_name": {"enabled": 1, "required": 1, "group": "Personal Information", "label": "Full Name"},
+    "date_of_birth": {"enabled": 1, "required": 1, "group": "Personal Information", "label": "Date of Birth"},
+    "gender": {"enabled": 1, "required": 1, "group": "Personal Information", "label": "Gender"},
+    "national_id": {"enabled": 0, "required": 0, "group": "Personal Information", "label": "National ID / Passport Number"},
+    "profile_photo": {"enabled": 0, "required": 0, "group": "Personal Information", "label": "Profile Photo"},
+    # Contact Info - enabled by default
+    "home_address": {"enabled": 0, "required": 0, "group": "Contact Information", "label": "Home Address"},
+    "city": {"enabled": 0, "required": 0, "group": "Contact Information", "label": "City"},
+    # Emergency Contact
+    "emergency_contact_name": {"enabled": 0, "required": 0, "group": "Emergency Contact", "label": "Emergency Contact Name"},
+    "emergency_contact_relationship": {"enabled": 0, "required": 0, "group": "Emergency Contact", "label": "Relationship to Patient"},
+    "emergency_contact_phone": {"enabled": 0, "required": 0, "group": "Emergency Contact", "label": "Emergency Contact Phone"},
+    # Medical History
+    "current_medications": {"enabled": 0, "required": 0, "group": "Medical History", "label": "Current Medications"},
+    "drug_allergies": {"enabled": 0, "required": 0, "group": "Medical History", "label": "Known Drug Allergies"},
+    "material_allergies": {"enabled": 0, "required": 0, "group": "Medical History", "label": "Known Material Allergies (latex, metals)"},
+    "blood_type": {"enabled": 0, "required": 0, "group": "Medical History", "label": "Blood Type"},
+    "medical_conditions": {"enabled": 1, "required": 0, "group": "Medical History", "label": "Medical Conditions"},
+    "bleeding_disorders": {"enabled": 0, "required": 0, "group": "Medical History", "label": "History of Bleeding Disorders"},
+    "fainting_anxiety": {"enabled": 0, "required": 0, "group": "Medical History", "label": "History of Fainting/Anxiety During Dental Treatment"},
+    "last_dental_visit": {"enabled": 0, "required": 0, "group": "Medical History", "label": "Last Dental Visit Date"},
+    "last_xray_date": {"enabled": 0, "required": 0, "group": "Medical History", "label": "Last Dental X-Ray Date"},
+    "dental_concerns": {"enabled": 0, "required": 0, "group": "Medical History", "label": "Current Dental Concerns or Symptoms"},
+    # Insurance
+    "insurance_provider": {"enabled": 1, "required": 0, "group": "Insurance", "label": "Insurance Provider Name"},
+    "insurance_policy": {"enabled": 1, "required": 0, "group": "Insurance", "label": "Insurance Policy Number"},
+    "insurance_member_id": {"enabled": 0, "required": 0, "group": "Insurance", "label": "Insurance Member ID"},
+    "policy_holder_name": {"enabled": 0, "required": 0, "group": "Insurance", "label": "Policy Holder Name"},
+    "policy_holder_dob": {"enabled": 0, "required": 0, "group": "Insurance", "label": "Policy Holder Date of Birth"},
+    "billing_address": {"enabled": 0, "required": 0, "group": "Insurance", "label": "Billing Address"},
+    # Other
+    "how_heard_about_us": {"enabled": 0, "required": 0, "group": "Other", "label": "How Did You Hear About Us"},
+    "consent_treatment": {"enabled": 0, "required": 0, "group": "Consent", "label": "Consent to Treatment"},
+    "consent_data_storage": {"enabled": 0, "required": 0, "group": "Consent", "label": "Consent to Data Storage"},
+    "consent_reminders": {"enabled": 0, "required": 0, "group": "Consent", "label": "Consent to Receive Reminders"},
+}
+
+
+def get_form_config(admin_id):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM form_config WHERE admin_id=?", (admin_id,)).fetchone()
+    config = {
+        "send_form_after_booking": 1,
+        "one_time_form": 0,
+    }
+    if row:
+        config["send_form_after_booking"] = row["send_form_after_booking"]
+        config["one_time_form"] = row["one_time_form"]
+
+    # Get field configs
+    field_rows = conn.execute("SELECT field_key, enabled, required FROM form_fields_config WHERE admin_id=?", (admin_id,)).fetchall()
+    field_map = {r["field_key"]: {"enabled": r["enabled"], "required": r["required"]} for r in field_rows}
+
+    fields = {}
+    for key, defaults in FORM_FIELD_DEFAULTS.items():
+        if key in field_map:
+            fields[key] = {**defaults, **field_map[key]}
+        else:
+            fields[key] = dict(defaults)
+
+    config["fields"] = fields
+
+    # Get custom fields (agency only)
+    custom_rows = conn.execute("SELECT id, field_name, field_type, required, sort_order FROM form_custom_fields WHERE admin_id=? ORDER BY sort_order", (admin_id,)).fetchall()
+    config["custom_fields"] = [dict(r) for r in custom_rows]
+
+    conn.close()
+    return config
+
+
+def save_form_config(admin_id, data):
+    conn = get_db()
+    send_form = int(bool(data.get("send_form_after_booking", 1)))
+    one_time = int(bool(data.get("one_time_form", 0)))
+    conn.execute(
+        "INSERT INTO form_config (admin_id, send_form_after_booking, one_time_form, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) "
+        "ON CONFLICT(admin_id) DO UPDATE SET send_form_after_booking=excluded.send_form_after_booking, one_time_form=excluded.one_time_form, updated_at=CURRENT_TIMESTAMP",
+        (admin_id, send_form, one_time)
+    )
+
+    # Save field configs
+    fields = data.get("fields", {})
+    for key, val in fields.items():
+        if key not in FORM_FIELD_DEFAULTS:
+            continue
+        enabled = int(bool(val.get("enabled", 0)))
+        required = int(bool(val.get("required", 0)))
+        conn.execute(
+            "INSERT INTO form_fields_config (admin_id, field_key, enabled, required, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP) "
+            "ON CONFLICT(admin_id, field_key) DO UPDATE SET enabled=excluded.enabled, required=excluded.required, updated_at=CURRENT_TIMESTAMP",
+            (admin_id, key, enabled, required)
+        )
+
+    conn.commit()
+    conn.close()
+
+
+def add_custom_form_field(admin_id, field_name, field_type="text", required=0):
+    conn = get_db()
+    max_order = conn.execute("SELECT COALESCE(MAX(sort_order), 0) FROM form_custom_fields WHERE admin_id=?", (admin_id,)).fetchone()[0]
+    conn.execute(
+        "INSERT INTO form_custom_fields (admin_id, field_name, field_type, required, sort_order) VALUES (?, ?, ?, ?, ?)",
+        (admin_id, field_name, field_type, int(bool(required)), max_order + 1)
+    )
+    conn.commit()
+    field_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return field_id
+
+
+def delete_custom_form_field(admin_id, field_id):
+    conn = get_db()
+    conn.execute("DELETE FROM form_custom_fields WHERE id=? AND admin_id=?", (field_id, admin_id))
     conn.commit()
     conn.close()
 
@@ -4336,6 +4721,28 @@ def update_patient(patient_id, **kwargs):
     conn.commit()
     conn.close()
 
+def delete_patient(patient_id, admin_id):
+    """Delete a patient record. Does NOT delete their bookings — only the patient entry,
+    their submitted forms, and notes. Next time they book, they'll be treated as new."""
+    conn = get_db()
+    # Verify patient belongs to this admin
+    patient = conn.execute("SELECT id FROM patients WHERE id=? AND admin_id=?", (patient_id, admin_id)).fetchone()
+    if not patient:
+        conn.close()
+        return False
+    # Remove patient_id from their bookings (keep bookings intact)
+    conn.execute("UPDATE bookings SET patient_id=NULL WHERE patient_id=? AND admin_id=?", (patient_id, admin_id))
+    # Delete submitted forms linked to this patient's bookings
+    conn.execute("DELETE FROM patient_forms WHERE admin_id=? AND booking_id IN (SELECT id FROM bookings WHERE admin_id=? AND customer_email IN (SELECT email FROM patients WHERE id=?))", (admin_id, admin_id, patient_id))
+    # Delete patient notes
+    conn.execute("DELETE FROM patient_notes WHERE patient_id=?", (patient_id,))
+    # Delete the patient record
+    conn.execute("DELETE FROM patients WHERE id=? AND admin_id=?", (patient_id, admin_id))
+    conn.commit()
+    conn.close()
+    return True
+
+
 def add_patient_note(patient_id, doctor_id, note, booking_id=0):
     conn = get_db()
     conn.execute("INSERT INTO patient_notes (patient_id,doctor_id,booking_id,note) VALUES (?,?,?,?)",
@@ -4789,6 +5196,8 @@ def get_reminder_config(admin_id):
         "hours_before_third": 2,
         "quiet_hours_start": 23,
         "quiet_hours_end": 8,
+        "high_risk_enabled": 1,
+        "high_risk_threshold": 4,
     }
 
 
@@ -5610,51 +6019,90 @@ def delete_email_template(admin_id):
 
 def get_chatbot_customization(admin_id):
     """Get chatbot customization settings for an admin."""
+    # Map DB columns to frontend field names
+    db_to_frontend = {
+        "dropdown_style": "dropdown_style",
+        "msg_font_size": "font_size",
+        "msg_bot_bg": "bot_msg_bg",
+        "msg_bot_color": "bot_msg_text",
+        "msg_user_bg": "user_msg_bg",
+        "msg_user_color": "user_msg_text",
+        "chatbot_bg_color": "chat_bg",
+        "header_bg": "header_bg",
+        "header_text_color": "header_text",
+        "input_bg": "input_bg",
+        "input_text_color": "input_text",
+        "send_btn_color": "send_btn",
+        "chatbot_title": "title",
+        "msg_animation": "message_animation",
+        "celebration_enabled": "confetti_enabled",
+        "doctor_show_experience": "show_experience",
+        "doctor_show_languages": "show_languages",
+        "doctor_show_gender": "show_gender",
+        "doctor_show_qualifications": "show_qualifications",
+        "doctor_show_category": "show_specialty",
+        "calendar_style": "calendar_style",
+        "calendar_marker_color": "appt_marker",
+        "launcher_bg": "launcher_bg",
+        "launcher_icon": "launcher_icon",
+    }
+    defaults = {
+        "dropdown_style": "default", "font_size": 13,
+        "bot_msg_bg": "", "bot_msg_text": "", "user_msg_bg": "", "user_msg_text": "",
+        "chat_bg": "", "header_bg": "", "header_text": "",
+        "input_bg": "", "input_text": "", "send_btn": "",
+        "title": "", "message_animation": "slide_up",
+        "confetti_enabled": 0, "show_experience": 0, "show_languages": 0,
+        "show_gender": 0, "show_qualifications": 0, "show_specialty": 1,
+        "calendar_style": "default", "appt_marker": "#f87171",
+        "launcher_bg": "", "launcher_icon": "chat",
+    }
     conn = get_db()
     row = conn.execute("SELECT * FROM chatbot_customization WHERE admin_id=?", (admin_id,)).fetchone()
     conn.close()
-    if row:
-        return dict(row)
-    # Return defaults
-    return {
-        "admin_id": admin_id,
-        "dropdown_style": "default",
-        "msg_font_size": 13,
-        "msg_bot_bg": "",
-        "msg_bot_color": "",
-        "msg_user_bg": "",
-        "msg_user_color": "",
-        "chatbot_bg_color": "",
-        "header_bg": "",
-        "header_text_color": "",
-        "input_bg": "",
-        "input_text_color": "",
-        "send_btn_color": "",
-        "chatbot_title": "",
-        "msg_animation": "slide_up",
-        "celebration_enabled": 0,
-        "doctor_show_experience": 0,
-        "doctor_show_languages": 0,
-        "doctor_show_gender": 0,
-        "doctor_show_qualifications": 0,
-        "doctor_show_category": 0,
-        "calendar_style": "default",
-        "calendar_marker_color": "#f87171",
-    }
+    if not row:
+        return defaults
+    row = dict(row)
+    result = {}
+    for db_col, fe_key in db_to_frontend.items():
+        result[fe_key] = row.get(db_col, defaults.get(fe_key, ""))
+    return result
 
 
 def save_chatbot_customization(admin_id, data):
     """Save chatbot customization settings (upsert)."""
-    allowed = [
-        "dropdown_style", "msg_font_size", "msg_bot_bg", "msg_bot_color",
-        "msg_user_bg", "msg_user_color", "chatbot_bg_color",
-        "header_bg", "header_text_color", "input_bg", "input_text_color",
-        "send_btn_color", "chatbot_title", "msg_animation",
-        "celebration_enabled", "doctor_show_experience", "doctor_show_languages",
-        "doctor_show_gender", "doctor_show_qualifications", "doctor_show_category",
-        "calendar_style", "calendar_marker_color",
-    ]
-    filtered = {k: v for k, v in data.items() if k in allowed}
+    # Map frontend field names to database column names
+    field_map = {
+        "dropdown_style": "dropdown_style",
+        "font_size": "msg_font_size", "msg_font_size": "msg_font_size",
+        "bot_msg_bg": "msg_bot_bg", "msg_bot_bg": "msg_bot_bg",
+        "bot_msg_text": "msg_bot_color", "msg_bot_color": "msg_bot_color",
+        "user_msg_bg": "msg_user_bg", "msg_user_bg": "msg_user_bg",
+        "user_msg_text": "msg_user_color", "msg_user_color": "msg_user_color",
+        "chat_bg": "chatbot_bg_color", "chatbot_bg_color": "chatbot_bg_color",
+        "header_bg": "header_bg",
+        "header_text": "header_text_color", "header_text_color": "header_text_color",
+        "input_bg": "input_bg",
+        "input_text": "input_text_color", "input_text_color": "input_text_color",
+        "send_btn": "send_btn_color", "send_btn_color": "send_btn_color",
+        "title": "chatbot_title", "chatbot_title": "chatbot_title",
+        "message_animation": "msg_animation", "msg_animation": "msg_animation",
+        "confetti_enabled": "celebration_enabled", "celebration_enabled": "celebration_enabled",
+        "show_experience": "doctor_show_experience", "doctor_show_experience": "doctor_show_experience",
+        "show_specialty": "doctor_show_category", "doctor_show_category": "doctor_show_category",
+        "show_gender": "doctor_show_gender", "doctor_show_gender": "doctor_show_gender",
+        "show_languages": "doctor_show_languages", "doctor_show_languages": "doctor_show_languages",
+        "show_qualifications": "doctor_show_qualifications", "doctor_show_qualifications": "doctor_show_qualifications",
+        "calendar_style": "calendar_style",
+        "appt_marker": "calendar_marker_color", "calendar_marker_color": "calendar_marker_color",
+        "launcher_bg": "launcher_bg",
+        "launcher_icon": "launcher_icon",
+    }
+    filtered = {}
+    for k, v in data.items():
+        col = field_map.get(k)
+        if col:
+            filtered[col] = v
     if not filtered:
         return
     conn = get_db()

@@ -112,18 +112,59 @@ def _wrap_luxury(content, admin_id=None, variables=None):
         except Exception:
             pass
 
-    # If the admin built a custom email via the drag-and-drop builder, use it directly
+    # If the admin built a custom email via the drag-and-drop builder, use it —
+    # but ONLY if the template has a {{content}} placeholder (acting as a layout wrapper).
+    # If the template is a static design without {{content}}, it would replace the actual
+    # email body entirely, so we skip it and use the standard wrapper instead.
     if template and template.get("compiled_html"):
-        html = template["compiled_html"]
-        # Convert any remaining relative image URLs to absolute
-        html = _make_urls_absolute(html)
-        if hide_watermark:
-            html = _strip_watermark(html)
-        if variables:
-            html = render_template_variables(html, variables)
-        return html
+        compiled = template["compiled_html"]
+        if "{{content}}" in compiled:
+            # Template is a layout wrapper — inject the actual email content
+            html = compiled.replace("{{content}}", content)
+            html = _make_urls_absolute(html)
+            if hide_watermark:
+                html = _strip_watermark(html)
+            if variables:
+                html = render_template_variables(html, variables)
+            return html
+        # Otherwise: template is a standalone design (e.g. follow-up template).
+        # Extract actual colors used in the compiled HTML to override stale DB fields,
+        # then use _wrap_custom_template to wrap the real email content with those colors.
+        import re as _re
+        _extracted = {}
+        # Extract button/link background color (e.g. background:#059669)
+        _btn_match = _re.search(r'<a\s[^>]*style="[^"]*background:\s*([#\w]+)', compiled)
+        if _btn_match:
+            _extracted["button_color"] = _btn_match.group(1)
+            _extracted["primary_color"] = _btn_match.group(1)
+        # Extract heading color
+        _h_match = _re.search(r'<h[12][^>]*color:\s*([#\w]+)', compiled)
+        if _h_match:
+            _extracted["primary_color"] = _h_match.group(1)
+        # Extract font-family
+        _f_match = _re.search(r'font-family:\s*([^;"\']+)', compiled)
+        if _f_match:
+            _extracted["font_family"] = _f_match.group(1).strip()
+        # Extract button text color
+        _btc_match = _re.search(r'<a\s[^>]*style="[^"]*color:\s*([#\w]+)', compiled)
+        if _btc_match:
+            _extracted["button_text_color"] = _btc_match.group(1)
+        # Extract button border-radius
+        _br_match = _re.search(r'border-radius:\s*(\d+)', compiled)
+        if _br_match:
+            _extracted["button_radius"] = _br_match.group(1)
+        # Extract background color
+        _bg_match = _re.search(r'<body[^>]*background:\s*([#\w]+)', compiled)
+        if _bg_match:
+            _extracted["bg_color"] = _bg_match.group(1)
+        # Override template fields with extracted values
+        if _extracted:
+            template = dict(template)
+            template.update(_extracted)
 
-    if template and (template.get("header_html") or template.get("footer_html")):
+    if template and (template.get("header_html") or template.get("footer_html") or
+                     template.get("primary_color") or template.get("logo_url") or
+                     template.get("font_family") or template.get("button_color")):
         return _wrap_custom_template(content, template, hide_watermark=hide_watermark)
 
     watermark = ""
@@ -189,15 +230,49 @@ def _wrap_custom_template(content, template, hide_watermark=False):
     if footer_html.strip():
         footer_content = f'<tr><td style="padding:20px 40px;color:#666;font-family:{font};font-size:13px;">{footer_html}</td></tr>'
 
-    # Inject button styling into content via CSS override
+    # Inject custom styling into content — replace ALL default gold/luxury colors
     styled_content = content
-    # Replace default button colors in content with custom ones
+    # Replace gold gradient bars with admin's colors
+    styled_content = styled_content.replace(
+        "linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c)",
+        f"linear-gradient(90deg,{primary},{btn_color},{primary})")
+    # Replace gold button gradients
+    styled_content = styled_content.replace(
+        "linear-gradient(135deg,#c9a84c,#d4af37,#e8c547)",
+        f"linear-gradient(135deg,{btn_color},{primary})")
+    styled_content = styled_content.replace(
+        "linear-gradient(135deg,#c9a84c,#e8c547)",
+        f"linear-gradient(135deg,{btn_color},{primary})")
+    # Replace header dark gradient (keep the dark bg but tint with primary)
+    styled_content = styled_content.replace(
+        "linear-gradient(135deg,#fafaf5,#f5f3eb)",
+        f"linear-gradient(135deg,#fafaff,{primary}11)")
+    # Replace gold border and accent colors
+    styled_content = styled_content.replace("#e8dfc5", f"{primary}33")
+    styled_content = styled_content.replace("border-left:4px solid #c9a84c", f"border-left:4px solid {primary}")
+    styled_content = styled_content.replace("border-left:4px solid #d4af37", f"border-left:4px solid {primary}")
+    styled_content = styled_content.replace("rgba(201,168,76,0.2)", f"{primary}33")
+    styled_content = styled_content.replace("rgba(201,168,76,0.4)", f"{primary}66")
+    styled_content = styled_content.replace("rgba(201,168,76,0.3)", f"{primary}4d")
+    # Replace solid gold references
     styled_content = styled_content.replace("background:#c9a84c", f"background:{btn_color}")
     styled_content = styled_content.replace("background:#d4af37", f"background:{btn_color}")
     styled_content = styled_content.replace("background-color:#c9a84c", f"background-color:{btn_color}")
     styled_content = styled_content.replace("background-color:#d4af37", f"background-color:{btn_color}")
     styled_content = styled_content.replace("color:#c9a84c", f"color:{primary}")
-    styled_content = styled_content.replace("border-radius:8px", f"border-radius:{btn_radius}px")
+    styled_content = styled_content.replace("color:#d4af37", f"color:{primary}")
+    styled_content = styled_content.replace("color:#e8c547", f"color:{primary}")
+    # Replace gold box-shadows
+    styled_content = styled_content.replace(
+        "box-shadow:0 8px 24px rgba(201,168,76,0.4)",
+        f"box-shadow:0 8px 24px {primary}66")
+    styled_content = styled_content.replace(
+        "box-shadow:0 4px 25px rgba(201,168,76,0.3)",
+        f"box-shadow:0 4px 25px {primary}4d")
+    # Replace button text color and radius
+    styled_content = styled_content.replace("color:#1a1a2e;padding:16px 36px", f"color:{btn_text};padding:16px 36px")
+    styled_content = styled_content.replace("color:#1a1a2e;padding:16px 48px", f"color:{btn_text};padding:16px 48px")
+    styled_content = styled_content.replace("border-radius:50px;text-decoration:none;font-weight:700", f"border-radius:{btn_radius}px;text-decoration:none;font-weight:700")
 
     return f"""
 <!DOCTYPE html>

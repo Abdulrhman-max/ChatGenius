@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog — ChatGeniusX | AI Automation Tips for Growing Practices</title>
+    <meta name="description" content="Expert insights on AI chatbots, patient engagement, and practice growth. Tips to automate bookings, reduce no-shows, and increase revenue.">
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        html{font-size:90%}
+        *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --bg:#050710;--bg2:#0a0e1a;--card:rgba(255,255,255,0.028);--card-hover:rgba(255,255,255,0.045);
+            --border:rgba(255,255,255,0.06);--border-hover:rgba(139,92,246,0.2);
+            --purple:#8b5cf6;--indigo:#6366f1;--blue:#3b82f6;--cyan:#06b6d4;--green:#34d399;--amber:#fbbf24;--red:#f87171;
+            --gradient:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);
+            --gradient2:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);
+            --gradient3:linear-gradient(135deg,#8b5cf6,#ec4899);
+            --text:#f1f5f9;--text-muted:#8b95a8;--text-dim:#64748b;
+            --ease:cubic-bezier(0.22,1,0.36,1);
+            --glow:0 0 60px rgba(139,92,246,0.08);
+        }
+        ::selection{background:rgba(139,92,246,0.35)}
+        html{scroll-behavior:smooth}
+        body{font-family:'Outfit','Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+        body::after{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:0.018;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+        /* Aurora */
+        .aurora{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+        .aurora div{position:absolute;border-radius:50%;filter:blur(120px);opacity:0.1;animation:aurMove 20s ease-in-out infinite}
+        .aurora div:nth-child(1){width:60vw;height:60vw;top:-20%;left:-15%;background:conic-gradient(from 0deg,#8b5cf6,#6366f1,#3b82f6,#8b5cf6);animation-duration:24s}
+        .aurora div:nth-child(2){width:50vw;height:50vw;top:30%;right:-15%;background:conic-gradient(from 120deg,#3b82f6,#06b6d4,#8b5cf6);animation-duration:30s;animation-delay:-8s}
+        .aurora div:nth-child(3){width:45vw;height:45vw;bottom:-15%;left:20%;background:conic-gradient(from 240deg,#ec4899,#8b5cf6,#6366f1);animation-duration:26s;animation-delay:-15s}
+        @keyframes aurMove{0%{transform:translate(0,0) rotate(0) scale(1)}33%{transform:translate(40px,-30px) rotate(120deg) scale(1.06)}66%{transform:translate(-30px,20px) rotate(240deg) scale(.95)}100%{transform:translate(0,0) rotate(360deg) scale(1)}}
+
+        /* Animations */
+        @keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+        @keyframes gradText{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+        .anim{opacity:0;transform:translateY(30px);transition:opacity .8s var(--ease),transform .8s var(--ease)}.anim.visible{opacity:1;transform:translateY(0)}
+
+        /* ═══ NAV ═══ */
+        nav{position:fixed;top:0;width:100%;z-index:1000;background:rgba(5,7,16,0.6);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);border-bottom:1px solid rgba(255,255,255,0.04);transition:all .4s var(--ease)}
+        nav.scrolled{background:rgba(5,7,16,0.85);border-bottom-color:rgba(255,255,255,0.06)}
+        .nav-inner{max-width:1200px;margin:auto;display:flex;align-items:center;justify-content:space-between;height:72px;padding:0 2rem}
+        .logo{font-size:1.5rem;font-weight:800;letter-spacing:-.5px;text-decoration:none;color:var(--text)}
+        .logo span{background:var(--gradient2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .nav-links{display:flex;gap:2.5rem;list-style:none;align-items:center}
+        .nav-links a{color:var(--text-muted);text-decoration:none;font-size:.88rem;font-weight:500;transition:color .3s;position:relative}
+        .nav-links a::after{content:'';position:absolute;bottom:-4px;left:50%;width:0;height:2px;background:var(--gradient);border-radius:2px;transition:all .3s var(--ease);transform:translateX(-50%)}
+        .nav-links a:hover{color:#fff}
+        .nav-links a:hover::after{width:100%}
+        .nav-btn{background:var(--gradient);color:#fff;border:none;padding:.6rem 1.6rem;border-radius:50px;font-weight:600;cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .35s var(--ease);box-shadow:0 4px 20px rgba(139,92,246,0.25);text-decoration:none;display:inline-flex;align-items:center;gap:.4rem}
+        .nav-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(139,92,246,0.35)}
+        .nav-btn-outline{background:transparent;border:1px solid var(--border);color:var(--text);padding:.55rem 1.4rem;border-radius:50px;font-weight:500;cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .3s var(--ease);text-decoration:none}
+        .nav-btn-outline:hover{border-color:var(--border-hover);background:rgba(139,92,246,0.05)}
+        .hamburger{display:none;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;padding:.5rem}
+        .mobile-menu{display:none;position:fixed;top:72px;left:0;right:0;background:rgba(5,7,16,0.95);backdrop-filter:blur(20px);padding:1.5rem 2rem;border-bottom:1px solid var(--border);flex-direction:column;gap:1rem}
+        .mobile-menu.open{display:flex}
+        .mobile-menu a{color:var(--text-muted);text-decoration:none;font-size:1rem;padding:.75rem 0;border-bottom:1px solid var(--border);font-weight:500}
+        .mobile-menu a:last-child{border:none}
+
+        /* ═══ SHARED ═══ */
+        section{padding:7rem 2rem;position:relative}
+        .container{max-width:1140px;margin:auto}
+        .section-label{text-transform:uppercase;font-size:.7rem;letter-spacing:4px;font-weight:700;margin-bottom:1rem;display:inline-block;padding:.4rem 1.2rem;border-radius:50px;background:rgba(139,92,246,0.08);color:#c4b5fd;border:1px solid rgba(139,92,246,0.12)}
+        .section-title{font-size:clamp(2rem,4.5vw,3rem);font-weight:800;margin-bottom:1rem;letter-spacing:-.03em;line-height:1.15}
+        .section-sub{color:var(--text-muted);max-width:620px;margin:0 auto 3.5rem;font-size:1.05rem;line-height:1.85}
+        .gradient-text{background:var(--gradient2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .btn-primary{display:inline-flex;align-items:center;gap:.5rem;color:#fff;padding:.95rem 2.4rem;border-radius:50px;font-weight:700;text-decoration:none;font-size:1rem;border:none;cursor:pointer;font-family:inherit;background:var(--gradient);transition:all .4s var(--ease);box-shadow:0 4px 25px rgba(139,92,246,0.3),inset 0 1px 0 rgba(255,255,255,0.1);position:relative;overflow:hidden}
+        .btn-primary::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.1),transparent);background-size:200% 100%;animation:shimmer 3s ease infinite}
+        .btn-primary:hover{transform:translateY(-3px);box-shadow:0 8px 35px rgba(139,92,246,0.4),inset 0 1px 0 rgba(255,255,255,0.15)}
+
+        /* ═══ HERO ═══ */
+        .page-hero{padding:10rem 2rem 5rem;text-align:center;position:relative;overflow:hidden}
+        .page-hero::after{content:'';position:absolute;bottom:0;left:0;right:0;height:200px;background:linear-gradient(to top,var(--bg),transparent);pointer-events:none}
+        .page-hero h1{font-size:clamp(2.4rem,5.5vw,3.8rem);font-weight:900;line-height:1.1;margin-bottom:1.25rem;letter-spacing:-.04em;animation:fadeUp .7s var(--ease) both}
+        .page-hero p{color:var(--text-muted);font-size:clamp(1rem,1.8vw,1.15rem);max-width:560px;margin:0 auto;line-height:1.85;animation:fadeUp .7s var(--ease) .1s both}
+
+        /* ═══ BLOG GRID ═══ */
+        .blog-section{padding:2rem 2rem 7rem;position:relative}
+        .blog-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.75rem;max-width:1140px;margin:auto}
+        .blog-card{background:var(--card);border-radius:20px;border:1px solid var(--border);overflow:hidden;transition:all .45s var(--ease);backdrop-filter:blur(10px);display:flex;flex-direction:column}
+        .blog-card:hover{transform:translateY(-6px);border-color:var(--border-hover);box-shadow:0 24px 48px rgba(0,0,0,0.25),var(--glow)}
+        .blog-card-img{height:180px;background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(99,102,241,0.08));display:flex;align-items:center;justify-content:center;font-size:3rem;position:relative;overflow:hidden}
+        .blog-card-img::after{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,transparent 60%,rgba(5,7,16,0.6))}
+        .blog-card-body{padding:1.75rem;flex:1;display:flex;flex-direction:column}
+        .blog-category{display:inline-block;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;padding:.3rem .9rem;border-radius:50px;margin-bottom:1rem;width:fit-content}
+        .blog-category.revenue{background:rgba(52,211,153,0.1);color:var(--green);border:1px solid rgba(52,211,153,0.15)}
+        .blog-category.automation{background:rgba(139,92,246,0.1);color:#c4b5fd;border:1px solid rgba(139,92,246,0.15)}
+        .blog-category.marketing{background:rgba(59,130,246,0.1);color:#93c5fd;border:1px solid rgba(59,130,246,0.15)}
+        .blog-category.industry{background:rgba(251,191,36,0.1);color:var(--amber);border:1px solid rgba(251,191,36,0.15)}
+        .blog-category.technology{background:rgba(6,182,212,0.1);color:var(--cyan);border:1px solid rgba(6,182,212,0.15)}
+        .blog-card h3{font-size:1.1rem;font-weight:700;margin-bottom:.6rem;line-height:1.35}
+        .blog-card h3 a{color:var(--text);text-decoration:none;transition:color .3s}
+        .blog-card h3 a:hover{color:#c4b5fd}
+        .blog-card .excerpt{color:var(--text-muted);font-size:.88rem;line-height:1.75;margin-bottom:1.25rem;flex:1}
+        .blog-card-footer{display:flex;justify-content:space-between;align-items:center;padding-top:1rem;border-top:1px solid var(--border)}
+        .blog-date{color:var(--text-dim);font-size:.78rem;font-weight:500}
+        .read-more{color:#c4b5fd;font-size:.85rem;font-weight:600;text-decoration:none;transition:all .3s}
+        .read-more:hover{color:#8b5cf6;letter-spacing:.5px}
+
+        /* ═══ NEWSLETTER ═══ */
+        .newsletter{padding:5rem 2rem;text-align:center}
+        .newsletter-inner{max-width:640px;margin:auto;background:var(--card);border:1px solid var(--border);border-radius:24px;padding:3.5rem 3rem;backdrop-filter:blur(10px);position:relative;overflow:hidden}
+        .newsletter-inner::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(139,92,246,0.3),transparent)}
+        .newsletter h2{font-size:1.6rem;font-weight:800;margin-bottom:.5rem}
+        .newsletter p{color:var(--text-muted);font-size:.95rem;margin-bottom:2rem;line-height:1.8}
+        .newsletter-form{display:flex;gap:.75rem;max-width:440px;margin:auto}
+        .newsletter-form input{flex:1;padding:.85rem 1.25rem;border-radius:50px;border:1px solid var(--border);background:rgba(255,255,255,0.03);color:var(--text);font-size:.9rem;font-family:inherit;outline:none;transition:border-color .3s}
+        .newsletter-form input::placeholder{color:var(--text-dim)}
+        .newsletter-form input:focus{border-color:var(--border-hover)}
+        .newsletter-form button{padding:.85rem 1.8rem;border-radius:50px;border:none;background:var(--gradient);color:#fff;font-weight:700;font-size:.9rem;font-family:inherit;cursor:pointer;transition:all .35s var(--ease);box-shadow:0 4px 20px rgba(139,92,246,0.25);white-space:nowrap}
+        .newsletter-form button:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(139,92,246,0.35)}
+
+        /* ═══ FOOTER ═══ */
+        footer{padding:3rem 2rem;border-top:1px solid var(--border);background:rgba(5,7,16,0.5)}
+        .footer-inner{max-width:1140px;margin:auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1.5rem}
+        .footer-logo{font-size:1.2rem;font-weight:800;letter-spacing:-.5px}
+        .footer-logo span{background:var(--gradient2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .footer-links{display:flex;gap:2rem;list-style:none;flex-wrap:wrap}
+        .footer-links a{color:var(--text-dim);text-decoration:none;font-size:.85rem;transition:color .3s}
+        .footer-links a:hover{color:var(--text)}
+        .footer-copy{color:var(--text-dim);font-size:.8rem}
+
+        /* ═══ RESPONSIVE ═══ */
+        @media(max-width:900px){
+            .nav-links{display:none}.hamburger{display:block}
+            .blog-grid{grid-template-columns:1fr 1fr}
+            .footer-inner{flex-direction:column;text-align:center}
+        }
+        @media(max-width:580px){
+            .blog-grid{grid-template-columns:1fr}
+            .newsletter-form{flex-direction:column}
+            .newsletter-inner{padding:2.5rem 1.5rem}
+        }
+    </style>
+</head>
+<body>
+
+<div class="aurora"><div></div><div></div><div></div></div>
+
+<!-- ═══ NAV ═══ -->
+<nav id="mainNav">
+    <div class="nav-inner">
+        <a href="/" class="logo">Chat<span>GeniusX</span></a>
+        <ul class="nav-links">
+            <li><a href="/">Home</a></li>
+            <li><a href="/#features">Features</a></li>
+            <li><a href="/pricing-plans">Pricing</a></li>
+            <li><a href="/demo">Demo</a></li>
+            <li><a href="/case-studies">Case Studies</a></li>
+            <li><a href="/blog">Blog</a></li>
+            <li><a href="/login" class="nav-btn-outline">Login</a></li>
+            <li><a href="/login?signup=1" class="nav-btn">Start Free</a></li>
+        </ul>
+        <button class="hamburger" onclick="document.getElementById('mobileMenu').classList.toggle('open')">&#9776;</button>
+    </div>
+</nav>
+<div class="mobile-menu" id="mobileMenu">
+    <a href="/">Home</a>
+    <a href="/#features">Features</a>
+    <a href="/pricing-plans">Pricing</a>
+    <a href="/demo">Demo</a>
+    <a href="/case-studies">Case Studies</a>
+    <a href="/blog">Blog</a>
+    <a href="/login">Login</a>
+    <a href="/login?signup=1">Start Free</a>
+</div>
+
+<!-- ═══ HERO ═══ -->
+<section class="page-hero">
+    <div class="section-label">Blog</div>
+    <h1>ChatGeniusX <span class="gradient-text">Blog</span></h1>
+    <p>AI Automation Tips for Growing Practices</p>
+</section>
+
+<!-- ═══ BLOG GRID ═══ -->
+<section class="blog-section">
+    <div class="blog-grid">
+
+        <!-- Card 1 -->
+        <article class="blog-card anim">
+            <div class="blog-card-img" style="background:linear-gradient(135deg,rgba(52,211,153,0.15),rgba(139,92,246,0.1))">
+                <span>&#128176;</span>
+            </div>
+            <div class="blog-card-body">
+                <span class="blog-category revenue">Revenue</span>
+                <h3><a href="#">5 Ways Clinics Lose $10K/Month to Missed Bookings</a></h3>
+                <p class="excerpt">Missed calls, after-hours inquiries, and slow follow-ups silently drain your revenue. Learn the five most common booking leaks and how to fix them.</p>
+                <div class="blog-card-footer">
+                    <span class="blog-date">Apr 18, 2026</span>
+                    <a href="#" class="read-more">Read More &rarr;</a>
+                </div>
+            </div>
+        </article>
+
+        <!-- Card 2 -->
+        <article class="blog-card anim">
+            <div class="blog-card-img" style="background:linear-gradient(135deg,rgba(139,92,246,0.18),rgba(99,102,241,0.1))">
+                <span>&#129302;</span>
+            </div>
+            <div class="blog-card-body">
+                <span class="blog-category automation">Automation</span>
+                <h3><a href="#">How AI Chatbots Reduce No-Shows by 40%</a></h3>
+                <p class="excerpt">Automated reminders, smart rescheduling, and personalized follow-ups are transforming how practices handle appointment attendance.</p>
+                <div class="blog-card-footer">
+                    <span class="blog-date">Apr 12, 2026</span>
+                    <a href="#" class="read-more">Read More &rarr;</a>
+                </div>
+            </div>
+        </article>
+
+        <!-- Card 3 -->
+        <article class="blog-card anim">
+            <div class="blog-card-img" style="background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(6,182,212,0.1))">
+                <span>&#128231;</span>
+            </div>
+            <div class="blog-card-body">
+                <span class="blog-category marketing">Marketing</span>
+                <h3><a href="#">The Complete Guide to Patient Recall Campaigns</a></h3>
+                <p class="excerpt">Re-engage inactive patients with targeted recall campaigns. Step-by-step strategies to bring lapsed patients back to your practice.</p>
+                <div class="blog-card-footer">
+                    <span class="blog-date">Apr 5, 2026</span>
+                    <a href="#" class="read-more">Read More &rarr;</a>
+                </div>
+            </div>
+        </article>
+
+        <!-- Card 4 -->
+        <article class="blog-card anim">
+            <div class="blog-card-img" style="background:linear-gradient(135deg,rgba(251,191,36,0.12),rgba(248,113,113,0.08))">
+                <span>&#129463;</span>
+            </div>
+            <div class="blog-card-body">
+                <span class="blog-category industry">Industry</span>
+                <h3><a href="#">Why Your Dental Website Needs a Chatbot in 2026</a></h3>
+                <p class="excerpt">Patients expect instant answers. Discover why dental practices with AI chatbots are outperforming competitors and winning more appointments.</p>
+                <div class="blog-card-footer">
+                    <span class="blog-date">Mar 28, 2026</span>
+                    <a href="#" class="read-more">Read More &rarr;</a>
+                </div>
+            </div>
+        </article>
+
+        <!-- Card 5 -->
+        <article class="blog-card anim">
+            <div class="blog-card-img" style="background:linear-gradient(135deg,rgba(52,211,153,0.12),rgba(59,130,246,0.1))">
+                <span>&#128200;</span>
+            </div>
+            <div class="blog-card-body">
+                <span class="blog-category revenue">Revenue</span>
+                <h3><a href="#">ROI Calculator: How Much Revenue Are You Leaving on the Table?</a></h3>
+                <p class="excerpt">Use our interactive calculator to estimate how much revenue your practice loses to inefficient booking and follow-up processes.</p>
+                <div class="blog-card-footer">
+                    <span class="blog-date">Mar 20, 2026</span>
+                    <a href="#" class="read-more">Read More &rarr;</a>
+                </div>
+            </div>
+        </article>
+
+        <!-- Card 6 -->
+        <article class="blog-card anim">
+            <div class="blog-card-img" style="background:linear-gradient(135deg,rgba(6,182,212,0.15),rgba(139,92,246,0.1))">
+                <span>&#127760;</span>
+            </div>
+            <div class="blog-card-body">
+                <span class="blog-category technology">Technology</span>
+                <h3><a href="#">Multi-Language Chatbots: Serving Diverse Patient Populations</a></h3>
+                <p class="excerpt">Break language barriers with AI-powered multilingual chatbots. Learn how practices are serving more patients and expanding their reach.</p>
+                <div class="blog-card-footer">
+                    <span class="blog-date">Mar 14, 2026</span>
+                    <a href="#" class="read-more">Read More &rarr;</a>
+                </div>
+            </div>
+        </article>
+
+    </div>
+</section>
+
+<!-- ═══ NEWSLETTER ═══ -->
+<section class="newsletter">
+    <div class="newsletter-inner anim">
+        <h2>Stay ahead of the <span class="gradient-text">curve</span></h2>
+        <p>Get the latest AI automation insights, practice growth tips, and product updates delivered to your inbox.</p>
+        <form class="newsletter-form" onsubmit="event.preventDefault();this.querySelector('button').textContent='Subscribed!';this.querySelector('input').value=''">
+            <input type="email" placeholder="Enter your email" required>
+            <button type="submit">Subscribe</button>
+        </form>
+    </div>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer>
+    <div class="footer-inner">
+        <div class="footer-logo">Chat<span>GeniusX</span></div>
+        <ul class="footer-links">
+            <li><a href="/">Home</a></li>
+            <li><a href="/pricing-plans">Pricing</a></li>
+            <li><a href="/blog">Blog</a></li>
+            <li><a href="/case-studies">Case Studies</a></li>
+            <li><a href="/privacy">Privacy</a></li>
+            <li><a href="/terms">Terms</a></li>
+        </ul>
+        <div class="footer-copy">&copy; 2026 ChatGeniusX. All rights reserved.</div>
+    </div>
+</footer>
+
+<script>
+// Nav scroll effect
+window.addEventListener('scroll',function(){
+    document.getElementById('mainNav').classList.toggle('scrolled',window.scrollY>50);
+});
+// Animate on scroll
+const obs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');obs.unobserve(e.target)}})},{threshold:0.1});
+document.querySelectorAll('.anim').forEach(el=>obs.observe(el));
+</script>
+</body>
+</html>
