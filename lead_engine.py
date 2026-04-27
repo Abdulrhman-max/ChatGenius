@@ -140,6 +140,24 @@ def capture_lead_from_session(session, admin_id, capture_trigger="chatbot"):
     if email:
         create_followup_sequence(lead_id, admin_id)
 
+    # Mailchimp auto-sync hook
+    try:
+        import mailchimp_engine as mailchimp
+        mailchimp.auto_sync_if_enabled({"name": name, "email": email, "phone": phone}, admin_id)
+    except Exception:
+        pass
+
+    # ── Zapier webhook: new lead ──
+    try:
+        import zapier_engine
+        zapier_engine.trigger_new_lead(admin_id, {
+            "id": lead_id, "name": name, "phone": phone, "email": email,
+            "source": "chatbot", "score": lead_score,
+            "treatment_interest": treatment, "capture_trigger": capture_trigger,
+        })
+    except Exception:
+        pass
+
     logger.info(f"Lead #{lead_id} captured: {name} (score={lead_score}, trigger={capture_trigger})")
     return lead_id
 
@@ -211,7 +229,7 @@ def auto_progress_stages():
 
     # new -> engaged: has followups sent and score >= 5
     conn.execute("""
-        UPDATE leads SET stage='engaged', last_activity_at=?
+        UPDATE leads SET stage='engaged', last_activity_at=%s
         WHERE stage='new' AND score >= 5
         AND id IN (SELECT DISTINCT lead_id FROM lead_followups WHERE status='sent')
     """, (now_str,))
@@ -221,7 +239,7 @@ def auto_progress_stages():
     conn.execute("""
         UPDATE leads SET stage='cold'
         WHERE stage IN ('new','engaged','warm')
-        AND last_activity_at != '' AND last_activity_at < ?
+        AND last_activity_at != '' AND last_activity_at < %s
     """, (cutoff_cold,))
 
     conn.commit()

@@ -11,7 +11,7 @@ def get_doctor_for_user(user_id):
     """Get the doctor record linked to a user account."""
     conn = db.get_db()
     row = conn.execute(
-        "SELECT * FROM doctors WHERE user_id = ?", (user_id,)
+        "SELECT * FROM doctors WHERE user_id = %s", (user_id,)
     ).fetchone()
     conn.close()
     return dict(row) if row else None
@@ -81,7 +81,7 @@ def update_my_availability(user_id, start_time=None, end_time=None,
 
     if updates:
         params.append(doctor["id"])
-        conn.execute(f"UPDATE doctors SET {', '.join(updates)} WHERE id = ?", params)
+        conn.execute(f"UPDATE doctors SET {', '.join(updates)} WHERE id = %s", params)
         conn.commit()
 
     conn.close()
@@ -97,7 +97,7 @@ def request_time_off(user_id, date, reason=""):
     conn = db.get_db()
     # Check if already off
     existing = conn.execute(
-        "SELECT id FROM doctor_off_days WHERE doctor_id = ? AND off_date = ?",
+        "SELECT id FROM doctor_off_days WHERE doctor_id = %s AND off_date = %s",
         (doctor["id"], date)
     ).fetchone()
 
@@ -106,7 +106,7 @@ def request_time_off(user_id, date, reason=""):
         return {"error": "Already marked as off for this date"}
 
     conn.execute(
-        "INSERT INTO doctor_off_days (doctor_id, off_date, reason) VALUES (?, ?, ?)",
+        "INSERT INTO doctor_off_days (doctor_id, off_date, reason) VALUES (%s, %s, %s)",
         (doctor["id"], date, reason)
     )
     conn.commit()
@@ -122,7 +122,7 @@ def cancel_time_off(user_id, date):
 
     conn = db.get_db()
     conn.execute(
-        "DELETE FROM doctor_off_days WHERE doctor_id = ? AND off_date = ?",
+        "DELETE FROM doctor_off_days WHERE doctor_id = %s AND off_date = %s",
         (doctor["id"], date)
     )
     conn.commit()
@@ -139,13 +139,13 @@ def get_my_bookings(user_id, date_from=None, date_to=None):
     conn = db.get_db()
     if date_from and date_to:
         rows = conn.execute(
-            "SELECT * FROM bookings WHERE doctor_id = ? AND date BETWEEN ? AND ? ORDER BY date, time",
+            "SELECT * FROM bookings WHERE doctor_id = %s AND date BETWEEN %s AND %s ORDER BY date, time",
             (doctor["id"], date_from, date_to)
         ).fetchall()
     else:
         today = datetime.now().strftime("%Y-%m-%d")
         rows = conn.execute(
-            "SELECT * FROM bookings WHERE doctor_id = ? AND date >= ? ORDER BY date, time",
+            "SELECT * FROM bookings WHERE doctor_id = %s AND date >= %s ORDER BY date, time",
             (doctor["id"], today)
         ).fetchall()
 
@@ -172,19 +172,19 @@ def get_my_stats(user_id):
 
     # Bookings this month
     bookings_count = conn.execute(
-        "SELECT COUNT(*) as c FROM bookings WHERE doctor_id = ? AND date BETWEEN ? AND ?",
+        "SELECT COUNT(*) as c FROM bookings WHERE doctor_id = %s AND date BETWEEN %s AND %s",
         (doctor["id"], month_start, month_end)
     ).fetchone()["c"]
 
     # No-shows this month
     noshow_count = conn.execute(
-        "SELECT COUNT(*) as c FROM bookings WHERE doctor_id = ? AND date BETWEEN ? AND ? AND status = 'no_show'",
+        "SELECT COUNT(*) as c FROM bookings WHERE doctor_id = %s AND date BETWEEN %s AND %s AND status = 'no_show'",
         (doctor["id"], month_start, month_end)
     ).fetchone()["c"]
 
     # Completed this month
     completed_count = conn.execute(
-        "SELECT COUNT(*) as c FROM bookings WHERE doctor_id = ? AND date BETWEEN ? AND ? AND status = 'completed'",
+        "SELECT COUNT(*) as c FROM bookings WHERE doctor_id = %s AND date BETWEEN %s AND %s AND status = 'completed'",
         (doctor["id"], month_start, month_end)
     ).fetchone()["c"]
 
@@ -192,7 +192,7 @@ def get_my_stats(user_id):
     avg_rating = None
     try:
         rating_row = conn.execute(
-            "SELECT AVG(star_rating) as avg FROM surveys WHERE doctor_id = ? AND star_rating IS NOT NULL AND completed_at IS NOT NULL",
+            "SELECT AVG(star_rating) as avg FROM surveys WHERE doctor_id = %s AND star_rating IS NOT NULL AND completed_at IS NOT NULL",
             (doctor["id"],)
         ).fetchone()
         if rating_row and rating_row["avg"]:
@@ -219,7 +219,7 @@ def set_emergency_availability(user_id, available=True):
 
     conn = db.get_db()
     conn.execute(
-        "UPDATE doctors SET emergency_available = ? WHERE id = ?",
+        "UPDATE doctors SET emergency_available = %s WHERE id = %s",
         (1 if available else 0, doctor["id"])
     )
     conn.commit()
@@ -235,7 +235,7 @@ def set_status_message(user_id, message=""):
 
     conn = db.get_db()
     conn.execute(
-        "UPDATE doctors SET status_message = ? WHERE id = ?",
+        "UPDATE doctors SET status_message = %s WHERE id = %s",
         (message, doctor["id"])
     )
     conn.commit()

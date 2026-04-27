@@ -472,7 +472,7 @@ def _save_emergency_alert(admin_id, alert):
     try:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS emergency_alerts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 admin_id INTEGER,
                 patient_name TEXT,
                 description TEXT,
@@ -485,7 +485,7 @@ def _save_emergency_alert(admin_id, alert):
         conn.execute(
             "INSERT INTO emergency_alerts "
             "(admin_id, patient_name, description, keywords_matched, "
-            "slot_offered, status, created_at) VALUES (?,?,?,?,?,?,?)",
+            "slot_offered, status, created_at) VALUES (%s,%s,%s,%s,%s,%s,%s)",
             (
                 admin_id,
                 alert["patient_name"],
@@ -551,13 +551,13 @@ def get_emergency_alerts(admin_id, status="active"):
     try:
         if status:
             rows = conn.execute(
-                "SELECT * FROM emergency_alerts WHERE admin_id = ? AND status = ? "
+                "SELECT * FROM emergency_alerts WHERE admin_id = %s AND status = %s "
                 "ORDER BY created_at DESC",
                 (admin_id, status),
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT * FROM emergency_alerts WHERE admin_id = ? "
+                "SELECT * FROM emergency_alerts WHERE admin_id = %s "
                 "ORDER BY created_at DESC",
                 (admin_id,),
             ).fetchall()
@@ -582,7 +582,7 @@ def acknowledge_alert(alert_id):
     conn = db.get_db()
     try:
         conn.execute(
-            "UPDATE emergency_alerts SET status = 'acknowledged' WHERE id = ?",
+            "UPDATE emergency_alerts SET status = 'acknowledged' WHERE id = %s",
             (alert_id,),
         )
         conn.commit()

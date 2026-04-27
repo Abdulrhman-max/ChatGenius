@@ -410,7 +410,7 @@
         <div class="pricing-grid anim">
             <div class="price-card">
                 <div class="price-name">Basic</div>
-                <div class="price-amount">$149<small>/mo</small></div>
+                <div class="price-amount">$79<small>/mo</small></div>
                 <div class="price-desc">For solo practitioners getting started with AI</div>
                 <ul class="price-features">
                     <li>700 conversations/month</li>
@@ -424,7 +424,7 @@
             </div>
             <div class="price-card featured">
                 <div class="price-name">Pro</div>
-                <div class="price-amount">$349<small>/mo</small></div>
+                <div class="price-amount">$239<small>/mo</small></div>
                 <div class="price-desc">For growing practices that want full automation</div>
                 <ul class="price-features">
                     <li>5,000 conversations/month</li>
@@ -439,19 +439,20 @@
                 <a href="/login?signup=1" class="price-btn price-btn-primary">Start Free Trial</a>
             </div>
             <div class="price-card">
-                <div class="price-name">Agency</div>
-                <div class="price-amount">$799<small>/mo</small></div>
+                <div class="price-name">Enterprise</div>
+                <div class="price-amount">$699<small>/mo</small></div>
                 <div class="price-desc">For multi-location dental groups</div>
                 <ul class="price-features">
                     <li>Unlimited conversations</li>
                     <li>Everything in Pro +</li>
                     <li>AI no-show prediction</li>
-                    <li>Advanced analytics</li>
+                    <li>Advanced analytics &amp; reports</li>
                     <li>API &amp; CRM integration</li>
-                    <li>White-label options</li>
+                    <li>Chatbot customization &amp; white-label</li>
+                    <li>Dedicated account manager</li>
                     <li>Priority support</li>
                 </ul>
-                <a href="/login?signup=1" class="price-btn price-btn-outline">Contact Sales</a>
+                <a href="mailto:sales@chatgeniusx.com?subject=Enterprise%20Plan%20Inquiry&body=Hi%2C%20I'm%20interested%20in%20the%20Enterprise%20plan.%20I'd%20like%20to%20learn%20more." class="price-btn price-btn-outline">Contact Sales</a>
             </div>
         </div>
     </div>
@@ -545,5 +546,160 @@ document.querySelectorAll('.mobile-menu a').forEach(function(a){
 });
 </script>
 
+
+<!-- ═══ FLOATING CHATBOT WIDGET ═══ -->
+<style>
+    .chat-widget-btn{position:fixed;bottom:24px;right:24px;width:60px;height:60px;border-radius:50%;background:var(--gradient);border:none;cursor:pointer;z-index:10000;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 30px rgba(139,92,246,0.4);transition:transform .3s,box-shadow .3s;opacity:0;pointer-events:none}
+    .chat-widget-btn.visible{opacity:1;pointer-events:auto}
+    .chat-widget-btn.bounce{animation:widgetBounce 1s var(--ease) 3}
+    @keyframes widgetBounce{0%,100%{transform:translateY(0)}30%{transform:translateY(-12px)}50%{transform:translateY(-4px)}70%{transform:translateY(-8px)}}
+    .chat-widget-btn:hover{transform:scale(1.1);box-shadow:0 12px 40px rgba(139,92,246,0.5)}
+    .chat-widget-btn svg{width:28px;height:28px;fill:#fff}
+    .chat-widget-window{position:fixed;bottom:96px;right:24px;width:380px;height:500px;background:rgba(10,14,26,0.97);border-radius:20px;border:1px solid rgba(139,92,246,0.15);box-shadow:0 30px 80px rgba(0,0,0,0.6);z-index:10000;display:none;flex-direction:column;overflow:hidden}
+    .chat-widget-window.open{display:flex}
+    .cw-demo-badge{background:rgba(251,191,36,0.12);color:var(--amber);font-size:.65rem;font-weight:700;padding:.15rem .5rem;border-radius:50px;letter-spacing:.5px}
+    .cw-quick-btns{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem}
+    .cw-quick-btn{background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.15);border-radius:50px;padding:.35rem .75rem;font-size:.75rem;color:#c4b5fd;cursor:pointer;font-family:inherit;transition:all .2s}
+    .cw-quick-btn:hover{background:rgba(139,92,246,0.15);color:#fff}
+    .cwh{padding:1rem 1.25rem;background:linear-gradient(135deg,rgba(139,92,246,0.08),rgba(99,102,241,0.04));border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.6rem}
+    .cwh-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px rgba(52,211,153,0.5)}
+    .cwh h4{font-size:.85rem;font-weight:700;flex:1}
+    .cwh-close{background:none;border:none;color:var(--text-dim);font-size:1.2rem;cursor:pointer;padding:4px}
+    .cw-body{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.5rem}
+    .cw-body::-webkit-scrollbar{width:3px}.cw-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.06);border-radius:3px}
+    .cw-msg{max-width:85%;padding:.65rem 1rem;border-radius:14px;font-size:.85rem;line-height:1.7}
+    .cw-msg.bot{background:rgba(255,255,255,0.04);align-self:flex-start;border:1px solid rgba(255,255,255,0.04)}
+    .cw-msg.user{background:linear-gradient(135deg,#7c3aed,#6d28d9);align-self:flex-end}
+    .cw-input{display:flex;gap:.4rem;padding:.75rem;border-top:1px solid var(--border)}
+    .cw-input input{flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:.55rem .8rem;color:var(--text);font-size:.85rem;font-family:inherit;outline:none}
+    .cw-input button{background:var(--gradient);border:none;color:#fff;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:1rem}
+    @media(max-width:768px){
+        .chat-widget-window{position:fixed;inset:0;width:100%;height:100%;border-radius:0;bottom:0;right:0}
+        .chat-widget-window.open+.chat-widget-btn{display:none}
+    }
+</style>
+<button class="chat-widget-btn" id="chatWidgetBtn" onclick="toggleChatWidget()">
+    <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+</button>
+<div class="chat-widget-window" id="chatWidgetWindow">
+    <div class="cwh">
+        <div class="cwh-dot"></div>
+        <h4>ChatGeniusX</h4>
+        <span class="cw-demo-badge">DEMO MODE</span>
+        <button class="cwh-close" onclick="toggleChatWidget()">&times;</button>
+    </div>
+    <div class="cw-body" id="cwBody">
+        <div class="cw-msg bot">Hi! I'm ChatGenius at <strong>Smile Dental Clinic</strong>. I can help you book an appointment, answer questions, or check pricing. Try me out!
+            <div class="cw-quick-btns">
+                <button class="cw-quick-btn" onclick="sendQuickMsg('Book an appointment')">Book Appointment</button>
+                <button class="cw-quick-btn" onclick="sendQuickMsg('What services do you offer?')">Services</button>
+                <button class="cw-quick-btn" onclick="sendQuickMsg('What are your prices?')">Pricing</button>
+                <button class="cw-quick-btn" onclick="sendQuickMsg('What are your hours?')">Hours</button>
+            </div>
+        </div>
+    </div>
+    <div class="cw-input">
+        <input type="text" id="cwInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendWidgetMsg()">
+        <button onclick="sendWidgetMsg()">&#10148;</button>
+    </div>
+</div>
+<script>
+// Floating Chatbot Widget — Enhanced Demo Mode
+var cwBookingStep=0;
+var cwBookingData={service:'',date:'',time:'',name:'Demo User',email:'demo@chatgeniusx.com'};
+
+setTimeout(function(){
+    var btn=document.getElementById('chatWidgetBtn');
+    if(localStorage.getItem('cw_closed')) return;
+    btn.classList.add('visible');
+    if(!sessionStorage.getItem('cw_bounced')){
+        btn.classList.add('bounce');
+        sessionStorage.setItem('cw_bounced','1');
+        setTimeout(function(){btn.classList.remove('bounce')},3500);
+    }
+},3000);
+
+function toggleChatWidget(){
+    var w=document.getElementById('chatWidgetWindow');
+    var btn=document.getElementById('chatWidgetBtn');
+    if(w.classList.contains('open')){
+        w.classList.remove('open');
+        localStorage.setItem('cw_closed','1');
+    } else {
+        w.classList.add('open');
+        localStorage.removeItem('cw_closed');
+        btn.classList.add('visible');
+    }
+}
+
+function sendQuickMsg(msg){
+    document.getElementById('cwInput').value=msg;
+    sendWidgetMsg();
+}
+
+var widgetResponses={
+    'pricing':'Our services at Smile Dental Clinic:\n\n• Cleaning — $99\n• Whitening — $199\n• Consultation — Free\n\nWould you like to book any of these?',
+    'price':'Our services at Smile Dental Clinic:\n\n• Cleaning — $99\n• Whitening — $199\n• Consultation — Free\n\nWould you like to book any of these?',
+    'service':'We offer Dental Cleaning ($99), Teeth Whitening ($199), and Free Consultations. Would you like to book an appointment?',
+    'hour':'We\'re open Monday-Friday, 9 AM to 5 PM. Dr. Sarah Johnson is available throughout the week. Want to book a time?',
+    'location':'Smile Dental Clinic is located at 123 Main St, Demo City. Want to book an appointment?',
+    'book':'Great! Let me help you book. What service would you like?\n\n1. Cleaning ($99)\n2. Whitening ($199)\n3. Free Consultation',
+    'appointment':'Great! Let me help you book. What service would you like?\n\n1. Cleaning ($99)\n2. Whitening ($199)\n3. Free Consultation',
+    'hello':'Hello! Welcome to Smile Dental Clinic. I\'m your AI assistant. I can help you book an appointment, check pricing, or answer questions. What can I do for you?',
+    'hi':'Hi there! Welcome to Smile Dental Clinic. Would you like to book an appointment, check our services, or ask a question?',
+    'insurance':'We accept most major insurance plans. For specific coverage details, our team will verify your insurance after booking. Want to schedule an appointment?',
+    'cancel':'To cancel or reschedule, just let us know your booking details and we\'ll take care of it. No cancellation fees!',
+    'default':'I can help you with booking appointments, pricing, services, hours, or location at Smile Dental Clinic. What would you like to know?'
+};
+
+function sendWidgetMsg(){
+    var input=document.getElementById('cwInput');
+    var msg=input.value.trim();if(!msg)return;
+    input.value='';
+    var body=document.getElementById('cwBody');
+    var userEl=document.createElement('div');
+    userEl.className='cw-msg user';userEl.textContent=msg;
+    body.appendChild(userEl);body.scrollTop=body.scrollHeight;
+
+    setTimeout(function(){
+        var botEl=document.createElement('div');
+        botEl.className='cw-msg bot';
+        var lower=msg.toLowerCase();
+        var response='';
+
+        if(cwBookingStep===1){
+            if(lower.includes('clean')||lower.includes('1')){cwBookingData.service='Cleaning ($99)'}
+            else if(lower.includes('whiten')||lower.includes('2')){cwBookingData.service='Whitening ($199)'}
+            else{cwBookingData.service='Free Consultation'}
+            cwBookingStep=2;
+            response='Great choice: '+cwBookingData.service+' with Dr. Sarah Johnson.\n\nWhat date works for you? (e.g., "Tomorrow", "Monday", "April 28")';
+        } else if(cwBookingStep===2){
+            cwBookingData.date=msg;
+            cwBookingStep=3;
+            response='Got it — '+cwBookingData.date+'. What time would you prefer?\n\nAvailable: 9:00 AM, 10:30 AM, 1:00 PM, 2:30 PM, 4:00 PM';
+        } else if(cwBookingStep===3){
+            cwBookingData.time=msg;
+            cwBookingStep=4;
+            response='Almost done! Can I have your name for the booking?';
+        } else if(cwBookingStep===4){
+            cwBookingData.name=msg;
+            cwBookingStep=5;
+            response='Booking confirmed! Here\'s your summary:\n\n✅ Service: '+cwBookingData.service+'\n👨‍⚕️ Doctor: Dr. Sarah Johnson\n📅 Date: '+cwBookingData.date+'\n🕐 Time: '+cwBookingData.time+'\n👤 Name: '+cwBookingData.name+'\n📍 Smile Dental Clinic, 123 Main St\n\n📧 Confirmation email sent to demo@chatgeniusx.com\n\n⚡ This was a demo — imagine this on YOUR website! Start your free trial at /login?signup=1';
+            cwBookingStep=0;
+        } else if(lower.includes('book')||lower.includes('appointment')||lower.includes('schedule')){
+            cwBookingStep=1;
+            response='Let\'s book your appointment! What service would you like?\n\n1. Dental Cleaning — $99\n2. Teeth Whitening — $199\n3. Free Consultation';
+        } else {
+            response=widgetResponses['default'];
+            for(var key in widgetResponses){if(key!=='default'&&lower.includes(key)){response=widgetResponses[key];break}}
+        }
+
+        botEl.innerHTML=response.replace(/\n/g,'<br>');
+        body.appendChild(botEl);body.scrollTop=body.scrollHeight;
+    },800);
+}
+</script>
+
+<script src="/static/support-bot.js"></script>
 </body>
 </html>

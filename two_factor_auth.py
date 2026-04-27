@@ -29,7 +29,7 @@ def send_otp(user_id, method='email'):
     import database as db
 
     conn = db.get_db()
-    user = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    user = conn.execute("SELECT * FROM users WHERE id=%s", (user_id,)).fetchone()
     if not user:
         conn.close()
         return {"error": "User not found"}
@@ -48,7 +48,7 @@ def send_otp(user_id, method='email'):
     # Store OTP (overwrite any existing)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS otp_codes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             user_id INTEGER,
             code TEXT,
             method TEXT,
@@ -60,11 +60,11 @@ def send_otp(user_id, method='email'):
     """)
 
     # Invalidate previous OTPs
-    conn.execute("UPDATE otp_codes SET used=1 WHERE user_id=? AND used=0", (user_id,))
+    conn.execute("UPDATE otp_codes SET used=1 WHERE user_id=%s AND used=0", (user_id,))
 
     # Create new OTP
     conn.execute(
-        "INSERT INTO otp_codes (user_id, code, method, created_at, expires_at) VALUES (?,?,?,?,?)",
+        "INSERT INTO otp_codes (user_id, code, method, created_at, expires_at) VALUES (%s,%s,%s,%s,%s)",
         (user_id, otp, method, now.strftime("%Y-%m-%d %H:%M:%S"), expires.strftime("%Y-%m-%d %H:%M:%S"))
     )
     conn.commit()
@@ -103,7 +103,7 @@ def verify_otp(user_id, code):
 
     # Get latest unused OTP
     otp_record = conn.execute(
-        "SELECT * FROM otp_codes WHERE user_id=? AND used=0 ORDER BY created_at DESC LIMIT 1",
+        "SELECT * FROM otp_codes WHERE user_id=%s AND used=0 ORDER BY created_at DESC LIMIT 1",
         (user_id,)
     ).fetchone()
 
@@ -117,7 +117,7 @@ def verify_otp(user_id, code):
     try:
         expires = datetime.strptime(otp_record["expires_at"], "%Y-%m-%d %H:%M:%S")
         if datetime.now() > expires:
-            conn.execute("UPDATE otp_codes SET used=1 WHERE id=?", (otp_record["id"],))
+            conn.execute("UPDATE otp_codes SET used=1 WHERE id=%s", (otp_record["id"],))
             conn.commit()
             conn.close()
             return {"error": "Your code has expired. Please request a new one."}
@@ -128,13 +128,13 @@ def verify_otp(user_id, code):
     if otp_record["code"] != code.strip():
         # Increment attempts
         attempts = otp_record.get("attempts", 0) + 1
-        conn.execute("UPDATE otp_codes SET attempts=? WHERE id=?", (attempts, otp_record["id"]))
+        conn.execute("UPDATE otp_codes SET attempts=%s WHERE id=%s", (attempts, otp_record["id"]))
         conn.commit()
 
         if attempts >= MAX_ATTEMPTS:
             # Lock the account
             _lock_account(user_id)
-            conn.execute("UPDATE otp_codes SET used=1 WHERE id=?", (otp_record["id"],))
+            conn.execute("UPDATE otp_codes SET used=1 WHERE id=%s", (otp_record["id"],))
             conn.commit()
             conn.close()
 
@@ -155,7 +155,7 @@ def verify_otp(user_id, code):
         }
 
     # Success - mark OTP as used
-    conn.execute("UPDATE otp_codes SET used=1 WHERE id=?", (otp_record["id"],))
+    conn.execute("UPDATE otp_codes SET used=1 WHERE id=%s", (otp_record["id"],))
     conn.commit()
     conn.close()
 
@@ -173,7 +173,7 @@ def _is_locked(user_id):
 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS account_lockouts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             user_id INTEGER UNIQUE,
             locked_until TEXT,
             created_at TEXT
@@ -181,7 +181,7 @@ def _is_locked(user_id):
     """)
 
     lockout = conn.execute(
-        "SELECT locked_until FROM account_lockouts WHERE user_id=?", (user_id,)
+        "SELECT locked_until FROM account_lockouts WHERE user_id=%s", (user_id,)
     ).fetchone()
     conn.close()
 
@@ -202,12 +202,12 @@ def _lock_account(user_id):
     locked_until = (datetime.now() + timedelta(minutes=LOCKOUT_MINUTES)).strftime("%Y-%m-%d %H:%M:%S")
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    existing = conn.execute("SELECT id FROM account_lockouts WHERE user_id=?", (user_id,)).fetchone()
+    existing = conn.execute("SELECT id FROM account_lockouts WHERE user_id=%s", (user_id,)).fetchone()
     if existing:
-        conn.execute("UPDATE account_lockouts SET locked_until=? WHERE user_id=?", (locked_until, user_id))
+        conn.execute("UPDATE account_lockouts SET locked_until=%s WHERE user_id=%s", (locked_until, user_id))
     else:
         conn.execute(
-            "INSERT INTO account_lockouts (user_id, locked_until, created_at) VALUES (?,?,?)",
+            "INSERT INTO account_lockouts (user_id, locked_until, created_at) VALUES (%s,%s,%s)",
             (user_id, locked_until, now)
         )
     conn.commit()
@@ -219,7 +219,7 @@ def _unlock_account(user_id):
     """Remove lockout."""
     import database as db
     conn = db.get_db()
-    conn.execute("DELETE FROM account_lockouts WHERE user_id=?", (user_id,))
+    conn.execute("DELETE FROM account_lockouts WHERE user_id=%s", (user_id,))
     conn.commit()
     conn.close()
 
@@ -228,7 +228,7 @@ def _notify_admin_of_lockout(user_id):
     """Notify head admin when a user account is locked."""
     import database as db
     conn = db.get_db()
-    user = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    user = conn.execute("SELECT * FROM users WHERE id=%s", (user_id,)).fetchone()
     if not user:
         conn.close()
         return
@@ -238,7 +238,7 @@ def _notify_admin_of_lockout(user_id):
 
     # Find head admin
     head_admin = conn.execute(
-        "SELECT * FROM users WHERE id=? OR (admin_id=? AND role='admin') ORDER BY id LIMIT 1",
+        "SELECT * FROM users WHERE id=%s OR (admin_id=%s AND role='admin') ORDER BY id LIMIT 1",
         (admin_id, admin_id)
     ).fetchone()
     conn.close()
@@ -259,7 +259,7 @@ def setup_2fa(user_id, method='email'):
     import database as db
     conn = db.get_db()
     conn.execute(
-        "UPDATE users SET two_fa_enabled=1, two_fa_method=? WHERE id=?",
+        "UPDATE users SET two_fa_enabled=1, two_fa_method=%s WHERE id=%s",
         (method, user_id)
     )
     conn.commit()
@@ -272,7 +272,7 @@ def disable_2fa(user_id):
     import database as db
     conn = db.get_db()
     conn.execute(
-        "UPDATE users SET two_fa_enabled=0, two_fa_method=NULL WHERE id=?",
+        "UPDATE users SET two_fa_enabled=0, two_fa_method=NULL WHERE id=%s",
         (user_id,)
     )
     conn.commit()
@@ -284,7 +284,7 @@ def is_2fa_required(user_id):
     """Check if user needs 2FA (either self-enabled or admin-enforced)."""
     import database as db
     conn = db.get_db()
-    user = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    user = conn.execute("SELECT * FROM users WHERE id=%s", (user_id,)).fetchone()
     if not user:
         conn.close()
         return False
@@ -298,7 +298,7 @@ def is_2fa_required(user_id):
 
     # Check if admin enforces 2FA for all staff
     admin_id = user.get("admin_id") or user["id"]
-    company = conn.execute("SELECT * FROM company_info WHERE user_id=?", (admin_id,)).fetchone()
+    company = conn.execute("SELECT * FROM company_info WHERE user_id=%s", (admin_id,)).fetchone()
     conn.close()
 
     # Check for enforced 2FA (stored in company settings)
@@ -313,7 +313,7 @@ def enforce_2fa(admin_id, enforce=True):
     if enforce:
         # Enable 2FA for all staff under this admin
         conn.execute(
-            "UPDATE users SET two_fa_enabled=1, two_fa_method=COALESCE(two_fa_method, 'email') WHERE admin_id=?",
+            "UPDATE users SET two_fa_enabled=1, two_fa_method=COALESCE(two_fa_method, 'email') WHERE admin_id=%s",
             (admin_id,)
         )
     conn.commit()
@@ -337,6 +337,6 @@ def update_activity(user_id):
     import database as db
     conn = db.get_db()
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    conn.execute("UPDATE users SET last_activity_at=? WHERE id=?", (now, user_id))
+    conn.execute("UPDATE users SET last_activity_at=%s WHERE id=%s", (now, user_id))
     conn.commit()
     conn.close()

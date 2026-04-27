@@ -214,7 +214,7 @@ def get_dashboard_snapshot(admin_id):
     # Today's appointments
     todays_appointments = conn.execute(
         """SELECT id, customer_name, date, time, doctor_name, status, checked_in, checked_in_at
-           FROM bookings WHERE admin_id=? AND date=?
+           FROM bookings WHERE admin_id=%s AND date=%s
            ORDER BY time""",
         (admin_id, today)
     ).fetchall()
@@ -222,7 +222,7 @@ def get_dashboard_snapshot(admin_id):
     # Recent bookings (last 60 minutes)
     recent_bookings = conn.execute(
         """SELECT id, customer_name, date, time, doctor_name, status, created_at
-           FROM bookings WHERE admin_id=? AND created_at >= ?
+           FROM bookings WHERE admin_id=%s AND created_at >= %s
            ORDER BY created_at DESC""",
         (admin_id, hour_ago)
     ).fetchall()
@@ -231,7 +231,7 @@ def get_dashboard_snapshot(admin_id):
     ten_min_ago = (datetime.now() - timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
     active_chats = conn.execute(
         """SELECT session_id, MAX(created_at) as last_msg, COUNT(*) as msg_count
-           FROM chat_logs WHERE admin_id=? AND created_at >= ?
+           FROM chat_logs WHERE admin_id=%s AND created_at >= %s
            GROUP BY session_id
            ORDER BY last_msg DESC""",
         (admin_id, ten_min_ago)
@@ -239,7 +239,7 @@ def get_dashboard_snapshot(admin_id):
 
     # Pending handoffs
     pending_handoffs = conn.execute(
-        "SELECT * FROM live_chat_handoffs WHERE admin_id=? AND status='queued' ORDER BY created_at",
+        "SELECT * FROM live_chat_handoffs WHERE admin_id=%s AND status='queued' ORDER BY created_at",
         (admin_id,)
     ).fetchall()
 

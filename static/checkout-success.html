@@ -114,14 +114,48 @@
     </div>
 
     <script>
-        const PLAN_LABELS = { basic: 'Basic Plan', pro: 'Pro Plan', agency: 'Agency Plan' };
-        const params = new URLSearchParams(window.location.search);
-        const plan = params.get('plan');
+        var PLAN_LABELS = { basic: 'Basic Plan', pro: 'Pro Plan', agency: 'Enterprise Plan' };
+        var params = new URLSearchParams(window.location.search);
+        var plan = params.get('plan');
+        var token = localStorage.getItem('token') || '';
+        var subscriptionId = params.get('subscription_id') || sessionStorage.getItem('paypal_subscription_id') || '';
+        var badge = document.getElementById('planBadge');
+
         if (plan && PLAN_LABELS[plan]) {
-            document.getElementById('planBadge').textContent = PLAN_LABELS[plan];
+            badge.textContent = PLAN_LABELS[plan];
         } else {
-            document.getElementById('planBadge').textContent = 'Plan Upgraded';
+            badge.textContent = 'Plan Upgraded';
+        }
+
+        // Activate subscription on return from PayPal
+        if (subscriptionId && token) {
+            badge.textContent = 'Activating...';
+            fetch('/api/paypal/activate-subscription', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify({ subscription_id: subscriptionId })
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                sessionStorage.removeItem('paypal_subscription_id');
+                if (data.ok) {
+                    badge.textContent = PLAN_LABELS[plan] || 'Plan Upgraded';
+                    try {
+                        var u = JSON.parse(localStorage.getItem('user') || '{}');
+                        u.plan = plan;
+                        localStorage.setItem('user', JSON.stringify(u));
+                    } catch(e) {}
+                } else {
+                    badge.textContent = data.error || 'Activation pending';
+                    badge.style.color = '#f59e0b';
+                }
+            })
+            .catch(function() {
+                badge.textContent = 'Activation pending — check dashboard';
+                badge.style.color = '#f59e0b';
+            });
         }
     </script>
+<script src="/static/support-bot.js"></script>
 </body>
 </html>

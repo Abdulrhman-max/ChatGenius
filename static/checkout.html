@@ -113,6 +113,17 @@
             color: #8b95a8; font-size: 0.82rem; text-decoration: none; font-weight: 600; transition: color .2s;
         }
         .cancel-link:hover { color: #f1f5f9; }
+        .subscribe-btn {
+            width: 100%; padding: 1rem; border: none; border-radius: 16px; cursor: pointer;
+            background: linear-gradient(135deg, #0070ba, #003087); color: #fff;
+            font-family: 'Outfit', sans-serif; font-size: 1rem; font-weight: 700;
+            display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+            transition: transform .2s, box-shadow .2s;
+            box-shadow: 0 4px 25px rgba(0,112,186,0.3);
+        }
+        .subscribe-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 35px rgba(0,112,186,0.4); }
+        .subscribe-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -129,12 +140,17 @@
     </div>
 
     <div class="payment-form-side">
-        <div class="payment-title">Pay securely with PayPal</div>
-        <div class="payment-subtitle">Complete your purchase using PayPal or a credit/debit card. Your plan activates instantly after payment.</div>
+        <div class="payment-title">Subscribe securely with PayPal</div>
+        <div class="payment-subtitle">Set up your monthly subscription via PayPal. Your card will be charged automatically each month. Cancel anytime from your dashboard.</div>
 
         <div class="paypal-wrapper">
-            <div id="paypal-button-container">
-                <div class="paypal-loading">Loading payment options...</div>
+            <button id="subscribeBtn" class="subscribe-btn" onclick="startSubscription()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                Subscribe with PayPal
+            </button>
+            <div id="subscribeSpinner" style="display:none;text-align:center;padding:1.5rem 0;">
+                <div style="width:36px;height:36px;border:3px solid rgba(139,92,246,0.2);border-top-color:#8b5cf6;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 0.8rem;"></div>
+                <div style="color:#8b95a8;font-size:0.88rem;">Redirecting to PayPal...</div>
             </div>
         </div>
 
@@ -152,16 +168,16 @@
 <script>
     var PLANS = {
         basic: {
-            name: 'Basic', badge: 'BASIC PLAN', price: '$149',
+            name: 'Basic', badge: 'BASIC PLAN', price: '$79',
             features: ['700 conversations/month', '1 chatbot (with watermark)', 'Smart appointment booking', 'Calendar & doctor scheduling', 'Email reminders (48h, 24h)', 'Basic patient profiles', 'Pre-visit forms', 'Basic analytics']
         },
         pro: {
-            name: 'Pro', badge: 'PRO PLAN', price: '$349',
+            name: 'Pro', badge: 'PRO PLAN', price: '$239',
             features: ['5,000 conversations/month', '4 chatbots (no watermark)', 'Everything in Basic +', 'Advanced reminders (48h, 24h, 2h)', 'No-show detection & recovery', 'ROI dashboard', 'Lead capture + auto follow-ups', 'Waitlist system', 'Promotions & loyalty', 'Multi-language chatbot', 'AI PDF extraction']
         },
         agency: {
-            name: 'Agency', badge: 'AGENCY PLAN', price: '$799',
-            features: ['Unlimited conversations', 'Everything in Pro +', 'AI no-show prediction', 'Advanced analytics & reports', 'API access & PMS/CRM integration', 'Full doctor portal', 'Priority support', 'Custom email sending']
+            name: 'Enterprise', badge: 'ENTERPRISE PLAN', price: '$699',
+            features: ['Unlimited conversations', 'Unlimited chatbots', 'Everything in Pro +', 'AI no-show prediction', 'Advanced analytics & reports', 'API access & PMS/CRM integration', 'Full doctor portal', 'Chatbot customization & white-label', 'Dedicated account manager', 'Priority support', 'Custom email sending', 'SOC 2 compliance']
         }
     };
 
@@ -181,71 +197,43 @@
         document.getElementById('planPrice').innerHTML = plan.price + '<small>/mo</small>';
         document.getElementById('planFeatures').innerHTML = plan.features.map(function(f) { return '<li>' + f + '</li>'; }).join('');
         document.title = 'Checkout \u2014 ' + plan.name + ' Plan \u2014 ChatGenius';
+    }
 
-        // Load PayPal SDK dynamically
-        var script = document.createElement('script');
-        script.src = 'https://www.paypal.com/sdk/js?client-id=AbFJcl0u1bWnNgzi5R4KcTsJ-u2pjxUJjjujweFLNkKzFulwgOQX4w5IsZmfeGbJ85JEABMDYUHWdvqB&currency=USD';
-        script.onload = function() {
-            document.getElementById('paypal-button-container').innerHTML = '';
-            paypal.Buttons({
-                createOrder: function() {
-                    return fetch('/api/paypal/create-order', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-                        body: JSON.stringify({ plan: planKey })
-                    })
-                    .then(function(res) { return res.json(); })
-                    .then(function(data) {
-                        if (data.error) throw new Error(data.error);
-                        return data.id;
-                    });
-                },
-                onApprove: function(data) {
-                    var errEl = document.getElementById('paymentError');
-                    var successEl = document.getElementById('paymentSuccess');
-                    errEl.style.display = 'none';
-                    successEl.style.display = 'block';
-                    successEl.textContent = 'Processing payment...';
+    function startSubscription() {
+        var btn = document.getElementById('subscribeBtn');
+        var spinner = document.getElementById('subscribeSpinner');
+        var errEl = document.getElementById('paymentError');
+        errEl.style.display = 'none';
+        btn.style.display = 'none';
+        spinner.style.display = 'block';
 
-                    return fetch('/api/paypal/capture-order', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-                        body: JSON.stringify({ order_id: data.orderID })
-                    })
-                    .then(function(res) { return res.json(); })
-                    .then(function(d) {
-                        if (d.error) {
-                            successEl.style.display = 'none';
-                            errEl.textContent = d.error;
-                            errEl.style.display = 'block';
-                            return;
-                        }
-                        try {
-                            var u = JSON.parse(localStorage.getItem('user') || '{}');
-                            u.plan = planKey;
-                            localStorage.setItem('user', JSON.stringify(u));
-                        } catch(e) {}
-                        successEl.textContent = 'Payment successful! Redirecting...';
-                        window.location.href = '/checkout/success?plan=' + planKey;
-                    });
-                },
-                onCancel: function() {
-                    var errEl = document.getElementById('paymentError');
-                    errEl.textContent = 'Payment was cancelled. You can try again when ready.';
-                    errEl.style.display = 'block';
-                },
-                onError: function(err) {
-                    var errEl = document.getElementById('paymentError');
-                    errEl.textContent = 'Something went wrong with the payment. Please try again.';
-                    errEl.style.display = 'block';
-                }
-            }).render('#paypal-button-container');
-        };
-        script.onerror = function() {
-            document.getElementById('paypal-button-container').innerHTML = '<div class="error-msg" style="display:block">PayPal failed to load. Please disable ad-blockers and refresh the page.</div>';
-        };
-        document.body.appendChild(script);
+        fetch('/api/paypal/create-subscription', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ plan: planKey })
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data.error) {
+                errEl.textContent = data.error;
+                errEl.style.display = 'block';
+                btn.style.display = 'flex';
+                spinner.style.display = 'none';
+                return;
+            }
+            // Store subscription ID for activation on return
+            sessionStorage.setItem('paypal_subscription_id', data.subscription_id);
+            // Redirect to PayPal for approval
+            window.location.href = data.approve_url;
+        })
+        .catch(function() {
+            errEl.textContent = 'Something went wrong. Please try again.';
+            errEl.style.display = 'block';
+            btn.style.display = 'flex';
+            spinner.style.display = 'none';
+        });
     }
 </script>
+<script src="/static/support-bot.js"></script>
 </body>
 </html>

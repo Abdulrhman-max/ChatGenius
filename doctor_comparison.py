@@ -36,7 +36,7 @@ def get_doctor_comparison(admin_id):
     conn = db.get_db()
 
     doctors = conn.execute(
-        "SELECT * FROM doctors WHERE admin_id=? AND status='active' ORDER BY name",
+        "SELECT * FROM doctors WHERE admin_id=%s AND status='active' ORDER BY name",
         (admin_id,)
     ).fetchall()
 
@@ -88,7 +88,7 @@ def _find_next_available(doctor, conn, start_date):
 
         # Skip off days
         off_day = conn.execute(
-            "SELECT id FROM doctor_off_days WHERE doctor_id=? AND off_date=?",
+            "SELECT id FROM doctor_off_days WHERE doctor_id=%s AND off_date=%s",
             (doctor_id, check_date)
         ).fetchone()
         if off_day:
@@ -96,7 +96,7 @@ def _find_next_available(doctor, conn, start_date):
 
         # Get booked times
         booked = conn.execute(
-            "SELECT time FROM bookings WHERE doctor_id=? AND date=? AND status IN ('confirmed','pending')",
+            "SELECT time FROM bookings WHERE doctor_id=%s AND date=%s AND status IN ('confirmed','pending')",
             (doctor_id, check_date)
         ).fetchall()
         booked_times = set(b["time"] for b in booked)

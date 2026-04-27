@@ -15,7 +15,7 @@ def get_connection(admin_id):
     """Get current GMB connection status."""
     import database as db
     conn = db.get_db()
-    gmb = conn.execute("SELECT * FROM gmb_connections WHERE admin_id=?", (admin_id,)).fetchone()
+    gmb = conn.execute("SELECT * FROM gmb_connections WHERE admin_id=%s", (admin_id,)).fetchone()
     conn.close()
     return dict(gmb) if gmb else None
 
@@ -26,20 +26,20 @@ def connect_account(admin_id, google_account_id, location_id, access_token, refr
     conn = db.get_db()
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    existing = conn.execute("SELECT id FROM gmb_connections WHERE admin_id=?", (admin_id,)).fetchone()
+    existing = conn.execute("SELECT id FROM gmb_connections WHERE admin_id=%s", (admin_id,)).fetchone()
 
     if existing:
         conn.execute(
             """UPDATE gmb_connections SET
-               google_account_id=?, location_id=?, access_token=?, refresh_token=?, last_synced_at=?
-               WHERE admin_id=?""",
+               google_account_id=%s, location_id=%s, access_token=%s, refresh_token=%s, last_synced_at=%s
+               WHERE admin_id=%s""",
             (google_account_id, location_id, access_token, refresh_token, now, admin_id)
         )
     else:
         conn.execute(
             """INSERT INTO gmb_connections
                (admin_id, google_account_id, location_id, access_token, refresh_token, last_synced_at, created_at)
-               VALUES (?,?,?,?,?,?,?)""",
+               VALUES (%s,%s,%s,%s,%s,%s,%s)""",
             (admin_id, google_account_id, location_id, access_token, refresh_token, now, now)
         )
     conn.commit()
@@ -51,7 +51,7 @@ def disconnect_account(admin_id):
     """Remove GMB connection."""
     import database as db
     conn = db.get_db()
-    conn.execute("DELETE FROM gmb_connections WHERE admin_id=?", (admin_id,))
+    conn.execute("DELETE FROM gmb_connections WHERE admin_id=%s", (admin_id,))
     conn.commit()
     conn.close()
     return {"disconnected": True}
@@ -131,7 +131,7 @@ def generate_schema_markup(admin_id):
     import database as db
     conn = db.get_db()
 
-    company = conn.execute("SELECT * FROM company_info WHERE user_id=?", (admin_id,)).fetchone()
+    company = conn.execute("SELECT * FROM company_info WHERE user_id=%s", (admin_id,)).fetchone()
     if not company:
         conn.close()
         return ""
@@ -140,7 +140,7 @@ def generate_schema_markup(admin_id):
 
     # Get doctors
     doctors = conn.execute(
-        "SELECT name, specialty FROM doctors WHERE admin_id=? AND status='active'", (admin_id,)
+        "SELECT name, specialty FROM doctors WHERE admin_id=%s AND status='active'", (admin_id,)
     ).fetchall()
 
     conn.close()

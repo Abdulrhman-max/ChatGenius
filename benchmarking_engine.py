@@ -25,12 +25,12 @@ def refresh_clinic_metrics(admin_id):
 
     # Conversion rate: bookings / total chat sessions
     total_sessions = conn.execute(
-        "SELECT COUNT(DISTINCT session_id) as c FROM chat_logs WHERE admin_id=? AND created_at >= ?",
+        "SELECT COUNT(DISTINCT session_id) as c FROM chat_logs WHERE admin_id=%s AND created_at >= %s",
         (admin_id, month_ago)
     ).fetchone()["c"]
 
     total_bookings = conn.execute(
-        "SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND created_at >= ?",
+        "SELECT COUNT(*) as c FROM bookings WHERE admin_id=%s AND created_at >= %s",
         (admin_id, month_ago)
     ).fetchone()["c"]
 
@@ -38,12 +38,12 @@ def refresh_clinic_metrics(admin_id):
 
     # No-show rate
     total_appointments = conn.execute(
-        "SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND date >= ? AND status IN ('confirmed','completed','no_show')",
+        "SELECT COUNT(*) as c FROM bookings WHERE admin_id=%s AND date >= %s AND status IN ('confirmed','completed','no_show')",
         (admin_id, month_ago)
     ).fetchone()["c"]
 
     no_shows = conn.execute(
-        "SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND date >= ? AND status='no_show'",
+        "SELECT COUNT(*) as c FROM bookings WHERE admin_id=%s AND date >= %s AND status='no_show'",
         (admin_id, month_ago)
     ).fetchone()["c"]
 
@@ -58,7 +58,7 @@ def refresh_clinic_metrics(admin_id):
             ) as response_seconds
             FROM chat_logs c1
             JOIN chat_logs c2 ON c1.session_id = c2.session_id AND c2.created_at > c1.created_at
-            WHERE c1.admin_id=? AND c1.created_at >= ?
+            WHERE c1.admin_id=%s AND c1.created_at >= %s
             GROUP BY c1.session_id
         )""",
         (admin_id, month_ago)
@@ -70,12 +70,12 @@ def refresh_clinic_metrics(admin_id):
 
     # Review score (from GMB or internal)
     review_score = conn.execute(
-        "SELECT rating FROM gmb_connections WHERE admin_id=?", (admin_id,)
+        "SELECT rating FROM gmb_connections WHERE admin_id=%s", (admin_id,)
     ).fetchone()
     review_score = float(review_score["rating"]) if review_score and review_score["rating"] else 0
 
     # Get clinic city
-    company = conn.execute("SELECT * FROM company_info WHERE user_id=?", (admin_id,)).fetchone()
+    company = conn.execute("SELECT * FROM company_info WHERE user_id=%s", (admin_id,)).fetchone()
     city = ""
     if company and company.get("address"):
         # Try to extract city from address (last meaningful part)
@@ -83,15 +83,15 @@ def refresh_clinic_metrics(admin_id):
         city = parts[-1].strip() if parts else ""
 
     # Upsert metrics
-    existing = conn.execute("SELECT id FROM clinic_metrics_cache WHERE admin_id=?", (admin_id,)).fetchone()
+    existing = conn.execute("SELECT id FROM clinic_metrics_cache WHERE admin_id=%s", (admin_id,)).fetchone()
     now_str = now.strftime("%Y-%m-%d %H:%M:%S")
 
     if existing:
         conn.execute(
             """UPDATE clinic_metrics_cache SET
-               conversion_rate=?, noshow_rate=?, avg_response_time=?,
-               monthly_bookings=?, review_score=?, city=?, updated_at=?
-               WHERE admin_id=?""",
+               conversion_rate=%s, noshow_rate=%s, avg_response_time=%s,
+               monthly_bookings=%s, review_score=%s, city=%s, updated_at=%s
+               WHERE admin_id=%s""",
             (conversion_rate, noshow_rate, avg_response_time, monthly_bookings,
              review_score, city, now_str, admin_id)
         )
@@ -100,7 +100,7 @@ def refresh_clinic_metrics(admin_id):
             """INSERT INTO clinic_metrics_cache
                (admin_id, conversion_rate, noshow_rate, avg_response_time,
                 monthly_bookings, review_score, city, updated_at)
-               VALUES (?,?,?,?,?,?,?,?)""",
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
             (admin_id, conversion_rate, noshow_rate, avg_response_time,
              monthly_bookings, review_score, city, now_str)
         )
@@ -141,7 +141,7 @@ def get_benchmarks(admin_id):
 
     # Get this clinic's metrics
     my_metrics = conn.execute(
-        "SELECT * FROM clinic_metrics_cache WHERE admin_id=?", (admin_id,)
+        "SELECT * FROM clinic_metrics_cache WHERE admin_id=%s", (admin_id,)
     ).fetchone()
 
     if not my_metrics:
@@ -150,7 +150,7 @@ def get_benchmarks(admin_id):
         refresh_clinic_metrics(admin_id)
         conn = db.get_db()
         my_metrics = conn.execute(
-            "SELECT * FROM clinic_metrics_cache WHERE admin_id=?", (admin_id,)
+            "SELECT * FROM clinic_metrics_cache WHERE admin_id=%s", (admin_id,)
         ).fetchone()
 
     if not my_metrics:
@@ -161,7 +161,7 @@ def get_benchmarks(admin_id):
 
     # Check minimum bookings
     total_bookings = conn.execute(
-        "SELECT COUNT(*) as c FROM bookings WHERE admin_id=?", (admin_id,)
+        "SELECT COUNT(*) as c FROM bookings WHERE admin_id=%s", (admin_id,)
     ).fetchone()["c"]
 
     if total_bookings < MIN_BOOKINGS_FOR_DATA:
@@ -177,12 +177,12 @@ def get_benchmarks(admin_id):
     city = my_metrics.get("city", "")
     if city:
         peers = conn.execute(
-            "SELECT * FROM clinic_metrics_cache WHERE city=? AND admin_id != ?",
+            "SELECT * FROM clinic_metrics_cache WHERE city=%s AND admin_id != %s",
             (city, admin_id)
         ).fetchall()
     else:
         peers = conn.execute(
-            "SELECT * FROM clinic_metrics_cache WHERE admin_id != ?",
+            "SELECT * FROM clinic_metrics_cache WHERE admin_id != %s",
             (admin_id,)
         ).fetchall()
 

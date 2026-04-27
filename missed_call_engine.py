@@ -24,7 +24,7 @@ def handle_missed_call(admin_id, caller_number, call_time=None):
 
     # Check if feature is enabled
     conn = db.get_db()
-    company = conn.execute("SELECT * FROM company_info WHERE user_id=?", (admin_id,)).fetchone()
+    company = conn.execute("SELECT * FROM company_info WHERE user_id=%s", (admin_id,)).fetchone()
     conn.close()
 
     if not company:
@@ -36,12 +36,12 @@ def handle_missed_call(admin_id, caller_number, call_time=None):
 
     # Log the call
     conn = db.get_db()
-    conn.execute(
-        "INSERT INTO missed_calls (admin_id, caller_number, call_time, reply_sent, reply_method, created_at) VALUES (?,?,?,0,'',?)",
+    _ins_cur = conn.execute(
+        "INSERT INTO missed_calls (admin_id, caller_number, call_time, reply_sent, reply_method, created_at) VALUES (%s,%s,%s,0,'',%s) RETURNING id",
         (admin_id, caller_number, call_time, call_time)
     )
+    call_id = _ins_cur.fetchone()['id']
     conn.commit()
-    call_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     conn.close()
 
     # Determine message based on business hours
@@ -63,12 +63,12 @@ def handle_missed_call(admin_id, caller_number, call_time=None):
         )
 
     # Send reply
-    sent = _send_sms(caller_number, message)
+    sent = _send_sms(caller_number, message, admin_id=admin_id)
 
     # Update log
     conn = db.get_db()
     conn.execute(
-        "UPDATE missed_calls SET reply_sent=?, reply_method=? WHERE id=?",
+        "UPDATE missed_calls SET reply_sent=%s, reply_method=%s WHERE id=%s",
         (1 if sent else 0, "sms" if sent else "", call_id)
     )
     conn.commit()
@@ -92,20 +92,18 @@ def _is_within_business_hours(hours_str):
     return 9 <= hour < 17
 
 
-def _send_sms(phone_number, message):
-    """
-    Send SMS via Twilio (STUBBED).
-    Replace this with actual Twilio integration when ready.
-    """
-    # STUB: Log the message that would be sent
+def _send_sms(phone_number, message, admin_id=None):
+    """Send SMS via Twilio using sms_engine.
+    Falls back to stub logging when Twilio is not configured."""
+    import sms_engine
+
+    if admin_id and sms_engine.is_configured(admin_id):
+        result = sms_engine.send_sms(phone_number, message, admin_id)
+        return result.get("success", False)
+
+    # Fallback: log stub when Twilio is not configured
     logger.info(f"[SMS STUB] To: {phone_number}, Message: {message[:80]}...")
-
-    # In production, this would be:
-    # from twilio.rest import Client
-    # client = Client(TWILIO_SID, TWILIO_TOKEN)
-    # client.messages.create(body=message, from_=TWILIO_NUMBER, to=phone_number)
-
-    return True  # Stub always succeeds
+    return True
 
 
 def mark_as_booked(call_id, booking_id):
@@ -113,7 +111,7 @@ def mark_as_booked(call_id, booking_id):
     import database as db
     conn = db.get_db()
     conn.execute(
-        "UPDATE missed_calls SET subsequently_booked=1, booking_id=? WHERE id=?",
+        "UPDATE missed_calls SET subsequently_booked=1, booking_id=%s WHERE id=%s",
         (booking_id, call_id)
     )
     conn.commit()
@@ -125,7 +123,7 @@ def get_missed_calls(admin_id, limit=50):
     import database as db
     conn = db.get_db()
     calls = conn.execute(
-        "SELECT * FROM missed_calls WHERE admin_id=? ORDER BY call_time DESC LIMIT ?",
+        "SELECT * FROM missed_calls WHERE admin_id=%s ORDER BY call_time DESC LIMIT %s",
         (admin_id, limit)
     ).fetchall()
     conn.close()
@@ -137,9 +135,9 @@ def get_missed_call_stats(admin_id):
     import database as db
     conn = db.get_db()
 
-    total = conn.execute("SELECT COUNT(*) as c FROM missed_calls WHERE admin_id=?", (admin_id,)).fetchone()["c"]
-    replied = conn.execute("SELECT COUNT(*) as c FROM missed_calls WHERE admin_id=? AND reply_sent=1", (admin_id,)).fetchone()["c"]
-    booked = conn.execute("SELECT COUNT(*) as c FROM missed_calls WHERE admin_id=? AND subsequently_booked=1", (admin_id,)).fetchone()["c"]
+    total = conn.execute("SELECT COUNT(*) as c FROM missed_calls WHERE admin_id=%s", (admin_id,)).fetchone()["c"]
+    replied = conn.execute("SELECT COUNT(*) as c FROM missed_calls WHERE admin_id=%s AND reply_sent=1", (admin_id,)).fetchone()["c"]
+    booked = conn.execute("SELECT COUNT(*) as c FROM missed_calls WHERE admin_id=%s AND subsequently_booked=1", (admin_id,)).fetchone()["c"]
 
     conn.close()
     return {
@@ -154,7 +152,7 @@ def toggle_feature(admin_id, enabled):
     """Enable or disable missed call auto-reply."""
     import database as db
     conn = db.get_db()
-    conn.execute("UPDATE company_info SET missed_call_enabled=? WHERE user_id=?", (1 if enabled else 0, admin_id))
+    conn.execute("UPDATE company_info SET missed_call_enabled=%s WHERE user_id=%s", (1 if enabled else 0, admin_id))
     conn.commit()
     conn.close()
     return {"enabled": enabled}

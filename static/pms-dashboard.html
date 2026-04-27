@@ -412,6 +412,10 @@
     
     <script>
         const token = localStorage.getItem('token');
+        // Bug 7: Auth guard — redirect to login if no token
+        if (!token) { window.location.replace('/login'); }
+        // Bug 1: This page is a deprecated prototype — redirect to main dashboard PMS page
+        window.location.replace('/user-dashboard#pms');
         const headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
         let currentAdapter = 'mock';
         
@@ -581,8 +585,21 @@
             try {
                 const res = await fetch(`/api/pms/patients?search=${encodeURIComponent(search)}`, { headers });
                 const patients = await res.json();
-                // Update table
-                loadPatients();
+                // Bug 2 fix: use the search results instead of discarding them
+                const tbody = document.getElementById('patientsTable');
+                if (!patients || patients.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No patients found</td></tr>';
+                } else {
+                    tbody.innerHTML = patients.map(p => `
+                        <tr>
+                            <td>${escapeHtml(p.name || 'Unknown')}</td>
+                            <td>${escapeHtml(p.email || '-')}</td>
+                            <td>${escapeHtml(p.phone || '-')}</td>
+                            <td>${escapeHtml(p.insurance_provider || '-')}</td>
+                            <td><button class="btn btn-secondary" onclick="viewPatient(${p.id})">View</button></td>
+                        </tr>
+                    `).join('');
+                }
             } catch (e) {
                 console.error(e);
             }

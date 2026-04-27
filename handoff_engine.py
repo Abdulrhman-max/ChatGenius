@@ -41,7 +41,7 @@ def should_handoff(message, confidence_score, admin_id=None):
     if admin_id:
         import database as db
         conn = db.get_db()
-        company = conn.execute("SELECT handoff_threshold FROM company_info WHERE user_id=?", (admin_id,)).fetchone()
+        company = conn.execute("SELECT handoff_threshold FROM company_info WHERE user_id=%s", (admin_id,)).fetchone()
         conn.close()
         if company and company["handoff_threshold"]:
             try:
@@ -66,21 +66,21 @@ def create_handoff(admin_id, session_id, patient_name, reason, conversation_hist
 
     # Check if there's already an active handoff for this session
     existing = conn.execute(
-        "SELECT id, status FROM live_chat_handoffs WHERE session_id=? AND status IN ('queued','assigned')",
+        "SELECT id, status FROM live_chat_handoffs WHERE session_id=%s AND status IN ('queued','assigned')",
         (session_id,)
     ).fetchone()
     if existing:
         conn.close()
         return {"id": existing["id"], "status": existing["status"], "already_exists": True}
 
-    conn.execute(
+    _ins_cur = conn.execute(
         """INSERT INTO live_chat_handoffs
            (admin_id, session_id, patient_name, reason, status, ai_confidence, created_at)
-           VALUES (?,?,?,?,?,?,?)""",
+           VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
         (admin_id, session_id, patient_name, reason, "queued", ai_confidence, now)
     )
+    handoff_id = _ins_cur.fetchone()['id']
     conn.commit()
-    handoff_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     conn.close()
 
     logger.info(f"Handoff #{handoff_id} created for {patient_name} (reason: {reason})")
@@ -93,7 +93,7 @@ def assign_handoff(handoff_id, staff_user_id, staff_name):
     conn = db.get_db()
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    handoff = conn.execute("SELECT * FROM live_chat_handoffs WHERE id=?", (handoff_id,)).fetchone()
+    handoff = conn.execute("SELECT * FROM live_chat_handoffs WHERE id=%s", (handoff_id,)).fetchone()
     if not handoff:
         conn.close()
         return {"error": "Handoff not found"}
@@ -103,7 +103,7 @@ def assign_handoff(handoff_id, staff_user_id, staff_name):
         return {"error": f"Handoff is already {handoff['status']}"}
 
     conn.execute(
-        "UPDATE live_chat_handoffs SET status='assigned', staff_user_id=?, staff_name=?, assigned_at=? WHERE id=?",
+        "UPDATE live_chat_handoffs SET status='assigned', staff_user_id=%s, staff_name=%s, assigned_at=%s WHERE id=%s",
         (staff_user_id, staff_name, now, handoff_id)
     )
     conn.commit()
@@ -120,7 +120,7 @@ def resolve_handoff(handoff_id, resolution_notes=""):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     conn.execute(
-        "UPDATE live_chat_handoffs SET status='resolved', resolved_at=?, resolution_notes=? WHERE id=?",
+        "UPDATE live_chat_handoffs SET status='resolved', resolved_at=%s, resolution_notes=%s WHERE id=%s",
         (now, resolution_notes, handoff_id)
     )
     conn.commit()
@@ -140,7 +140,7 @@ def send_handoff_message(handoff_id, sender_type, sender_name, message):
     import database as db
     conn = db.get_db()
 
-    handoff = conn.execute("SELECT * FROM live_chat_handoffs WHERE id=?", (handoff_id,)).fetchone()
+    handoff = conn.execute("SELECT * FROM live_chat_handoffs WHERE id=%s", (handoff_id,)).fetchone()
     if not handoff:
         conn.close()
         return {"error": "Handoff not found"}
@@ -152,7 +152,7 @@ def send_handoff_message(handoff_id, sender_type, sender_name, message):
     conn.execute(
         """INSERT INTO chat_logs
            (session_id, admin_id, message, intent, is_human_handled, handler_user_id, created_at)
-           VALUES (?,?,?,?,?,?,?)""",
+           VALUES (%s,%s,%s,%s,%s,%s,%s)""",
         (handoff["session_id"], handoff["admin_id"],
          f"[{sender_type.upper()}:{sender_name}] {message}",
          "handoff_message", 1,
@@ -174,7 +174,7 @@ def get_handoff_queue(admin_id):
         """SELECT h.*,
                   (julianday('now') - julianday(h.created_at)) * 24 * 60 as wait_minutes
            FROM live_chat_handoffs h
-           WHERE h.admin_id=? AND h.status IN ('queued', 'assigned')
+           WHERE h.admin_id=%s AND h.status IN ('queued', 'assigned')
            ORDER BY CASE h.status WHEN 'queued' THEN 0 ELSE 1 END, h.created_at ASC""",
         (admin_id,)
     ).fetchall()
@@ -184,7 +184,7 @@ def get_handoff_queue(admin_id):
         h = dict(h)
         # Get conversation history for this session
         history = conn.execute(
-            "SELECT message, created_at FROM chat_logs WHERE session_id=? ORDER BY created_at ASC",
+            "SELECT message, created_at FROM chat_logs WHERE session_id=%s ORDER BY created_at ASC",
             (h["session_id"],)
         ).fetchall()
 
@@ -201,7 +201,7 @@ def get_handoff_for_session(session_id):
     import database as db
     conn = db.get_db()
     handoff = conn.execute(
-        "SELECT * FROM live_chat_handoffs WHERE session_id=? AND status IN ('queued','assigned') LIMIT 1",
+        "SELECT * FROM live_chat_handoffs WHERE session_id=%s AND status IN ('queued','assigned') LIMIT 1",
         (session_id,)
     ).fetchone()
     conn.close()
@@ -220,7 +220,7 @@ def check_handoff_timeout():
     cutoff = (datetime.now() - timedelta(minutes=HANDOFF_TIMEOUT_MINUTES)).strftime("%Y-%m-%d %H:%M:%S")
 
     timed_out = conn.execute(
-        "SELECT * FROM live_chat_handoffs WHERE status='queued' AND created_at <= ?",
+        "SELECT * FROM live_chat_handoffs WHERE status='queued' AND created_at <= %s",
         (cutoff,)
     ).fetchall()
 
@@ -229,7 +229,7 @@ def check_handoff_timeout():
         h = dict(h)
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         conn.execute(
-            "UPDATE live_chat_handoffs SET status='timeout', resolved_at=? WHERE id=?",
+            "UPDATE live_chat_handoffs SET status='timeout', resolved_at=%s WHERE id=%s",
             (now, h["id"])
         )
         logger.info(f"Handoff #{h['id']} for {h.get('patient_name', 'Unknown')} timed out after {HANDOFF_TIMEOUT_MINUTES} minutes with no staff pickup")
@@ -246,21 +246,21 @@ def get_handoff_stats(admin_id):
     conn = db.get_db()
 
     total = conn.execute(
-        "SELECT COUNT(*) as c FROM live_chat_handoffs WHERE admin_id=?", (admin_id,)
+        "SELECT COUNT(*) as c FROM live_chat_handoffs WHERE admin_id=%s", (admin_id,)
     ).fetchone()["c"]
 
     queued = conn.execute(
-        "SELECT COUNT(*) as c FROM live_chat_handoffs WHERE admin_id=? AND status='queued'", (admin_id,)
+        "SELECT COUNT(*) as c FROM live_chat_handoffs WHERE admin_id=%s AND status='queued'", (admin_id,)
     ).fetchone()["c"]
 
     resolved = conn.execute(
-        "SELECT COUNT(*) as c FROM live_chat_handoffs WHERE admin_id=? AND status='resolved'", (admin_id,)
+        "SELECT COUNT(*) as c FROM live_chat_handoffs WHERE admin_id=%s AND status='resolved'", (admin_id,)
     ).fetchone()["c"]
 
     # Average resolution time
     avg_time = conn.execute(
         """SELECT AVG((julianday(resolved_at) - julianday(created_at)) * 24 * 60) as avg_min
-           FROM live_chat_handoffs WHERE admin_id=? AND status='resolved' AND resolved_at IS NOT NULL""",
+           FROM live_chat_handoffs WHERE admin_id=%s AND status='resolved' AND resolved_at IS NOT NULL""",
         (admin_id,)
     ).fetchone()
 

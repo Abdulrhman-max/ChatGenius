@@ -26,7 +26,7 @@ def create_review_request(admin_id, booking_id, patient_email, patient_name, doc
     conn.execute(
         """INSERT INTO review_requests 
            (admin_id, booking_id, patient_email, patient_name, doctor_id, token, status)
-           VALUES (?,?,?,?,?,?,?)""",
+           VALUES (%s,%s,%s,%s,%s,%s,%s)""",
         (admin_id, booking_id, patient_email, patient_name, doctor_id, token, 'pending')
     )
     conn.commit()
@@ -46,7 +46,7 @@ def submit_review(token, rating, feedback=""):
     conn = db.get_db()
     
     request = conn.execute(
-        "SELECT * FROM review_requests WHERE token=? AND status='pending'",
+        "SELECT * FROM review_requests WHERE token=%s AND status='pending'",
         (token,)
     ).fetchone()
     
@@ -56,8 +56,8 @@ def submit_review(token, rating, feedback=""):
     
     conn.execute(
         """UPDATE review_requests 
-           SET rating=?, feedback=?, status='completed', completed_at=? 
-           WHERE token=?""",
+           SET rating=%s, feedback=%s, status='completed', completed_at=%s 
+           WHERE token=%s""",
         (rating, feedback, datetime.now().isoformat(), token)
     )
     
@@ -75,7 +75,7 @@ def submit_review(token, rating, feedback=""):
     conn.execute(
         """INSERT INTO reviews 
            (admin_id, booking_id, patient_email, patient_name, rating, feedback, is_positive)
-           VALUES (?,?,?,?,?,?,?)""",
+           VALUES (%s,%s,%s,%s,%s,%s,%s)""",
         (rating_record["admin_id"], rating_record["booking_id"], rating_record["patient_email"],
          rating_record["patient_name"], rating_record["rating"], rating_record["feedback"],
          1 if rating_record["is_positive"] else 0)
@@ -98,17 +98,17 @@ def get_reviews(admin_id, date_from=None, date_to=None, limit=100):
     import database as db
     
     conn = db.get_db()
-    query = "SELECT * FROM reviews WHERE admin_id=?"
+    query = "SELECT * FROM reviews WHERE admin_id=%s"
     params = [admin_id]
     
     if date_from:
-        query += " AND DATE(created_at) >= ?"
+        query += " AND DATE(created_at) >= %s"
         params.append(date_from)
     if date_to:
-        query += " AND DATE(created_at) <= ?"
+        query += " AND DATE(created_at) <= %s"
         params.append(date_to)
     
-    query += " ORDER BY created_at DESC LIMIT ?"
+    query += " ORDER BY created_at DESC LIMIT %s"
     params.append(limit)
     
     rows = conn.execute(query, params).fetchall()
@@ -122,14 +122,14 @@ def get_review_analytics(admin_id, date_from=None, date_to=None):
     
     conn = db.get_db()
     
-    where = "WHERE admin_id=?"
+    where = "WHERE admin_id=%s"
     params = [admin_id]
     
     if date_from:
-        where += " AND DATE(created_at) >= ?"
+        where += " AND DATE(created_at) >= %s"
         params.append(date_from)
     if date_to:
-        where += " AND DATE(created_at) <= ?"
+        where += " AND DATE(created_at) <= %s"
         params.append(date_to)
     
     total = conn.execute(f"SELECT COUNT(*) as c FROM reviews {where}", params).fetchone()["c"]
@@ -141,7 +141,7 @@ def get_review_analytics(admin_id, date_from=None, date_to=None):
     
     rating_breakdown = {}
     for i in range(1, 6):
-        count = conn.execute(f"SELECT COUNT(*) as c FROM reviews {where} AND rating=?", params + [i]).fetchone()["c"]
+        count = conn.execute(f"SELECT COUNT(*) as c FROM reviews {where} AND rating=%s", params + [i]).fetchone()["c"]
         rating_breakdown[i] = count
     
     recent_with_feedback = conn.execute(

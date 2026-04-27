@@ -11,12 +11,12 @@
     "plans": [
       {
         "name": "Basic",
-        "price": "$49/month",
-        "annual_price": "$39/month (billed annually)",
-        "conversations": "500/month",
+        "price": "$149/month",
+        "annual_price": "$119/month (billed annually)",
+        "conversations": "700/month",
         "chatbots": 1,
         "features": [
-          "500 conversations per month",
+          "700 conversations per month",
           "1 chatbot",
           "Basic lead capture (name, email)",
           "Email support (24-48 hour response)",
@@ -28,8 +28,8 @@
       },
       {
         "name": "Pro",
-        "price": "$149/month",
-        "annual_price": "$119/month (billed annually)",
+        "price": "$349/month",
+        "annual_price": "$279/month (billed annually)",
         "conversations": "5,000/month",
         "chatbots": 3,
         "features": [
@@ -50,8 +50,8 @@
       },
       {
         "name": "Agency",
-        "price": "$299/month",
-        "annual_price": "$249/month (billed annually)",
+        "price": "$799/month",
+        "annual_price": "$639/month (billed annually)",
         "conversations": "Unlimited",
         "chatbots": "Unlimited",
         "features": [

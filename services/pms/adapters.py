@@ -196,7 +196,7 @@ class MockAdapter(BasePMSAdapter):
         if updates:
             set_clause = ", ".join(f"{k}=?" for k in updates)
             values = list(updates.values()) + [int(patient_id)]
-            conn.execute(f"UPDATE pms_patients SET {set_clause}, updated_at=CURRENT_TIMESTAMP WHERE id=?", values)
+            conn.execute(f"UPDATE pms_patients SET {set_clause}, updated_at=CURRENT_TIMESTAMP WHERE id=%s", values)
             conn.commit()
         conn.close()
         return {"ok": True}

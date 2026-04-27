@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://unpkg.com/lucide@0.395.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <style>
         html{font-size:90%}
@@ -1164,6 +1164,13 @@
                     <a href="#" class="pro-only" onclick="showPage('email-style')" data-page="email-style"><span class="dd-icon"><i data-lucide="palette" style="width:14px;height:14px"></i></span><span class="dd-text">Email Style<span class="dd-desc">Template builder</span></span></a>
                     <a href="#" class="agency-only" onclick="showPage('chatbot-customize')" data-page="chatbot-customize"><span class="dd-icon"><i data-lucide="paintbrush" style="width:14px;height:14px"></i></span><span class="dd-text">Chatbot Style<span class="dd-desc">Widget appearance</span></span></a>
                     <a href="javascript:void(0)" onclick="showPage('pms')" data-page="pms"><span class="dd-icon"><i data-lucide="plug" style="width:14px;height:14px"></i></span><span class="dd-text">PMS Integration<span class="dd-desc">External systems</span></span></a>
+                    <span class="dd-divider"></span>
+                    <div class="nav-dropdown-label">Integrations</div>
+                    <a href="javascript:void(0)" onclick="showPage('twilio-sms')" data-page="twilio-sms"><span class="dd-icon"><i data-lucide="smartphone" style="width:14px;height:14px"></i></span><span class="dd-text">Twilio SMS<span class="dd-desc">SMS notifications</span></span></a>
+                    <a href="javascript:void(0)" onclick="showPage('mailchimp')" data-page="mailchimp"><span class="dd-icon"><i data-lucide="mail" style="width:14px;height:14px"></i></span><span class="dd-text">Mailchimp<span class="dd-desc">Email marketing</span></span></a>
+                    <a href="javascript:void(0)" onclick="showPage('zapier')" data-page="zapier"><span class="dd-icon"><i data-lucide="zap" style="width:14px;height:14px"></i></span><span class="dd-text">Zapier<span class="dd-desc">Webhook automation</span></span></a>
+                    <a href="javascript:void(0)" onclick="showPage('calendly')" data-page="calendly"><span class="dd-icon"><i data-lucide="calendar-clock" style="width:14px;height:14px"></i></span><span class="dd-text">Calendly<span class="dd-desc">Scheduling sync</span></span></a>
+                    <a href="javascript:void(0)" onclick="showPage('google-calendar')" data-page="google-calendar"><span class="dd-icon"><i data-lucide="calendar-check" style="width:14px;height:14px"></i></span><span class="dd-text">Google Calendar<span class="dd-desc">Doctor calendar sync</span></span></a>
                 </div>
             </div>
         </div>
@@ -1223,6 +1230,7 @@
         <a href="#" class="admin-only" onclick="showPage('roi');document.getElementById('mobileMenu').classList.remove('show')" data-page="roi">ROI Dashboard</a>
         <div class="nav-mobile-section admin-only">Settings</div>
         <a href="#" class="admin-only" onclick="showPage('config');document.getElementById('mobileMenu').classList.remove('show')" data-page="config">Configuration</a>
+        <a href="#" class="admin-only" onclick="showPage('zapier');document.getElementById('mobileMenu').classList.remove('show')" data-page="zapier">Zapier</a>
     </div>
 
     <!-- Hidden legacy sidebar for JS compatibility -->
@@ -2154,10 +2162,20 @@
                 </div>
                 <p style="color:var(--gray);font-size:0.92rem" id="planDescription">You're on the free trial. Choose a plan below to unlock more features.</p>
             </div>
+            <!-- Billing Cycle Toggle -->
+            <div class="head-admin-only" id="billingToggle" style="display:flex;align-items:center;justify-content:center;gap:0.75rem;margin-bottom:1.25rem">
+                <span id="toggleMonthly" style="font-size:0.9rem;font-weight:600;cursor:pointer;color:#fff" onclick="setBillingCycle('monthly')">Monthly</span>
+                <label style="position:relative;width:44px;height:24px;cursor:pointer;flex-shrink:0">
+                    <input type="checkbox" id="billingCycleToggle" onchange="setBillingCycle(this.checked ? 'yearly' : 'monthly')" style="opacity:0;width:0;height:0">
+                    <span style="position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(139,92,246,0.4);border-radius:50px;transition:0.3s" id="billingToggleTrack"></span>
+                    <span style="position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:0.3s;box-shadow:0 2px 4px rgba(0,0,0,0.3)" id="billingToggleThumb"></span>
+                </label>
+                <span id="toggleYearly" style="font-size:0.9rem;font-weight:600;cursor:pointer;color:var(--gray)" onclick="setBillingCycle('yearly')">Annual <span style="color:var(--green);font-size:0.75rem">Save 20%</span></span>
+            </div>
             <div class="plans-grid head-admin-only" id="plansSection">
-                <div class="plan-card" id="planCard-basic"><h3>Basic</h3><div class="plan-price">$149<small>/mo</small></div><ul class="plan-features"><li>Up to 700 conversations/month</li><li>1 chatbot (with watermark)</li><li>AI chatbot (website only)</li><li>Smart appointment booking</li><li>Calendar & doctor scheduling</li><li>Email reminders (48h, 24h)</li><li>Basic patient profiles</li><li>Pre-visit forms</li><li>Basic analytics</li></ul><button class="plan-btn plan-btn-outline" onclick="selectPlan('basic')">Choose Basic</button></div>
-                <div class="plan-card" id="planCard-pro"><h3>Pro <span style="color:var(--cyan);font-size:0.75rem">MOST POPULAR</span></h3><div class="plan-price">$349<small>/mo</small></div><ul class="plan-features"><li>Up to 5,000 conversations/month</li><li>4 chatbots (no watermark)</li><li>Everything in Basic +</li><li>Advanced reminders (48h, 24h, 2h)</li><li>No-show detection & recovery</li><li>ROI dashboard</li><li>Lead capture + auto follow-ups</li><li>Waitlist system</li><li>Promotions & loyalty program</li><li>Multi-language chatbot</li><li>Treatment follow-ups</li><li>Customer integration</li><li>Customizable chatbot</li><li>AI PDF extraction</li><li>Configurable emails</li></ul><button class="plan-btn plan-btn-primary" onclick="selectPlan('pro')">Choose Pro</button></div>
-                <div class="plan-card" id="planCard-agency"><h3>Agency</h3><div class="plan-price">$799<small>/mo</small></div><ul class="plan-features"><li>Unlimited conversations</li><li>Everything in Pro +</li><li>AI no-show prediction reminders</li><li>Advanced analytics & reports</li><li>Custom workflows</li><li>API access (integrations)</li><li>Appointment database integrations</li><li>PMS/CRM integration</li><li>Full doctor portal access</li><li>Priority support</li><li>Customizable emails</li><li>Use your own email to send</li><li>Chatbot Customization</li></ul><button class="plan-btn plan-btn-outline" onclick="selectPlan('agency')">Choose Agency</button></div>
+                <div class="plan-card" id="planCard-basic"><h3>Basic</h3><div class="plan-price" id="planPrice-basic">$149<small>/mo</small></div><ul class="plan-features"><li>Up to 700 conversations/month</li><li>1 chatbot (with watermark)</li><li>AI chatbot (website only)</li><li>Smart appointment booking</li><li>Calendar & doctor scheduling</li><li>Email reminders (48h, 24h)</li><li>Basic patient profiles</li><li>Pre-visit forms</li><li>Basic analytics</li></ul><button class="plan-btn plan-btn-outline" onclick="selectPlan('basic', currentBillingCycle)">Choose Basic</button></div>
+                <div class="plan-card" id="planCard-pro"><h3>Pro <span style="color:var(--cyan);font-size:0.75rem">MOST POPULAR</span></h3><div class="plan-price" id="planPrice-pro">$349<small>/mo</small></div><ul class="plan-features"><li>Up to 5,000 conversations/month</li><li>4 chatbots (no watermark)</li><li>Everything in Basic +</li><li>Advanced reminders (48h, 24h, 2h)</li><li>No-show detection & recovery</li><li>ROI dashboard</li><li>Lead capture + auto follow-ups</li><li>Waitlist system</li><li>Promotions & loyalty program</li><li>Multi-language chatbot</li><li>Treatment follow-ups</li><li>Customer integration</li><li>Customizable chatbot</li><li>AI PDF extraction</li><li>Configurable emails</li></ul><button class="plan-btn plan-btn-primary" onclick="selectPlan('pro', currentBillingCycle)">Choose Pro</button></div>
+                <div class="plan-card" id="planCard-agency"><h3>Agency</h3><div class="plan-price" id="planPrice-agency">$799<small>/mo</small></div><ul class="plan-features"><li>Unlimited conversations</li><li>Everything in Pro +</li><li>AI no-show prediction reminders</li><li>Advanced analytics & reports</li><li>Custom workflows</li><li>API access (integrations)</li><li>Appointment database integrations</li><li>PMS/CRM integration</li><li>Full doctor portal access</li><li>Priority support</li><li>Customizable emails</li><li>Use your own email to send</li><li>Chatbot Customization</li></ul><button class="plan-btn plan-btn-outline" onclick="selectPlan('agency', currentBillingCycle)">Choose Agency</button><a href="mailto:sales@chatgeniusx.com" class="plan-btn plan-btn-outline" style="display:block;margin-top:0.5rem;text-align:center;text-decoration:none;background:transparent;border:1px solid rgba(139,92,246,0.3);color:#c4b5fd;font-size:0.82rem;padding:0.55rem 1rem;border-radius:8px">Talk to Sales</a></div>
             </div>
         </div>
 
@@ -2642,10 +2660,6 @@
         <!-- DEMO PAGE -->
         <div id="page-demo" style="display:none">
             <div class="main-header"><h1>Try the Chatbot Demo</h1></div>
-            <div class="stats-row" style="grid-template-columns:repeat(2,1fr)">
-                <div class="stat-card"><div class="stat-label">Questions Used Today</div><div class="stat-value" id="demoUsedCount">0</div><div class="stat-sub" id="demoLimitSub">of 25 daily limit</div><div class="usage-bar-bg"><div class="usage-bar" id="demoUsageBar" style="width:0%"></div></div></div>
-                <div class="stat-card"><div class="stat-label">Questions Remaining</div><div class="stat-value" id="demoRemaining">25</div><div class="stat-sub">resets at midnight</div></div>
-            </div>
             <div class="section" style="padding:0;overflow:hidden;height:500px;display:flex;flex-direction:column">
                 <div style="padding:1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:0.75rem">
                     <div style="width:10px;height:10px;border-radius:50%;background:var(--green)"></div>
@@ -3249,6 +3263,330 @@
             </div>
         </div>
 
+        <!-- Google Calendar Integration -->
+        <div id="page-google-calendar" style="display:none">
+            <h2 class="page-title">Google Calendar Integration</h2>
+            <p style="color:var(--gray);font-size:0.9rem;margin-bottom:1.5rem">Sync doctor appointments with Google Calendar. When a booking is created or cancelled, it automatically syncs to the doctor's Google Calendar.</p>
+
+            <!-- OAuth Settings -->
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-header">
+                    <div class="section-title">OAuth Configuration</div>
+                </div>
+                <p style="font-size:0.82rem;color:var(--gray);margin-bottom:1rem">Enter your Google Cloud OAuth 2.0 credentials. Create them at <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--cyan)">Google Cloud Console</a> with the Calendar API enabled.</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-bottom:1rem">
+                    <div>
+                        <div class="time-label">Client ID</div>
+                        <input type="text" id="gcalClientId" class="form-input" placeholder="xxxx.apps.googleusercontent.com">
+                    </div>
+                    <div>
+                        <div class="time-label">Client Secret</div>
+                        <input type="password" id="gcalClientSecret" class="form-input" placeholder="GOCSPX-xxxxx">
+                    </div>
+                </div>
+                <button class="manage-save-btn" onclick="saveGcalSettings()">Save OAuth Settings</button>
+            </div>
+
+            <!-- Doctor Calendar Status -->
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-title">Doctor Calendar Connections</div>
+                    <button class="manage-save-btn" onclick="loadGoogleCalendar()" style="font-size:0.78rem;padding:0.4rem 0.8rem">Refresh</button>
+                </div>
+                <div id="gcalDoctorsList">
+                    <span class="empty-msg">Loading doctors...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calendly Integration -->
+        <div id="page-calendly" style="display:none">
+            <h2 class="page-title">Calendly Integration</h2>
+            <p style="color:var(--gray);font-size:0.9rem;margin-bottom:1.5rem">Sync your Calendly scheduling with ChatGenius. When someone books via Calendly, it automatically creates a booking here.</p>
+
+            <!-- Mode Selection -->
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-header"><div class="section-title">Calendly Mode</div></div>
+                <p style="font-size:0.85rem;color:var(--gray);margin-bottom:1rem">Choose how Calendly integrates with your clinic.</p>
+                <div style="display:flex;gap:1rem;flex-wrap:wrap">
+                    <div id="calendlyModeSingle" onclick="setCalendlyMode('single')" style="flex:1;min-width:220px;padding:1.25rem;border-radius:14px;border:2px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.03);cursor:pointer;transition:all 0.2s">
+                        <div style="font-size:0.95rem;font-weight:700;color:var(--white);margin-bottom:0.4rem">Single Calendly</div>
+                        <div style="font-size:0.8rem;color:var(--gray)">One Calendly account for the whole clinic. All bookings go to one calendar.</div>
+                    </div>
+                    <div id="calendlyModeMultiple" onclick="setCalendlyMode('multiple')" style="flex:1;min-width:220px;padding:1.25rem;border-radius:14px;border:2px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.03);cursor:pointer;transition:all 0.2s">
+                        <div style="font-size:0.95rem;font-weight:700;color:var(--white);margin-bottom:0.4rem">Multiple Calendly</div>
+                        <div style="font-size:0.8rem;color:var(--gray)">Each doctor connects their own Calendly. Bookings sync to each doctor's calendar individually.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Single Mode: Connection Status -->
+            <div id="calendlySingleSection">
+                <div class="section" style="margin-bottom:1.5rem">
+                    <div class="section-header"><div class="section-title">Connection Status</div></div>
+                    <div id="calendlyStatus">
+                        <span style="color:var(--gray);font-size:0.85rem">Loading...</span>
+                    </div>
+
+                    <!-- Connected View -->
+                    <div id="calendlyConnected" style="display:none">
+                        <div style="display:flex;gap:1.5rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
+                            <div style="display:flex;align-items:center;gap:0.5rem">
+                                <span style="width:10px;height:10px;border-radius:50%;background:#22c55e;display:inline-block"></span>
+                                <span style="font-size:0.85rem;color:var(--white)">Connected</span>
+                            </div>
+                            <div style="font-size:0.85rem;color:var(--gray)">
+                                <span id="calendlyUserName" style="color:var(--cyan);font-weight:600"></span>
+                                <span id="calendlyUserEmail" style="margin-left:0.5rem"></span>
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
+                            <div style="text-align:center;padding:0.75rem 1.25rem;background:rgba(255,255,255,0.04);border-radius:10px">
+                                <div style="font-size:1.5rem;font-weight:800;color:var(--cyan)" id="calendlyEventCount">0</div>
+                                <div style="font-size:0.78rem;color:var(--gray)">Event Types</div>
+                            </div>
+                            <div style="text-align:center;padding:0.75rem 1.25rem;background:rgba(255,255,255,0.04);border-radius:10px">
+                                <div style="font-size:1.5rem;font-weight:800;color:var(--cyan)" id="calendlyMappingCount">0</div>
+                                <div style="font-size:0.78rem;color:var(--gray)">Mapped</div>
+                            </div>
+                        </div>
+                        <div style="font-size:0.8rem;color:var(--gray);margin-bottom:1rem">
+                            <span>Last synced: </span><span id="calendlyLastSync" style="color:var(--white)">Never</span>
+                            <span style="margin-left:1rem">Last event: </span><span id="calendlyLastEvent" style="color:var(--white)">-</span>
+                        </div>
+                        <button class="manage-save-btn" onclick="disconnectCalendly()" style="background:rgba(239,68,68,0.15);border-color:rgba(239,68,68,0.3);color:#ef4444">Disconnect Calendly</button>
+                    </div>
+
+                    <!-- Setup View -->
+                    <div id="calendlySetup">
+                        <p style="font-size:0.85rem;color:var(--gray);margin-bottom:1rem">Connect your Calendly account using a Personal Access Token. Get yours at <a href="https://calendly.com/integrations/api_webhooks" target="_blank" style="color:var(--cyan)">calendly.com/integrations/api_webhooks</a></p>
+                        <div class="form-group">
+                            <label class="form-label">Calendly Personal Access Token</label>
+                            <input type="password" class="form-input" id="calendlyApiToken" placeholder="eyJhbGciOiJI...">
+                        </div>
+                        <button class="manage-save-btn" onclick="connectCalendly()">Connect Calendly</button>
+                        <span id="calendlyConnectMsg" style="font-size:0.8rem;display:none;margin-left:0.75rem"></span>
+                    </div>
+                </div>
+
+                <!-- Event Type Mapping -->
+                <div id="calendlyMappingSection" class="section" style="margin-bottom:1.5rem;display:none">
+                    <div class="section-header"><div class="section-title">Event Type Mapping</div></div>
+                    <p style="font-size:0.85rem;color:var(--gray);margin-bottom:1rem">Map your Calendly event types to ChatGenius doctors. When a Calendly booking comes in, it will be assigned to the mapped doctor.</p>
+                    <div id="calendlyMappingList" style="display:flex;flex-direction:column;gap:0.75rem">
+                        <span style="color:var(--gray);font-size:0.85rem">Loading event types...</span>
+                    </div>
+                    <button class="manage-save-btn" onclick="saveCalendlyMappings()" style="margin-top:1rem">Save Mappings</button>
+                </div>
+            </div>
+
+            <!-- Multiple Mode: Per-Doctor Connections -->
+            <div id="calendlyMultipleSection" style="display:none">
+                <div class="section" style="margin-bottom:1.5rem">
+                    <div class="section-header"><div class="section-title">Doctor Calendly Connections</div></div>
+                    <p style="font-size:0.85rem;color:var(--gray);margin-bottom:1rem">Each doctor can connect their own Calendly account. Doctors can also connect from their Doctor Portal. If a doctor hasn't connected Calendly, their bookings won't sync to any calendar.</p>
+                    <div id="calendlyDoctorList" style="display:flex;flex-direction:column;gap:0.75rem">
+                        <span style="color:var(--gray);font-size:0.85rem">Loading doctors...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Twilio SMS Integration -->
+        <div id="page-twilio-sms" style="display:none">
+            <h2 class="page-title">Twilio SMS Integration</h2>
+
+            <!-- Connection Status -->
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-header"><div class="section-title">Connection Status</div></div>
+                <div id="twilioStatus" style="padding:1rem 0">
+                    <span style="color:var(--gray);font-size:0.85rem">Checking Twilio status...</span>
+                </div>
+            </div>
+
+            <!-- Credentials Form -->
+            <div class="section" style="margin-bottom:1.5rem" id="twilioConfigSection">
+                <div class="section-header"><div class="section-title">Twilio Credentials</div></div>
+                <div style="display:flex;flex-direction:column;gap:0.75rem;padding:0.75rem 0;max-width:500px">
+                    <div>
+                        <label style="font-size:0.8rem;color:var(--gray);display:block;margin-bottom:0.3rem">Account SID</label>
+                        <input type="text" id="twilioAccountSid" class="form-input" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" style="width:100%">
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem;color:var(--gray);display:block;margin-bottom:0.3rem">Auth Token</label>
+                        <input type="password" id="twilioAuthToken" class="form-input" placeholder="Your Twilio Auth Token" style="width:100%">
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem;color:var(--gray);display:block;margin-bottom:0.3rem">Twilio Phone Number</label>
+                        <input type="text" id="twilioPhoneNumber" class="form-input" placeholder="+1234567890" style="width:100%">
+                    </div>
+                    <div style="display:flex;gap:0.5rem;margin-top:0.5rem">
+                        <button class="manage-save-btn" onclick="saveTwilioConfig()">Connect</button>
+                        <button class="manage-save-btn" style="background:rgba(255,255,255,0.06);color:var(--gray)" onclick="disconnectTwilio()" id="twilioDisconnectBtn" disabled>Disconnect</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test SMS -->
+            <div class="section" style="margin-bottom:1.5rem" id="twilioTestSection">
+                <div class="section-header"><div class="section-title">Send Test SMS</div></div>
+                <div style="display:flex;gap:0.5rem;align-items:flex-end;padding:0.75rem 0;max-width:500px">
+                    <div style="flex:1">
+                        <label style="font-size:0.8rem;color:var(--gray);display:block;margin-bottom:0.3rem">Phone Number</label>
+                        <input type="text" id="twilioTestNumber" class="form-input" placeholder="+1234567890" style="width:100%">
+                    </div>
+                    <button class="manage-save-btn" onclick="testTwilioSms()" id="twilioTestBtn" disabled>Send Test</button>
+                </div>
+                <div id="twilioTestResult" style="font-size:0.85rem;margin-top:0.5rem"></div>
+            </div>
+
+            <!-- SMS Toggles -->
+            <div class="section" style="margin-bottom:1.5rem" id="twilioTogglesSection">
+                <div class="section-header"><div class="section-title">Chatbot Access Control</div></div>
+                <div style="display:flex;flex-direction:column;gap:0.6rem;padding:0.5rem 0;margin-bottom:1.5rem">
+                    <label class="config-toggle"><input type="checkbox" id="cfg_require_login_to_book" onchange="saveFeatureConfig()"><span class="config-slider"></span><div><strong>Require Login to Book</strong><span class="config-desc">Customers must log in before they can book, reschedule, or cancel appointments via the chatbot</span></div></label>
+                </div>
+            </div>
+
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-header"><div class="section-title">SMS Notifications</div></div>
+                <p style="font-size:0.8rem;color:var(--gray);margin-bottom:0.75rem">Enable SMS alongside email for the following notifications. Requires Twilio to be connected.</p>
+                <div style="display:flex;flex-direction:column;gap:0.6rem;padding:0.5rem 0">
+                    <label class="config-toggle"><input type="checkbox" id="cfg_sms_booking_confirmation" onchange="saveSmsToggles()"><span class="config-slider"></span><div><strong>Booking Confirmation SMS</strong><span class="config-desc">Send SMS when a new booking is confirmed</span></div></label>
+                    <label class="config-toggle"><input type="checkbox" id="cfg_sms_appointment_reminder" onchange="saveSmsToggles()"><span class="config-slider"></span><div><strong>Appointment Reminder SMS</strong><span class="config-desc">Send SMS reminders alongside email reminders</span></div></label>
+                    <label class="config-toggle"><input type="checkbox" id="cfg_sms_noshow_recovery" onchange="saveSmsToggles()"><span class="config-slider"></span><div><strong>No-Show Recovery SMS</strong><span class="config-desc">Send SMS to no-show patients with rescheduling link</span></div></label>
+                </div>
+            </div>
+
+            <!-- SMS Stats -->
+            <div class="section" id="twilioStatsSection">
+                <div class="section-header"><div class="section-title">SMS Usage Stats</div></div>
+                <div id="twilioStats" style="padding:0.75rem 0">
+                    <span style="color:var(--gray);font-size:0.85rem">Loading stats...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mailchimp Email Marketing Integration -->
+        <div id="page-mailchimp" style="display:none">
+            <h2 class="page-title">Mailchimp Email Marketing</h2>
+
+            <!-- Connection Status -->
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-header"><div class="section-title">Connection Status</div></div>
+                <div id="mailchimpStatus" style="padding:1rem 0">
+                    <span style="color:var(--gray);font-size:0.85rem">Checking Mailchimp status...</span>
+                </div>
+            </div>
+
+            <!-- API Key Form (shown when disconnected) -->
+            <div class="section" style="margin-bottom:1.5rem" id="mailchimpSetupSection">
+                <div class="section-header"><div class="section-title">Connect Mailchimp</div></div>
+                <p style="font-size:0.8rem;color:var(--gray);margin-bottom:0.75rem">Enter your Mailchimp API key to connect. You can find it in your Mailchimp account under Account &rarr; Extras &rarr; API keys.</p>
+                <div style="display:flex;flex-direction:column;gap:0.75rem;padding:0.5rem 0;max-width:500px">
+                    <div>
+                        <label style="font-size:0.8rem;color:var(--gray);display:block;margin-bottom:0.3rem">Mailchimp API Key</label>
+                        <input type="password" id="mailchimpApiKey" class="form-input" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-us21" style="width:100%">
+                    </div>
+                    <button class="manage-save-btn" onclick="connectMailchimp()" style="width:fit-content">Connect Mailchimp</button>
+                </div>
+            </div>
+
+            <!-- Configuration (shown when connected) -->
+            <div class="section" style="margin-bottom:1.5rem;display:none" id="mailchimpConfigSection">
+                <div class="section-header"><div class="section-title">Audience Configuration</div></div>
+                <div style="display:flex;flex-direction:column;gap:0.75rem;padding:0.5rem 0;max-width:500px">
+                    <div>
+                        <label style="font-size:0.8rem;color:var(--gray);display:block;margin-bottom:0.3rem">Select Audience/List</label>
+                        <select id="mailchimpListSelect" class="form-input" style="width:100%">
+                            <option value="">-- Select an audience --</option>
+                        </select>
+                    </div>
+                    <label class="config-toggle">
+                        <input type="checkbox" id="mailchimpAutoSync">
+                        <span class="config-slider"></span>
+                        <div><strong>Auto-Sync New Patients</strong><span class="config-desc">Automatically add new patients and leads to Mailchimp when captured</span></div>
+                    </label>
+                    <div style="display:flex;gap:0.5rem;margin-top:0.5rem">
+                        <button class="manage-save-btn" onclick="saveMailchimpConfig()">Save Configuration</button>
+                        <button class="manage-save-btn" style="background:rgba(59,130,246,0.15);color:#60a5fa" onclick="syncMailchimpNow()">Sync All Patients Now</button>
+                        <button class="manage-save-btn" style="background:rgba(255,255,255,0.06);color:var(--gray)" onclick="disconnectMailchimp()">Disconnect</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sync Stats (shown when connected) -->
+            <div class="section" style="display:none" id="mailchimpStatsSection">
+                <div class="section-header"><div class="section-title">Sync Statistics</div></div>
+                <div style="display:flex;gap:2rem;padding:0.75rem 0;flex-wrap:wrap">
+                    <div style="text-align:center"><div style="font-size:1.8rem;font-weight:800;color:var(--cyan)" id="mcTotalSynced">0</div><div style="font-size:0.78rem;color:var(--gray)">Subscribers Synced</div></div>
+                    <div style="text-align:center"><div style="font-size:1.8rem;font-weight:800;color:var(--cyan)" id="mcAutoSync">Off</div><div style="font-size:0.78rem;color:var(--gray)">Auto-Sync</div></div>
+                </div>
+                <div id="mcLastSync" style="font-size:0.8rem;color:var(--gray);margin-top:0.5rem"></div>
+            </div>
+        </div>
+
+        <!-- ZAPIER WEBHOOK INTEGRATION PAGE -->
+        <div id="page-zapier" style="display:none">
+            <h2 class="page-title">Zapier Webhook Integration</h2>
+
+            <!-- Connection Status -->
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-header"><div class="section-title">Connection Status</div></div>
+                <div id="zapierStatus" style="padding:1rem 0">
+                    <span style="color:var(--gray);font-size:0.85rem">Checking Zapier status...</span>
+                </div>
+            </div>
+
+            <!-- Webhook Configuration -->
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-header"><div class="section-title">Webhook Configuration</div></div>
+                <p style="font-size:0.8rem;color:var(--gray);margin-bottom:0.75rem">Enter your Zapier webhook URL and select which events should trigger it. You can use a single URL for all events or configure different URLs per event type.</p>
+
+                <div style="display:flex;flex-direction:column;gap:0.75rem;padding:0.5rem 0;max-width:600px">
+                    <div>
+                        <label style="font-size:0.8rem;color:var(--gray);display:block;margin-bottom:0.3rem">Default Webhook URL</label>
+                        <input type="text" id="zapierDefaultUrl" class="form-input" placeholder="https://hooks.zapier.com/hooks/catch/..." style="width:100%">
+                        <span style="font-size:0.75rem;color:var(--gray)">This URL will be used for all checked events below unless overridden.</span>
+                    </div>
+
+                    <div style="margin-top:0.5rem">
+                        <label style="font-size:0.82rem;color:var(--white);font-weight:600;display:block;margin-bottom:0.5rem">Event Triggers</label>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem" id="zapierEventChecks">
+                            <label class="config-toggle" style="margin:0"><input type="checkbox" class="zapier-event-cb" data-event="new_booking" checked><span class="config-slider"></span><div><strong>New Booking</strong><span class="config-desc">When a patient books an appointment</span></div></label>
+                            <label class="config-toggle" style="margin:0"><input type="checkbox" class="zapier-event-cb" data-event="booking_cancelled" checked><span class="config-slider"></span><div><strong>Booking Cancelled</strong><span class="config-desc">When an appointment is cancelled</span></div></label>
+                            <label class="config-toggle" style="margin:0"><input type="checkbox" class="zapier-event-cb" data-event="booking_completed" checked><span class="config-slider"></span><div><strong>Booking Completed</strong><span class="config-desc">When an appointment is completed</span></div></label>
+                            <label class="config-toggle" style="margin:0"><input type="checkbox" class="zapier-event-cb" data-event="new_lead" checked><span class="config-slider"></span><div><strong>New Lead</strong><span class="config-desc">When a lead is captured</span></div></label>
+                            <label class="config-toggle" style="margin:0"><input type="checkbox" class="zapier-event-cb" data-event="new_patient" checked><span class="config-slider"></span><div><strong>New Patient</strong><span class="config-desc">When a new patient is created</span></div></label>
+                            <label class="config-toggle" style="margin:0"><input type="checkbox" class="zapier-event-cb" data-event="no_show"><span class="config-slider"></span><div><strong>No-Show</strong><span class="config-desc">When a patient misses appointment</span></div></label>
+                            <label class="config-toggle" style="margin:0"><input type="checkbox" class="zapier-event-cb" data-event="form_submitted"><span class="config-slider"></span><div><strong>Form Submitted</strong><span class="config-desc">When a pre-visit form is submitted</span></div></label>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap">
+                        <button class="manage-save-btn" onclick="saveZapierConfig()">Save Configuration</button>
+                        <button class="manage-save-btn" style="background:rgba(59,130,246,0.15);color:#60a5fa" onclick="testZapierWebhook()">Send Test Webhook</button>
+                        <button class="manage-save-btn" style="background:rgba(255,255,255,0.06);color:var(--gray);display:none" id="zapierDisconnectBtn" onclick="disconnectZapier()">Disconnect</button>
+                    </div>
+                    <span id="zapierMsg" style="font-size:0.82rem;display:none;margin-top:0.3rem"></span>
+                </div>
+            </div>
+
+            <!-- Recent Delivery Logs -->
+            <div class="section">
+                <div class="section-header"><div class="section-title">Recent Webhook Deliveries</div></div>
+                <div id="zapierLogsContainer" style="max-height:400px;overflow-y:auto">
+                    <table class="data-table" style="width:100%;font-size:0.8rem">
+                        <thead><tr><th>Event</th><th>Status</th><th>Time</th></tr></thead>
+                        <tbody id="zapierLogsBody">
+                            <tr><td colspan="3" style="text-align:center;color:var(--gray);padding:1.5rem">No webhook deliveries yet</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <button class="manage-save-btn" style="margin-top:0.75rem;background:rgba(255,255,255,0.06);color:var(--gray);font-size:0.8rem" onclick="loadZapierLogs()">Refresh Logs</button>
+            </div>
+        </div>
+
         <!-- Feature 20: Benchmarking -->
         <div id="page-benchmarks" style="display:none">
             <h2 class="page-title">Competitor Benchmarking</h2>
@@ -3355,7 +3693,7 @@
     <!-- Custom Fields (Agency only) -->
     <div id="customFieldsSection" style="display:none;margin-top:1.25rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.04)">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
-            <div style="font-size:0.92rem;font-weight:700">Custom Fields <span class="plan-badge plan-agency" style="font-size:0.62rem;padding:0.1rem 0.5rem;margin-left:0.4rem">Agency</span></div>
+            <div style="font-size:0.92rem;font-weight:700">Custom Fields <span class="plan-badge plan-agency" style="font-size:0.62rem;padding:0.1rem 0.5rem;margin-left:0.4rem">Enterprise</span></div>
         </div>
         <p style="color:var(--gray);font-size:0.78rem;margin-bottom:0.75rem">Add your own custom fields to the patient intake form.</p>
         <div style="display:flex;gap:0.5rem;align-items:flex-end;margin-bottom:0.75rem;flex-wrap:wrap">
@@ -3626,6 +3964,18 @@
             </div>
             <p style="color:var(--gray);font-size:0.9rem;margin-bottom:1.5rem">Connect ChatGenius with your Practice Management System and website.</p>
 
+            <!-- Plan Limitations Banner -->
+            <div id="pms-plan-banner" style="margin-bottom:1.5rem;padding:1rem 1.25rem;border-radius:14px;border:1px solid rgba(139,92,246,0.15);background:rgba(139,92,246,0.04);display:none">
+                <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.75rem">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    <span style="font-size:0.88rem;font-weight:700;color:#e2e8f0" id="pms-plan-title">Your Plan Limits</span>
+                </div>
+                <div id="pms-plan-details" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.6rem;font-size:0.82rem"></div>
+                <div id="pms-upgrade-hint" style="margin-top:0.75rem;font-size:0.8rem;color:var(--gray);display:none">
+                    <a href="javascript:void(0)" onclick="showPage('plan')" style="color:#a78bfa;font-weight:600;text-decoration:none">Upgrade your plan</a> to unlock more conversations, chatbots, and advanced features.
+                </div>
+            </div>
+
             <!-- Embed Chatbot Section (moved from Company Info) -->
             <div class="section" style="margin-bottom:1.5rem">
                 <div class="section-header"><div class="section-title">Embed Chatbot on Your Website</div></div>
@@ -3652,7 +4002,12 @@
             </div>
 
             <!-- Customer Database API Integration (moved from Company Info) -->
-            <div class="section" style="margin-top:1.5rem">
+            <div class="section pms-pro-feature" style="margin-top:1.5rem;position:relative">
+                <div class="pms-lock-overlay" style="display:none;position:absolute;inset:0;background:rgba(6,8,13,0.75);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);border-radius:16px;z-index:5;align-items:center;justify-content:center;flex-direction:column;gap:0.5rem">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                    <span style="font-size:0.88rem;font-weight:700;color:#e2e8f0">Pro Plan Required</span>
+                    <a href="javascript:void(0)" onclick="showPage('plan')" style="font-size:0.8rem;color:#a78bfa;text-decoration:none;font-weight:600">Upgrade &rarr;</a>
+                </div>
                 <div class="section-header"><div class="section-title">Connect Your Customer Database</div></div>
                 <p style="color:var(--gray);font-size:0.85rem;margin-bottom:1rem">Connect your external customer database so the chatbot can recognize your customers automatically. When a known customer chats, the bot will skip asking for their name, email, and phone number.</p>
                 <div class="form-group">
@@ -3686,7 +4041,12 @@
             </div>
 
             <!-- Appointment Integration Section -->
-        <div class="section" style="margin-top:1.5rem">
+        <div class="section pms-agency-feature" style="margin-top:1.5rem;position:relative">
+            <div class="pms-lock-overlay-agency" style="display:none;position:absolute;inset:0;background:rgba(6,8,13,0.75);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);border-radius:16px;z-index:5;align-items:center;justify-content:center;flex-direction:column;gap:0.5rem">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                <span style="font-size:0.88rem;font-weight:700;color:#e2e8f0">Enterprise Plan Required</span>
+                <a href="javascript:void(0)" onclick="showPage('plan')" style="font-size:0.8rem;color:#fbbf24;text-decoration:none;font-weight:600">Upgrade &rarr;</a>
+            </div>
             <div class="section-header"><div class="section-title">Appointment Integration</div></div>
             <p style="color:var(--gray);font-size:0.85rem;margin-bottom:1rem">Sync appointments from your website or PMS with ChatGenius. When a patient books directly on your website, send the appointment to our API so the chatbot knows about it and avoids double-booking.</p>
 
@@ -4219,7 +4579,7 @@
         if (_confirmResolve) { _confirmResolve(value); _confirmResolve = null; }
     }
 
-    const PLAN_LABELS = { free_trial: 'Free Trial', basic: 'Basic', pro: 'Pro', agency: 'Agency' };
+    const PLAN_LABELS = { free_trial: 'Free Trial', basic: 'Basic', pro: 'Pro', agency: 'Enterprise' };
     const PLAN_CLASSES = { free_trial: 'plan-free', basic: 'plan-basic', pro: 'plan-pro', agency: 'plan-agency' };
     const PLAN_DAILY_LIMITS = { free_trial: 25, basic: 23, pro: 167, agency: 999999 };
 
@@ -4287,7 +4647,12 @@
         document.getElementById('sidebarEmail').textContent = user.email || '';
         const avatarEl = document.getElementById('avatarInitial');
         if (user.avatar_url && user.avatar_url.length > 5) {
-            avatarEl.innerHTML = `<img src="${user.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:8px">`;
+            const _avImg = document.createElement('img');
+            _avImg.src = user.avatar_url;
+            _avImg.alt = '';
+            _avImg.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:8px';
+            avatarEl.textContent = '';
+            avatarEl.appendChild(_avImg);
         } else {
             avatarEl.textContent = (user.name || '?')[0].toUpperCase();
         }
@@ -4350,12 +4715,12 @@
         // Pro+ features
         'email-style': 'pro',
         // Agency only
-        'analytics': 'agency', 'pms': 'agency', 'chatbot-customize': 'agency',
+        'analytics': 'agency', 'pms': 'basic', 'chatbot-customize': 'agency',
     };
     const PLAN_UPGRADE_MSG = {
         basic: 'This feature requires a Basic plan or higher.',
         pro: 'This feature requires a Pro plan or higher. Upgrade to unlock lead capture, ROI dashboard, waitlist, promotions, and more.',
-        agency: 'This feature requires the Agency plan. Upgrade to unlock advanced analytics, API access, PMS integration, and more.'
+        agency: 'This feature requires the Enterprise plan. Upgrade to unlock advanced analytics, Appointment API access, chatbot customization, white-label, and more.'
     };
     function hasActivePlan() {
         const p = user && user.plan;
@@ -4399,7 +4764,7 @@
         document.querySelectorAll('.nav-group').forEach(g => g.classList.remove('active'));
         const activeDD = document.querySelector('.nav-dropdown a.active');
         if (activeDD) { const group = activeDD.closest('.nav-group'); if (group) group.classList.add('active'); }
-        const pageNames = {overview:'Overview',plan:'My Plan',bookings:'Bookings','previous-bookings':'Previous Bookings',leads:'Leads',company:'Company Info',services:'Services',doctors:'Doctors',manage:'Manage Doctors',analytics:'Analytics & Reports',admins:'Admins',demo:'Try Demo',waitlist:'Waitlist',customers:'Customers','schedule-blocks':'Doctor Holidays',promotions:'Promotions',recall:'Recall & Retention',followups:'Follow-Ups',config:'Configuration',roi:'ROI','email-style':'Email Style','chatbot-customize':'Chatbot Style',pms:'PMS Integration',changes:'Changes',requests:'Requests','admin-requests':'Invitations',security:'Security',referrals:'Referrals',patients:'Patients','missed-calls':'Missed Calls',gallery:'Gallery',handoffs:'Handoffs','ab-tests':'A/B Tests',loyalty:'Loyalty',gmb:'Google Business',benchmarks:'Benchmarks','realtime':'Real-Time'};
+        const pageNames = {overview:'Overview',plan:'My Plan',bookings:'Bookings','previous-bookings':'Previous Bookings',leads:'Leads',company:'Company Info',services:'Services',doctors:'Doctors',manage:'Manage Doctors',analytics:'Analytics & Reports',admins:'Admins',demo:'Try Demo',waitlist:'Waitlist',customers:'Customers','schedule-blocks':'Doctor Holidays',promotions:'Promotions',recall:'Recall & Retention',followups:'Follow-Ups',config:'Configuration',roi:'ROI','email-style':'Email Style','chatbot-customize':'Chatbot Style',pms:'PMS Integration',changes:'Changes',requests:'Requests','admin-requests':'Invitations',security:'Security',referrals:'Referrals',patients:'Patients','missed-calls':'Missed Calls',gallery:'Gallery',handoffs:'Handoffs','ab-tests':'A/B Tests',loyalty:'Loyalty',gmb:'Google Business',benchmarks:'Benchmarks','realtime':'Real-Time','twilio-sms':'Twilio SMS',mailchimp:'Mailchimp','google-calendar':'Google Calendar',zapier:'Zapier'};
         const tbn = document.getElementById('topBarPageName');
         if(tbn) tbn.textContent = pageNames[page] || page;
         // Remember current page
@@ -4425,6 +4790,11 @@
         if (page === 'realtime') startRealtimeDashboard();
         if (page === 'benchmarks') loadBenchmarks();
         if (page === 'gmb') loadGmb();
+        if (page === 'calendly') loadCalendly();
+        if (page === 'twilio-sms') loadTwilioStatus();
+        if (page === 'mailchimp') loadMailchimpStatus();
+        if (page === 'zapier') loadZapierStatus();
+        if (page === 'google-calendar') loadGoogleCalendar();
         if (page === 'security') loadSecurity();
         if (page === 'config') { loadFeatureConfig(); loadChatbotUsage(); loadFormConfig(); }
         if (page === 'roi') setTimeout(loadROI, 50);
@@ -4698,7 +5068,7 @@
         loadData();
     }
 
-    async function selectPlan(plan) {
+    async function selectPlan(plan, billingCycle) {
         if (user.plan === plan && !user.pending_plan) return;
         const isPaid = user.plan && user.plan !== 'free_trial' && user.plan !== 'none';
         const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
@@ -4730,6 +5100,31 @@
         } catch(e) { showToast('Failed to update plan.', 'error'); }
     }
 
+    // ── Billing Cycle Toggle ──
+    let currentBillingCycle = 'monthly';
+    const PLAN_PRICES_MONTHLY = { basic: 79, pro: 239, agency: 699 };
+    const PLAN_PRICES_ANNUAL = { basic: 63, pro: 191, agency: 559 };
+
+    function setBillingCycle(cycle) {
+        currentBillingCycle = cycle;
+        const isYearly = cycle === 'yearly';
+        const toggle = document.getElementById('billingCycleToggle');
+        const thumb = document.getElementById('billingToggleThumb');
+        const track = document.getElementById('billingToggleTrack');
+        if (toggle) toggle.checked = isYearly;
+        if (thumb) thumb.style.transform = isYearly ? 'translateX(20px)' : 'translateX(0)';
+        if (track) track.style.background = isYearly ? 'rgba(139,92,246,0.7)' : 'rgba(139,92,246,0.4)';
+        document.getElementById('toggleMonthly').style.color = isYearly ? 'var(--gray)' : '#fff';
+        document.getElementById('toggleYearly').style.color = isYearly ? '#fff' : 'var(--gray)';
+        const prices = isYearly ? PLAN_PRICES_ANNUAL : PLAN_PRICES_MONTHLY;
+        const suffix = isYearly ? '/mo <span style="font-size:0.65rem;color:var(--green)">(billed yearly)</span>' : '/mo';
+        ['basic','pro','agency'].forEach(p => {
+            const el = document.getElementById('planPrice-' + p);
+            if (el) el.innerHTML = '$' + prices[p] + '<small>' + suffix + '</small>';
+        });
+        highlightCurrentPlan();
+    }
+
     function highlightCurrentPlan() {
         const p = user.plan || 'free_trial';
         const pending = user.pending_plan || '';
@@ -4745,7 +5140,7 @@
                 if (btn) { btn.textContent = 'Scheduled'; btn.className = 'plan-btn plan-btn-current'; btn.style.opacity = '0.7'; btn.onclick = null; }
             } else {
                 card.classList.remove('current');
-                if (btn) { btn.textContent = 'Choose ' + plan.charAt(0).toUpperCase() + plan.slice(1); btn.className = 'plan-btn plan-btn-outline'; btn.style.opacity = '1'; btn.onclick = () => selectPlan(plan); }
+                if (btn) { btn.textContent = 'Choose ' + plan.charAt(0).toUpperCase() + plan.slice(1); btn.className = 'plan-btn plan-btn-outline'; btn.style.opacity = '1'; btn.onclick = () => selectPlan(plan, currentBillingCycle); }
             }
         });
     }
@@ -6384,7 +6779,7 @@
                         <div class="time-label">Avg Appointment Price</div>
                         <div style="display:flex;align-items:center;gap:0.3rem;margin-top:0.3rem">
                             <input type="number" step="0.01" class="form-input" id="avg_price_${d.id}" value="${d.avg_appointment_price || 20}" min="0" placeholder="20" style="width:100px;font-size:0.85rem;text-align:center">
-                            <span style="color:var(--gray);font-size:0.8rem" class="company-currency-label">${__servicesCurrency || 'USD'}</span>
+                            <span style="color:var(--gray);font-size:0.8rem" class="company-currency-label">${d.avg_appointment_currency || __servicesCurrency || 'USD'}</span>
                         </div>
                     </div>
                 </div>
@@ -6904,7 +7299,7 @@
             if (accept) {
                 showToast('You have joined the company as an administrator!', 'success', 5000);
                 // Redirect to dashboard — invitations link will auto-hide via applyRoleUI
-                showPage('dashboard');
+                showPage('overview');
             } else {
                 loadAdminRequests();
                 showToast('Invitation declined.', 'info');
@@ -6932,7 +7327,11 @@
         // Avatar
         const avatarEl = document.getElementById('profileAvatarLg');
         if (user.avatar_url) {
-            avatarEl.innerHTML = `<img src="${user.avatar_url}" alt="">`;
+            const _avImg2 = document.createElement('img');
+            _avImg2.src = user.avatar_url;
+            _avImg2.alt = '';
+            avatarEl.textContent = '';
+            avatarEl.appendChild(_avImg2);
         } else {
             avatarEl.textContent = (user.name || '?')[0].toUpperCase();
         }
@@ -6994,8 +7393,6 @@
     }
 
     // ── Demo chatbot ──
-    const DEMO_DAILY_LIMIT = PLAN_DAILY_LIMITS[(user && user.plan) || 'free_trial'] || 25;
-    const isUnlimited = (user && user.plan === 'agency');
     let demoSessionId = 'demo_' + Math.random().toString(36).substr(2, 9);
 
     function resetDemoChat() {
@@ -7004,24 +7401,17 @@
         container.innerHTML = '<div style="background:rgba(0,212,255,0.08);border-radius:12px 12px 12px 4px;padding:0.75rem 1rem;max-width:80%;font-size:0.92rem;line-height:1.5;color:var(--white)">Hi! I\'m your dental office assistant. Ask me anything about our services, hours, pricing, or book an appointment!</div>';
     }
 
-    function getDemoKey() {
-        const today = new Date().toISOString().split('T')[0];
-        return 'demo_usage_' + (user ? user.id : '0') + '_' + today;
-    }
-    function getDemoUsage() { return parseInt(localStorage.getItem(getDemoKey()) || '0', 10); }
-    function setDemoUsage(count) { localStorage.setItem(getDemoKey(), count.toString()); }
+    function getDemoUsage() { return 0; }
+    function setDemoUsage(count) { }
 
     function updateDemoUI() {
-        const used = getDemoUsage();
-        const remaining = isUnlimited ? 999999 : Math.max(0, DEMO_DAILY_LIMIT - used);
         const el = (id) => document.getElementById(id);
-        if (el('demoUsedCount')) el('demoUsedCount').textContent = used;
-        if (el('demoRemaining')) el('demoRemaining').textContent = isUnlimited ? 'Unlimited' : remaining;
-        if (el('demoUsageBar')) el('demoUsageBar').style.width = isUnlimited ? '0%' : Math.min((used / DEMO_DAILY_LIMIT) * 100, 100) + '%';
-        if (el('demoLimitLabel')) el('demoLimitLabel').textContent = isUnlimited ? 'Unlimited' : DEMO_DAILY_LIMIT + '/day';
-        if (el('demoLimitSub')) el('demoLimitSub').textContent = isUnlimited ? 'unlimited' : 'of ' + DEMO_DAILY_LIMIT + ' daily limit';
-        if (el('demoInput')) el('demoInput').disabled = (!isUnlimited && remaining <= 0);
-        if (el('demoSendBtn')) el('demoSendBtn').disabled = (!isUnlimited && remaining <= 0);
+        if (el('demoUsedCount')) el('demoUsedCount').textContent = 'Unlimited';
+        if (el('demoRemaining')) el('demoRemaining').textContent = 'Unlimited';
+        if (el('demoUsageBar')) el('demoUsageBar').style.width = '0%';
+        if (el('demoLimitSub')) el('demoLimitSub').textContent = 'no limit';
+        if (el('demoInput')) el('demoInput').disabled = false;
+        if (el('demoSendBtn')) el('demoSendBtn').disabled = false;
     }
 
     function addDemoMessage(text, isUser) {
@@ -7477,14 +7867,8 @@
         const input = document.getElementById('demoInput');
         const msg = input.value.trim();
         if (!msg) return;
-        if (!isUnlimited && getDemoUsage() >= DEMO_DAILY_LIMIT) {
-            addDemoMessage("Daily limit reached. Upgrade your plan for more.", false);
-            return;
-        }
         input.value = '';
         addDemoMessage(msg, true);
-        setDemoUsage(getDemoUsage() + 1);
-        updateDemoUI();
 
         const typing = document.createElement('div');
         typing.style.cssText = 'background:rgba(0,212,255,0.08);border-radius:12px 12px 12px 4px;padding:0.75rem 1rem;max-width:80%;font-size:0.92rem;color:var(--gray)';
@@ -7865,18 +8249,45 @@
     checkTokenExpiry();
     verifySession();
     loadData();
-    // Restore last visited page on refresh
+
+    // ── Handle PayPal checkout redirect ──
     try {
-        const savedPage = localStorage.getItem('cg_current_page');
-        const headAdminOnlyPages = ['changes', 'admins', 'plan'];
-        if (savedPage && document.getElementById('page-' + savedPage)) {
-            if (headAdminOnlyPages.includes(savedPage) && !isHeadAdmin) {
-                showPage('overview');
-            } else {
-                showPage(savedPage);
-            }
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('payment') === 'success') {
+            showPage('plan');
+            setTimeout(() => {
+                showToast('Payment successful! Your plan is now active.', 'success');
+                loadSubscription();
+                fetch('/auth/me', { headers }).then(r => r.json()).then(d => {
+                    if (d && !d.error) { Object.assign(user, d); localStorage.setItem('user', JSON.stringify(user)); initUI(); highlightCurrentPlan(); }
+                });
+            }, 500);
+            window.history.replaceState({}, '', '/user-dashboard');
+        } else if (urlParams.get('payment') === 'cancelled') {
+            showPage('plan');
+            setTimeout(() => showToast('Checkout cancelled. No charges were made.', 'info'), 500);
+            window.history.replaceState({}, '', '/user-dashboard');
         }
     } catch(e) {}
+
+    // Check if redirected from login with #demo hash
+    if (window.location.hash === '#demo') {
+        showPage('demo');
+        history.replaceState(null, '', window.location.pathname);
+    } else {
+        // Restore last visited page on refresh
+        try {
+            const savedPage = localStorage.getItem('cg_current_page');
+            const headAdminOnlyPages = ['changes', 'admins', 'plan'];
+            if (savedPage && document.getElementById('page-' + savedPage)) {
+                if (headAdminOnlyPages.includes(savedPage) && !isHeadAdmin) {
+                    showPage('overview');
+                } else {
+                    showPage(savedPage);
+                }
+            }
+        } catch(e) {}
+    }
     loadCompanyInfo();
     loadCustomersApiConfig();
     loadDoctors();
@@ -7925,7 +8336,8 @@
         'email_noshow_patient', 'email_noshow_reason_doctor', 'email_otp',
         'auto_lead_capture', 'auto_reminders', 'auto_recall', 'auto_followups',
         'auto_surveys', 'auto_noshow_recovery', 'missed_call_autoreply',
-        'loyalty_program', 'auto_invoices', 'auto_reports'
+        'loyalty_program', 'auto_invoices', 'auto_reports',
+        'require_login_to_book'
     ];
     let _configSaveTimer = null;
 
@@ -9317,6 +9729,52 @@
     }
 
     async function loadPMS() {
+        // Show plan limitations banner & lock sections based on plan
+        const planLevel = getUserPlanLevel();
+        const planName = (user?.plan || 'free_trial');
+        const banner = document.getElementById('pms-plan-banner');
+        const details = document.getElementById('pms-plan-details');
+        const upgradeHint = document.getElementById('pms-upgrade-hint');
+
+        if (banner && details) {
+            const PLAN_LIMITS = {
+                free_trial: { convos: 50, chatbots: 1, label: 'Free Trial' },
+                basic:      { convos: 700, chatbots: 1, label: 'Basic' },
+                pro:        { convos: '5,000', chatbots: 4, label: 'Pro' },
+                agency:     { convos: 'Unlimited', chatbots: 'Unlimited', label: 'Enterprise' }
+            };
+            const limits = PLAN_LIMITS[planName] || PLAN_LIMITS.free_trial;
+            document.getElementById('pms-plan-title').textContent = limits.label + ' Plan — Your Limits';
+            details.innerHTML = ''
+                + '<div style="padding:0.6rem 0.8rem;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)">'
+                + '  <div style="font-size:0.72rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Conversations/mo</div>'
+                + '  <div style="font-size:1.1rem;font-weight:700;color:#e2e8f0;margin-top:0.2rem">' + limits.convos + '</div>'
+                + '</div>'
+                + '<div style="padding:0.6rem 0.8rem;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)">'
+                + '  <div style="font-size:0.72rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Chatbot Domains</div>'
+                + '  <div style="font-size:1.1rem;font-weight:700;color:#e2e8f0;margin-top:0.2rem">' + limits.chatbots + '</div>'
+                + '</div>'
+                + '<div style="padding:0.6rem 0.8rem;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)">'
+                + '  <div style="font-size:0.72rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Customer DB API</div>'
+                + '  <div style="font-size:1.1rem;font-weight:700;color:' + (planLevel >= 2 ? '#34d399' : '#f87171') + ';margin-top:0.2rem">' + (planLevel >= 2 ? 'Included' : 'Pro+') + '</div>'
+                + '</div>'
+                + '<div style="padding:0.6rem 0.8rem;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)">'
+                + '  <div style="font-size:0.72rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Appointment API</div>'
+                + '  <div style="font-size:1.1rem;font-weight:700;color:' + (planLevel >= 3 ? '#34d399' : '#f87171') + ';margin-top:0.2rem">' + (planLevel >= 3 ? 'Included' : 'Agency') + '</div>'
+                + '</div>';
+            banner.style.display = 'block';
+            if (planLevel < 3 && upgradeHint) upgradeHint.style.display = 'block';
+        }
+
+        // Lock Customer DB section for basic users (requires Pro+)
+        document.querySelectorAll('.pms-pro-feature .pms-lock-overlay').forEach(el => {
+            el.style.display = planLevel >= 2 ? 'none' : 'flex';
+        });
+        // Lock Appointment API section for basic/pro users (requires Agency)
+        document.querySelectorAll('.pms-agency-feature .pms-lock-overlay-agency').forEach(el => {
+            el.style.display = planLevel >= 3 ? 'none' : 'flex';
+        });
+
         // Load embed ID
         try {
             const res = await fetch('/api/embed-id', {headers});
@@ -9324,18 +9782,22 @@
             _pmsEmbedId = d.public_id || '';
             generatePmsEmbedCode();
         } catch(e) {}
-        // Load API config
-        try {
-            const res = await fetch('/api/customers-api-config', {headers});
-            const d = await res.json();
-            if (d.url) document.getElementById('pms_customers_api_url').value = d.url;
-            if (d.key) document.getElementById('pms_customers_api_key').value = d.key;
-        } catch(e) {}
+        // Load API config (only if Pro+)
+        if (planLevel >= 2) {
+            try {
+                const res = await fetch('/api/customers-api-config', {headers});
+                const d = await res.json();
+                if (d.customers_api_url) document.getElementById('pms_customers_api_url').value = d.customers_api_url;
+                if (d.customers_api_key) document.getElementById('pms_customers_api_key').value = d.customers_api_key;
+            } catch(e) {}
+        }
     }
 
     function generatePmsEmbedCode() {
-        const title = document.getElementById('pms_embed_title').value || 'Chat with us';
-        const welcome = document.getElementById('pms_embed_welcome').value || 'Hello! How can I help you today?';
+        // Bug 5 fix: escape values to prevent XSS in generated embed code
+        function escapeEmbedStr(s) { return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/</g, '\\x3c'); }
+        const title = escapeEmbedStr(document.getElementById('pms_embed_title').value || 'Chat with us');
+        const welcome = escapeEmbedStr(document.getElementById('pms_embed_welcome').value || 'Hello! How can I help you today?');
         const color = document.getElementById('pms_embed_color').value || '#0891b2';
         const server = window.location.origin;
         const code = `<script>\n    window.ChatGeniusConfig = {\n        adminId: '${_pmsEmbedId}',\n        server: '${server}',\n        title: '${title}',\n        welcome: '${welcome}',\n        color: '${color}',\n        position: 'right',\n        customerId: '',\n        customerApiUrl: ''\n    };\n<\/script>\n<script src="${server}/static/chatbot-embed.js"><\/script>`;
@@ -9359,7 +9821,7 @@
         const url = document.getElementById('pms_customers_api_url').value.trim();
         const key = document.getElementById('pms_customers_api_key').value.trim();
         try {
-            const res = await fetch('/api/customers-api-config', {method:'POST', headers, body: JSON.stringify({url, key})});
+            const res = await fetch('/api/customers-api-config', {method:'POST', headers, body: JSON.stringify({customers_api_url: url, customers_api_key: key})});
             const d = await res.json();
             const msg = document.getElementById('pmsApiMsg');
             msg.textContent = d.ok ? 'Saved!' : (d.error || 'Failed');
@@ -9374,17 +9836,17 @@
         const key = document.getElementById('pms_customers_api_key').value.trim();
         if (!url) { showToast('Enter API URL first', 'warning'); return; }
         try {
-            const res = await fetch('/api/customers-api-test', {method:'POST', headers, body: JSON.stringify({url, key})});
+            const res = await fetch('/api/customers-api-test', {method:'POST', headers, body: JSON.stringify({customers_api_url: url, customers_api_key: key})});
             const d = await res.json();
             const msg = document.getElementById('pmsApiMsg');
             if (d.ok) {
                 msg.textContent = 'Connection successful!';
                 msg.style.color = 'var(--green)';
-                if (d.preview && d.preview.length) {
+                if (d.customer) {
                     document.getElementById('pmsApiPreview').style.display = 'block';
-                    document.getElementById('pmsApiPreviewList').innerHTML = d.preview.map(c =>
-                        `<div style="padding:0.3rem 0;border-bottom:1px solid rgba(255,255,255,0.05)">${escapeHtml(c.name || '')} — ${escapeHtml(c.email || '')} — ${escapeHtml(c.phone || '')}</div>`
-                    ).join('');
+                    const c = d.customer;
+                    document.getElementById('pmsApiPreviewList').innerHTML =
+                        `<div style="padding:0.3rem 0;border-bottom:1px solid rgba(255,255,255,0.05)">${escapeHtml(c.name || '')} — ${escapeHtml(c.email || '')} — ${escapeHtml(c.phone || '')}</div>`;
                 }
             } else {
                 msg.textContent = d.error || 'Connection failed';
@@ -9398,15 +9860,8 @@
     // ═══════ Appointment Integration (PMS) ═══════
     let _externalApiKey = '';
     const _apptCodeSnippets = {};
-    // Fetch external API key immediately on page load
-    (async function() {
-        try {
-            const r = await fetch('/api/company-info', {headers: {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'}});
-            const d = await r.json();
-            if (d.external_api_key) { _externalApiKey = d.external_api_key; localStorage.setItem('external_api_key', d.external_api_key); }
-        } catch(e) {}
-        if (!_externalApiKey) _externalApiKey = localStorage.getItem('external_api_key') || '';
-    })();
+    // Bug 8 fix: removed fire-and-forget IIFE that caused race condition.
+    // External API key is now fetched inside loadPMS() with proper await before use.
     function initApptCodeSnippets() {
         const server = window.location.origin;
         const tk = _externalApiKey || localStorage.getItem('external_api_key') || 'KEY_NOT_FOUND';
@@ -9557,16 +10012,14 @@ curl -X POST "${server}/api/external/booking" \\
     loadPMS = async function() {
         await _origLoadPMS();
         document.getElementById('pmsApptEndpoint').textContent = window.location.origin;
-        // Wait a moment for the async key fetch to complete if it hasn't yet
-        if (!_externalApiKey) {
-            try {
-                const res = await fetch('/api/company-info', {headers: {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'}});
-                const data = await res.json();
-                _externalApiKey = data.external_api_key || '';
-                if (_externalApiKey) localStorage.setItem('external_api_key', _externalApiKey);
-            } catch(e) {}
-            if (!_externalApiKey) _externalApiKey = localStorage.getItem('external_api_key') || '';
-        }
+        // Bug 8 fix: always await the dedicated external-api-key endpoint before generating snippets
+        try {
+            const res = await fetch('/api/external-api-key', {headers: {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'}});
+            const data = await res.json();
+            _externalApiKey = data.external_api_key || '';
+            if (_externalApiKey) localStorage.setItem('external_api_key', _externalApiKey);
+        } catch(e) {}
+        if (!_externalApiKey) _externalApiKey = localStorage.getItem('external_api_key') || '';
         document.querySelectorAll('.pms-appt-token-display').forEach(el => el.textContent = _externalApiKey || 'No key found');
         initApptCodeSnippets();
         document.getElementById('pmsApptCodeBlock').textContent = _apptCodeSnippets.js || '';
@@ -9625,7 +10078,7 @@ curl -X POST "${server}/api/external/booking" \\
             if (d.ok) {
                 showToast('Appointment added successfully', 'success');
                 document.getElementById('addApptModal').style.display = 'none';
-                loadBookings();
+                loadData();
             } else {
                 msg.textContent = d.error || 'Failed to add appointment';
                 msg.style.color = 'var(--red)';
@@ -10061,20 +10514,34 @@ curl -X POST "${server}/api/external/booking" \\
         } catch(e) { showToast('Failed to remove customer', 'error'); }
     }
 
-    function exportCustomers(format) {
-        var token = localStorage.getItem('token');
+    async function exportCustomers(format) {
         var search = document.getElementById('customerSearch').value;
-        var url = '/api/customers/export?format=' + format + '&search=' + encodeURIComponent(search) + '&token=' + encodeURIComponent(token);
-        window.open(url, '_blank');
+        try {
+            var res = await fetch('/api/customers/export?format=' + format + '&search=' + encodeURIComponent(search), { headers });
+            if (!res.ok) { showToast('Export failed', 'error'); return; }
+            var blob = await res.blob();
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'customers.' + format;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch(e) { showToast('Export failed', 'error'); }
     }
 
     // ═══════ Feature 16: Real-Time Dashboard ═══════
     let rtEventSource = null;
-    function startRealtimeDashboard() {
+    async function startRealtimeDashboard() {
         fetch('/api/realtime/snapshot', {headers}).then(r=>r.json()).then(updateRealtimeUI).catch(()=>{});
         if (rtEventSource) rtEventSource.close();
-        const t = localStorage.getItem('token');
-        rtEventSource = new EventSource(`/api/realtime/stream?token=${t}`);
+        // Get a short-lived SSE token to avoid exposing main token in URL
+        try {
+            const sseRes = await fetch('/api/realtime/sse-token', {headers});
+            const sseData = await sseRes.json();
+            rtEventSource = new EventSource(`/api/realtime/stream?sse_token=${sseData.sse_token}`);
+        } catch(e) {
+            return; // SSE not available
+        }
         rtEventSource.onmessage = (e) => { try { updateRealtimeUI(JSON.parse(e.data)); } catch(err) {} };
     }
 
@@ -10161,6 +10628,657 @@ curl -X POST "${server}/api/external/booking" \\
         if (!text) { showToast('Enter post content','warning'); return; }
         await fetch('/api/gmb/post', {method:'POST',headers,body:JSON.stringify({content:text})});
         showToast('Post published','success'); document.getElementById('gmbPost').value = '';
+    }
+
+    // ═══════ Twilio SMS Integration ═══════
+    let _twilioConfigured = false;
+    async function loadTwilioStatus() {
+        try {
+            const res = await fetch('/api/integrations/twilio/status', {headers});
+            const data = await res.json();
+            _twilioConfigured = data.configured;
+            const el = document.getElementById('twilioStatus');
+            if (data.configured) {
+                el.innerHTML = '<span style="color:#10b981;font-weight:600">Connected</span>' + (data.phone_number ? ' &mdash; Phone: <strong>' + escapeHtml(data.phone_number) + '</strong>' : '');
+                document.getElementById('twilioDisconnectBtn').disabled = false;
+                document.getElementById('twilioTestBtn').disabled = false;
+            } else {
+                el.innerHTML = '<span style="color:#f59e0b;font-weight:600">Not connected</span> &mdash; Enter your Twilio credentials below to enable SMS.';
+                document.getElementById('twilioDisconnectBtn').disabled = true;
+                document.getElementById('twilioTestBtn').disabled = true;
+            }
+            loadSmsToggles(); loadTwilioStats();
+        } catch(e) { console.error('Twilio status error:', e); }
+    }
+    async function saveTwilioConfig() {
+        const sid = document.getElementById('twilioAccountSid').value.trim();
+        const tok = document.getElementById('twilioAuthToken').value.trim();
+        const ph = document.getElementById('twilioPhoneNumber').value.trim();
+        if (!sid || !tok || !ph) { showToast('All fields are required', 'warning'); return; }
+        try {
+            const res = await fetch('/api/integrations/twilio/configure', { method:'POST', headers:{...headers,'Content-Type':'application/json'}, body:JSON.stringify({account_sid:sid,auth_token:tok,phone_number:ph}) });
+            const data = await res.json();
+            if (data.ok) { showToast('Twilio credentials saved!','success'); document.getElementById('twilioAccountSid').value=''; document.getElementById('twilioAuthToken').value=''; document.getElementById('twilioPhoneNumber').value=''; loadTwilioStatus(); }
+            else { showToast(data.error||'Failed to save','error'); }
+        } catch(e) { showToast('Error saving credentials','error'); }
+    }
+    async function disconnectTwilio() {
+        if (!confirm('Disconnect Twilio? SMS notifications will stop working.')) return;
+        try { const res = await fetch('/api/integrations/twilio/disconnect',{method:'POST',headers}); const data = await res.json(); if(data.ok){showToast('Twilio disconnected','success');loadTwilioStatus();} else {showToast(data.error||'Failed to disconnect','error');} } catch(e){showToast('Error disconnecting','error');}
+    }
+    async function testTwilioSms() {
+        const ph = document.getElementById('twilioTestNumber').value.trim();
+        if (!ph) { showToast('Enter a phone number','warning'); return; }
+        const rEl = document.getElementById('twilioTestResult');
+        rEl.innerHTML = '<span style="color:var(--gray)">Sending...</span>';
+        try {
+            const res = await fetch('/api/integrations/twilio/test',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({to_number:ph})});
+            const data = await res.json();
+            rEl.innerHTML = data.success ? '<span style="color:#10b981">Test SMS sent! SID: '+escapeHtml(data.sid||'')+'</span>' : '<span style="color:#ef4444">Failed: '+escapeHtml(data.error||'Unknown error')+'</span>';
+        } catch(e) { rEl.innerHTML = '<span style="color:#ef4444">Error sending test SMS</span>'; }
+    }
+    async function loadSmsToggles() {
+        try { const res = await fetch('/api/feature-config',{headers}); const cfg = await res.json();
+            document.getElementById('cfg_sms_booking_confirmation').checked = !!cfg.sms_booking_confirmation;
+            document.getElementById('cfg_sms_appointment_reminder').checked = !!cfg.sms_appointment_reminder;
+            document.getElementById('cfg_sms_noshow_recovery').checked = !!cfg.sms_noshow_recovery;
+        } catch(e) { console.error('SMS toggle load error:', e); }
+    }
+    async function saveSmsToggles() {
+        if (!_twilioConfigured) { showToast('Connect Twilio first before enabling SMS notifications','warning');
+            document.getElementById('cfg_sms_booking_confirmation').checked=false; document.getElementById('cfg_sms_appointment_reminder').checked=false; document.getElementById('cfg_sms_noshow_recovery').checked=false; return; }
+        const config = { sms_booking_confirmation:document.getElementById('cfg_sms_booking_confirmation').checked?1:0, sms_appointment_reminder:document.getElementById('cfg_sms_appointment_reminder').checked?1:0, sms_noshow_recovery:document.getElementById('cfg_sms_noshow_recovery').checked?1:0 };
+        try { await fetch('/api/feature-config',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify(config)}); showToast('SMS settings saved','success'); } catch(e){showToast('Error saving SMS settings','error');}
+    }
+    async function loadTwilioStats() {
+        try { const res = await fetch('/api/integrations/twilio/stats',{headers}); const data = await res.json(); const el = document.getElementById('twilioStats');
+            if (data.total===0) { el.innerHTML='<span style="color:var(--gray);font-size:0.85rem">No SMS sent yet.</span>'; return; }
+            el.innerHTML='<div style="display:flex;gap:2rem;flex-wrap:wrap"><div style="text-align:center"><div style="font-size:1.8rem;font-weight:800;color:var(--cyan)">'+data.total+'</div><div style="font-size:0.78rem;color:var(--gray)">Total SMS</div></div><div style="text-align:center"><div style="font-size:1.8rem;font-weight:800;color:#10b981">'+data.sent+'</div><div style="font-size:0.78rem;color:var(--gray)">Sent</div></div><div style="text-align:center"><div style="font-size:1.8rem;font-weight:800;color:#ef4444">'+data.failed+'</div><div style="font-size:0.78rem;color:var(--gray)">Failed</div></div><div style="text-align:center"><div style="font-size:1.8rem;font-weight:800;color:var(--cyan)">'+data.delivery_rate+'%</div><div style="font-size:0.78rem;color:var(--gray)">Delivery Rate</div></div></div>';
+        } catch(e) { console.error('SMS stats error:', e); }
+    }
+
+    // ═══════ Mailchimp Email Marketing ═══════
+    async function loadMailchimpStatus() {
+        try {
+            const res = await fetch('/api/integrations/mailchimp/status', {headers});
+            const data = await res.json();
+            const el = document.getElementById('mailchimpStatus');
+            if (data.connected) {
+                el.innerHTML = '<span style="color:#10b981;font-weight:600">Connected</span> <span style="color:var(--gray);font-size:0.85rem">Account: ' + escapeHtml(data.account_name || 'N/A') + '</span>';
+                document.getElementById('mailchimpSetupSection').style.display = 'none';
+                document.getElementById('mailchimpConfigSection').style.display = '';
+                document.getElementById('mailchimpStatsSection').style.display = '';
+                document.getElementById('mcTotalSynced').textContent = data.total_synced || 0;
+                document.getElementById('mcAutoSync').textContent = data.auto_sync ? 'On' : 'Off';
+                document.getElementById('mcAutoSync').style.color = data.auto_sync ? '#10b981' : 'var(--gray)';
+                document.getElementById('mcLastSync').textContent = data.last_synced_at ? 'Last sync: ' + data.last_synced_at : 'Never synced';
+                document.getElementById('mailchimpAutoSync').checked = !!data.auto_sync;
+                // Load lists and select current
+                await loadMailchimpLists(data.list_id);
+            } else {
+                el.innerHTML = '<span style="color:var(--gray)">Not connected</span>';
+                document.getElementById('mailchimpSetupSection').style.display = '';
+                document.getElementById('mailchimpConfigSection').style.display = 'none';
+                document.getElementById('mailchimpStatsSection').style.display = 'none';
+            }
+        } catch(e) {
+            document.getElementById('mailchimpStatus').innerHTML = '<span style="color:var(--gray)">Not connected</span>';
+        }
+    }
+
+    async function loadMailchimpLists(selectedId) {
+        try {
+            const res = await fetch('/api/integrations/mailchimp/lists', {headers});
+            const data = await res.json();
+            const sel = document.getElementById('mailchimpListSelect');
+            sel.innerHTML = '<option value="">-- Select an audience --</option>';
+            (data.lists || []).forEach(l => {
+                const opt = document.createElement('option');
+                opt.value = l.id;
+                opt.textContent = l.name + ' (' + (l.member_count || 0) + ' members)';
+                if (l.id === selectedId) opt.selected = true;
+                sel.appendChild(opt);
+            });
+        } catch(e) { console.error('Mailchimp lists error:', e); }
+    }
+
+    async function connectMailchimp() {
+        const apiKey = document.getElementById('mailchimpApiKey').value.trim();
+        if (!apiKey) { showToast('Enter your Mailchimp API key', 'warning'); return; }
+        try {
+            const res = await fetch('/api/integrations/mailchimp/connect', {
+                method: 'POST', headers: {...headers, 'Content-Type': 'application/json'},
+                body: JSON.stringify({api_key: apiKey})
+            });
+            const data = await res.json();
+            if (data.error) { showToast(data.error, 'error'); return; }
+            showToast('Mailchimp connected successfully!', 'success');
+            document.getElementById('mailchimpApiKey').value = '';
+            loadMailchimpStatus();
+        } catch(e) { showToast('Failed to connect Mailchimp', 'error'); }
+    }
+
+    async function saveMailchimpConfig() {
+        const listId = document.getElementById('mailchimpListSelect').value;
+        const autoSync = document.getElementById('mailchimpAutoSync').checked;
+        if (!listId) { showToast('Select an audience first', 'warning'); return; }
+        try {
+            const res = await fetch('/api/integrations/mailchimp/configure', {
+                method: 'POST', headers: {...headers, 'Content-Type': 'application/json'},
+                body: JSON.stringify({list_id: listId, auto_sync: autoSync})
+            });
+            const data = await res.json();
+            if (data.ok) { showToast('Mailchimp configuration saved!', 'success'); loadMailchimpStatus(); }
+            else showToast(data.error || 'Error saving config', 'error');
+        } catch(e) { showToast('Error saving Mailchimp config', 'error'); }
+    }
+
+    async function syncMailchimpNow() {
+        showToast('Syncing patients to Mailchimp...', 'info', 3000);
+        try {
+            const res = await fetch('/api/integrations/mailchimp/sync', {method: 'POST', headers});
+            const data = await res.json();
+            if (data.error) { showToast(data.error, 'error'); return; }
+            showToast('Sync complete! ' + data.synced + ' synced, ' + data.skipped + ' skipped, ' + data.errors + ' errors', 'success', 5000);
+            loadMailchimpStatus();
+        } catch(e) { showToast('Sync failed', 'error'); }
+    }
+
+    async function disconnectMailchimp() {
+        if (!confirm('Disconnect Mailchimp? This will remove your API key.')) return;
+        try {
+            const res = await fetch('/api/integrations/mailchimp/disconnect', {method: 'DELETE', headers});
+            const data = await res.json();
+            if (data.disconnected) { showToast('Mailchimp disconnected', 'success'); loadMailchimpStatus(); }
+        } catch(e) { showToast('Error disconnecting', 'error'); }
+    }
+
+
+    // ═══════ Zapier Webhook Integration ═══════
+
+    async function loadZapierStatus() {
+        try {
+            const res = await fetch('/api/integrations/zapier/status', {headers});
+            const data = await res.json();
+            const statusEl = document.getElementById('zapierStatus');
+            if (data.connected) {
+                const eventCount = Object.keys(data.configured).length;
+                statusEl.innerHTML = '<span style="color:#22c55e;font-weight:600">Connected</span> &mdash; ' + eventCount + ' event(s) configured';
+                document.getElementById('zapierDisconnectBtn').style.display = '';
+                // Pre-fill checkboxes; show masked URL as placeholder (user must re-enter to change)
+                const urls = Object.values(data.configured).map(c => c.url);
+                const uniqueUrls = [...new Set(urls)];
+                const urlInput = document.getElementById('zapierDefaultUrl');
+                if (uniqueUrls.length === 1) {
+                    urlInput.placeholder = uniqueUrls[0] + ' (masked — re-enter to change)';
+                } else if (uniqueUrls.length > 1) {
+                    urlInput.placeholder = 'Multiple URLs configured (re-enter to unify)';
+                }
+                // Don't overwrite the input value — masked URLs can't be saved back
+                if (!urlInput.value) urlInput.value = '';
+                document.querySelectorAll('.zapier-event-cb').forEach(cb => {
+                    const evt = cb.dataset.event;
+                    cb.checked = !!data.configured[evt];
+                });
+            } else {
+                statusEl.innerHTML = '<span style="color:var(--gray)">Not connected</span> &mdash; Configure a webhook URL below to get started.';
+                document.getElementById('zapierDisconnectBtn').style.display = 'none';
+            }
+            loadZapierLogs();
+        } catch(e) {
+            document.getElementById('zapierStatus').innerHTML = '<span style="color:#ef4444">Error loading status</span>';
+        }
+    }
+
+    async function saveZapierConfig() {
+        const url = document.getElementById('zapierDefaultUrl').value.trim();
+        if (!url) { showToast('Please enter a webhook URL', 'warning'); return; }
+        const events = {};
+        let checkedCount = 0;
+        document.querySelectorAll('.zapier-event-cb').forEach(cb => {
+            if (cb.checked) {
+                events[cb.dataset.event] = url;
+                checkedCount++;
+            } else {
+                events[cb.dataset.event] = '';  // send empty to remove unchecked events
+            }
+        });
+        if (checkedCount === 0) { showToast('Select at least one event', 'warning'); return; }
+        try {
+            const res = await fetch('/api/integrations/zapier/configure', {
+                method: 'POST', headers: {...headers, 'Content-Type': 'application/json'},
+                body: JSON.stringify({events})
+            });
+            const data = await res.json();
+            if (data.ok) {
+                showToast('Zapier webhooks configured (' + data.configured.length + ' events)', 'success');
+                loadZapierStatus();
+            } else {
+                showToast(data.error || 'Failed to save', 'error');
+            }
+        } catch(e) { showToast('Error saving configuration', 'error'); }
+    }
+
+    async function testZapierWebhook() {
+        try {
+            const res = await fetch('/api/integrations/zapier/test', {
+                method: 'POST', headers: {...headers, 'Content-Type': 'application/json'},
+                body: JSON.stringify({})
+            });
+            const data = await res.json();
+            if (data.ok) {
+                const results = data.results;
+                const summary = Object.entries(results).map(([k,v]) => k + ': ' + v.status).join(', ');
+                showToast('Test sent! ' + summary, 'success', 5000);
+                setTimeout(loadZapierLogs, 1500);
+            } else {
+                showToast('Test failed', 'error');
+            }
+        } catch(e) { showToast('Error sending test', 'error'); }
+    }
+
+    async function disconnectZapier() {
+        if (!confirm('Disconnect Zapier? This will remove all webhook configurations.')) return;
+        try {
+            const res = await fetch('/api/integrations/zapier/disconnect', {method: 'DELETE', headers});
+            const data = await res.json();
+            if (data.ok) { showToast('Zapier disconnected', 'success'); loadZapierStatus(); }
+        } catch(e) { showToast('Error disconnecting', 'error'); }
+    }
+
+    async function loadZapierLogs() {
+        try {
+            const res = await fetch('/api/integrations/zapier/logs', {headers});
+            const logs = await res.json();
+            const tbody = document.getElementById('zapierLogsBody');
+            if (!Array.isArray(logs) || !logs.length) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--gray);padding:1.5rem">No webhook deliveries yet</td></tr>';
+                return;
+            }
+            tbody.innerHTML = logs.slice(0, 10).map(l => {
+                const statusColor = (l.status_code >= 200 && l.status_code < 300) ? '#22c55e' : (l.status_code === 0 ? '#ef4444' : '#f59e0b');
+                const statusText = l.status_code === 0 ? 'Error' : l.status_code;
+                const time = l.created_at ? new Date(l.created_at).toLocaleString() : '';
+                return '<tr>' +
+                    '<td><span style="background:rgba(139,92,246,0.12);color:#a78bfa;padding:2px 8px;border-radius:6px;font-size:0.75rem">' + escapeHtml(l.event_type) + '</span></td>' +
+                    '<td><span style="color:' + statusColor + ';font-weight:600">' + statusText + '</span>' + (l.error ? ' <span style="color:#ef4444;font-size:0.72rem">' + escapeHtml(l.error).substring(0, 50) + '</span>' : '') + '</td>' +
+                    '<td style="color:var(--gray);font-size:0.75rem">' + escapeHtml(time) + '</td>' +
+                    '</tr>';
+            }).join('');
+        } catch(e) {
+            document.getElementById('zapierLogsBody').innerHTML = '<tr><td colspan="3" style="text-align:center;color:#ef4444">Error loading logs</td></tr>';
+        }
+    }
+
+    // ═══════ Calendly Integration ═══════
+    let calendlyDoctors = [];
+    let calendlyEventTypes = [];
+    let calendlyMappings = [];
+    let calendlyMode = 'single';
+    let calendlyDoctorConnections = [];
+
+    function updateCalendlyModeUI(mode) {
+        calendlyMode = mode;
+        const singleEl = document.getElementById('calendlyModeSingle');
+        const multiEl = document.getElementById('calendlyModeMultiple');
+        const singleSection = document.getElementById('calendlySingleSection');
+        const multiSection = document.getElementById('calendlyMultipleSection');
+        if (mode === 'single') {
+            singleEl.style.borderColor = 'rgba(139,92,246,0.6)';
+            singleEl.style.background = 'rgba(139,92,246,0.08)';
+            multiEl.style.borderColor = 'rgba(255,255,255,0.06)';
+            multiEl.style.background = 'rgba(255,255,255,0.03)';
+            singleSection.style.display = '';
+            multiSection.style.display = 'none';
+        } else {
+            multiEl.style.borderColor = 'rgba(139,92,246,0.6)';
+            multiEl.style.background = 'rgba(139,92,246,0.08)';
+            singleEl.style.borderColor = 'rgba(255,255,255,0.06)';
+            singleEl.style.background = 'rgba(255,255,255,0.03)';
+            singleSection.style.display = 'none';
+            multiSection.style.display = '';
+        }
+    }
+
+    async function setCalendlyMode(mode) {
+        if (mode === calendlyMode) return;
+        try {
+            const res = await fetch('/api/integrations/calendly/mode', {
+                method: 'POST', headers,
+                body: JSON.stringify({mode})
+            });
+            const data = await res.json();
+            if (data.error) { showToast(data.error, 'error'); return; }
+            updateCalendlyModeUI(mode);
+            showToast('Calendly mode set to ' + mode, 'success');
+            if (mode === 'multiple') {
+                // Refresh doctor connections from server before rendering
+                try {
+                    const statusRes = await fetch('/api/integrations/calendly/status', {headers});
+                    const statusData = await statusRes.json();
+                    calendlyDoctorConnections = statusData.doctor_connections || [];
+                } catch(e) { /* use existing data */ }
+                loadCalendlyDoctorConnections();
+            }
+        } catch(e) { showToast('Failed to set mode', 'error'); }
+    }
+
+    async function loadCalendly() {
+        try {
+            const res = await fetch('/api/integrations/calendly/status', {headers});
+            const data = await res.json();
+
+            // Set mode
+            updateCalendlyModeUI(data.calendly_mode || 'single');
+            calendlyDoctorConnections = data.doctor_connections || [];
+
+            if (data.connected) {
+                document.getElementById('calendlySetup').style.display = 'none';
+                document.getElementById('calendlyConnected').style.display = '';
+                document.getElementById('calendlyUserName').textContent = data.user_name || '';
+                document.getElementById('calendlyUserEmail').textContent = data.user_email || '';
+                document.getElementById('calendlyLastSync').textContent = data.last_synced_at || 'Never';
+                document.getElementById('calendlyLastEvent').textContent = data.last_synced_event || '-';
+                calendlyMappings = data.mappings || [];
+                document.getElementById('calendlyMappingCount').textContent = calendlyMappings.length;
+                document.getElementById('calendlyMappingSection').style.display = '';
+                await loadCalendlyEventTypes();
+                await loadCalendlyDoctors();
+                renderCalendlyMappings();
+            } else {
+                document.getElementById('calendlySetup').style.display = '';
+                document.getElementById('calendlyConnected').style.display = 'none';
+                document.getElementById('calendlyMappingSection').style.display = 'none';
+            }
+            document.getElementById('calendlyStatus').style.display = 'none';
+
+            // Load doctor connections for multiple mode
+            if (calendlyMode === 'multiple') { loadCalendlyDoctorConnections(); }
+        } catch(e) {
+            console.error('Calendly load error:', e);
+            document.getElementById('calendlyStatus').innerHTML = '<span style="color:#ef4444;font-size:0.85rem">Failed to load Calendly status</span>';
+        }
+    }
+
+    async function connectCalendly() {
+        const token = document.getElementById('calendlyApiToken').value.trim();
+        if (!token) { showToast('Please enter your Calendly API token', 'warning'); return; }
+        const msg = document.getElementById('calendlyConnectMsg');
+        msg.style.display = 'inline'; msg.style.color = 'var(--gray)'; msg.textContent = 'Connecting...';
+        try {
+            const res = await fetch('/api/integrations/calendly/connect', {
+                method: 'POST', headers,
+                body: JSON.stringify({api_token: token})
+            });
+            const data = await res.json();
+            if (data.error) {
+                msg.style.color = '#ef4444'; msg.textContent = data.error;
+                showToast(data.error, 'error');
+                return;
+            }
+            msg.style.color = '#22c55e'; msg.textContent = 'Connected!';
+            showToast('Calendly connected successfully', 'success');
+            document.getElementById('calendlyApiToken').value = '';
+            loadCalendly();
+        } catch(e) {
+            msg.style.color = '#ef4444'; msg.textContent = 'Connection failed';
+            showToast('Failed to connect Calendly', 'error');
+        }
+    }
+
+    async function disconnectCalendly() {
+        if (!confirm('Disconnect Calendly? This will remove your API token and webhook subscription.')) return;
+        try {
+            await fetch('/api/integrations/calendly/disconnect', {method: 'DELETE', headers});
+            showToast('Calendly disconnected', 'success');
+            loadCalendly();
+        } catch(e) {
+            showToast('Failed to disconnect', 'error');
+        }
+    }
+
+    async function loadCalendlyEventTypes() {
+        try {
+            const res = await fetch('/api/integrations/calendly/event-types', {headers});
+            const data = await res.json();
+            calendlyEventTypes = data.event_types || [];
+            document.getElementById('calendlyEventCount').textContent = calendlyEventTypes.length;
+        } catch(e) { console.error('Event types error:', e); }
+    }
+
+    async function loadCalendlyDoctors() {
+        try {
+            const res = await fetch('/api/doctors', {headers});
+            calendlyDoctors = await res.json();
+        } catch(e) { calendlyDoctors = []; }
+    }
+
+    function renderCalendlyMappings() {
+        const container = document.getElementById('calendlyMappingList');
+        if (!calendlyEventTypes.length) {
+            container.innerHTML = '<span style="color:var(--gray);font-size:0.85rem">No active event types found in your Calendly account.</span>';
+            return;
+        }
+        let html = '';
+        calendlyEventTypes.forEach(et => {
+            const existing = calendlyMappings.find(m => m.event_type_uri === et.uri);
+            const selectedDoctorId = existing ? existing.doctor_id : 0;
+            html += '<div style="display:flex;gap:1rem;align-items:center;padding:0.75rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;flex-wrap:wrap" data-event-uri="' + escapeHtml(et.uri) + '" data-event-name="' + escapeHtml(et.name||'') + '">';
+            html += '<div style="flex:1;min-width:180px"><div style="font-size:0.85rem;font-weight:600;color:var(--white)">' + escapeHtml(et.name||'Untitled') + '</div>';
+            html += '<div style="font-size:0.78rem;color:var(--gray)">' + escapeHtml(String(et.duration||'?')) + ' min</div></div>';
+            html += '<div style="display:flex;align-items:center;gap:0.5rem"><i data-lucide="arrow-right" style="width:14px;height:14px;color:var(--gray)"></i></div>';
+            html += '<div style="flex:1;min-width:180px"><select class="form-input calendly-doctor-select" style="font-size:0.85rem;padding:0.4rem 0.6rem">';
+            html += '<option value="0">-- No mapping --</option>';
+            calendlyDoctors.forEach(d => {
+                const sel = (d.id == selectedDoctorId) ? ' selected' : '';
+                html += '<option value="' + d.id + '"' + sel + '>Dr. ' + escapeHtml(d.name) + '</option>';
+            });
+            html += '</select></div></div>';
+        });
+        container.innerHTML = html;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    async function saveCalendlyMappings() {
+        const rows = document.querySelectorAll('#calendlyMappingList [data-event-uri]');
+        const mappings = [];
+        rows.forEach(row => {
+            const uri = row.dataset.eventUri;
+            const name = row.dataset.eventName;
+            const doctorId = parseInt(row.querySelector('.calendly-doctor-select').value) || 0;
+            if (doctorId > 0) {
+                const doc = calendlyDoctors.find(d => d.id == doctorId);
+                mappings.push({
+                    event_type_uri: uri,
+                    event_type_name: name,
+                    doctor_id: doctorId,
+                    service_name: name
+                });
+            }
+        });
+        try {
+            await fetch('/api/integrations/calendly/configure', {
+                method: 'POST', headers,
+                body: JSON.stringify({mappings})
+            });
+            showToast('Calendly mappings saved (' + mappings.length + ' mapped)', 'success');
+            calendlyMappings = mappings;
+            document.getElementById('calendlyMappingCount').textContent = mappings.length;
+        } catch(e) {
+            showToast('Failed to save mappings', 'error');
+        }
+    }
+
+    // ═══════ Calendly Multiple Mode — Per-Doctor ═══════
+    async function loadCalendlyDoctorConnections() {
+        await loadCalendlyDoctors();
+        const container = document.getElementById('calendlyDoctorList');
+        if (!calendlyDoctors.length) {
+            container.innerHTML = '<span style="color:var(--gray);font-size:0.85rem">No doctors found. Add doctors first.</span>';
+            return;
+        }
+        let html = '';
+        calendlyDoctors.forEach(doc => {
+            const conn = calendlyDoctorConnections.find(c => c.doctor_id === doc.id);
+            const isConnected = conn && conn.connected;
+            html += '<div style="display:flex;align-items:center;gap:1rem;padding:1rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;flex-wrap:wrap">';
+            html += '<div style="flex:1;min-width:160px">';
+            html += '<div style="font-size:0.9rem;font-weight:600;color:var(--white)">Dr. ' + escapeHtml(doc.name||'') + '</div>';
+            if (isConnected) {
+                html += '<div style="display:flex;align-items:center;gap:0.4rem;margin-top:0.3rem"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block"></span>';
+                html += '<span style="font-size:0.78rem;color:#22c55e">Connected</span>';
+                html += '<span style="font-size:0.78rem;color:var(--gray);margin-left:0.5rem">' + escapeHtml(conn.user_email||'') + '</span></div>';
+            } else {
+                html += '<div style="display:flex;align-items:center;gap:0.4rem;margin-top:0.3rem"><span style="width:8px;height:8px;border-radius:50%;background:#6b7280;display:inline-block"></span>';
+                html += '<span style="font-size:0.78rem;color:var(--gray)">Not connected — bookings won\'t sync to Calendly</span></div>';
+            }
+            html += '</div>';
+            if (isConnected) {
+                html += '<button class="manage-save-btn" onclick="disconnectDoctorCalendly(' + doc.id + ')" style="background:rgba(239,68,68,0.15);border-color:rgba(239,68,68,0.3);color:#ef4444;font-size:0.8rem;padding:0.4rem 0.8rem">Disconnect</button>';
+            } else {
+                html += '<div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">';
+                html += '<input type="password" class="form-input" id="docCalendlyToken_' + doc.id + '" placeholder="Calendly API Token" style="font-size:0.8rem;padding:0.4rem 0.6rem;min-width:200px;max-width:300px">';
+                html += '<button class="manage-save-btn" onclick="connectDoctorCalendly(' + doc.id + ')" style="font-size:0.8rem;padding:0.4rem 0.8rem">Connect</button>';
+                html += '</div>';
+            }
+            html += '</div>';
+        });
+        container.innerHTML = html;
+    }
+
+    async function connectDoctorCalendly(doctorId) {
+        const tokenEl = document.getElementById('docCalendlyToken_' + doctorId);
+        if (!tokenEl) return;
+        const apiToken = tokenEl.value.trim();
+        if (!apiToken) { showToast('Enter the doctor\'s Calendly API token', 'warning'); return; }
+        try {
+            const res = await fetch('/api/integrations/calendly/doctor-connect', {
+                method: 'POST', headers,
+                body: JSON.stringify({api_token: apiToken, doctor_id: doctorId})
+            });
+            const data = await res.json();
+            if (data.error) { showToast(data.error, 'error'); return; }
+            showToast('Doctor Calendly connected!', 'success');
+            // Refresh
+            const statusRes = await fetch('/api/integrations/calendly/status', {headers});
+            const statusData = await statusRes.json();
+            calendlyDoctorConnections = statusData.doctor_connections || [];
+            loadCalendlyDoctorConnections();
+        } catch(e) { showToast('Failed to connect', 'error'); }
+    }
+
+    async function disconnectDoctorCalendly(doctorId) {
+        if (!confirm('Disconnect this doctor\'s Calendly?')) return;
+        try {
+            await fetch('/api/integrations/calendly/doctor-disconnect', {
+                method: 'POST', headers,
+                body: JSON.stringify({doctor_id: doctorId})
+            });
+            showToast('Doctor Calendly disconnected', 'success');
+            const statusRes = await fetch('/api/integrations/calendly/status', {headers});
+            const statusData = await statusRes.json();
+            calendlyDoctorConnections = statusData.doctor_connections || [];
+            loadCalendlyDoctorConnections();
+        } catch(e) { showToast('Failed to disconnect', 'error'); }
+    }
+
+    // ═══════ Google Calendar Integration ═══════
+    async function loadGoogleCalendar() {
+        try {
+            const res = await fetch('/api/integrations/google-calendar/status', {headers});
+            const data = await res.json();
+            const container = document.getElementById('gcalDoctorsList');
+
+            if (!data.doctors || data.doctors.length === 0) {
+                container.innerHTML = '<span class="empty-msg">No doctors found. Add doctors first to connect their Google Calendar.</span>';
+                return;
+            }
+
+            container.innerHTML = data.doctors.map(doc => {
+                const connected = doc.gcal_connected;
+                const statusBadge = connected
+                    ? '<span style="color:#22c55e;font-weight:600;font-size:0.82rem">Connected</span>'
+                    : '<span style="color:var(--gray);font-size:0.82rem">Not connected</span>';
+                const actionBtn = connected
+                    ? `<button class="manage-save-btn" style="font-size:0.78rem;padding:0.35rem 0.7rem;background:#ef4444" onclick="disconnectGcal(${doc.id})">Disconnect</button>`
+                    : `<button class="manage-save-btn" style="font-size:0.78rem;padding:0.35rem 0.7rem" onclick="connectGcal(${doc.id})">Connect</button>`;
+
+                return `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+                    <div>
+                        <div style="font-weight:600;font-size:0.88rem">${escapeHtml(doc.name)}</div>
+                        <div style="font-size:0.78rem;color:var(--gray)">${escapeHtml(doc.email || 'No email')}</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:0.8rem">
+                        ${statusBadge}
+                        ${actionBtn}
+                    </div>
+                </div>`;
+            }).join('');
+        } catch(e) {
+            document.getElementById('gcalDoctorsList').innerHTML = '<span class="empty-msg">Failed to load calendar status.</span>';
+        }
+    }
+
+    async function saveGcalSettings() {
+        const clientId = document.getElementById('gcalClientId').value.trim();
+        const clientSecret = document.getElementById('gcalClientSecret').value.trim();
+        if (!clientId || !clientSecret) {
+            showToast('Both Client ID and Client Secret are required', 'warning');
+            return;
+        }
+        try {
+            const res = await fetch('/api/integrations/google-calendar/settings', {
+                method: 'POST', headers,
+                body: JSON.stringify({client_id: clientId, client_secret: clientSecret})
+            });
+            const data = await res.json();
+            if (data.ok) {
+                showToast('Google Calendar OAuth settings saved', 'success');
+            } else {
+                showToast(data.error || 'Failed to save settings', 'error');
+            }
+        } catch(e) {
+            showToast('Failed to save settings', 'error');
+        }
+    }
+
+    async function connectGcal(doctorId) {
+        try {
+            const res = await fetch('/api/integrations/google-calendar/connect', {
+                method: 'POST', headers,
+                body: JSON.stringify({doctor_id: doctorId})
+            });
+            const data = await res.json();
+            if (data.auth_url) {
+                window.open(data.auth_url, 'gcal_auth', 'width=600,height=700');
+                showToast('Google authorization window opened. Complete the sign-in to connect.', 'info', 6000);
+                // Poll for connection status after a delay
+                setTimeout(() => loadGoogleCalendar(), 10000);
+            } else {
+                showToast(data.error || 'Failed to initiate connection. Make sure OAuth settings are configured.', 'error', 5000);
+            }
+        } catch(e) {
+            showToast('Failed to connect Google Calendar', 'error');
+        }
+    }
+
+    async function disconnectGcal(doctorId) {
+        if (!confirm('Disconnect this doctor from Google Calendar? Existing synced events will remain in Google Calendar.')) return;
+        try {
+            const res = await fetch('/api/integrations/google-calendar/disconnect', {
+                method: 'POST', headers,
+                body: JSON.stringify({doctor_id: doctorId})
+            });
+            const data = await res.json();
+            if (data.ok) {
+                showToast('Google Calendar disconnected', 'success');
+                loadGoogleCalendar();
+            } else {
+                showToast(data.error || 'Failed to disconnect', 'error');
+            }
+        } catch(e) {
+            showToast('Failed to disconnect', 'error');
+        }
     }
 
     // ═══════ Feature 20: Benchmarks ═══════
@@ -10276,7 +11394,7 @@ function filterSidebarNav(q) {
         searchWrap.appendChild(searchResults);
     }
     if (!q) { searchResults.style.display = 'none'; return; }
-    var pageNames = {overview:'Overview',plan:'My Plan',bookings:'Bookings','previous-bookings':'Previous Bookings',leads:'Leads',company:'Company Info',services:'Services',doctors:'Doctors',manage:'Manage Doctors',analytics:'Analytics & Reports',admins:'Admins',demo:'Try Demo',waitlist:'Waitlist',customers:'Customers','schedule-blocks':'Doctor Holidays',promotions:'Promotions',recall:'Recall & Retention',followups:'Follow-Ups',config:'Configuration',roi:'ROI','email-style':'Email Style','chatbot-customize':'Chatbot Style',pms:'PMS Integration',changes:'Changes',security:'Security'};
+    var pageNames = {overview:'Overview',plan:'My Plan',bookings:'Bookings','previous-bookings':'Previous Bookings',leads:'Leads',company:'Company Info',services:'Services',doctors:'Doctors',manage:'Manage Doctors',analytics:'Analytics & Reports',admins:'Admins',demo:'Try Demo',waitlist:'Waitlist',customers:'Customers','schedule-blocks':'Doctor Holidays',promotions:'Promotions',recall:'Recall & Retention',followups:'Follow-Ups',config:'Configuration',roi:'ROI','email-style':'Email Style','chatbot-customize':'Chatbot Style',pms:'PMS Integration',changes:'Changes',security:'Security',zapier:'Zapier'};
     var html = '';
     Object.keys(pageNames).forEach(function(key) {
         var name = pageNames[key];
@@ -10357,5 +11475,6 @@ function filterAdminCards() {
 </script>
 <script>lucide.createIcons();</script>
 
+<script src="/static/support-bot.js"></script>
 </body>
 </html>

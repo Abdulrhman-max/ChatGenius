@@ -10,7 +10,7 @@ import re
 BOOKING_PHRASES = [
     # Direct booking commands
     r"\bbook\s+(an?\s+)?(appointment|visit|service|slot|time|consultation)\b",
-    r"\b(make|schedule|set\s*up|reserve|get|create)\s+(an?\s+)?(appointment|visit|service|booking|slot|time|reservation|consultation)\b",
+    r"\b(make|schedule|set\s*up|reserve|get|create)\s+(an%s\s+)%s(appointment|visit|service|booking|slot|time|reservation|consultation)\b",
     r"\bbook\s+(me\s+)?(in|now)\b",
     r"\b(schedule|put)\s+me\b",
     r"\bsign\s+me\s+up\b",
@@ -51,7 +51,7 @@ RESCHEDULE_PHRASES = [
     r"\brese\w*ule\b",
     r"\bpostpone\b",
     # Change/move/modify/edit/shift/update appointment
-    r"\b(change|move|modify|edit|shift|update|switch)\s+(my\s+|the\s+)?(app\w+|apo\w+|booking|reservation|visit)\b",
+    r"\b(change|move|modify|edit|shift|update|switch)\s+(my\s+|the\s+)%s(app\w+|apo\w+|booking|reservation|visit)\b",
     # "I want/need/can I reschedule/change"
     r"\b(i\s+)?(want|need|would\s+like)\s+to\s+(reschedul\w*|change|move|modify|shift)\s+(my\s+|the\s+)?(app\w+|booking|visit)?\b",
     r"\b(can|could|may)\s+i\s+(reschedul\w*|change|move|modify|shift)\s+(my\s+|the\s+)?(app\w+|booking|visit|time|date)?\b",
@@ -80,8 +80,8 @@ RESCHEDULE_PHRASES = [
 # ── CANCEL PHRASES ──
 CANCEL_PHRASES = [
     # Direct cancel
-    r"\b(cancel|delete|remove)\s+(my\s+|the\s+)?(app\w+|apo\w+|booking|reservation|visit|slot)\b",
-    r"\b(cancel|delete|remove)\s+(my\s+|the\s+)?(appointment|booking)\b",
+    r"\b(cancel|delete|remove)\s+(my\s+|the\s+)%s(app\w+|apo\w+|booking|reservation|visit|slot)\b",
+    r"\b(cancel|delete|remove)\s+(my\s+|the\s+)%s(appointment|booking)\b",
     # "I want/need to cancel"
     r"\bi\s+(want|need|would\s+like)\s+to\s+(cancel|delete|remove)\b",
     r"\bplease\s+(cancel|delete|remove)\b",

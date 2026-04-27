@@ -88,6 +88,7 @@ tr:hover{background:rgba(139,92,246,0.04);}
         <div class="tab" onclick="showTab('schedule')">My Schedule</div>
         <div class="tab" onclick="showTab('bookings')">My Bookings</div>
         <div class="tab" onclick="showTab('timeoff')">Time Off</div>
+        <div class="tab" onclick="showTab('calendly')">Calendly</div>
         <div class="tab" onclick="showTab('settings')">Settings</div>
     </div>
 
@@ -128,6 +129,42 @@ tr:hover{background:rgba(139,92,246,0.04);}
             <button class="btn btn-primary" onclick="requestTimeOff()">Request Day Off</button>
             <h3 style="margin-top:24px;margin-bottom:12px;">Scheduled Off Days</h3>
             <div id="offDaysList" class="off-day-list"></div>
+        </div>
+    </div>
+
+    <!-- Calendly Tab -->
+    <div id="tab-calendly" class="panel">
+        <div class="card">
+            <h2>Calendly Integration</h2>
+            <p style="color:#8b95a8;font-size:0.85rem;margin-bottom:1rem">Connect your personal Calendly account so that bookings assigned to you automatically sync to your Calendly calendar.</p>
+            <div id="doctorCalendlyStatus">
+                <span style="color:#8b95a8;font-size:0.85rem">Loading...</span>
+            </div>
+            <!-- Connected state -->
+            <div id="doctorCalendlyConnected" style="display:none">
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem">
+                    <span style="width:10px;height:10px;border-radius:50%;background:#22c55e;display:inline-block"></span>
+                    <span style="font-size:0.85rem;color:#f1f5f9">Connected</span>
+                </div>
+                <div style="font-size:0.85rem;color:#8b95a8;margin-bottom:0.5rem">
+                    <span id="doctorCalendlyName" style="color:#8b5cf6;font-weight:600"></span>
+                    <span id="doctorCalendlyEmail" style="margin-left:0.5rem"></span>
+                </div>
+                <div style="font-size:0.8rem;color:#8b95a8;margin-bottom:1rem">
+                    Last synced: <span id="doctorCalendlyLastSync" style="color:#f1f5f9">Never</span>
+                </div>
+                <button class="btn btn-danger" onclick="doctorDisconnectCalendly()">Disconnect Calendly</button>
+            </div>
+            <!-- Not connected state -->
+            <div id="doctorCalendlySetup" style="display:none">
+                <p style="font-size:0.85rem;color:#8b95a8;margin-bottom:1rem">Get your Personal Access Token at <a href="https://calendly.com/integrations/api_webhooks" target="_blank" style="color:#8b5cf6">calendly.com/integrations/api_webhooks</a></p>
+                <div class="form-group">
+                    <label>Calendly Personal Access Token</label>
+                    <input type="password" id="doctorCalendlyToken" placeholder="eyJhbGciOiJI...">
+                </div>
+                <button class="btn btn-primary" onclick="doctorConnectCalendly()">Connect Calendly</button>
+                <span id="doctorCalendlyMsg" style="font-size:0.8rem;display:none;margin-left:0.75rem"></span>
+            </div>
         </div>
     </div>
 
@@ -219,6 +256,7 @@ async function initPortal() {
     loadSchedule();
     loadBookings();
     loadOffDays();
+    loadDoctorCalendly();
 }
 
 async function loadStats() {
@@ -412,8 +450,64 @@ async function openBookingDetail(bid) {
 function closeBookingDetail() { document.getElementById('bookingDetailModal').style.display = 'none'; }
 document.getElementById('bookingDetailModal').addEventListener('click', function(e) { if (e.target === this) closeBookingDetail(); });
 
+// ═══════ Doctor Calendly ═══════
+async function loadDoctorCalendly() {
+    try {
+        const res = await api('/api/integrations/calendly/doctor-status');
+        const data = typeof res === 'object' ? res : {};
+        document.getElementById('doctorCalendlyStatus').style.display = 'none';
+        if (data.connected) {
+            document.getElementById('doctorCalendlyConnected').style.display = '';
+            document.getElementById('doctorCalendlySetup').style.display = 'none';
+            document.getElementById('doctorCalendlyName').textContent = data.user_name || '';
+            document.getElementById('doctorCalendlyEmail').textContent = data.user_email || '';
+            document.getElementById('doctorCalendlyLastSync').textContent = data.last_synced_at || 'Never';
+        } else {
+            document.getElementById('doctorCalendlyConnected').style.display = 'none';
+            document.getElementById('doctorCalendlySetup').style.display = '';
+        }
+    } catch(e) {
+        document.getElementById('doctorCalendlyStatus').innerHTML = '<span style="color:#f87171;font-size:0.85rem">Failed to load Calendly status</span>';
+    }
+}
+
+async function doctorConnectCalendly() {
+    const token = document.getElementById('doctorCalendlyToken').value.trim();
+    if (!token) { alert('Please enter your Calendly API token'); return; }
+    const msg = document.getElementById('doctorCalendlyMsg');
+    msg.style.display = 'inline'; msg.style.color = '#8b95a8'; msg.textContent = 'Connecting...';
+    try {
+        const res = await fetch('/api/integrations/calendly/doctor-connect', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+            body: JSON.stringify({api_token: token})
+        });
+        const data = await res.json();
+        if (data.error) { msg.style.color = '#f87171'; msg.textContent = data.error; return; }
+        msg.style.color = '#22c55e'; msg.textContent = 'Connected!';
+        document.getElementById('doctorCalendlyToken').value = '';
+        loadDoctorCalendly();
+    } catch(e) {
+        msg.style.color = '#f87171'; msg.textContent = 'Connection failed';
+    }
+}
+
+async function doctorDisconnectCalendly() {
+    if (!confirm('Disconnect your Calendly? Bookings will no longer sync.')) return;
+    try {
+        await fetch('/api/integrations/calendly/doctor-disconnect', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        alert('Calendly disconnected');
+        loadDoctorCalendly();
+    } catch(e) { alert('Failed to disconnect'); }
+}
+
 // Auto-login if token exists
 if (TOKEN) { initPortal(); }
 </script>
+<script src="/static/support-bot.js"></script>
 </body>
 </html>

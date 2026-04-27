@@ -50,7 +50,7 @@
         '@keyframes cgBounceIn{0%{transform:scale(0)}60%{transform:scale(1.2)}100%{transform:scale(1)}}',
 
         // Window
-        '#cg-window{pointer-events:auto;position:fixed;bottom:92px;' + POSITION + ':24px;width:360px;max-width:calc(100vw - 32px);height:480px;max-height:calc(100vh - 120px);background:#0c0c18;border:1px solid rgba(139,92,246,0.15);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.5),0 0 40px rgba(139,92,246,0.08);z-index:999998;display:none;flex-direction:column;overflow:hidden;transform:translateY(16px) scale(0.96);opacity:0;transition:all .35s cubic-bezier(.4,0,.2,1)}',
+        '#cg-window{pointer-events:auto;position:fixed;bottom:92px;' + POSITION + ':24px;width:420px;max-width:calc(100vw - 32px);height:540px;max-height:calc(100vh - 120px);background:#0c0c18;border:1px solid rgba(139,92,246,0.15);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.5),0 0 40px rgba(139,92,246,0.08);z-index:999998;display:none;flex-direction:column;overflow:hidden;transform:translateY(16px) scale(0.96);opacity:0;transition:all .35s cubic-bezier(.4,0,.2,1)}',
         '#cg-window.open{display:flex;transform:translateY(0) scale(1);opacity:1}',
         '#cg-window.closing{transform:translateY(16px) scale(0.96);opacity:0}',
 

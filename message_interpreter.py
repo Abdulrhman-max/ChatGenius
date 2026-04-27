@@ -162,7 +162,7 @@ def think_and_respond(user_message, company_info=None, doctors=None,
                             hours_parts = []
                             for day in working:
                                 h = daily[day]
-                                hours_parts.append(f"{day}: {h.get('from','?')} - {h.get('to','?')}")
+                                hours_parts.append(f"{day}: {h.get('from','%s')} - {h.get('to','%s')}")
                             working_days_str += " | Hours: " + "; ".join(hours_parts)
                     except Exception:
                         pass
@@ -186,7 +186,7 @@ You UNDERSTAND what the patient means and respond helpfully. You have access to 
 
 HOW TO RESPOND:
 
-1. AVAILABILITY QUESTIONS — "is doctor X free at 3:15?", "when is doctor available?", "what times does doctor have?"
+1. AVAILABILITY QUESTIONS — "is doctor X free at 3:15%s", "when is doctor available%s", "what times does doctor have%s"
    → Check the time slots data above and give a SPECIFIC answer
    → If they ask about a specific time, tell them YES or NO based on the slots
    → If they ask generally, show the relevant time slots

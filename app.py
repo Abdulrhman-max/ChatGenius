@@ -50,6 +50,8 @@ import patient_profile_engine as patient_profile
 import realtime_engine as realtime
 import benchmarking_engine as benchmarks
 import gmb_engine as gmb
+import calendly_engine as calendly
+import mailchimp_engine as mailchimp
 
 # ── New Feature Engines (10 features) ──
 import appointment_reminder_engine as reminder_eng
@@ -61,12 +63,42 @@ import report_engine
 import package_engine
 import doctor_portal_engine
 import noshow_recovery_engine
+import sms_engine
+import zapier_engine
 
 app = Flask(__name__, static_folder="static")
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max upload
 
 # ── CORS for embedded chatbot ──
 from flask_cors import CORS
 CORS(app, resources={r"/chat": {"origins": "*"}, r"/static/chatbot-embed.js": {"origins": "*"}, r"/api/chatbot-customization/public/*": {"origins": "*"}})
+
+# ── Rate limiting ──
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+limiter = Limiter(get_remote_address, app=app, default_limits=["200 per minute"], storage_uri="memory://")
+
+
+# ── Security headers ──
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    if 'text/html' in response.content_type:
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://accounts.google.com https://connect.facebook.net https://apis.google.com https://appleid.cdn-apple.com; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data: https: blob:; "
+            "connect-src 'self' https://accounts.google.com https://appleid.apple.com https://graph.facebook.com; "
+            "frame-src https://accounts.google.com https://appleid.apple.com https://www.facebook.com;"
+        )
+    return response
 
 # ── Load knowledge base ──
 KB_PATH = os.path.join(os.path.dirname(__file__), "data", "knowledge_base.json")
@@ -113,6 +145,39 @@ def get_effective_admin_id(user):
 
 
 import requests as http_requests  # for external API calls
+from urllib.parse import urlparse
+import ipaddress
+import socket
+
+
+def _is_safe_url(url_string):
+    """Bug 4 fix: validate URL to prevent SSRF attacks.
+    Returns (True, '') if safe, (False, reason) if not."""
+    try:
+        parsed = urlparse(url_string)
+    except Exception:
+        return False, "Invalid URL"
+    if parsed.scheme != "https":
+        return False, "Only HTTPS URLs are allowed"
+    hostname = parsed.hostname
+    if not hostname:
+        return False, "No hostname in URL"
+    # Block known internal hostnames
+    blocked_hosts = {"localhost", "0.0.0.0", "metadata.google.internal",
+                     "metadata.aws.internal", "169.254.169.254"}
+    if hostname.lower() in blocked_hosts:
+        return False, "Internal hosts are not allowed"
+    # Resolve hostname and check for private IPs
+    try:
+        resolved = socket.getaddrinfo(hostname, None)
+        for family, _type, _proto, _canonname, sockaddr in resolved:
+            ip = ipaddress.ip_address(sockaddr[0])
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+                return False, "URL resolves to a private/internal IP address"
+    except socket.gaierror:
+        return False, "Could not resolve hostname"
+    return True, ""
+
 
 # ── Cache for customer API lookups (keyed by admin_id + customer_id) ──
 _customer_cache = {}
@@ -193,17 +258,17 @@ KEYWORD_MAP = {
 }
 
 KB_RESPONSES = {
-    "pricing": "We have three plans: **Basic** at $99/month (700 conversations, 1 chatbot, smart booking, calendar scheduling, email reminders, patient profiles, pre-visit forms, basic analytics), **Pro** at $249/month (5,000 conversations, 4 chatbots, everything in Basic + advanced reminders, no-show recovery, ROI dashboard, lead capture, waitlist, promotions, multi-language, AI PDF extraction), and **Agency** at $599/month (unlimited conversations, everything in Pro + AI no-show prediction, advanced analytics, API access, PMS/CRM integration, full doctor portal, priority support, custom email sending). All include a 14-day free trial — no credit card required!",
+    "pricing": "We have three plans: **Basic** at $79/month (700 conversations, 1 chatbot, smart booking, calendar scheduling, email reminders, patient profiles, pre-visit forms, basic analytics), **Pro** at $239/month (5,000 conversations, 4 chatbots, everything in Basic + advanced reminders, no-show recovery, ROI dashboard, lead capture, waitlist, promotions, multi-language, AI PDF extraction), and **Enterprise** at $699/month (unlimited conversations, everything in Pro + AI no-show prediction, advanced analytics, API access, PMS/CRM integration, full doctor portal, chatbot customization, white-label, dedicated account manager, SOC 2 compliance). All include a 14-day free trial — no credit card required!",
     "features": "ChatGenius includes: 24/7 instant AI replies (under 2 seconds), automated appointment booking with calendar sync, smart lead capture with CRM integration, one-line website integration, a no-code dashboard, and templates for 20+ industries. Pro adds multi-language support, analytics, and human handoff.",
     "setup": "Setup takes under 5 minutes: 1) Sign up free, 2) Enter your business info, 3) Upload your knowledge base or let AI learn from your website, 4) Customize the look, 5) Paste one line of code on your site. No coding or technical skills needed!",
     "trial": "We offer a 14-day free trial with full Pro features — no credit card required. After the trial, choose a paid plan or continue with a limited free tier (50 conversations/month). We also have a 30-day money-back guarantee on all paid plans. Zero risk!",
     "industries": "ChatGenius works for any industry! Popular verticals: dental clinics, law firms, real estate, restaurants, e-commerce, fitness studios, salons, automotive, professional services, and education. We have pre-built templates for 20+ industries, and the AI adapts to your specific business.",
     "integration": "We integrate with HubSpot, Salesforce, Zoho, Pipedrive (CRM), Google Calendar, Calendly, Outlook (scheduling), Slack, Teams (communication), Zapier, Make (automation), and Google Analytics. Works on WordPress, Shopify, Wix, Squarespace, Webflow, and any custom website.",
-    "security": "All data is encrypted with AES-256 at rest and TLS 1.3 in transit. We're GDPR and CCPA compliant, hosted on AWS with 99.9% uptime. Agency plan includes SOC 2 Type II compliance. We never sell your data — you own everything and can export or delete anytime.",
-    "support": "Basic: email support. Pro: priority email + chat support. Agency: dedicated account manager, priority support, full doctor portal access. All users get access to our knowledge base and tutorials.",
+    "security": "All data is encrypted with AES-256 at rest and TLS 1.3 in transit. We're GDPR and CCPA compliant, hosted on AWS with 99.9% uptime. Enterprise plan includes SOC 2 Type II compliance. We never sell your data — you own everything and can export or delete anytime.",
+    "support": "Basic: email support. Pro: priority email + chat support. Enterprise: dedicated account manager, priority support, full doctor portal access. All users get access to our knowledge base and tutorials.",
     "comparison": "Unlike scripted chatbots, ChatGenius uses real AI that understands context and intent. Compared to Intercom ($74+/mo, built for enterprise), we're purpose-built for SMBs at lower cost. Compared to Tidio, our AI handles unexpected questions and maintains conversation flow.",
     "how_it_works": "ChatGenius uses AI trained on your business data to understand and respond to customer questions naturally. Visitors get instant answers, can book appointments, and share their contact info — all automatically. You manage everything from a simple dashboard.",
-    "languages": "On Pro and Agency plans, ChatGenius supports 10 languages: English, Spanish, French, German, Portuguese, Italian, Dutch, Japanese, Korean, and Chinese. The chatbot auto-detects the visitor's language and responds accordingly.",
+    "languages": "On Pro and Enterprise plans, ChatGenius supports 10 languages: English, Spanish, French, German, Portuguese, Italian, Dutch, Japanese, Korean, and Chinese. The chatbot auto-detects the visitor's language and responds accordingly.",
 }
 
 
@@ -509,7 +574,7 @@ def _build_symptom_response(specialty, admin_id):
         else:
             doc_list = "\n".join([f"**{i+1}.** Dr. {d['name']}" for i, d in enumerate(matching_doctors)])
             response += f"\n\nHere are our {specialty} doctors:\n\n{doc_list}"
-        response += "\n\nWould you like to **book an appointment**?"
+        response += "\n\nWould you like to **book an appointment**%s"
     else:
         # No doctors in this specialty — check if any doctors at all
         active_doctors = [d for d in all_doctors if d.get("status") == "active"]
@@ -678,7 +743,7 @@ def _is_negative(text):
     if t in ("no", "nah", "nope", "n", "no thanks", "no thank you", "other times",
              "show me", "skip", "pass", "never mind", "nevermind", "not now"):
         return True
-    if re.search(r'\b(no|nah|nope|don\'?t|not)\b', t) and not re.search(r'\b(yes|yeah|sure|okay)\b', t):
+    if re.search(r'\b(no|nah|nope|don\'%st|not)\b', t) and not re.search(r'\b(yes|yeah|sure|okay)\b', t):
         return True
     return False
 
@@ -827,7 +892,7 @@ def _get_customer_booked_dates(session, admin_id):
     today = _date_h.today().isoformat()
     conn = db.get_db()
     rows = conn.execute(
-        "SELECT DISTINCT date FROM bookings WHERE admin_id=? AND date>=? AND status NOT IN ('cancelled','no_show') ORDER BY date",
+        "SELECT DISTINCT date FROM bookings WHERE admin_id=%s AND date>=%s AND status NOT IN ('cancelled','no_show') ORDER BY date",
         (admin_id, today)
     ).fetchall()
     conn.close()
@@ -1313,11 +1378,13 @@ def _init_fast_booking(session, extracted, doctors, admin_id):
     Set up session with pre-filled data and determine the first step to ask.
     Returns (first_reply, ui_options_or_none).
     """
-    # Embedded widget: require login to book
+    # Require login to book (configurable per company)
     if session.get("_is_embedded") and not session.get("_customer_logged_in"):
-        session["flow"] = None
-        session["step"] = None
-        return "You need to log in first before booking an appointment. Please log in to your account and try again.", None
+        _require_login = db.is_feature_enabled(admin_id, "require_login_to_book")
+        if _require_login:
+            session["flow"] = None
+            session["step"] = None
+            return "You need to log in first before booking an appointment. Please log in to your account and try again.", None
 
     data = session["data"]
     data["_admin_id"] = admin_id
@@ -1409,7 +1476,7 @@ def _init_fast_booking(session, extracted, doctors, admin_id):
                 data["_categories"] = categories
                 session["step"] = "get_category"
                 ui = {"type": "categories", "items": [{"name": c} for c in categories]}
-                return "I'd love to help you book! What type of doctor would you like to see?", ui
+                return "I'd love to help you book! What type of doctor would you like to see%s", ui
             else:
                 data["_doctors"] = doctors
                 session["step"] = "get_doctor"
@@ -1417,7 +1484,7 @@ def _init_fast_booking(session, extracted, doctors, admin_id):
                     _doctor_dropdown_item(d)
                     for d in doctors
                 ]}
-                return "I'd love to help you book! Which doctor would you like to see?", ui
+                return "I'd love to help you book! Which doctor would you like to see%s", ui
         else:
             if "name" not in data:
                 session["step"] = "get_name"
@@ -1517,23 +1584,23 @@ def _init_fast_booking(session, extracted, doctors, admin_id):
 
     if "phone" not in data:
         session["step"] = "get_phone"
-        return "And your phone number? (In case we need to reach you)", None
+        return "And your phone number%s (In case we need to reach you)", None
 
     # Service booking: collect patient type and notes if not already done
     if data.get("_service_id") and "patient_type" not in data:
         session["step"] = "get_patient_type"
-        return "Almost done! Are you a **new** or **returning** patient?", {"type": "confirm_yesno", "items": [{"name": "New patient", "value": "new"}, {"name": "Returning patient", "value": "returning"}]}
+        return "Almost done! Are you a **new** or **returning** patient%s", {"type": "confirm_yesno", "items": [{"name": "New patient", "value": "new"}, {"name": "Returning patient", "value": "returning"}]}
 
     if data.get("_service_id") and "patient_notes" not in data:
         session["step"] = "get_patient_notes"
-        return "Any notes or concerns for the doctor? (or say **skip**)", None
+        return "Any notes or concerns for the doctor%s (or say **skip**)", None
 
     # Everything provided — skip to discount or finalize
     try:
         promos_available = promo.has_active_promotions(data.get("_admin_id", 1))
         if promos_available:
             session["step"] = "ask_discount"
-            return "Do you have a discount or promo code? (or say **skip**)", None
+            return "Do you have a discount or promo code%s (or say **skip**)", None
     except Exception:
         pass
 
@@ -1612,12 +1679,14 @@ def _match_time_to_slot(time_raw, available_slots):
 
 
 def handle_booking(session, user_message, corrected_message=None):
-    # Embedded widget: require login to book
+    # Require login to book (configurable per company)
     if session.get("_is_embedded") and not session.get("_customer_logged_in"):
-        session["flow"] = None
-        session["step"] = None
-        session["data"] = {}
-        return "You need to log in first before booking an appointment. Please log in to your account and try again."
+        _admin_id_check = session.get("admin_id") or session.get("data", {}).get("_admin_id", 0)
+        if _admin_id_check and db.is_feature_enabled(_admin_id_check, "require_login_to_book"):
+            session["flow"] = None
+            session["step"] = None
+            session["data"] = {}
+            return "You need to log in first before booking an appointment. Please log in to your account and try again."
 
     step = session["step"]
     data = session["data"]
@@ -1670,7 +1739,7 @@ def handle_booking(session, user_message, corrected_message=None):
                     "type": "doctors",
                     "items": [{"id": d["id"], "name": d["name"], "specialty": d.get("specialty", "")} for d in doc_list]
                 }
-            return "No problem! Which doctor would you like to see instead?"
+            return "No problem! Which doctor would you like to see instead%s"
 
     # At any step, detect promo/discount code intent and store for later
     if step and step not in (None, "ask_discount", "finalize_booking"):
@@ -1678,15 +1747,15 @@ def handle_booking(session, user_message, corrected_message=None):
         if promo_match and step in ("get_email", "get_name", "get_phone", "get_time"):
             data["_has_promo_code"] = True
             if step == "get_email":
-                return "Great that you have a promo code! I'll ask for it after we collect your details.\n\nFirst, what's your **email address**? (or say **skip**)"
+                return "Great that you have a promo code! I'll ask for it after we collect your details.\n\nFirst, what's your **email address**%s (or say **skip**)"
             elif step == "get_name":
                 return "Great that you have a promo code! I'll ask for it shortly.\n\nFirst, what's your **full name**?"
             elif step == "get_phone":
-                return "Great that you have a promo code! I'll ask for it right after this.\n\nWhat's your **phone number**?"
+                return "Great that you have a promo code! I'll ask for it right after this.\n\nWhat's your **phone number**%s"
 
     # At any step, handle conversational questions
     if step and step not in (None, "ask_name"):
-        # "What slots/times are available?" — show slots if we have a date
+        # "What slots/times are available%s" — show slots if we have a date
         if any(w in lower for w in ["available", "slots", "times", "options", "what time", "show me", "list"]):
             if data.get("date_str") and step in ("get_time",):
                 # Re-show the slots
@@ -1792,7 +1861,7 @@ def handle_booking(session, user_message, corrected_message=None):
         name = user_message.strip()
         name = re.sub(r'^(my name is|i\'?m|it\'?s|name:?|hi,?\s*(i\'?m)?)\s*', '', name, flags=re.IGNORECASE).strip()
         if len(name) < 2:
-            return "I didn't quite catch your name. Could you tell me your full name?"
+            return "I didn't quite catch your name. Could you tell me your full name%s"
         data["name"] = name.title()
 
         # If service was pre-detected from the initial booking message, skip to service flow
@@ -1809,7 +1878,7 @@ def handle_booking(session, user_message, corrected_message=None):
             session["step"] = "get_service"
             return handle_booking(session, svc_full["name"], svc_full["name"])
 
-        # Check if services exist — if so, ask "Service or Appointment?"
+        # Check if services exist — if so, ask "Service or Appointment%s"
         admin_id = data.get("_admin_id", 1)
         services = db.get_services_with_doctors(admin_id)
         all_doctors = db.get_doctors(admin_id)
@@ -1826,7 +1895,7 @@ def handle_booking(session, user_message, corrected_message=None):
                     {"name": "Book an Appointment", "value": "appointment"},
                 ]
             }
-            return f"Nice to meet you, {data['name']}! How would you like to book?"
+            return f"Nice to meet you, {data['name']}! How would you like to book%s"
         elif doctors:
             # No services configured — go straight to doctor selection
             cat_set = set()
@@ -1843,12 +1912,12 @@ def handle_booking(session, user_message, corrected_message=None):
                 data["_categories"] = categories
                 session["step"] = "get_category"
                 session["_ui_options"] = {"type": "categories", "items": [{"name": c} for c in categories]}
-                return f"Nice to meet you, {data['name']}! What type of doctor would you like to see?"
+                return f"Nice to meet you, {data['name']}! What type of doctor would you like to see%s"
             else:
                 data["_doctors"] = doctors
                 session["step"] = "get_doctor"
                 session["_ui_options"] = {"type": "doctors", "items": [_doctor_dropdown_item(d) for d in doctors]}
-                return f"Nice to meet you, {data['name']}! Which doctor would you like to see?"
+                return f"Nice to meet you, {data['name']}! Which doctor would you like to see%s"
         else:
             if "email" in data and "phone" in data:
                 session["step"] = "get_date"
@@ -2047,7 +2116,7 @@ def handle_booking(session, user_message, corrected_message=None):
                 ]
             }
             return (f"We do offer **{chosen_svc['name']}**, but right now no doctors are assigned to this service. "
-                    f"Would you like to be notified when a doctor becomes available for it?")
+                    f"Would you like to be notified when a doctor becomes available for it%s")
 
         data["_doctors"] = doctors
         # Always show doctor dropdown so patient can see who performs this service
@@ -2064,7 +2133,7 @@ def handle_booking(session, user_message, corrected_message=None):
             "type": "doctors",
             "items": doc_items
         }
-        return f"{svc_detail_msg}\n\nWhich doctor would you prefer?"
+        return f"{svc_detail_msg}\n\nWhich doctor would you prefer%s"
 
     # Step: Confirm single auto-selected doctor for a service
     if step == "confirm_service_doctor":
@@ -2076,7 +2145,7 @@ def handle_booking(session, user_message, corrected_message=None):
             session["step"] = "get_date"
             off_dates = _get_off_dates_with_blocks(d["id"], data.get("_admin_id", 0))
             session["_ui_options"] = {"type": "calendar", "doctor_id": d["id"], "off_dates": off_dates}
-            return f"When would you like to come in for your **{data.get('service_name', '')}** appointment?"
+            return f"When would you like to come in for your **{data.get('service_name', '')}** appointment%s"
         else:
             # Go back to service selection
             services = data.get("_services", [])
@@ -2086,7 +2155,7 @@ def handle_booking(session, user_message, corrected_message=None):
                 "type": "services",
                 "items": [{"name": s["name"], "id": s["id"]} for s in services]
             }
-            return "No problem! Which service would you like instead?"
+            return "No problem! Which service would you like instead%s"
 
     # Step: User wants to be notified when a doctor is assigned to a service
     if step == "get_service_notify":
@@ -2109,7 +2178,7 @@ def handle_booking(session, user_message, corrected_message=None):
                         f"**{data.get('service_name', 'this service')}**. Is there anything else I can help with?")
             else:
                 session["step"] = "get_service_notify_email"
-                return "Sure! What's your **email address** so we can notify you?"
+                return "Sure! What's your **email address** so we can notify you%s"
         else:
             # User said no — show all active services except the one they just rejected
             services = data.get("_services", [])
@@ -2122,11 +2191,11 @@ def handle_booking(session, user_message, corrected_message=None):
                     "type": "services",
                     "items": [{"name": s["name"], "id": s["id"]} for s in remaining]
                 }
-                return "No problem! Would you like to choose a different service?"
+                return "No problem! Would you like to choose a different service%s"
             else:
                 session["flow"] = None
                 session["step"] = None
-                return "No problem! Is there anything else I can help with?"
+                return "No problem! Is there anything else I can help with%s"
 
     # Step: Collect email for service notification
     if step == "get_service_notify_email":
@@ -2146,7 +2215,7 @@ def handle_booking(session, user_message, corrected_message=None):
             return (f"We'll notify you at **{email}** as soon as a doctor is available for "
                     f"**{data.get('service_name', 'this service')}**. Is there anything else I can help with?")
         else:
-            return "I didn't catch a valid email. Could you please type your **email address**?"
+            return "I didn't catch a valid email. Could you please type your **email address**%s"
 
     # Step: Doctor selection for a service
     if step == "get_service_doctor":
@@ -2358,7 +2427,7 @@ def handle_booking(session, user_message, corrected_message=None):
         session["step"] = "get_date"
         off_dates = _get_off_dates_with_blocks(chosen["id"], data.get("_admin_id", 0))
         session["_ui_options"] = {"type": "calendar", "doctor_id": chosen["id"], "off_dates": off_dates}
-        return f"Great choice! You'll be seeing **Dr. {chosen['name']}**.\n\nWhen would you like to come in?"
+        return f"Great choice! You'll be seeing **Dr. {chosen['name']}**.\n\nWhen would you like to come in%s"
 
     # Step 3: Got date, show time slot dropdown
     if step == "get_date":
@@ -2466,7 +2535,7 @@ def handle_booking(session, user_message, corrected_message=None):
                 data["waitlist_time"] = time_str_all
                 session["step"] = "waitlist_offer"
                 return (f"Unfortunately **{time_str_all}** on **{data['date_display']}** is fully booked.\n\n"
-                        f"Would you like to **join the waitlist**? We'll notify you instantly if a spot opens up — "
+                        f"Would you like to **join the waitlist**%s We'll notify you instantly if a spot opens up — "
                         f"you'll get priority before it becomes available to anyone else.\n\n"
                         f"**Yes** — add me to the waitlist\n**No** — show me other times")
             # It's an available slot
@@ -2475,7 +2544,7 @@ def handle_booking(session, user_message, corrected_message=None):
                 data["chosen_time"] = time_str_all
                 if "email" in data and "phone" in data:
                     session["step"] = "ask_discount"
-                    return f"**{time_str_all}** on **{data['date_display']}** — great choice!\n\nDo you have a **promotion code** for a discount? If yes, type it now, or say **no** to continue."
+                    return f"**{time_str_all}** on **{data['date_display']}** — great choice!\n\nDo you have a **promotion code** for a discount%s If yes, type it now, or say **no** to continue."
                 if "email" in data:
                     session["step"] = "get_phone"
                     return f"**{time_str_all}** on **{data['date_display']}** — great choice!\n\nWhat's your phone number? (In case we need to reach you)"
@@ -2491,13 +2560,13 @@ def handle_booking(session, user_message, corrected_message=None):
                     data["waitlist_time"] = bname
                     session["step"] = "waitlist_offer"
                     return (f"Unfortunately **{bname}** on **{data['date_display']}** is fully booked.\n\n"
-                            f"Would you like to **join the waitlist**? We'll notify you instantly if a spot opens up — "
+                            f"Would you like to **join the waitlist**%s We'll notify you instantly if a spot opens up — "
                             f"you'll get priority before it becomes available to anyone else.\n\n"
                             f"**Yes** — add me to the waitlist\n**No** — show me other times")
             data["chosen_time"] = time_str
             if "email" in data and "phone" in data:
                 session["step"] = "ask_discount"
-                return f"**{time_str}** on **{data['date_display']}** — great choice!\n\nDo you have a **promotion code** for a discount? If yes, type it now, or say **no** to continue."
+                return f"**{time_str}** on **{data['date_display']}** — great choice!\n\nDo you have a **promotion code** for a discount%s If yes, type it now, or say **no** to continue."
             if "email" in data:
                 session["step"] = "get_phone"
                 return f"**{time_str}** on **{data['date_display']}** — great choice!\n\nWhat's your phone number? (In case we need to reach you)"
@@ -2551,7 +2620,7 @@ def handle_booking(session, user_message, corrected_message=None):
                     "type": "doctors",
                     "items": [{"id": d["id"], "name": d["name"], "specialty": d.get("specialty", "")} for d in doc_list]
                 }
-            return "No problem! Let's start fresh. Which doctor would you like to see?"
+            return "No problem! Let's start fresh. Which doctor would you like to see%s"
         return "Please say **yes** to join the waitlist or **no** to see other available times."
 
     # Step 4c: Waitlist — get name
@@ -2566,12 +2635,12 @@ def handle_booking(session, user_message, corrected_message=None):
         if extracted_email:
             data["waitlist_email"] = extracted_email
             session["step"] = "waitlist_get_phone"
-            return "Got it! And your **phone number**?"
+            return "Got it! And your **phone number**%s"
         if any(w in lower for w in ["skip", "no email", "none", "na"]):
             data["waitlist_email"] = ""
             session["step"] = "waitlist_get_phone"
             return "No worries! What's your **phone number** then?"
-        return "I couldn't find a valid email. Could you type it out? Example: john@example.com\n\nOr say **skip**."
+        return "I couldn't find a valid email. Could you type it out%s Example: john@example.com\n\nOr say **skip**."
 
     # Step 4e: Waitlist — get phone and add to waitlist
     if step == "waitlist_get_phone":
@@ -2591,17 +2660,17 @@ def handle_booking(session, user_message, corrected_message=None):
                 conn = db.get_db()
                 existing_booking = conn.execute(
                     """SELECT id FROM bookings
-                       WHERE admin_id=? AND doctor_id=? AND date=? AND time=?
+                       WHERE admin_id=%s AND doctor_id=%s AND date=%s AND time=%s
                              AND status != 'cancelled'
-                             AND (LOWER(customer_email)=? OR customer_phone=? OR LOWER(customer_name)=?)
+                             AND (LOWER(customer_email)=%s OR customer_phone=%s OR LOWER(customer_name)=%s)
                        LIMIT 1""",
                     (admin_id_ctx, doctor_id, date_iso, slot, wl_email, extracted_phone, name)
                 ).fetchone()
                 existing_wait = conn.execute(
                     """SELECT id FROM waitlist
-                       WHERE admin_id=? AND doctor_id=? AND date=? AND time_slot=?
+                       WHERE admin_id=%s AND doctor_id=%s AND date=%s AND time_slot=%s
                              AND status IN ('waiting','notified')
-                             AND (LOWER(patient_email)=? OR patient_phone=? OR LOWER(patient_name)=?)
+                             AND (LOWER(patient_email)=%s OR patient_phone=%s OR LOWER(patient_name)=%s)
                        LIMIT 1""",
                     (admin_id_ctx, doctor_id, date_iso, slot, wl_email, extracted_phone, name)
                 ).fetchone()
@@ -2677,12 +2746,12 @@ def handle_booking(session, user_message, corrected_message=None):
         if extracted_email:
             data["email"] = extracted_email
             session["step"] = "get_phone"
-            return "Got it! And your phone number? (In case we need to reach you)"
+            return "Got it! And your phone number%s (In case we need to reach you)"
         if any(w in lower for w in ["skip", "no email", "don't have", "dont have", "none", "no thanks", "n/a", "na"]):
             data["email"] = ""
             session["step"] = "get_phone"
             return "No worries! What's your phone number instead?"
-        return "I couldn't find a valid email in that. Could you type it out? Example: john@example.com\n\nOr say **skip** if you'd rather not provide one."
+        return "I couldn't find a valid email in that. Could you type it out%s Example: john@example.com\n\nOr say **skip** if you'd rather not provide one."
 
     # Step 6a: Promotion code step
     if step == "ask_discount":
@@ -2712,7 +2781,7 @@ def handle_booking(session, user_message, corrected_message=None):
             return handle_booking(session, user_message, corrected_message)
         data["_invalid_code"] = code
         session["step"] = "ask_discount_invalid"
-        return (f"The code **{code}** isn't valid. Would you like to **try another code**, or **continue** without a promotion code?\n\n"
+        return (f"The code **{code}** isn't valid. Would you like to **try another code**, or **continue** without a promotion code%s\n\n"
                 f"Reply **retry** to enter a new code, or **continue** to book without one.")
 
     # Step 6a-i: After invalid promo code
@@ -2799,9 +2868,9 @@ def handle_booking(session, user_message, corrected_message=None):
                 conn = db.get_db()
                 existing = conn.execute(
                     """SELECT id FROM bookings
-                       WHERE admin_id=? AND doctor_id=? AND date=? AND time=?
+                       WHERE admin_id=%s AND doctor_id=%s AND date=%s AND time=%s
                              AND status != 'cancelled'
-                             AND (LOWER(customer_email)=? OR customer_phone=? OR LOWER(customer_name)=?)
+                             AND (LOWER(customer_email)=%s OR customer_phone=%s OR LOWER(customer_name)=%s)
                        LIMIT 1""",
                     (admin_id_ctx, doctor_id, date_iso, time_str, cust_email, phone, name)
                 ).fetchone()
@@ -2841,16 +2910,34 @@ def handle_booking(session, user_message, corrected_message=None):
             patient_type=data.get("patient_type", ""),
         )
 
+        # ── Zapier webhook: new booking (chatbot flow) ──
+        try:
+            zapier_engine.trigger_new_booking(data.get("_admin_id", 0), {
+                "id": booking_id, "customer_name": data["name"],
+                "customer_email": data.get("email", ""), "customer_phone": data.get("phone", ""),
+                "date": booking_result["date"], "time": booking_result["time"],
+                "service": data.get("service_name", "General Consultation"),
+                "doctor_name": data.get("doctor_name", ""), "doctor_id": data.get("doctor_id", 0),
+                "status": "confirmed",
+            })
+        except Exception:
+            pass
 
         # Increment promotion usage counter
         if data.get("promotion_code"):
             try:
                 conn = db.get_db()
-                conn.execute("UPDATE promotions SET current_uses = current_uses + 1 WHERE code=? AND admin_id=?",
+                conn.execute("UPDATE promotions SET current_uses = current_uses + 1 WHERE code=%s AND admin_id=%s",
                              (data["promotion_code"], data.get("_admin_id", 0)))
                 conn.commit(); conn.close()
             except Exception:
                 pass
+
+        # Sync booking to Google Calendar (if doctor has it connected)
+        try:
+            gcal_engine.sync_booking_to_gcal(booking_id)
+        except Exception as e:
+            print(f"[booking] Google Calendar sync failed: {e}", flush=True)
 
         # Send doctor notification email for service bookings
         if data.get("_service_id") and data.get("doctor_id") and db.is_feature_enabled(data.get("_admin_id", 0), "email_booking_confirmation"):
@@ -2897,11 +2984,16 @@ def handle_booking(session, user_message, corrected_message=None):
                 data.get("_admin_id", 0),
                 name=data["name"], email=data.get("email", ""), phone=data.get("phone", ""))
             if patient:
+                # Mailchimp auto-sync hook
+                try:
+                    mailchimp.auto_sync_if_enabled(patient, data.get("_admin_id", 0))
+                except Exception:
+                    pass
                 conn = db.get_db()
-                last_booking = conn.execute("SELECT id FROM bookings WHERE customer_name=? AND date=? ORDER BY id DESC LIMIT 1",
+                last_booking = conn.execute("SELECT id FROM bookings WHERE customer_name=%s AND date=%s ORDER BY id DESC LIMIT 1",
                     (data["name"], booking_result["date"])).fetchone()
                 if last_booking:
-                    conn.execute("UPDATE bookings SET patient_id=? WHERE id=?", (patient["id"], last_booking["id"]))
+                    conn.execute("UPDATE bookings SET patient_id=%s WHERE id=%s", (patient["id"], last_booking["id"]))
                     conn.commit()
 
                     # Check if returning patient already has a submitted form
@@ -2974,7 +3066,7 @@ def handle_booking(session, user_message, corrected_message=None):
                     _cancel_tok = secrets.token_urlsafe(32)
                     try:
                         _bconn = db.get_db()
-                        _bconn.execute("UPDATE bookings SET cancel_token=? WHERE id=?", (_cancel_tok, booking_id))
+                        _bconn.execute("UPDATE bookings SET cancel_token=%s WHERE id=%s", (_cancel_tok, booking_id))
                         _bconn.commit(); _bconn.close()
                     except Exception:
                         _cancel_tok = ""
@@ -2999,6 +3091,14 @@ def handle_booking(session, user_message, corrected_message=None):
                 print(f"[booking] ERROR sending auto-confirm email: {e}", flush=True)
         elif not form_token:
             print(f"[booking] WARNING: No form token — skipping form email", flush=True)
+
+        # Send SMS booking confirmation if enabled
+        try:
+            _sms_admin = data.get("_admin_id", 0)
+            if _sms_admin and db.is_feature_enabled(_sms_admin, "sms_booking_confirmation"):
+                sms_engine.send_booking_confirmation_sms(booking_id)
+        except Exception as _sms_err:
+            print(f"[booking] SMS confirmation error: {_sms_err}", flush=True)
 
         # A/B test + real-time event
         try:
@@ -3071,18 +3171,18 @@ def handle_booking(session, user_message, corrected_message=None):
     if step == "get_phone":
         extracted_phone = _extract_phone(user_message)
         if not extracted_phone:
-            return "I couldn't find a valid phone number. Could you try again? Example: (555) 123-4567 or 5551234567"
+            return "I couldn't find a valid phone number. Could you try again%s Example: (555) 123-4567 or 5551234567"
 
         data["phone"] = extracted_phone
 
         # For service bookings: ask patient type next
         if data.get("_service_id"):
             session["step"] = "get_patient_type"
-            return "Are you a **new patient** or a **returning patient**?"
+            return "Are you a **new patient** or a **returning patient**%s"
 
         # Always offer promotion code before finalizing
         session["step"] = "ask_discount"
-        return "Do you have a **promotion code** for a discount? If yes, type it now, or say **no** to continue."
+        return "Do you have a **promotion code** for a discount%s If yes, type it now, or say **no** to continue."
 
         time_str = data.get("chosen_time", "")
 
@@ -3111,16 +3211,34 @@ def handle_booking(session, user_message, corrected_message=None):
             patient_type=data.get("patient_type", ""),
         )
 
+        # ── Zapier webhook: new booking (chatbot service flow) ──
+        try:
+            zapier_engine.trigger_new_booking(data.get("_admin_id", 0), {
+                "id": booking_id, "customer_name": data["name"],
+                "customer_email": data.get("email", ""), "customer_phone": data["phone"],
+                "date": booking_result["date"], "time": booking_result["time"],
+                "service": data.get("service_name", "General Consultation"),
+                "doctor_name": data.get("doctor_name", ""), "doctor_id": data.get("doctor_id", 0),
+                "status": "confirmed",
+            })
+        except Exception:
+            pass
 
         # Increment promotion usage counter
         if data.get("promotion_code"):
             try:
                 conn = db.get_db()
-                conn.execute("UPDATE promotions SET current_uses = current_uses + 1 WHERE code=? AND admin_id=?",
+                conn.execute("UPDATE promotions SET current_uses = current_uses + 1 WHERE code=%s AND admin_id=%s",
                              (data["promotion_code"], data.get("_admin_id", 0)))
                 conn.commit(); conn.close()
             except Exception:
                 pass
+
+        # Sync booking to Google Calendar (if doctor has it connected)
+        try:
+            gcal_engine.sync_booking_to_gcal(booking_id)
+        except Exception as e:
+            print(f"[booking-svc] Google Calendar sync failed: {e}", flush=True)
 
         # Send doctor notification email for service bookings
         if data.get("_service_id") and data.get("doctor_id") and db.is_feature_enabled(data.get("_admin_id", 0), "email_booking_confirmation"):
@@ -3155,11 +3273,16 @@ def handle_booking(session, user_message, corrected_message=None):
                 data.get("_admin_id", 0),
                 name=data["name"], email=data.get("email", ""), phone=data["phone"])
             if patient:
+                # Mailchimp auto-sync hook
+                try:
+                    mailchimp.auto_sync_if_enabled(patient, data.get("_admin_id", 0))
+                except Exception:
+                    pass
                 conn = db.get_db()
-                last_booking = conn.execute("SELECT id FROM bookings WHERE customer_name=? AND date=? ORDER BY id DESC LIMIT 1",
+                last_booking = conn.execute("SELECT id FROM bookings WHERE customer_name=%s AND date=%s ORDER BY id DESC LIMIT 1",
                     (data["name"], booking_result["date"])).fetchone()
                 if last_booking:
-                    conn.execute("UPDATE bookings SET patient_id=? WHERE id=?", (patient["id"], last_booking["id"]))
+                    conn.execute("UPDATE bookings SET patient_id=%s WHERE id=%s", (patient["id"], last_booking["id"]))
                     conn.commit()
 
                     # Check if returning patient already has a submitted form
@@ -3231,7 +3354,7 @@ def handle_booking(session, user_message, corrected_message=None):
         booking_id = None
         try:
             conn = db.get_db()
-            bid_row = conn.execute("SELECT id FROM bookings WHERE customer_name=? AND date=? ORDER BY id DESC LIMIT 1",
+            bid_row = conn.execute("SELECT id FROM bookings WHERE customer_name=%s AND date=%s ORDER BY id DESC LIMIT 1",
                 (data["name"], booking_result["date"])).fetchone()
             if bid_row:
                 booking_id = bid_row["id"]
@@ -3262,7 +3385,7 @@ def handle_booking(session, user_message, corrected_message=None):
                     _cancel_tok = secrets.token_urlsafe(32)
                     try:
                         _bconn = db.get_db()
-                        _bconn.execute("UPDATE bookings SET cancel_token=? WHERE id=?", (_cancel_tok, booking_id))
+                        _bconn.execute("UPDATE bookings SET cancel_token=%s WHERE id=%s", (_cancel_tok, booking_id))
                         _bconn.commit(); _bconn.close()
                     except Exception:
                         _cancel_tok = ""
@@ -3362,7 +3485,7 @@ def handle_cancel_appointment(session, user_message, admin_id):
         from calendar_service import _parse_date
         parsed_date = _parse_date(user_message)
         if not parsed_date:
-            return "I didn't understand that date. Could you try again? (e.g. Monday, April 10, tomorrow)"
+            return "I didn't understand that date. Could you try again%s (e.g. Monday, April 10, tomorrow)"
 
         date_iso = parsed_date.isoformat()
         date_display = parsed_date.strftime("%A, %B %d, %Y")
@@ -3489,11 +3612,16 @@ def handle_cancel_appointment(session, user_message, admin_id):
             booking = data.get("_booking_to_cancel")
             if booking:
                 db.cancel_booking(booking["id"])
+                # Delete Google Calendar event if synced
+                try:
+                    gcal_engine.delete_gcal_event(booking["id"])
+                except Exception:
+                    pass
                 # Increment patient cancellation count
                 if booking.get("patient_id"):
                     try:
                         _conn = db.get_db()
-                        _conn.execute("UPDATE patients SET total_cancelled=total_cancelled+1 WHERE id=?", (booking["patient_id"],))
+                        _conn.execute("UPDATE patients SET total_cancelled=total_cancelled+1 WHERE id=%s", (booking["patient_id"],))
                         _conn.commit()
                         _conn.close()
                     except Exception:
@@ -3509,6 +3637,11 @@ def handle_cancel_appointment(session, user_message, admin_id):
                         pass
                 doctor_info = f" with Dr. {booking['doctor_name']}" if booking.get("doctor_name") else ""
                 date_display = data.get("_cancel_date_display", booking["date"])
+                # ── Zapier webhook: booking cancelled (chatbot) ──
+                try:
+                    zapier_engine.trigger_booking_cancelled(booking.get("admin_id", 0), booking)
+                except Exception:
+                    pass
                 # ── Feature 16: Emit real-time cancellation event ──
                 try:
                     realtime.emit_booking_cancelled(admin_id, booking["id"], booking["customer_name"])
@@ -3556,7 +3689,7 @@ def handle_reschedule(session, user_message, admin_id):
         from calendar_service import _parse_date
         parsed_date = _parse_date(user_message)
         if not parsed_date:
-            return "I didn't understand that date. Could you try again? (e.g. Monday, April 10, tomorrow)"
+            return "I didn't understand that date. Could you try again%s (e.g. Monday, April 10, tomorrow)"
 
         date_iso = parsed_date.isoformat()
         date_display = parsed_date.strftime("%A, %B %d, %Y")
@@ -3607,7 +3740,7 @@ def handle_reschedule(session, user_message, admin_id):
             session["_ui_options"] = {"type": "confirm_yesno", "items": [{"name": "Yes, same doctor", "value": "yes"}, {"name": "No, different doctor", "value": "no"}]}
             return (f"I found your appointment on **{date_display}**:\n\n"
                     f"**{b['customer_name']}** — {b['time']}{doctor_info}{service_info}\n\n"
-                    f"Would you like to keep the same doctor?")
+                    f"Would you like to keep the same doctor%s")
 
         # Multiple bookings — show dropdown
         data["_bookings_list"] = bookings
@@ -3624,7 +3757,7 @@ def handle_reschedule(session, user_message, admin_id):
                 for i, b in enumerate(bookings, 1)
             ]
         }
-        return f"I found **{len(bookings)}** appointments on **{date_display}**:\n\n" + "\n".join(lines) + "\n\nWhich one would you like to reschedule?"
+        return f"I found **{len(bookings)}** appointments on **{date_display}**:\n\n" + "\n".join(lines) + "\n\nWhich one would you like to reschedule%s"
 
     # ── Step 2: Choose which booking (multiple bookings) ──
     if step == "choose_booking":
@@ -3679,7 +3812,7 @@ def handle_reschedule(session, user_message, admin_id):
             # Show calendar with off-dates for this doctor
             off_dates = _get_off_dates_with_blocks(doctor_id, admin_id)
             session["_ui_options"] = {"type": "calendar", "off_dates": off_dates}
-            return f"Great! When would you like to reschedule with **Dr. {booking.get('doctor_name', '')}**? Pick a new date:"
+            return f"Great! When would you like to reschedule with **Dr. {booking.get('doctor_name', '')}**%s Pick a new date:"
 
         elif lower in ("no", "nah", "nope", "n", "no thanks", "different doctor", "different", "change doctor"):
             # Different doctor — show doctor list
@@ -3710,7 +3843,7 @@ def handle_reschedule(session, user_message, admin_id):
             data["_available_doctors"] = doctors
             session["step"] = "select_doctor"
             session["_ui_options"] = {"type": "doctors", "items": [_doctor_dropdown_item(d) for d in doctors]}
-            return "Which doctor would you like to see instead?"
+            return "Which doctor would you like to see instead%s"
 
         return "Please say **yes** to keep the same doctor or **no** to choose a different one."
 
@@ -3744,7 +3877,7 @@ def handle_reschedule(session, user_message, admin_id):
         from calendar_service import _parse_date
         parsed_date = _parse_date(user_message)
         if not parsed_date:
-            return "I didn't understand that date. Could you try again? (e.g. Monday, April 10, tomorrow)"
+            return "I didn't understand that date. Could you try again%s (e.g. Monday, April 10, tomorrow)"
 
         date_iso = parsed_date.isoformat()
         date_display = parsed_date.strftime("%A, %B %d, %Y")
@@ -3867,8 +4000,8 @@ def handle_reschedule(session, user_message, admin_id):
             conn = db.get_db()
             try:
                 conn.execute(
-                    """UPDATE bookings SET date=?, time=?, doctor_id=?, doctor_name=?
-                       WHERE id=?""",
+                    """UPDATE bookings SET date=%s, time=%s, doctor_id=%s, doctor_name=%s
+                       WHERE id=%s""",
                     (new_date, new_time, new_doctor_id, new_doctor_name, booking["id"])
                 )
                 conn.commit()
@@ -3997,9 +4130,9 @@ def handle_lead_capture(session, user_message):
                 f"In the meantime, feel free to ask me any questions about our services!"
             )
         else:
-            return "That doesn't look like a valid phone number. Could you try again? Example: (555) 123-4567"
+            return "That doesn't look like a valid phone number. Could you try again%s Example: (555) 123-4567"
 
-    return "Let me start over. Would you like to leave your contact information?"
+    return "Let me start over. Would you like to leave your contact information%s"
 
 
 def _ask_ai_during_booking(user_message, session, admin_id=1):
@@ -4109,6 +4242,14 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
             session["_customer_api_prefilled"] = True
             session["_customer_logged_in"] = True
             customer = fetch_customer_by_id(admin_id, customer_id, api_url_override=customer_api_url)
+            # Fallback: if external API fails, try local DB lookup by public_id
+            if not customer:
+                try:
+                    _local_user = db.get_user_by_public_id(customer_id)
+                    if _local_user:
+                        customer = {"name": _local_user.get("name", ""), "email": _local_user.get("email", ""), "phone": ""}
+                except Exception:
+                    pass
             if customer:
                 cname = customer.get("name", "")
                 cemail = customer.get("email", "")
@@ -4432,7 +4573,7 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
     # BUT: if the user says "cancel my appointment/booking", they want to cancel an EXISTING appointment,
     # not abort the current flow — so exclude that pattern
     wants_cancel_existing = bool(re.search(
-        r"(cancel|delete|remove)\s+(my\s+|the\s+)?(app\w+|apo\w+|booking|reservation)",
+        r"(cancel|delete|remove)\s+(my\s+|the\s+)%s(app\w+|apo\w+|booking|reservation)",
         raw_lower
     ))
     if not is_cancel and session.get("flow") and not wants_cancel_existing:
@@ -4509,7 +4650,7 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
                 categories = data.get("_categories", [])
                 if categories:
                     session["_ui_options"] = {"type": "categories", "items": [{"name": c} for c in categories]}
-                return _reply("Let's continue! What type of doctor would you like to see?")
+                return _reply("Let's continue! What type of doctor would you like to see%s")
             elif step == "get_doctor":
                 doctors = data.get("_doctors", [])
                 if doctors:
@@ -4519,7 +4660,7 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
                 doctor_id = data.get("doctor_id")
                 off_dates = _get_off_dates_with_blocks(doctor_id, data.get("_admin_id", 0))
                 session["_ui_options"] = {"type": "calendar", "doctor_id": doctor_id, "off_dates": off_dates}
-                return _reply("Let's continue! When would you like to come in?")
+                return _reply("Let's continue! When would you like to come in%s")
             elif step == "get_time":
                 # Regenerate time slots for the chosen doctor/date
                 doctor_id = data.get("doctor_id")
@@ -4613,7 +4754,7 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
         session["step"] = None
         session["data"] = {}
         if not identity or len(identity) < 2:
-            return _reply("I couldn't understand that. Would you like to **book a new appointment** instead?")
+            return _reply("I couldn't understand that. Would you like to **book a new appointment** instead%s")
         # Try matching as name or email
         is_email = "@" in identity
         upcoming = db.find_upcoming_bookings_for_customer(
@@ -4630,7 +4771,7 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
                 _doc = bk.get("doctor_name", "")
                 _svc = bk.get("service", "")
                 lines.append(f"**{i}.** {_d} at {_t}" + (f" — Dr. {_doc}" if _doc else "") + (f" ({_svc})" if _svc else ""))
-            lines.append("\nWould you like to **cancel** or **reschedule** any of these?")
+            lines.append("\nWould you like to **cancel** or **reschedule** any of these%s")
             return _reply("\n".join(lines))
         else:
             return _reply(f"I couldn't find any upcoming appointments for **{identity}**. Would you like to **book one**?")
@@ -4759,7 +4900,7 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
                     _doc = bk.get("doctor_name", "")
                     _svc = bk.get("service", "")
                     lines.append(f"**{i}.** {_d} at {_t}" + (f" — Dr. {_doc}" if _doc else "") + (f" ({_svc})" if _svc else ""))
-                lines.append("\nWould you like to **cancel** or **reschedule** any of these?")
+                lines.append("\nWould you like to **cancel** or **reschedule** any of these%s")
                 return _reply("\n".join(lines))
             else:
                 return _reply("You don't have any upcoming appointments. Would you like to **book one**?")
@@ -4769,10 +4910,15 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
             session["flow"] = "appointment_lookup"
             session["step"] = "get_identity"
             session["data"] = {"_admin_id": admin_id}
-            return _reply("Sure! Could you tell me your **name** or **email** so I can look up your appointments?")
+            return _reply("Sure! Could you tell me your **name** or **email** so I can look up your appointments%s")
 
     # ── Route based on classifier intent ──
+    # Check if login is required for booking/reschedule/cancel actions
+    _login_required = session.get("_is_embedded") and not session.get("_customer_logged_in") and db.is_feature_enabled(admin_id, "require_login_to_book")
+
     if classifier_intent == "reschedule":
+        if _login_required:
+            return _reply("You need to log in first before rescheduling an appointment. Please log in to your account and try again.")
         session["flow"] = "reschedule"
         session["step"] = "get_date"
         session["data"] = {"_admin_id": admin_id}
@@ -4781,6 +4927,8 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
         return _reply("I can help you reschedule your appointment. What date is your current appointment on?")
 
     if classifier_intent == "cancel":
+        if _login_required:
+            return _reply("You need to log in first before cancelling an appointment. Please log in to your account and try again.")
         session["flow"] = "cancel_appointment"
         session["step"] = "get_date"
         session["data"] = {"_admin_id": admin_id}
@@ -4789,6 +4937,8 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
         return _reply("I can help you cancel your appointment. What date is it on?")
 
     if classifier_intent == "booking":
+        if _login_required:
+            return _reply("You need to log in first before booking an appointment. Please log in to your account and try again.")
         session["flow"] = "booking"
         session["step"] = None
         session["data"] = {"_admin_id": admin_id, "_session_id": session_id}
@@ -4972,6 +5122,7 @@ def for_salons_spas():
 # ══════════════════════════════════════════════
 
 @app.route("/auth/signup", methods=["POST"])
+@limiter.limit("5 per minute")
 def auth_signup():
     data = request.get_json()
     name = data.get("name", "").strip()
@@ -4985,10 +5136,18 @@ def auth_signup():
         return jsonify({"error": "Invalid role."}), 400
     if not name or not email_addr or not password:
         return jsonify({"error": "Name, email, and password are required."}), 400
+    if len(name) > 100:
+        return jsonify({"error": "Name is too long (max 100 characters)."}), 400
+    if len(email_addr) > 254:
+        return jsonify({"error": "Email is too long."}), 400
     if len(password) < 8:
         return jsonify({"error": "Password must be at least 8 characters."}), 400
-    if "@" not in email_addr or "." not in email_addr:
+    if len(password) > 128:
+        return jsonify({"error": "Password is too long (max 128 characters)."}), 400
+    if not re.match(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$', email_addr):
         return jsonify({"error": "Please enter a valid email address."}), 400
+    if len(company) > 200:
+        return jsonify({"error": "Company name is too long (max 200 characters)."}), 400
 
     user, error = db.create_user(name, email_addr, password, company, role=role, specialty=specialty)
     if error:
@@ -5012,6 +5171,7 @@ def auth_signup():
 
 
 @app.route("/auth/verify-code", methods=["POST"])
+@limiter.limit("10 per minute")
 def auth_verify_code():
     data = request.get_json()
     email_addr = data.get("email", "").strip().lower()
@@ -5028,6 +5188,7 @@ def auth_verify_code():
 
 
 @app.route("/auth/resend-code", methods=["POST"])
+@limiter.limit("3 per minute")
 def auth_resend_code():
     data = request.get_json()
     email_addr = data.get("email", "").strip().lower()
@@ -5050,6 +5211,7 @@ def auth_resend_code():
 
 
 @app.route("/auth/login", methods=["POST"])
+@limiter.limit("10 per minute")
 def auth_login():
     data = request.get_json()
     email_addr = data.get("email", "").strip().lower()
@@ -5081,12 +5243,14 @@ def auth_login():
 
 
 @app.route("/auth/forgot", methods=["POST"])
+@limiter.limit("3 per minute")
 def auth_forgot():
     # In production, this would send a real reset email
     return jsonify({"ok": True})
 
 
 @app.route("/auth/social-token", methods=["POST"])
+@limiter.limit("10 per minute")
 def auth_social_token():
     """
     Verify a social login token server-side, then create/login user.
@@ -5125,7 +5289,7 @@ def auth_social_token():
                 client_email=client_email,
             )
         except social_auth.SocialAuthError as e:
-            return jsonify({"error": str(e)}), 401
+            return jsonify({"error": "Authentication failed."}), 401
 
         name = verified["name"]
         email_addr = verified["email"]
@@ -5188,9 +5352,112 @@ def auth_me():
     return jsonify({"user": db.user_to_public(user)})
 
 
-@app.route("/api/paypal/create-order", methods=["POST"])
-def paypal_create_order():
-    """Create a PayPal order for plan purchase."""
+########################################################################
+# PayPal Subscriptions API – recurring billing
+########################################################################
+PAYPAL_CLIENT_ID = os.environ.get("PAYPAL_CLIENT_ID", "")
+PAYPAL_SECRET = os.environ.get("PAYPAL_SECRET", "")
+PAYPAL_API = os.environ.get("PAYPAL_API", "https://api-m.sandbox.paypal.com")
+PLAN_PRICES = {"basic": "79.00", "pro": "239.00", "agency": "699.00"}
+
+# In-memory cache for PayPal billing plan IDs (created on first use)
+_paypal_plan_ids = {}  # {"basic": "P-xxx", "pro": "P-yyy", "agency": "P-zzz"}
+
+
+def _paypal_access_token():
+    """Get a PayPal OAuth2 access token."""
+    import requests as http_req
+    resp = http_req.post(
+        f"{PAYPAL_API}/v1/oauth2/token",
+        auth=(PAYPAL_CLIENT_ID, PAYPAL_SECRET),
+        data={"grant_type": "client_credentials"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"}
+    )
+    if resp.status_code != 200:
+        return None
+    return resp.json()["access_token"]
+
+
+def _ensure_paypal_plans():
+    """Create PayPal Product + Billing Plans if not already created. Returns dict of plan_key -> plan_id."""
+    global _paypal_plan_ids
+    if _paypal_plan_ids:
+        return _paypal_plan_ids
+
+    import requests as http_req
+    token = _paypal_access_token()
+    if not token:
+        return {}
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {token}"}
+
+    # Check if we stored plan IDs in the DB
+    conn = db.get_db()
+    conn.execute("""CREATE TABLE IF NOT EXISTS paypal_billing_plans (
+        id SERIAL PRIMARY KEY,
+        plan_key TEXT UNIQUE NOT NULL,
+        paypal_product_id TEXT DEFAULT '',
+        paypal_plan_id TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+    rows = conn.execute("SELECT plan_key, paypal_plan_id FROM paypal_billing_plans").fetchall()
+    if rows and len(rows) >= 3:
+        for r in rows:
+            _paypal_plan_ids[r["plan_key"]] = r["paypal_plan_id"]
+        conn.close()
+        return _paypal_plan_ids
+
+    # Create a product first
+    prod_resp = http_req.post(f"{PAYPAL_API}/v1/catalogs/products", headers=headers, json={
+        "name": "ChatGenius Subscription",
+        "description": "ChatGenius AI Chatbot Platform — Monthly Subscription",
+        "type": "SERVICE",
+        "category": "SOFTWARE"
+    })
+    if prod_resp.status_code not in (200, 201):
+        conn.close()
+        return {}
+    product_id = prod_resp.json()["id"]
+
+    # Create billing plans for each tier
+    for plan_key, price in PLAN_PRICES.items():
+        plan_resp = http_req.post(f"{PAYPAL_API}/v1/billing/plans", headers=headers, json={
+            "product_id": product_id,
+            "name": f"ChatGenius {plan_key.capitalize()} Plan",
+            "description": f"ChatGenius {plan_key.capitalize()} — ${price}/month with auto-renewal",
+            "billing_cycles": [{
+                "frequency": {"interval_unit": "MONTH", "interval_count": 1},
+                "tenure_type": "REGULAR",
+                "sequence": 1,
+                "total_cycles": 0,
+                "pricing_scheme": {
+                    "fixed_price": {"value": price, "currency_code": "USD"}
+                }
+            }],
+            "payment_preferences": {
+                "auto_bill_outstanding": True,
+                "payment_failure_threshold": 3
+            }
+        })
+        if plan_resp.status_code not in (200, 201):
+            continue
+        pp_plan_id = plan_resp.json()["id"]
+        _paypal_plan_ids[plan_key] = pp_plan_id
+        try:
+            conn.execute(
+                "INSERT INTO paypal_billing_plans (plan_key, paypal_product_id, paypal_plan_id) VALUES (%s,%s,%s)",
+                (plan_key, product_id, pp_plan_id))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+    conn.close()
+    return _paypal_plan_ids
+
+
+@app.route("/api/paypal/create-subscription", methods=["POST"])
+def paypal_create_subscription():
+    """Create a PayPal subscription and return the approval URL for the user to authorize recurring billing."""
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     user = db.get_user_by_token(token)
     if not user:
@@ -5200,82 +5467,83 @@ def paypal_create_order():
 
     data = request.get_json()
     plan = data.get("plan", "")
-
-    PLAN_PRICES = {"basic": "149.00", "pro": "349.00", "agency": "799.00"}
     if plan not in PLAN_PRICES:
         return jsonify({"error": "Invalid plan"}), 400
 
-    # Create order via PayPal API
+    # Ensure PayPal billing plans exist
+    plan_ids = _ensure_paypal_plans()
+    if plan not in plan_ids:
+        return jsonify({"error": "Failed to set up billing plan. Please try again."}), 500
+
     import requests as http_req
-    PAYPAL_CLIENT_ID = "AbFJcl0u1bWnNgzi5R4KcTsJ-u2pjxUJjjujweFLNkKzFulwgOQX4w5IsZmfeGbJ85JEABMDYUHWdvqB"
-    PAYPAL_SECRET = "EFa-RJjZ0AoWFK4g8MWD3eIn3nm3GAdq0Mmo3LKR-WxApp8BJbFPre4Yat5jTqRNF4swbBTjv56XDooP"
-    PAYPAL_API = "https://api-m.sandbox.paypal.com"
-
-    # Get access token
-    auth_resp = http_req.post(
-        f"{PAYPAL_API}/v1/oauth2/token",
-        auth=(PAYPAL_CLIENT_ID, PAYPAL_SECRET),
-        data={"grant_type": "client_credentials"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"}
-    )
-    if auth_resp.status_code != 200:
+    access_token = _paypal_access_token()
+    if not access_token:
         return jsonify({"error": "Payment service unavailable"}), 500
-    access_token = auth_resp.json()["access_token"]
 
-    plan_label = plan.capitalize()
-    # Create order
-    order_resp = http_req.post(
-        f"{PAYPAL_API}/v2/checkout/orders",
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {access_token}"
-        },
+    # Determine return/cancel URLs
+    base_url = request.host_url.rstrip("/")
+    return_url = f"{base_url}/checkout/success?plan={plan}"
+    cancel_url = f"{base_url}/checkout/{plan}"
+
+    # Create subscription
+    sub_resp = http_req.post(
+        f"{PAYPAL_API}/v1/billing/subscriptions",
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {access_token}"},
         json={
-            "intent": "CAPTURE",
-            "purchase_units": [{
-                "amount": {
-                    "currency_code": "USD",
-                    "value": PLAN_PRICES[plan]
-                },
-                "description": f"ChatGenius {plan_label} Plan - Monthly"
-            }]
+            "plan_id": plan_ids[plan],
+            "application_context": {
+                "brand_name": "ChatGenius",
+                "locale": "en-US",
+                "shipping_preference": "NO_SHIPPING",
+                "user_action": "SUBSCRIBE_NOW",
+                "return_url": return_url,
+                "cancel_url": cancel_url
+            }
         }
     )
-    if order_resp.status_code not in (200, 201):
-        return jsonify({"error": "Failed to create payment"}), 500
+    if sub_resp.status_code not in (200, 201):
+        return jsonify({"error": "Failed to create subscription. Please try again."}), 500
 
-    order_data = order_resp.json()
+    sub_data = sub_resp.json()
+    subscription_id = sub_data["id"]
 
     # Store in checkout_sessions
     conn = db.get_db()
     conn.execute(
-        "INSERT INTO checkout_sessions (user_id, plan, token, created_at) VALUES (?,?,?,?)",
-        (user["id"], plan, order_data["id"], datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        "INSERT INTO checkout_sessions (user_id, plan, token, created_at) VALUES (%s,%s,%s,%s)",
+        (user["id"], plan, subscription_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     )
     conn.commit()
     conn.close()
 
-    return jsonify({"id": order_data["id"]})
+    # Find approval URL
+    approve_url = ""
+    for link in sub_data.get("links", []):
+        if link["rel"] == "approve":
+            approve_url = link["href"]
+            break
+
+    return jsonify({"subscription_id": subscription_id, "approve_url": approve_url})
 
 
-@app.route("/api/paypal/capture-order", methods=["POST"])
-def paypal_capture_order():
-    """Capture a PayPal order after user approves payment. This verifies money was actually paid."""
+@app.route("/api/paypal/activate-subscription", methods=["POST"])
+def paypal_activate_subscription():
+    """Called after user returns from PayPal. Verifies subscription is active and activates the plan."""
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
 
     data = request.get_json()
-    order_id = data.get("order_id", "")
-    if not order_id:
-        return jsonify({"error": "Missing order ID"}), 400
+    subscription_id = data.get("subscription_id", "")
+    if not subscription_id:
+        return jsonify({"error": "Missing subscription ID"}), 400
 
-    # Verify this order belongs to this user
+    # Verify this subscription belongs to this user
     conn = db.get_db()
     session = conn.execute(
-        "SELECT * FROM checkout_sessions WHERE user_id=? AND token=? AND used=0",
-        (user["id"], order_id)
+        "SELECT * FROM checkout_sessions WHERE user_id=%s AND token=%s AND used=0",
+        (user["id"], subscription_id)
     ).fetchone()
     if not session:
         conn.close()
@@ -5283,68 +5551,140 @@ def paypal_capture_order():
 
     plan = session["plan"]
 
-    # Capture payment via PayPal API
+    # Check subscription status via PayPal API
     import requests as http_req
-    PAYPAL_CLIENT_ID = "AbFJcl0u1bWnNgzi5R4KcTsJ-u2pjxUJjjujweFLNkKzFulwgOQX4w5IsZmfeGbJ85JEABMDYUHWdvqB"
-    PAYPAL_SECRET = "EFa-RJjZ0AoWFK4g8MWD3eIn3nm3GAdq0Mmo3LKR-WxApp8BJbFPre4Yat5jTqRNF4swbBTjv56XDooP"
-    PAYPAL_API = "https://api-m.sandbox.paypal.com"
-
-    # Get access token
-    auth_resp = http_req.post(
-        f"{PAYPAL_API}/v1/oauth2/token",
-        auth=(PAYPAL_CLIENT_ID, PAYPAL_SECRET),
-        data={"grant_type": "client_credentials"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"}
-    )
-    if auth_resp.status_code != 200:
+    access_token = _paypal_access_token()
+    if not access_token:
         conn.close()
         return jsonify({"error": "Payment service unavailable"}), 500
-    access_token = auth_resp.json()["access_token"]
 
-    # Capture the order
-    capture_resp = http_req.post(
-        f"{PAYPAL_API}/v2/checkout/orders/{order_id}/capture",
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {access_token}"
-        }
+    sub_resp = http_req.get(
+        f"{PAYPAL_API}/v1/billing/subscriptions/{subscription_id}",
+        headers={"Authorization": f"Bearer {access_token}"}
     )
-    capture_data = capture_resp.json()
-
-    if capture_resp.status_code not in (200, 201) or capture_data.get("status") != "COMPLETED":
+    if sub_resp.status_code != 200:
         conn.close()
-        return jsonify({"error": "Payment was not completed. Please try again."}), 400
+        return jsonify({"error": "Could not verify subscription. Please try again."}), 400
 
-    # Payment confirmed! Mark session as used
-    txn_id = ""
-    try:
-        txn_id = capture_data["purchase_units"][0]["payments"]["captures"][0]["id"]
-    except (KeyError, IndexError):
-        txn_id = order_id
+    sub_data = sub_resp.json()
+    status = sub_data.get("status", "")
 
+    if status not in ("ACTIVE", "APPROVED"):
+        conn.close()
+        return jsonify({"error": f"Subscription is not active (status: {status}). Please complete payment on PayPal."}), 400
+
+    # Mark session as used
     conn.execute(
-        "UPDATE checkout_sessions SET used=1, transaction_id=?, activated_at=? WHERE id=?",
-        (txn_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), session["id"])
+        "UPDATE checkout_sessions SET used=1, transaction_id=%s, activated_at=%s WHERE id=%s",
+        (subscription_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), session["id"])
     )
     conn.commit()
     conn.close()
 
-    # Activate plan
+    # Activate plan and store subscription ID
     target_user_id = user["id"]
     if user.get("admin_id") and user["admin_id"] != 0:
         target_user_id = user["admin_id"]
     db.update_user_plan(target_user_id, plan)
 
-    admin_id = target_user_id
-    db.log_admin_action(admin_id, user, "Activated plan", f"Plan: {plan}, PayPal TXN: {txn_id}")
+    # Save PayPal subscription ID on the user
+    conn2 = db.get_db()
+    conn2.execute("UPDATE users SET paypal_subscription_id=%s WHERE id=%s", (subscription_id, target_user_id))
+    conn2.commit()
+    conn2.close()
+
+    db.log_admin_action(target_user_id, user, "Activated plan", f"Plan: {plan}, PayPal Sub: {subscription_id}")
 
     user = db.get_user_by_token(token)
     return jsonify({"ok": True, "user": db.user_to_public(user)})
 
 
+PAYPAL_WEBHOOK_ID = os.environ.get("PAYPAL_WEBHOOK_ID", "")
+
+
+def _verify_paypal_webhook(request_obj):
+    """Verify PayPal webhook signature by calling PayPal's verify-webhook-signature API."""
+    if not PAYPAL_WEBHOOK_ID:
+        return False  # No webhook ID configured — reject all
+    token = _paypal_access_token()
+    if not token:
+        return False
+    verify_payload = {
+        "auth_algo": request_obj.headers.get("PAYPAL-AUTH-ALGO", ""),
+        "cert_url": request_obj.headers.get("PAYPAL-CERT-URL", ""),
+        "transmission_id": request_obj.headers.get("PAYPAL-TRANSMISSION-ID", ""),
+        "transmission_sig": request_obj.headers.get("PAYPAL-TRANSMISSION-SIG", ""),
+        "transmission_time": request_obj.headers.get("PAYPAL-TRANSMISSION-TIME", ""),
+        "webhook_id": PAYPAL_WEBHOOK_ID,
+        "webhook_event": request_obj.get_json(silent=True) or {}
+    }
+    import requests as http_req
+    resp = http_req.post(
+        f"{PAYPAL_API}/v1/notifications/verify-webhook-signature",
+        json=verify_payload,
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"}
+    )
+    if resp.status_code == 200:
+        return resp.json().get("verification_status") == "SUCCESS"
+    return False
+
+
+@app.route("/api/paypal/webhook", methods=["POST"])
+@limiter.limit("30 per minute")
+def paypal_webhook():
+    """Handle PayPal webhook events for recurring billing."""
+    # Verify webhook signature from PayPal
+    if not _verify_paypal_webhook(request):
+        return jsonify({"error": "Invalid webhook signature"}), 403
+
+    event = request.get_json(silent=True) or {}
+    event_type = event.get("event_type", "")
+    resource = event.get("resource", {})
+
+    if event_type == "PAYMENT.SALE.COMPLETED":
+        # Recurring payment was successful — extend the plan
+        subscription_id = resource.get("billing_agreement_id", "")
+        if subscription_id:
+            conn = db.get_db()
+            user = conn.execute("SELECT * FROM users WHERE paypal_subscription_id=%s", (subscription_id,)).fetchone()
+            if user:
+                from dateutil.relativedelta import relativedelta
+                now = datetime.now()
+                new_expires = (now + relativedelta(months=1)).strftime("%Y-%m-%d %H:%M:%S")
+                plan = user["plan"] or "free_trial"
+                pending = user.get("pending_plan", "")
+                # If there's a pending plan change, apply it now
+                if pending and pending != plan and pending != "free_trial":
+                    plan = pending
+                conn.execute(
+                    "UPDATE users SET plan=%s, plan_started_at=%s, plan_expires_at=%s, pending_plan='', auto_renew=1 WHERE id=%s",
+                    (plan, now.strftime("%Y-%m-%d %H:%M:%S"), new_expires, user["id"]))
+                cost = db.PLAN_COSTS.get(plan, 0)
+                conn.execute("INSERT INTO plan_history (user_id, plan, monthly_cost) VALUES (%s,%s,%s)",
+                             (user["id"], plan, cost))
+                conn.commit()
+            conn.close()
+
+    elif event_type in ("BILLING.SUBSCRIPTION.CANCELLED", "BILLING.SUBSCRIPTION.SUSPENDED", "BILLING.SUBSCRIPTION.EXPIRED"):
+        # Subscription was cancelled/suspended/expired — downgrade to free_trial at expiry
+        subscription_id = resource.get("id", "")
+        if subscription_id:
+            conn = db.get_db()
+            user = conn.execute("SELECT * FROM users WHERE paypal_subscription_id=%s", (subscription_id,)).fetchone()
+            if user:
+                conn.execute(
+                    "UPDATE users SET auto_renew=0, pending_plan='free_trial' WHERE id=%s",
+                    (user["id"],))
+                conn.commit()
+            conn.close()
+
+    return jsonify({"status": "ok"}), 200
+
+
 @app.route("/auth/update-plan", methods=["POST"])
 def auth_update_plan():
-    """Schedule a plan change for users already on a paid plan."""
+    """Schedule a plan change for users already on a paid plan.
+    If user has an active PayPal subscription, revise it to the new plan."""
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     user = db.get_user_by_token(token)
     if not user:
@@ -5361,10 +5701,30 @@ def auth_update_plan():
     if current_plan == "free_trial" or current_plan == "none":
         return jsonify({"error": "Please complete payment through the checkout page."}), 400
 
-    # Already on a paid plan — schedule change for next billing cycle
     target_user_id = user["id"]
     if user.get("admin_id") and user["admin_id"] != 0:
         target_user_id = user["admin_id"]
+
+    # If user has PayPal subscription, revise it to the new plan's billing
+    conn = db.get_db()
+    target_user = conn.execute("SELECT * FROM users WHERE id=%s", (target_user_id,)).fetchone()
+    conn.close()
+    pp_sub_id = (target_user or {}).get("paypal_subscription_id", "")
+    if pp_sub_id:
+        plan_ids = _ensure_paypal_plans()
+        new_plan_id = plan_ids.get(plan)
+        if new_plan_id:
+            import requests as http_req
+            access_token = _paypal_access_token()
+            if access_token:
+                # Revise subscription to new plan
+                http_req.post(
+                    f"{PAYPAL_API}/v1/billing/subscriptions/{pp_sub_id}/revise",
+                    headers={"Content-Type": "application/json", "Authorization": f"Bearer {access_token}"},
+                    json={"plan_id": new_plan_id}
+                )
+
+    # Schedule change for next billing cycle
     db.schedule_plan_change(target_user_id, plan)
     user = db.get_user_by_token(token)
     plan_label = plan.capitalize()
@@ -5393,7 +5753,7 @@ def get_subscription():
     db.process_plan_expiry(target_id)
     # Get the actual plan owner's data
     conn = db.get_db()
-    row = conn.execute("SELECT * FROM users WHERE id=?", (target_id,)).fetchone()
+    row = conn.execute("SELECT * FROM users WHERE id=%s", (target_id,)).fetchone()
     conn.close()
     owner = dict(row) if row else dict(user)
     plan = owner.get("plan", "free_trial")
@@ -5426,6 +5786,22 @@ def cancel_subscription():
     target_id = user["id"]
     if user.get("admin_id") and user["admin_id"] != 0:
         target_id = user["admin_id"]
+
+    # Cancel PayPal subscription if exists
+    conn = db.get_db()
+    target_user = conn.execute("SELECT * FROM users WHERE id=%s", (target_id,)).fetchone()
+    conn.close()
+    pp_sub_id = (target_user or {}).get("paypal_subscription_id", "")
+    if pp_sub_id:
+        import requests as http_req
+        access_token = _paypal_access_token()
+        if access_token:
+            http_req.post(
+                f"{PAYPAL_API}/v1/billing/subscriptions/{pp_sub_id}/cancel",
+                headers={"Content-Type": "application/json", "Authorization": f"Bearer {access_token}"},
+                json={"reason": "Customer requested cancellation"}
+            )
+
     db.cancel_user_plan(target_id)
     user = db.get_user_by_token(token)
     return jsonify({"ok": True, "message": "Subscription cancelled. Your plan remains active until the end of the billing period.", "user": db.user_to_public(user)})
@@ -5460,6 +5836,29 @@ def toggle_auto_renew():
     target_id = user["id"]
     if user.get("admin_id") and user["admin_id"] != 0:
         target_id = user["admin_id"]
+
+    # Suspend or reactivate PayPal subscription
+    conn = db.get_db()
+    target_user = conn.execute("SELECT * FROM users WHERE id=%s", (target_id,)).fetchone()
+    conn.close()
+    pp_sub_id = (target_user or {}).get("paypal_subscription_id", "")
+    if pp_sub_id:
+        import requests as http_req
+        access_token = _paypal_access_token()
+        if access_token:
+            if enabled:
+                http_req.post(
+                    f"{PAYPAL_API}/v1/billing/subscriptions/{pp_sub_id}/activate",
+                    headers={"Content-Type": "application/json", "Authorization": f"Bearer {access_token}"},
+                    json={"reason": "Customer re-enabled auto-renewal"}
+                )
+            else:
+                http_req.post(
+                    f"{PAYPAL_API}/v1/billing/subscriptions/{pp_sub_id}/suspend",
+                    headers={"Content-Type": "application/json", "Authorization": f"Bearer {access_token}"},
+                    json={"reason": "Customer disabled auto-renewal"}
+                )
+
     db.toggle_auto_renew(target_id, enabled)
     user = db.get_user_by_token(token)
     return jsonify({"ok": True, "user": db.user_to_public(user)})
@@ -5495,7 +5894,7 @@ def auth_update_profile():
         if len(new_password) < 8:
             return jsonify({"error": "New password must be at least 8 characters."}), 400
         if user["provider"] == "email":
-            if not current_password or db._hash_password(current_password) != user["password_hash"]:
+            if not current_password or not db._verify_password(current_password, user["password_hash"]):
                 return jsonify({"error": "Current password is incorrect."}), 400
 
     updated = db.update_user_profile(user["id"], name, email_addr, new_password, avatar_url)
@@ -5511,28 +5910,27 @@ def auth_update_profile():
 # ══════════════════════════════════════════════
 
 @app.route("/chat", methods=["POST"])
+@limiter.limit("30 per minute")
 def chat():
     data = request.get_json()
     if not data:
         return jsonify({"error": "Invalid or missing JSON body"}), 400
+    # Strip internal keys that could be injected by attacker
+    data.pop("_admin_id", None)
+    data.pop("_admin", None)
     user_message = data.get("message", "").strip()
     session_id = data.get("session_id", "default")
     admin_id_raw = data.get("admin_id")
     admin_id = None
 
-    # Resolve admin_id: could be a public GUID or numeric ID
+    # Resolve admin_id: ONLY accept public GUID (never raw numeric IDs — prevents ID spoofing)
     if admin_id_raw:
         admin_id_str = str(admin_id_raw).strip()
-        # Check if it's a GUID (contains letters/dashes, not purely numeric)
         if not admin_id_str.isdigit():
             # It's a public_id (GUID) — resolve to numeric ID
             resolved_user = db.get_user_by_public_id(admin_id_str)
             if resolved_user:
                 admin_id = resolved_user["id"]
-            else:
-                admin_id = None
-        else:
-            admin_id = int(admin_id_str)
 
     if not admin_id:
         # Auto-detect: use the first head_admin's id so analytics data goes to the right place
@@ -5552,6 +5950,16 @@ def chat():
     user_name = data.get("user_name", "").strip()
     user_email = data.get("user_email", "").strip()
     user_phone = data.get("user_phone", "").strip()
+
+    # For demo sessions, auto-fetch user info from DB (never rely on frontend/localStorage)
+    if session_id.startswith("demo_") and admin_id:
+        try:
+            _demo_user = db.get_user_by_id(admin_id)
+            if _demo_user:
+                user_name = _demo_user.get("name", "") or user_name
+                user_email = _demo_user.get("email", "") or user_email
+        except Exception:
+            pass
 
     if not user_message:
         return jsonify({"error": "Empty message"}), 400
@@ -5590,15 +5998,21 @@ def chat():
             response["booking_confirmed"] = True
         return jsonify(response)
     except Exception as e:
-        print(f"Error: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Something went wrong. Please try again."}), 500
 
 
 @app.route("/api/patient/chat", methods=["POST"])
+@limiter.limit("30 per minute")
 def patient_chat():
     """Chat endpoint for authenticated patients — skips name/email/phone collection."""
+    # Require authentication
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    auth_user = db.get_user_by_token(token)
+    if not auth_user:
+        return jsonify({"error": "Not authenticated"}), 401
+
     data = request.get_json()
     if not data:
         return jsonify({"error": "Invalid or missing JSON body"}), 400
@@ -5607,22 +6021,19 @@ def patient_chat():
     if not patient_id:
         return jsonify({"error": "patient_id is required"}), 400
 
-    # Verify patient exists
+    # Verify patient exists and belongs to this user's clinic
     patient = db.get_patient(patient_id)
     if not patient:
         return jsonify({"error": "Patient not found"}), 404
 
+    # Enforce ownership: patient must belong to authenticated user's clinic
+    user_admin_id = get_effective_admin_id(auth_user)
+    if patient.get("admin_id") and int(patient["admin_id"]) != int(user_admin_id):
+        return jsonify({"error": "Access denied"}), 403
+
     user_message = data.get("message", "").strip()
     session_id = data.get("session_id", f"patient_{patient_id}")
-    admin_id = data.get("admin_id") or patient.get("admin_id")
-    if not admin_id:
-        try:
-            conn = db.get_db()
-            head = conn.execute("SELECT id FROM users WHERE role='head_admin' ORDER BY id LIMIT 1").fetchone()
-            admin_id = head["id"] if head else 1
-            conn.close()
-        except Exception:
-            admin_id = 1
+    admin_id = patient.get("admin_id") or user_admin_id
 
     if not user_message:
         return jsonify({"error": "Empty message"}), 400
@@ -5646,7 +6057,7 @@ def patient_chat():
         print(f"Patient chat error: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Something went wrong. Please try again."}), 500
 
 
 @app.route("/api/leads", methods=["GET"])
@@ -5750,24 +6161,24 @@ def api_bookings():
     if ids_to_complete:
         conn = db.get_db()
         for bid in ids_to_complete:
-            conn.execute("UPDATE bookings SET status='completed' WHERE id=?", (bid,))
-            bk_row = conn.execute("SELECT * FROM bookings WHERE id=?", (bid,)).fetchone()
+            conn.execute("UPDATE bookings SET status='completed' WHERE id=%s", (bid,))
+            bk_row = conn.execute("SELECT * FROM bookings WHERE id=%s", (bid,)).fetchone()
             if bk_row:
                 bk = dict(bk_row)
                 if bk.get("patient_id"):
                     conn.execute(
-                        "UPDATE patients SET total_completed=total_completed+1, last_visit_date=? WHERE id=? AND (last_visit_date IS NULL OR last_visit_date < ?)",
+                        "UPDATE patients SET total_completed=total_completed+1, last_visit_date=%s WHERE id=%s AND (last_visit_date IS NULL OR last_visit_date < %s)",
                         (bk["date"], bk["patient_id"], bk["date"])
                     )
                 else:
                     pat = None
                     if bk.get("customer_email"):
-                        pat = conn.execute("SELECT id FROM patients WHERE admin_id=? AND email=?", (bk["admin_id"], bk["customer_email"])).fetchone()
+                        pat = conn.execute("SELECT id FROM patients WHERE admin_id=%s AND email=%s", (bk["admin_id"], bk["customer_email"])).fetchone()
                     if not pat and bk.get("customer_phone"):
-                        pat = conn.execute("SELECT id FROM patients WHERE admin_id=? AND phone=?", (bk["admin_id"], bk["customer_phone"])).fetchone()
+                        pat = conn.execute("SELECT id FROM patients WHERE admin_id=%s AND phone=%s", (bk["admin_id"], bk["customer_phone"])).fetchone()
                     if pat:
                         conn.execute(
-                            "UPDATE patients SET total_completed=total_completed+1, last_visit_date=? WHERE id=? AND (last_visit_date IS NULL OR last_visit_date < ?)",
+                            "UPDATE patients SET total_completed=total_completed+1, last_visit_date=%s WHERE id=%s AND (last_visit_date IS NULL OR last_visit_date < %s)",
                             (bk["date"], pat["id"], bk["date"])
                         )
         conn.commit()
@@ -5827,24 +6238,24 @@ def api_previous_bookings():
     if ids_to_complete:
         conn = db.get_db()
         for bid in ids_to_complete:
-            conn.execute("UPDATE bookings SET status='completed' WHERE id=?", (bid,))
-            bk_row = conn.execute("SELECT * FROM bookings WHERE id=?", (bid,)).fetchone()
+            conn.execute("UPDATE bookings SET status='completed' WHERE id=%s", (bid,))
+            bk_row = conn.execute("SELECT * FROM bookings WHERE id=%s", (bid,)).fetchone()
             if bk_row:
                 bk = dict(bk_row)
                 if bk.get("patient_id"):
                     conn.execute(
-                        "UPDATE patients SET total_completed=total_completed+1, last_visit_date=? WHERE id=? AND (last_visit_date IS NULL OR last_visit_date < ?)",
+                        "UPDATE patients SET total_completed=total_completed+1, last_visit_date=%s WHERE id=%s AND (last_visit_date IS NULL OR last_visit_date < %s)",
                         (bk["date"], bk["patient_id"], bk["date"])
                     )
                 else:
                     pat = None
                     if bk.get("customer_email"):
-                        pat = conn.execute("SELECT id FROM patients WHERE admin_id=? AND email=?", (bk["admin_id"], bk["customer_email"])).fetchone()
+                        pat = conn.execute("SELECT id FROM patients WHERE admin_id=%s AND email=%s", (bk["admin_id"], bk["customer_email"])).fetchone()
                     if not pat and bk.get("customer_phone"):
-                        pat = conn.execute("SELECT id FROM patients WHERE admin_id=? AND phone=?", (bk["admin_id"], bk["customer_phone"])).fetchone()
+                        pat = conn.execute("SELECT id FROM patients WHERE admin_id=%s AND phone=%s", (bk["admin_id"], bk["customer_phone"])).fetchone()
                     if pat:
                         conn.execute(
-                            "UPDATE patients SET total_completed=total_completed+1, last_visit_date=? WHERE id=? AND (last_visit_date IS NULL OR last_visit_date < ?)",
+                            "UPDATE patients SET total_completed=total_completed+1, last_visit_date=%s WHERE id=%s AND (last_visit_date IS NULL OR last_visit_date < %s)",
                             (bk["date"], pat["id"], bk["date"])
                         )
         conn.commit()
@@ -5874,7 +6285,7 @@ def api_previous_bookings():
         booking_ids = [b["id"] for b in previous if b.get("id")]
         followup_booking_ids = set()
         if booking_ids:
-            placeholders = ",".join(["?"] * len(booking_ids))
+            placeholders = ",".join(["%s"] * len(booking_ids))
             rows = conn.execute(
                 f"SELECT DISTINCT booking_id FROM treatment_followups WHERE booking_id IN ({placeholders}) AND status != 'cancelled'",
                 booking_ids
@@ -5933,7 +6344,7 @@ def api_doctor_revenue():
     # Build service price lookup (same logic as ROI)
     svc_prices = {}
     svc_rows = conn.execute(
-        "SELECT LOWER(name) as name, price FROM company_services WHERE admin_id=?", (admin_id,)
+        "SELECT LOWER(name) as name, price FROM company_services WHERE admin_id=%s", (admin_id,)
     ).fetchall()
     for sr in svc_rows:
         svc_prices[sr["name"]] = sr["price"]
@@ -5945,14 +6356,14 @@ def api_doctor_revenue():
 
     # Get all doctors
     doctors = conn.execute(
-        "SELECT id, name, specialty FROM doctors WHERE admin_id=?", (admin_id,)
+        "SELECT id, name, specialty FROM doctors WHERE admin_id=%s", (admin_id,)
     ).fetchall()
 
     # Get all bookings with doctor_id
-    bquery = "SELECT doctor_id, status, revenue_amount, service FROM bookings WHERE admin_id=?"
+    bquery = "SELECT doctor_id, status, revenue_amount, service FROM bookings WHERE admin_id=%s"
     bparams = [admin_id]
     if date_from and date_to:
-        bquery += " AND date BETWEEN ? AND ?"
+        bquery += " AND date BETWEEN %s AND %s"
         bparams.extend([date_from, date_to])
     bookings = conn.execute(bquery, bparams).fetchall()
     conn.close()
@@ -6015,6 +6426,11 @@ def api_external_booking():
     if not admin_id:
         return jsonify({"error": "Invalid or missing API key"}), 401
 
+    # Plan check — Appointment API requires Enterprise plan
+    admin_user = db.get_user_by_id(admin_id)
+    if not admin_user or (admin_user.get("plan") or "free_trial").lower() != "agency":
+        return jsonify({"error": "Appointment API requires an Enterprise plan."}), 403
+
     data = request.get_json(silent=True) or {}
     patient_name = (data.get("patient_name") or "").strip()
     doctor_name_input = (data.get("doctor_name") or "").strip()
@@ -6070,7 +6486,7 @@ def api_external_booking():
 
     # Find doctor by name
     conn = db.get_db()
-    doctors = conn.execute("SELECT id, name, appointment_length, schedule_type, daily_hours, start_time, end_time, availability FROM doctors WHERE admin_id=?", (admin_id,)).fetchall()
+    doctors = conn.execute("SELECT id, name, appointment_length, schedule_type, daily_hours, start_time, end_time, availability FROM doctors WHERE admin_id=%s", (admin_id,)).fetchall()
     doctor_id = None
     matched_name = ""
     matched_doc = None
@@ -6144,7 +6560,7 @@ def api_external_booking():
 
     # Check for double-booking — if slot taken, add to waitlist
     existing = conn.execute(
-        "SELECT id FROM bookings WHERE admin_id=? AND doctor_id=? AND date=? AND time=? AND status NOT IN ('cancelled','no_show')",
+        "SELECT id FROM bookings WHERE admin_id=%s AND doctor_id=%s AND date=%s AND time=%s AND status NOT IN ('cancelled','no_show')",
         (admin_id, doctor_id, date_str, time_slot)
     ).fetchone()
     if existing:
@@ -6159,11 +6575,11 @@ def api_external_booking():
         confirm_token = _secrets.token_urlsafe(32)
         remove_token = _secrets.token_urlsafe(32)
         wl_conn = db.get_db()
-        wl_conn.execute("UPDATE waitlist SET confirm_token=?, remove_token=? WHERE id=?",
+        wl_conn.execute("UPDATE waitlist SET confirm_token=%s, remove_token=%s WHERE id=%s",
                         (confirm_token, remove_token, wid))
         wl_conn.commit()
         # Get position
-        pos_row = wl_conn.execute("SELECT position FROM waitlist WHERE id=?", (wid,)).fetchone()
+        pos_row = wl_conn.execute("SELECT position FROM waitlist WHERE id=%s", (wid,)).fetchone()
         position = pos_row["position"] if pos_row else 1
         wl_conn.close()
         # Send waitlist email with confirm/remove buttons
@@ -6211,10 +6627,22 @@ def api_external_booking():
 
     # Set revenue from service price
     svc_conn = db.get_db()
-    svc_row = svc_conn.execute("SELECT price FROM company_services WHERE admin_id=? AND LOWER(name)=?", (admin_id, service.lower())).fetchone()
+    svc_row = svc_conn.execute("SELECT price FROM company_services WHERE admin_id=%s AND LOWER(name)=%s", (admin_id, service.lower())).fetchone()
     if svc_row and svc_row["price"]:
         db.add_booking_revenue(booking_id, svc_row["price"])
     svc_conn.close()
+
+    # -- Zapier webhook: new booking (external sync) --
+    try:
+        zapier_engine.trigger_new_booking(admin_id, {
+            "id": booking_id, "customer_name": patient_name,
+            "customer_email": patient_email, "customer_phone": patient_phone,
+            "date": date_str, "time": time_slot, "service": service,
+            "doctor_name": matched_name, "doctor_id": doctor_id,
+            "status": "confirmed",
+        })
+    except Exception:
+        pass
 
     return jsonify({"ok": True, "booking_id": booking_id, "patient_id": patient["id"], "is_returning": patient.get("total_bookings", 1) > 1, "message": "Appointment synced successfully"}), 201
 
@@ -6231,7 +6659,7 @@ def waitlist_external_confirm(token):
         return "<html><body style='font-family:sans-serif;text-align:center;padding:60px'><h2>Your waitlist spot is already confirmed!</h2></body></html>"
     # Mark as confirmed (still waiting, but patient explicitly agreed)
     conn = db.get_db()
-    conn.execute("UPDATE waitlist SET confirmed_at=CURRENT_TIMESTAMP WHERE id=?", (entry["id"],))
+    conn.execute("UPDATE waitlist SET confirmed_at=CURRENT_TIMESTAMP WHERE id=%s", (entry["id"],))
     conn.commit()
     conn.close()
     doctor = db.get_doctor_by_id(entry["doctor_id"])
@@ -6255,7 +6683,7 @@ def waitlist_external_remove(token):
         return "<html><body style='font-family:sans-serif;text-align:center;padding:60px'><h2>You have already been removed from the waitlist.</h2></body></html>"
     # Remove from waitlist
     conn = db.get_db()
-    conn.execute("UPDATE waitlist SET status='removed' WHERE id=?", (entry["id"],))
+    conn.execute("UPDATE waitlist SET status='removed' WHERE id=%s", (entry["id"],))
     conn.commit()
     conn.close()
     return f"""<html><body style='font-family:sans-serif;text-align:center;padding:60px;background:#fef2f2'>
@@ -6299,7 +6727,7 @@ def api_manual_booking():
     # Check for double-booking
     conn = db.get_db()
     existing = conn.execute(
-        "SELECT id FROM bookings WHERE admin_id=? AND doctor_id=? AND date=? AND time=? AND status NOT IN ('cancelled','no_show')",
+        "SELECT id FROM bookings WHERE admin_id=%s AND doctor_id=%s AND date=%s AND time=%s AND status NOT IN ('cancelled','no_show')",
         (admin_id, doctor_id, date_str, time_str)
     ).fetchone()
     if existing:
@@ -6322,12 +6750,25 @@ def api_manual_booking():
 
     # Set revenue from service price
     svc_conn = db.get_db()
-    svc_row = svc_conn.execute("SELECT price FROM company_services WHERE admin_id=? AND LOWER(name)=?", (admin_id, service.lower())).fetchone()
+    svc_row = svc_conn.execute("SELECT price FROM company_services WHERE admin_id=%s AND LOWER(name)=%s", (admin_id, service.lower())).fetchone()
     if svc_row and svc_row["price"]:
         db.add_booking_revenue(booking_id, svc_row["price"])
     svc_conn.close()
 
     db.log_admin_action(admin_id, user, "Created booking", f"Booking #{booking_id} for {patient_name} on {date_str} at {time_str}")
+
+    # ── Zapier webhook: new booking (manual) ──
+    try:
+        zapier_engine.trigger_new_booking(admin_id, {
+            "id": booking_id, "customer_name": patient_name,
+            "customer_email": patient_email, "customer_phone": patient_phone,
+            "date": date_str, "time": time_str, "service": service,
+            "doctor_name": doctor.get("name", ""), "doctor_id": doctor_id,
+            "status": "confirmed",
+        })
+    except Exception:
+        pass
+
     return jsonify({"ok": True, "booking_id": booking_id, "message": "Appointment added successfully"}), 201
 
 
@@ -6354,7 +6795,7 @@ def api_mark_noshow(booking_id):
     admin_id = get_effective_admin_id(user)
 
     conn = db.get_db()
-    booking = conn.execute("SELECT * FROM bookings WHERE id=? AND admin_id=?", (booking_id, admin_id)).fetchone()
+    booking = conn.execute("SELECT * FROM bookings WHERE id=%s AND admin_id=%s", (booking_id, admin_id)).fetchone()
     if not booking:
         conn.close()
         return jsonify({"error": "Booking not found"}), 404
@@ -6379,13 +6820,13 @@ def api_mark_noshow(booking_id):
     # Generate a unique token for the no-show reason form
     import secrets
     noshow_token = secrets.token_urlsafe(32)
-    conn.execute("UPDATE bookings SET status='no_show', revenue_amount=0 WHERE id=?", (booking_id,))
+    conn.execute("UPDATE bookings SET status='no_show', revenue_amount=0 WHERE id=%s", (booking_id,))
     # Increment patient no-show/cancellation count
     if booking.get("patient_id"):
-        conn.execute("UPDATE patients SET total_no_shows=total_no_shows+1, total_cancelled=total_cancelled+1 WHERE id=?", (booking["patient_id"],))
+        conn.execute("UPDATE patients SET total_no_shows=total_no_shows+1, total_cancelled=total_cancelled+1 WHERE id=%s", (booking["patient_id"],))
     # Store the noshow token in booking notes for lookup
     existing_notes = booking.get("notes", "") or ""
-    conn.execute("UPDATE bookings SET notes=? WHERE id=?",
+    conn.execute("UPDATE bookings SET notes=%s WHERE id=%s",
                  (existing_notes + f"\n[noshow_token:{noshow_token}]", booking_id))
     conn.commit()
     conn.close()
@@ -6414,6 +6855,12 @@ def api_mark_noshow(booking_id):
         except Exception as e:
             print(f"[noshow] ERROR sending email: {e}", flush=True)
 
+    # -- Zapier webhook: no-show --
+    try:
+        zapier_engine.trigger_no_show(admin_id, booking)
+    except Exception:
+        pass
+
     return jsonify({"ok": True})
 
 
@@ -6426,6 +6873,11 @@ def api_get_company_info():
     # Admin sees their own, doctor sees their admin's
     info_user_id = get_effective_admin_id(user)
     info = db.get_company_info(info_user_id)
+    if info:
+        # Bug 3 fix: strip sensitive fields before returning to client
+        info.pop('external_api_key', None)
+        info.pop('customers_api_key', None)
+        info.pop('customers_api_url', None)
     return jsonify(info or {})
 
 
@@ -6442,6 +6894,20 @@ def api_embed_id():
     # Linked admin/doctor — get head admin's public_id
     head = db.get_user_by_id(effective_id)
     return jsonify({"public_id": head.get("public_id", "") if head else ""})
+
+
+@app.route("/api/external-api-key", methods=["GET"])
+def api_get_external_api_key():
+    """Bug 8 fix: dedicated endpoint for fetching external API key (admin only)."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if not is_admin_role(user):
+        return jsonify({"error": "Admin only"}), 403
+    admin_id = get_effective_admin_id(user)
+    key = db.get_external_api_key(admin_id)
+    return jsonify({"external_api_key": key})
 
 
 @app.route("/api/company-info", methods=["POST"])
@@ -6477,11 +6943,11 @@ def api_update_currency():
         return jsonify({"error": "Currency is required"}), 400
     admin_id = get_effective_admin_id(user)
     conn = db.get_db()
-    existing = conn.execute("SELECT id FROM company_info WHERE user_id=?", (admin_id,)).fetchone()
+    existing = conn.execute("SELECT id FROM company_info WHERE user_id=%s", (admin_id,)).fetchone()
     if existing:
-        conn.execute("UPDATE company_info SET currency=?, updated_at=CURRENT_TIMESTAMP WHERE user_id=?", (currency, admin_id))
+        conn.execute("UPDATE company_info SET currency=%s, updated_at=CURRENT_TIMESTAMP WHERE user_id=%s", (currency, admin_id))
     else:
-        conn.execute("INSERT INTO company_info (user_id, currency) VALUES (?,?)", (admin_id, currency))
+        conn.execute("INSERT INTO company_info (user_id, currency) VALUES (%s,%s)", (admin_id, currency))
     conn.commit()
     conn.close()
     db.set_all_services_currency(admin_id, currency)
@@ -6673,11 +7139,11 @@ def api_upload_services_pdf():
         reader = PdfReader(f.stream)
         text = "\n".join((p.extract_text() or "") for p in reader.pages)
     except Exception as e:
-        return jsonify({"error": f"Failed to read PDF: {e}"}), 400
+        return jsonify({"error": "Failed to read PDF. Please check the file format."}), 400
 
     # Parse lines of form "<service name> ... <price>"
     parsed = []
-    price_re = re.compile(r"([A-Za-z][A-Za-z0-9\s\-/&,'\.]{1,80}?)\s*[:\-\|\t ]+\s*([A-Z]{0,3}\s*[\$£€]?\s*\d{1,6}(?:[.,]\d{1,2})?)")
+    price_re = re.compile(r"([A-Za-z][A-Za-z0-9\s\-/&,'\.]{1,80}%s)\s*[:\-\|\t ]+\s*([A-Z]{0,3}\s*[\$£€]%s\s*\d{1,6}(%s:[.,]\d{1,2})%s)")
     for line in text.splitlines():
         line = line.strip()
         if not line:
@@ -6713,6 +7179,9 @@ def api_get_customers_api_config():
         return jsonify({"error": "Not authenticated"}), 401
     if not is_admin_role(user):
         return jsonify({"error": "Admin only"}), 403
+    plan = (user.get("plan") or "free_trial").lower()
+    if plan not in ("pro", "agency"):
+        return jsonify({"error": "Customer DB API requires a Pro or Enterprise plan."}), 403
     admin_id = get_effective_admin_id(user)
     config = db.get_customers_api_config(admin_id)
     return jsonify(config)
@@ -6726,11 +7195,20 @@ def api_save_customers_api_config():
         return jsonify({"error": "Not authenticated"}), 401
     if not is_admin_role(user):
         return jsonify({"error": "Admin only"}), 403
+    plan = (user.get("plan") or "free_trial").lower()
+    if plan not in ("pro", "agency"):
+        return jsonify({"error": "Customer DB API requires a Pro or Enterprise plan."}), 403
     data = request.get_json()
+    api_url = data.get("customers_api_url", "").strip()
+    # Bug 4 fix: SSRF validation on save as well
+    if api_url:
+        safe, reason = _is_safe_url(api_url)
+        if not safe:
+            return jsonify({"error": reason}), 400
     admin_id = get_effective_admin_id(user)
     db.save_customers_api_config(
         admin_id,
-        data.get("customers_api_url", "").strip(),
+        api_url,
         data.get("customers_api_key", "").strip()
     )
     # Clear cache so next chat uses new config
@@ -6750,12 +7228,19 @@ def api_test_customers_api():
         return jsonify({"error": "Not authenticated"}), 401
     if not is_admin_role(user):
         return jsonify({"error": "Admin only"}), 403
+    plan = (user.get("plan") or "free_trial").lower()
+    if plan not in ("pro", "agency"):
+        return jsonify({"error": "Customer DB API requires a Pro or Enterprise plan."}), 403
     data = request.get_json()
     url = data.get("customers_api_url", "").strip().rstrip("/")
     key = data.get("customers_api_key", "").strip()
     test_id = data.get("test_customer_id", "1").strip()
     if not url:
         return jsonify({"error": "API URL is required"}), 400
+    # Bug 4 fix: SSRF validation
+    safe, reason = _is_safe_url(url)
+    if not safe:
+        return jsonify({"error": reason}), 400
     try:
         req_headers = {}
         if key:
@@ -6767,7 +7252,7 @@ def api_test_customers_api():
         customer = result if "name" in result or "email" in result else result.get("customer", result.get("data", result))
         return jsonify({"ok": True, "customer": customer})
     except Exception as e:
-        return jsonify({"error": f"Failed to connect: {str(e)}"}), 400
+        return jsonify({"error": "Failed to connect. Please check the URL and try again."}), 400
 
 
 @app.route("/api/doctors", methods=["GET"])
@@ -6886,6 +7371,24 @@ def api_delete_doctor(doctor_id):
 PHOTO_UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads", "doctor_photos")
 os.makedirs(PHOTO_UPLOAD_DIR, exist_ok=True)
 
+# Magic bytes for image validation
+IMAGE_SIGNATURES = {
+    b'\xff\xd8\xff': '.jpg',      # JPEG
+    b'\x89PNG\r\n\x1a\n': '.png', # PNG
+    b'RIFF': '.webp',             # WebP (RIFF header)
+}
+MAX_PHOTO_SIZE = 5 * 1024 * 1024  # 5 MB
+
+
+def _validate_image_content(file_stream):
+    """Validate file is a real image by checking magic bytes."""
+    header = file_stream.read(16)
+    file_stream.seek(0)  # reset for saving
+    for sig in IMAGE_SIGNATURES:
+        if header[:len(sig)] == sig:
+            return True
+    return False
+
 
 @app.route("/api/doctors/<int:doctor_id>/photo", methods=["POST"])
 def api_upload_doctor_photo(doctor_id):
@@ -6901,7 +7404,16 @@ def api_upload_doctor_photo(doctor_id):
     ext = os.path.splitext(photo.filename)[1].lower()
     if ext not in (".jpg", ".jpeg", ".png", ".webp"):
         return jsonify({"error": "Only JPG, PNG, and WebP images are allowed."}), 400
-    filename = f"doctor_{doctor_id}_{int(datetime.now().timestamp())}{ext}"
+    # Validate file content (magic bytes)
+    if not _validate_image_content(photo.stream):
+        return jsonify({"error": "File content does not match an image format."}), 400
+    # Check file size
+    photo.seek(0, 2)  # seek to end
+    size = photo.tell()
+    photo.seek(0)
+    if size > MAX_PHOTO_SIZE:
+        return jsonify({"error": "Photo must be under 5 MB."}), 400
+    filename = f"doctor_{doctor_id}_{int(datetime.now().timestamp())}_{secrets.token_hex(4)}{ext}"
     filepath = os.path.join(PHOTO_UPLOAD_DIR, filename)
     photo.save(filepath)
     photo_url = f"/uploads/doctor_photos/{filename}"
@@ -6951,7 +7463,7 @@ def api_upload_doctor_pdf():
         reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
         text = "\n".join(page.extract_text() or "" for page in reader.pages)
     except Exception as e:
-        return jsonify({"error": f"Could not read PDF: {str(e)}"}), 400
+        return jsonify({"error": "Could not read PDF. Please check the file format."}), 400
 
     if not text.strip():
         return jsonify({"error": "No text could be extracted. The PDF may be a scanned image."}), 400
@@ -7096,7 +7608,7 @@ def api_upload_doctor_pdf():
             existing_names.add(n)
     for doc in extracted:
         raw = (doc.get("fullName") or "").strip()
-        clean = _re.sub(r'^(?:Dr\.?\s+)+', '', raw, flags=_re.IGNORECASE).strip().lower()
+        clean = _re.sub(r'^(%s:Dr\.%s\s+)+', '', raw, flags=_re.IGNORECASE).strip().lower()
         doc["alreadyExists"] = clean in existing_names
 
     return jsonify({"ok": True, "doctors": extracted, "pdf_filename": safe_name})
@@ -7135,7 +7647,7 @@ def api_save_doctor_from_pdf():
 
         # Strip "Dr." prefix for comparison (same logic as _strip_dr_prefix in database.py)
         import re
-        clean_name = re.sub(r'^(?:Dr\.?\s+)+', '', name, flags=re.IGNORECASE).strip()
+        clean_name = re.sub(r'^(%s:Dr\.%s\s+)+', '', name, flags=re.IGNORECASE).strip()
         if clean_name.lower() in existing_names:
             skipped.append(name)
             continue
@@ -7358,7 +7870,7 @@ def api_upload_company_file():
             # Try reading as text
             text = file.read().decode("utf-8", errors="ignore")
     except Exception as e:
-        return jsonify({"error": f"Could not read file: {str(e)}"}), 400
+        return jsonify({"error": "Could not read file. Please check the format."}), 400
 
     if not text.strip():
         return jsonify({"error": "No text could be extracted from this file. It may be a scanned image."}), 400
@@ -7747,7 +8259,7 @@ def api_confirm_waitlist(wid):
     # Link booking to waitlist entry
     try:
         conn = db.get_db()
-        conn.execute("UPDATE bookings SET waitlist_id=? WHERE id=?", (wid, booking_id))
+        conn.execute("UPDATE bookings SET waitlist_id=%s WHERE id=%s", (wid, booking_id))
         conn.commit()
         conn.close()
     except Exception:
@@ -7841,6 +8353,11 @@ def api_save_feature_config():
         return jsonify({"error": "Permission denied"}), 403
     admin_id = get_effective_admin_id(user)
     data = request.get_json() or {}
+    # Prevent enabling SMS toggles if Twilio is not configured
+    sms_toggle_keys = ("sms_booking_confirmation", "sms_appointment_reminder", "sms_noshow_recovery")
+    enabling_sms = any(str(data.get(k, "")).lower() in ("true", "1", "yes", "on") for k in sms_toggle_keys)
+    if enabling_sms and not sms_engine.is_configured(admin_id):
+        return jsonify({"error": "Cannot enable SMS features without configuring Twilio first. Please set up your Twilio credentials in Integrations."}), 400
     db.save_feature_config(admin_id, data)
     db.log_admin_action(admin_id, user, "Updated feature config", "")
     return jsonify({"ok": True})
@@ -7885,7 +8402,7 @@ def api_add_custom_form_field():
     if user.get("role") not in ("admin", "head_admin"):
         return jsonify({"error": "Access denied"}), 403
     if user.get("plan") != "agency":
-        return jsonify({"error": "Custom fields are only available on the Agency plan"}), 403
+        return jsonify({"error": "Custom fields are only available on the Enterprise plan"}), 403
     admin_id = get_effective_admin_id(user)
     data = request.get_json(silent=True) or {}
     field_name = (data.get("field_name") or "").strip()
@@ -7914,7 +8431,7 @@ def api_delete_custom_form_field(field_id):
     return jsonify({"ok": True})
 
 
-# ── Chatbot Customization (Agency plan only) ──
+# ── Chatbot Customization (Enterprise plan only) ──
 
 @app.route("/api/chatbot-customization", methods=["GET"])
 def get_chatbot_customization_api():
@@ -7924,7 +8441,7 @@ def get_chatbot_customization_api():
         return jsonify({"error": "Unauthorized"}), 401
     plan = user.get("plan", "free_trial")
     if plan != "agency":
-        return jsonify({"error": "Chatbot customization requires an Agency plan."}), 403
+        return jsonify({"error": "Chatbot customization requires an Enterprise plan."}), 403
     admin_id = get_effective_admin_id(user)
     customization = db.get_chatbot_customization(admin_id)
     return jsonify(customization or {})
@@ -7940,7 +8457,7 @@ def save_chatbot_customization_api():
         return jsonify({"error": "Only administrators can edit chatbot customization."}), 403
     plan = user.get("plan", "free_trial")
     if plan != "agency":
-        return jsonify({"error": "Chatbot customization requires an Agency plan."}), 403
+        return jsonify({"error": "Chatbot customization requires an Enterprise plan."}), 403
     admin_id = get_effective_admin_id(user)
     data = request.get_json() or {}
     db.save_chatbot_customization(admin_id, data)
@@ -8114,7 +8631,7 @@ def api_submit_form(token):
                 try:
                     _fc_tok = secrets.token_urlsafe(32)
                     _fc_conn = db.get_db()
-                    _fc_conn.execute("UPDATE bookings SET cancel_token=? WHERE id=?", (_fc_tok, form['booking_id']))
+                    _fc_conn.execute("UPDATE bookings SET cancel_token=%s WHERE id=%s", (_fc_tok, form['booking_id']))
                     _fc_conn.commit(); _fc_conn.close()
                     _fc_cancel_url = f"{base_url}/booking-cancel/{_fc_tok}"
                 except Exception:
@@ -8177,6 +8694,14 @@ def api_submit_form(token):
             except Exception:
                 pass
 
+    # ── Zapier webhook: form submitted ──
+    try:
+        if form:
+            _zap_booking = db.get_booking_by_id(form["booking_id"]) if form.get("booking_id") else None
+            zapier_engine.trigger_form_submitted(form.get("admin_id", 0), form, _zap_booking)
+    except Exception:
+        pass
+
     return jsonify({"success": True})
 
 @app.route("/noshow-reason/<token>")
@@ -8184,7 +8709,7 @@ def noshow_reason_page(token):
     """Serve the no-show reason form page."""
     # Verify token exists
     conn = db.get_db()
-    row = conn.execute("SELECT id FROM bookings WHERE notes LIKE ? AND status='no_show'",
+    row = conn.execute("SELECT id FROM bookings WHERE notes LIKE %s AND status='no_show'",
                        (f"%[noshow_token:{token}]%",)).fetchone()
     conn.close()
     if not row:
@@ -8192,7 +8717,7 @@ def noshow_reason_page(token):
     return f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Let Us Know</title>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2%sfamily=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{{margin:0;padding:0;box-sizing:border-box}}
 body{{font-family:'Outfit',sans-serif;background:#06080d;color:#f1f5f9;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}}
@@ -8239,7 +8764,7 @@ def api_submit_noshow_reason(token):
         return jsonify({"error": "Please provide a reason"}), 400
 
     conn = db.get_db()
-    booking = conn.execute("SELECT * FROM bookings WHERE notes LIKE ? AND status='no_show'",
+    booking = conn.execute("SELECT * FROM bookings WHERE notes LIKE %s AND status='no_show'",
                            (f"%[noshow_token:{token}]%",)).fetchone()
     if not booking:
         conn.close()
@@ -8249,7 +8774,7 @@ def api_submit_noshow_reason(token):
     # Remove the noshow token from notes (one-time use)
     clean_notes = (booking.get("notes", "") or "").replace(f"[noshow_token:{token}]", "").strip()
     noshow_note = f"No-show reason: {reason}"
-    conn.execute("UPDATE bookings SET notes=? WHERE id=?",
+    conn.execute("UPDATE bookings SET notes=%s WHERE id=%s",
                  (f"{clean_notes}\n{noshow_note}".strip(), booking["id"]))
     conn.commit()
     conn.close()
@@ -8300,7 +8825,7 @@ def api_booking_full_details(booking_id):
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
     conn = db.get_db()
-    booking = conn.execute("SELECT * FROM bookings WHERE id=?", (booking_id,)).fetchone()
+    booking = conn.execute("SELECT * FROM bookings WHERE id=%s", (booking_id,)).fetchone()
     if not booking:
         conn.close()
         return jsonify({"error": "Booking not found"}), 404
@@ -8313,7 +8838,7 @@ def api_booking_full_details(booking_id):
     # If service booking, fetch service details
     service_info = None
     if booking.get("service_id"):
-        svc_row = conn.execute("SELECT name, price, currency, duration_minutes, description FROM company_services WHERE id=?",
+        svc_row = conn.execute("SELECT name, price, currency, duration_minutes, description FROM company_services WHERE id=%s",
                                (booking["service_id"],)).fetchone()
         if svc_row:
             service_info = dict(svc_row)
@@ -8322,17 +8847,17 @@ def api_booking_full_details(booking_id):
     visit_count = 0
     if booking.get("customer_email"):
         visit_count = conn.execute(
-            "SELECT COUNT(*) FROM bookings WHERE customer_email=? AND admin_id=? AND status != 'cancelled'",
+            "SELECT COUNT(*) FROM bookings WHERE customer_email=%s AND admin_id=%s AND status != 'cancelled'",
             (booking["customer_email"], booking.get("admin_id", 0))
         ).fetchone()[0]
     elif booking.get("customer_phone"):
         visit_count = conn.execute(
-            "SELECT COUNT(*) FROM bookings WHERE customer_phone=? AND admin_id=? AND status != 'cancelled'",
+            "SELECT COUNT(*) FROM bookings WHERE customer_phone=%s AND admin_id=%s AND status != 'cancelled'",
             (booking["customer_phone"], booking.get("admin_id", 0))
         ).fetchone()[0]
 
     # Pre-visit form data
-    form = conn.execute("SELECT * FROM patient_forms WHERE booking_id=?", (booking_id,)).fetchone()
+    form = conn.execute("SELECT * FROM patient_forms WHERE booking_id=%s", (booking_id,)).fetchone()
     form_data = dict(form) if form else None
     form_status = "submitted" if (form_data and form_data.get("submitted_at")) else ("pending" if form_data else "not_sent")
 
@@ -8359,7 +8884,7 @@ def api_booking_full_details(booking_id):
     try:
         if booking.get("customer_email"):
             pat = conn.execute(
-                "SELECT medical_history, allergies, medications, insurance_provider, insurance_policy, date_of_birth, gender FROM patients WHERE email=? AND admin_id=?",
+                "SELECT medical_history, allergies, medications, insurance_provider, insurance_policy, date_of_birth, gender FROM patients WHERE email=%s AND admin_id=%s",
                 (booking["customer_email"], booking.get("admin_id", 0))
             ).fetchone()
             if pat:
@@ -8420,7 +8945,7 @@ def booking_cancel_page(token):
     if not token or len(token) < 10:
         return "<h2>Invalid cancellation link.</h2>", 404
     conn = db.get_db()
-    booking = conn.execute("SELECT * FROM bookings WHERE cancel_token=? AND status != 'cancelled'", (token,)).fetchone()
+    booking = conn.execute("SELECT * FROM bookings WHERE cancel_token=%s AND status != 'cancelled'", (token,)).fetchone()
     if not booking:
         conn.close()
         return """<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cancellation</title>
@@ -8430,15 +8955,20 @@ def booking_cancel_page(token):
         <body><div class="card"><h2>Link Expired or Already Used</h2>
         <p>This booking has already been cancelled or the link is no longer valid.</p></div></body></html>"""
     # Cancel the booking
-    conn.execute("UPDATE bookings SET status='cancelled', cancel_token='', cancelled_at=CURRENT_TIMESTAMP WHERE id=?", (booking["id"],))
+    conn.execute("UPDATE bookings SET status='cancelled', cancel_token='', cancelled_at=CURRENT_TIMESTAMP WHERE id=%s", (booking["id"],))
     conn.commit()
     conn.close()
     # Update patient stats
     try:
         if booking.get("patient_id"):
             pconn = db.get_db()
-            pconn.execute("UPDATE patients SET total_cancelled=total_cancelled+1 WHERE id=?", (booking["patient_id"],))
+            pconn.execute("UPDATE patients SET total_cancelled=total_cancelled+1 WHERE id=%s", (booking["patient_id"],))
             pconn.commit(); pconn.close()
+    except Exception:
+        pass
+    # Delete Google Calendar event if synced
+    try:
+        gcal_engine.delete_gcal_event(booking["id"])
     except Exception:
         pass
     # Notify waitlist if applicable
@@ -8470,13 +9000,13 @@ def booking_cancel_page(token):
 def api_booking_details_public(booking_id):
     """Public endpoint for booking confirmation page (limited info)."""
     conn = db.get_db()
-    booking = conn.execute("SELECT customer_name, date, time, doctor_name, service, status, admin_id FROM bookings WHERE id=?", (booking_id,)).fetchone()
+    booking = conn.execute("SELECT customer_name, date, time, doctor_name, service, status, admin_id FROM bookings WHERE id=%s", (booking_id,)).fetchone()
     if not booking:
         conn.close()
         return jsonify({"error": "Booking not found"}), 404
     booking = dict(booking)
     # Get business name
-    biz = conn.execute("SELECT business_name FROM company_info WHERE user_id=?", (booking["admin_id"],)).fetchone()
+    biz = conn.execute("SELECT business_name FROM company_info WHERE user_id=%s", (booking["admin_id"],)).fetchone()
     conn.close()
     return jsonify({
         "customer_name": booking["customer_name"],
@@ -8590,7 +9120,7 @@ def recall_book_page(token):
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Book Your {_h(service_name)} Appointment — {_h(company_name)}</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2%sfamily=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{{margin:0;padding:0;box-sizing:border-box}}
 body{{font-family:'Inter',sans-serif;background:#0a0d14;color:#f1f5f9;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}}
@@ -8687,7 +9217,7 @@ const sel = document.getElementById('bkDoctor');
 doctors.forEach(d => {{
     const opt = document.createElement('option');
     opt.value = d.id;
-    opt.textContent = d.name + (d.specialty ? ' — ' + d.specialty : '');
+    opt.textContent = d.name + (d.specialty %s ' — ' + d.specialty : '');
     sel.appendChild(opt);
 }});
 
@@ -8705,7 +9235,7 @@ function getWorkingDays(doc) {{
             const info = doc.daily_hours[name];
             if (info && !info.off) days.push(idx);
         }});
-        return days.length ? days : [0,1,2,3,4,5,6];
+        return days.length %s days : [0,1,2,3,4,5,6];
     }}
     if (doc.availability) {{
         const avail = doc.availability.toLowerCase();
@@ -8713,7 +9243,7 @@ function getWorkingDays(doc) {{
         dayNames.forEach((name, idx) => {{
             if (avail.includes(name.toLowerCase()) || avail.includes(name.substring(0,3).toLowerCase())) days.push(idx);
         }});
-        return days.length ? days : [0,1,2,3,4,5,6];
+        return days.length %s days : [0,1,2,3,4,5,6];
     }}
     return [0,1,2,3,4,5,6];
 }}
@@ -8776,7 +9306,7 @@ async function loadSlots() {{
     container.innerHTML = '<span style="color:#8b95a8;font-size:0.85rem">Loading...</span>';
 
     try {{
-        const res = await fetch('/api/recall-book/slots?doctor_id=' + doctorId + '&date=' + date + '&admin_id=' + adminId);
+        const res = await fetch('/api/recall-book/slots%sdoctor_id=' + doctorId + '&date=' + date + '&admin_id=' + adminId);
         const data = await res.json();
         if (data.error) {{
             container.innerHTML = '<span style="color:#f87171;font-size:0.85rem">' + data.error + '</span>';
@@ -8788,7 +9318,7 @@ async function loadSlots() {{
         }}
         container.innerHTML = '<div class="slots">' + data.slots.map(s => {{
             const booked = data.booked.includes(s);
-            return '<div class="slot' + (booked ? ' booked' : '') + '" onclick="' + (booked ? '' : "pickSlot(this,'" + s + "')") + '">' + s + '</div>';
+            return '<div class="slot' + (booked %s ' booked' : '') + '" onclick="' + (booked %s '' : "pickSlot(this,'" + s + "')") + '">' + s + '</div>';
         }}).join('') + '</div>';
     }} catch(e) {{
         container.innerHTML = '<span style="color:#f87171;font-size:0.85rem">Failed to load slots</span>';
@@ -9039,7 +9569,7 @@ def api_toggle_missed_calls():
     data = request.get_json()
     admin_id = get_effective_admin_id(user)
     conn = db.get_db()
-    conn.execute("UPDATE company_info SET missed_call_enabled=?, clinic_phone=? WHERE user_id=?",
+    conn.execute("UPDATE company_info SET missed_call_enabled=%s, clinic_phone=%s WHERE user_id=%s",
                  (1 if data.get("enabled") else 0, data.get("clinic_phone", ""), admin_id))
     conn.commit()
     conn.close()
@@ -9100,7 +9630,7 @@ def api_cancel_followup(fid):
         return jsonify({"error": "Unauthorized"}), 401
     conn = db.get_db()
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    conn.execute("UPDATE treatment_followups SET status='cancelled', cancelled_at=? WHERE id=?", (now, fid))
+    conn.execute("UPDATE treatment_followups SET status='cancelled', cancelled_at=%s WHERE id=%s", (now, fid))
     conn.commit()
     conn.close()
     admin_id = get_effective_admin_id(user)
@@ -9125,7 +9655,7 @@ def api_followup_from_booking():
 
     # Get the booking
     conn = db.get_db()
-    booking = conn.execute("SELECT * FROM bookings WHERE id=?", (booking_id,)).fetchone()
+    booking = conn.execute("SELECT * FROM bookings WHERE id=%s", (booking_id,)).fetchone()
     conn.close()
     if not booking:
         return jsonify({"error": "Booking not found"}), 404
@@ -9138,7 +9668,7 @@ def api_followup_from_booking():
     # Check not already followed up
     conn = db.get_db()
     existing = conn.execute(
-        "SELECT id FROM treatment_followups WHERE admin_id=? AND booking_id=? AND status != 'cancelled'",
+        "SELECT id FROM treatment_followups WHERE admin_id=%s AND booking_id=%s AND status != 'cancelled'",
         (admin_id, booking_id)).fetchone()
     conn.close()
     if existing:
@@ -9174,7 +9704,7 @@ def api_followup_from_booking():
             # Mark as sent
             conn = db.get_db()
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            conn.execute("UPDATE treatment_followups SET status='sent', sent_at=? WHERE id=?",
+            conn.execute("UPDATE treatment_followups SET status='sent', sent_at=%s WHERE id=%s",
                          (now, result["id"]))
             conn.commit()
             conn.close()
@@ -9220,7 +9750,7 @@ def followup_book_page(token):
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Confirm Follow-Up — {_h(company_name)}</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2%sfamily=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{{margin:0;padding:0;box-sizing:border-box}}
 body{{font-family:'Inter',sans-serif;background:#0a0d14;color:#f1f5f9;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}}
@@ -9313,7 +9843,7 @@ const sel = document.getElementById('bkDoctor');
 doctors.forEach(d => {{
     const opt = document.createElement('option');
     opt.value = d.id;
-    opt.textContent = d.name + (d.specialty ? ' — ' + d.specialty : '');
+    opt.textContent = d.name + (d.specialty %s ' — ' + d.specialty : '');
     sel.appendChild(opt);
 }});
 
@@ -9330,7 +9860,7 @@ function getWorkingDays(doc) {{
             const info = doc.daily_hours[name];
             if (info && !info.off) days.push(idx);
         }});
-        return days.length ? days : [0,1,2,3,4,5,6];
+        return days.length %s days : [0,1,2,3,4,5,6];
     }}
     if (doc.availability) {{
         const avail = doc.availability.toLowerCase();
@@ -9338,7 +9868,7 @@ function getWorkingDays(doc) {{
         dayNames.forEach((name, idx) => {{
             if (avail.includes(name.toLowerCase()) || avail.includes(name.substring(0,3).toLowerCase())) days.push(idx);
         }});
-        return days.length ? days : [0,1,2,3,4,5,6];
+        return days.length %s days : [0,1,2,3,4,5,6];
     }}
     return [0,1,2,3,4,5,6];
 }}
@@ -9397,7 +9927,7 @@ async function loadSlots() {{
 
     container.innerHTML = '<span style="color:#8b95a8;font-size:0.85rem">Loading...</span>';
     try {{
-        const res = await fetch('/api/recall-book/slots?doctor_id=' + doctorId + '&date=' + date + '&admin_id=' + adminId);
+        const res = await fetch('/api/recall-book/slots%sdoctor_id=' + doctorId + '&date=' + date + '&admin_id=' + adminId);
         const data = await res.json();
         if (data.error) {{
             container.innerHTML = '<span style="color:#f87171;font-size:0.85rem">' + data.error + '</span>';
@@ -9409,7 +9939,7 @@ async function loadSlots() {{
         }}
         container.innerHTML = '<div class="slots">' + data.slots.map(s => {{
             const booked = data.booked.includes(s);
-            return '<div class="slot' + (booked ? ' booked' : '') + '" onclick="' + (booked ? '' : "pickSlot(this,'" + s + "')") + '">' + s + '</div>';
+            return '<div class="slot' + (booked %s ' booked' : '') + '" onclick="' + (booked %s '' : "pickSlot(this,'" + s + "')") + '">' + s + '</div>';
         }}).join('') + '</div>';
     }} catch(e) {{
         container.innerHTML = '<span style="color:#f87171;font-size:0.85rem">Failed to load slots</span>';
@@ -9692,7 +10222,7 @@ def get_emergency_alerts_api():
         alerts = emergency_handler.get_emergency_alerts(admin_id)
         return jsonify(alerts)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Operation failed. Please try again."}), 500
 
 @app.route('/api/emergency-alerts/<int:alert_id>/acknowledge', methods=['POST'])
 def acknowledge_emergency(alert_id):
@@ -9704,7 +10234,7 @@ def acknowledge_emergency(alert_id):
         emergency_handler.acknowledge_alert(alert_id)
         return jsonify({"success": True})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Operation failed. Please try again."}), 500
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -9787,7 +10317,7 @@ def api_get_session_history(session_id):
 
 @app.route("/api/schedule-blocks", methods=["GET"])
 def api_get_schedule_blocks():
-    """Get all schedule blocks for the admin. Optional ?doctor_id= filter."""
+    """Get all schedule blocks for the admin. Optional %sdoctor_id= filter."""
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     user = db.get_user_by_token(token)
     if not user:
@@ -9847,7 +10377,7 @@ def api_add_schedule_block():
 
 @app.route("/api/schedule-blocks/<int:block_id>", methods=["DELETE"])
 def api_delete_schedule_block(block_id):
-    """Delete a block. Query param ?series=true deletes entire recurring series."""
+    """Delete a block. Query param %sseries=true deletes entire recurring series."""
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     user = db.get_user_by_token(token)
     if not user or not is_admin_role(user):
@@ -9985,7 +10515,7 @@ def api_2fa_setup():
     import secrets as _secrets
     totp_secret = _secrets.token_hex(16)
     conn = db.get_db()
-    conn.execute("UPDATE users SET totp_secret=?, two_fa_method=? WHERE id=?", (totp_secret, method, user["id"]))
+    conn.execute("UPDATE users SET totp_secret=%s, two_fa_method=%s WHERE id=%s", (totp_secret, method, user["id"]))
     conn.commit()
     conn.close()
     return jsonify({"ok": True, "message": f"2FA setup initiated via {method}. Complete verification to activate."})
@@ -10010,7 +10540,7 @@ def api_2fa_enable():
     if otp != expected:
         return jsonify({"error": "Invalid OTP"}), 400
     conn = db.get_db()
-    conn.execute("UPDATE users SET two_fa_enabled=1 WHERE id=?", (user["id"],))
+    conn.execute("UPDATE users SET two_fa_enabled=1 WHERE id=%s", (user["id"],))
     conn.commit()
     conn.close()
     return jsonify({"ok": True, "message": "2FA enabled successfully."})
@@ -10025,7 +10555,7 @@ def api_2fa_disable():
         tfa.disable_2fa(user["id"])
     except Exception:
         conn = db.get_db()
-        conn.execute("UPDATE users SET two_fa_enabled=0, totp_secret='' WHERE id=?", (user["id"],))
+        conn.execute("UPDATE users SET two_fa_enabled=0, totp_secret='' WHERE id=%s", (user["id"],))
         conn.commit()
         conn.close()
     return jsonify({"ok": True})
@@ -10042,7 +10572,7 @@ def api_send_otp():
         pass
     # Fallback: legacy
     conn = db.get_db()
-    user = conn.execute("SELECT * FROM users WHERE email=?", (email_addr,)).fetchone()
+    user = conn.execute("SELECT * FROM users WHERE email=%s", (email_addr,)).fetchone()
     conn.close()
     if not user or not user["two_fa_enabled"]:
         return jsonify({"ok": True})
@@ -10068,7 +10598,7 @@ def api_verify_otp():
         pass
     # Fallback: legacy
     conn = db.get_db()
-    user = conn.execute("SELECT * FROM users WHERE email=?", (email_addr,)).fetchone()
+    user = conn.execute("SELECT * FROM users WHERE email=%s", (email_addr,)).fetchone()
     if not user:
         conn.close()
         return jsonify({"error": "Invalid credentials"}), 401
@@ -10093,7 +10623,7 @@ def api_enforce_2fa():
     admin_id = user["id"]
     conn = db.get_db()
     if enforce:
-        conn.execute("UPDATE users SET two_fa_enabled=1 WHERE (admin_id=? OR id=?) AND two_fa_enabled=0", (admin_id, admin_id))
+        conn.execute("UPDATE users SET two_fa_enabled=1 WHERE (admin_id=%s OR id=%s) AND two_fa_enabled=0", (admin_id, admin_id))
     conn.commit()
     conn.close()
     db.log_admin_action(admin_id, user, "Updated 2FA enforcement", f"Enforce: {enforce}")
@@ -10313,12 +10843,12 @@ def api_customers_export():
         visit_history = ""
         try:
             visit_bookings = conn_export.execute(
-                "SELECT date, time, doctor_name, service, status FROM bookings WHERE patient_id=? ORDER BY date DESC, time DESC",
+                "SELECT date, time, doctor_name, service, status FROM bookings WHERE patient_id=%s ORDER BY date DESC, time DESC",
                 (p["id"],)
             ).fetchall()
             if not visit_bookings and p.get("email"):
                 visit_bookings = conn_export.execute(
-                    "SELECT date, time, doctor_name, service, status FROM bookings WHERE admin_id=? AND customer_email=? ORDER BY date DESC, time DESC",
+                    "SELECT date, time, doctor_name, service, status FROM bookings WHERE admin_id=%s AND customer_email=%s ORDER BY date DESC, time DESC",
                     (admin_id, p["email"])
                 ).fetchall()
             visits = []
@@ -10498,14 +11028,44 @@ def api_customers_export():
 #  Feature 16 — Real-Time Dashboard (SSE)
 # ══════════════════════════════════════════════════════════════════
 
-@app.route("/api/realtime/stream")
-def api_realtime_stream():
-    """Server-Sent Events stream for real-time dashboard updates."""
-    token = request.args.get("token", "")
+# Short-lived SSE tokens (5 min expiry) to avoid exposing main auth token in URL
+_sse_tokens = {}  # {sse_token: {"admin_id": int, "expires": datetime}}
+
+
+@app.route("/api/realtime/sse-token", methods=["GET"])
+def api_realtime_sse_token():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
     admin_id = get_effective_admin_id(user)
+    sse_token = secrets.token_hex(16)
+    _sse_tokens[sse_token] = {"admin_id": admin_id, "expires": datetime.now() + timedelta(minutes=5)}
+    # Cleanup expired tokens
+    now = datetime.now()
+    expired = [k for k, v in _sse_tokens.items() if v["expires"] < now]
+    for k in expired:
+        del _sse_tokens[k]
+    return jsonify({"sse_token": sse_token})
+
+
+@app.route("/api/realtime/stream")
+def api_realtime_stream():
+    """Server-Sent Events stream for real-time dashboard updates."""
+    # Support short-lived SSE token (preferred) or legacy token
+    sse_token = request.args.get("sse_token", "")
+    admin_id = None
+    if sse_token and sse_token in _sse_tokens:
+        entry = _sse_tokens[sse_token]
+        if datetime.now() < entry["expires"]:
+            admin_id = entry["admin_id"]
+        del _sse_tokens[sse_token]  # one-time use
+    if not admin_id:
+        token = request.args.get("token", "")
+        user = db.get_user_by_token(token)
+        if not user:
+            return jsonify({"error": "Unauthorized"}), 401
+        admin_id = get_effective_admin_id(user)
 
     # Try engine SSE stream first
     try:
@@ -10546,10 +11106,10 @@ def _get_realtime_data(admin_id):
     today = datetime.now().strftime("%Y-%m-%d")
     one_hour_ago = (datetime.now() - timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S")
     # Today's appointments
-    appointments = conn.execute("SELECT * FROM bookings WHERE admin_id=? AND date=? ORDER BY time",
+    appointments = conn.execute("SELECT * FROM bookings WHERE admin_id=%s AND date=%s ORDER BY time",
                                 (admin_id, today)).fetchall()
     # Recent bookings (last 60 min)
-    recent = conn.execute("SELECT * FROM bookings WHERE admin_id=? AND created_at>=? ORDER BY created_at DESC",
+    recent = conn.execute("SELECT * FROM bookings WHERE admin_id=%s AND created_at>=%s ORDER BY created_at DESC",
                           (admin_id, one_hour_ago)).fetchall()
     # Active chat sessions
     active_sessions = []
@@ -10560,10 +11120,10 @@ def _get_realtime_data(admin_id):
                 active_sessions.append({"session_id": sid, "messages": len(sess["history"]),
                     "flow": sess.get("flow"), "last_message": sess["history"][-1].get("content", "") if sess["history"] else ""})
     # Handoff queue
-    handoffs = conn.execute("SELECT * FROM live_chat_handoffs WHERE admin_id=? AND status IN ('queued','assigned') ORDER BY created_at",
+    handoffs = conn.execute("SELECT * FROM live_chat_handoffs WHERE admin_id=%s AND status IN ('queued','assigned') ORDER BY created_at",
                             (admin_id,)).fetchall()
     # No-show count today
-    noshows = conn.execute("SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND date=? AND status='no_show'",
+    noshows = conn.execute("SELECT COUNT(*) as c FROM bookings WHERE admin_id=%s AND date=%s AND status='no_show'",
                            (admin_id, today)).fetchone()["c"]
     conn.close()
     return {
@@ -10772,6 +11332,204 @@ def api_gmb_post():
 
 
 # ══════════════════════════════════════════════════════════════════
+#  Google Calendar Integration (per-doctor OAuth2)
+# ══════════════════════════════════════════════════════════════════
+
+import google_calendar_engine as gcal_engine
+
+@app.route("/api/integrations/google-calendar/connect", methods=["POST"])
+@limiter.limit("5 per minute")
+def api_gcal_connect():
+    """Initiate Google Calendar OAuth2 flow for a doctor.
+    Expects JSON: {doctor_id} and optionally {client_id, client_secret} to save settings."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json() or {}
+    admin_id = get_effective_admin_id(user)
+    doctor_id = data.get("doctor_id")
+
+    if not doctor_id:
+        return jsonify({"error": "doctor_id is required"}), 400
+
+    # Verify the doctor belongs to this admin
+    doctor = db.get_doctor_by_id(doctor_id)
+    if not doctor or doctor.get("admin_id") != admin_id:
+        return jsonify({"error": "Doctor not found or does not belong to your account"}), 403
+
+    # Optionally save/update OAuth client settings
+    client_id = data.get("client_id", "")
+    client_secret = data.get("client_secret", "")
+    if client_id and client_secret:
+        db.save_gcal_settings(admin_id, client_id, client_secret)
+
+    # Check that OAuth settings exist
+    settings = db.get_gcal_settings(admin_id)
+    if not settings or not settings.get("gcal_client_id"):
+        return jsonify({"error": "Google Calendar OAuth not configured. Provide client_id and client_secret first."}), 400
+
+    # Always construct redirect URI server-side to prevent open redirect attacks
+    redirect_uri = request.host_url.rstrip("/") + "/api/integrations/google-calendar/callback"
+
+    auth_url = gcal_engine.get_auth_url(admin_id, redirect_uri, doctor_id)
+    if not auth_url:
+        return jsonify({"error": "Failed to generate authorization URL"}), 500
+
+    db.log_admin_action(admin_id, user, "Initiated Google Calendar connection", f"doctor_id={doctor_id}")
+    return jsonify({"ok": True, "auth_url": auth_url})
+
+
+@app.route("/api/integrations/google-calendar/callback", methods=["GET"])
+def api_gcal_callback():
+    """Handle Google OAuth2 callback. Exchanges code for tokens and stores them."""
+    code = request.args.get("code", "")
+    state_raw = request.args.get("state", "{}")
+    error = request.args.get("error", "")
+
+    if error:
+        from markupsafe import escape
+        return ("<html><body style='font-family:sans-serif;text-align:center;padding:60px'>"
+                "<h2>Google Calendar Connection Failed</h2>"
+                "<p>Error: " + str(escape(error)) + "</p>"
+                "<p>You can close this window and try again.</p>"
+                "</body></html>")
+
+    state = gcal_engine.verify_state(state_raw)
+    if not state:
+        return ("<html><body style='font-family:sans-serif;text-align:center;padding:60px'>"
+                "<h2>Invalid callback</h2><p>State verification failed. The link may have been tampered with. Please try connecting again.</p>"
+                "</body></html>"), 400
+
+    doctor_id = state.get("doctor_id")
+    admin_id = state.get("admin_id")
+
+    if not doctor_id or not admin_id or not code:
+        return ("<html><body style='font-family:sans-serif;text-align:center;padding:60px'>"
+                "<h2>Invalid callback</h2><p>Missing required parameters. Please try connecting again.</p>"
+                "</body></html>"), 400
+
+    redirect_uri = request.host_url.rstrip("/") + "/api/integrations/google-calendar/callback"
+    tokens = gcal_engine.exchange_code_for_tokens(admin_id, code, redirect_uri)
+
+    if not tokens or not tokens.get("refresh_token"):
+        return ("<html><body style='font-family:sans-serif;text-align:center;padding:60px'>"
+                "<h2>Connection Failed</h2>"
+                "<p>Could not obtain refresh token from Google. Please try again and grant calendar access.</p>"
+                "</body></html>"), 400
+
+    # Store tokens on the doctor record
+    gcal_engine.save_doctor_tokens(doctor_id, tokens["refresh_token"], "primary")
+
+    return ("<html><body style='font-family:sans-serif;text-align:center;padding:60px;background:#0f0f1a;color:#e0e0e0'>"
+            "<h2 style='color:#22d3ee'>Google Calendar Connected!</h2>"
+            "<p>Your Google Calendar has been linked successfully. Appointments will now sync automatically.</p>"
+            "<p style='color:#888'>You can close this window and return to the dashboard.</p>"
+            "<script>setTimeout(function(){window.close()},3000);</script>"
+            "</body></html>")
+
+
+@app.route("/api/integrations/google-calendar/disconnect", methods=["POST"])
+def api_gcal_disconnect():
+    """Remove Google Calendar tokens for a doctor."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json() or {}
+    doctor_id = data.get("doctor_id")
+    if not doctor_id:
+        return jsonify({"error": "doctor_id is required"}), 400
+
+    admin_id = get_effective_admin_id(user)
+
+    # Verify the doctor belongs to this admin
+    doctor = db.get_doctor_by_id(doctor_id)
+    if not doctor or doctor.get("admin_id") != admin_id:
+        return jsonify({"error": "Doctor not found or does not belong to your account"}), 403
+
+    gcal_engine.remove_doctor_tokens(doctor_id)
+    db.log_admin_action(admin_id, user, "Disconnected Google Calendar", f"doctor_id={doctor_id}")
+    return jsonify({"ok": True, "message": "Google Calendar disconnected."})
+
+
+@app.route("/api/integrations/google-calendar/status", methods=["GET"])
+def api_gcal_status():
+    """Check Google Calendar connection status. Optionally pass ?doctor_id= for a specific doctor."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    admin_id = get_effective_admin_id(user)
+    doctor_id = request.args.get("doctor_id")
+
+    if doctor_id:
+        # Verify the doctor belongs to this admin
+        doctor = db.get_doctor_by_id(int(doctor_id))
+        if not doctor or doctor.get("admin_id") != admin_id:
+            return jsonify({"error": "Doctor not found"}), 404
+        status = db.get_doctor_gcal_status(int(doctor_id))
+        return jsonify(status)
+
+    # Return status for all doctors under this admin
+    settings = db.get_gcal_settings(admin_id)
+    doctors = db.get_doctors_with_gcal(admin_id)
+    return jsonify({
+        "configured": bool(settings and settings.get("gcal_client_id")),
+        "doctors": doctors,
+    })
+
+
+@app.route("/api/integrations/google-calendar/settings", methods=["POST"])
+def api_gcal_save_settings():
+    """Save Google Calendar OAuth client_id and client_secret for the admin."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json() or {}
+    client_id = data.get("client_id", "").strip()
+    client_secret = data.get("client_secret", "").strip()
+
+    if not client_id or not client_secret:
+        return jsonify({"error": "client_id and client_secret are required"}), 400
+
+    admin_id = get_effective_admin_id(user)
+    db.save_gcal_settings(admin_id, client_id, client_secret)
+    db.log_admin_action(admin_id, user, "Saved Google Calendar OAuth settings", "")
+    return jsonify({"ok": True})
+
+
+@app.route("/api/integrations/google-calendar/busy-slots", methods=["GET"])
+def api_gcal_busy_slots():
+    """Get busy slots from Google Calendar for a doctor on a date."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    doctor_id = request.args.get("doctor_id")
+    date = request.args.get("date")
+
+    if not doctor_id or not date:
+        return jsonify({"error": "doctor_id and date are required"}), 400
+
+    admin_id = get_effective_admin_id(user)
+
+    # Verify the doctor belongs to this admin
+    doctor = db.get_doctor_by_id(int(doctor_id))
+    if not doctor or doctor.get("admin_id") != admin_id:
+        return jsonify({"error": "Doctor not found or does not belong to your account"}), 403
+
+    slots = gcal_engine.get_busy_slots(int(doctor_id), date, admin_id=admin_id)
+    return jsonify({"busy_slots": slots})
+
+
+# ══════════════════════════════════════════════════════════════════
 #  Feature 20 — Competitor Benchmarking
 # ══════════════════════════════════════════════════════════════════
 
@@ -10791,9 +11549,9 @@ def api_get_benchmarks():
     conn = db.get_db()
     today = datetime.now().strftime("%Y-%m-%d")
     month_start = datetime.now().strftime("%Y-%m-01")
-    total_convos = conn.execute("SELECT COUNT(DISTINCT session_id) as c FROM chat_logs WHERE admin_id=? AND created_at>=?", (admin_id, month_start)).fetchone()["c"] or 1
-    total_bookings = conn.execute("SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND created_at>=?", (admin_id, month_start)).fetchone()["c"]
-    total_noshows = conn.execute("SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND status='no_show' AND created_at>=?", (admin_id, month_start)).fetchone()["c"]
+    total_convos = conn.execute("SELECT COUNT(DISTINCT session_id) as c FROM chat_logs WHERE admin_id=%s AND created_at>=%s", (admin_id, month_start)).fetchone()["c"] or 1
+    total_bookings = conn.execute("SELECT COUNT(*) as c FROM bookings WHERE admin_id=%s AND created_at>=%s", (admin_id, month_start)).fetchone()["c"]
+    total_noshows = conn.execute("SELECT COUNT(*) as c FROM bookings WHERE admin_id=%s AND status='no_show' AND created_at>=%s", (admin_id, month_start)).fetchone()["c"]
     monthly_bookings = total_bookings
     conv_rate = (total_bookings / max(total_convos, 1)) * 100
     noshow_rate = (total_noshows / max(total_bookings, 1)) * 100
@@ -10801,6 +11559,266 @@ def api_get_benchmarks():
     db.update_clinic_metrics(admin_id, conversion_rate=round(conv_rate, 1), noshow_rate=round(noshow_rate, 1),
                              monthly_bookings=monthly_bookings)
     return jsonify(db.get_benchmark_data(admin_id))
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Calendly Integration
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/integrations/calendly/connect", methods=["POST"])
+def api_calendly_connect():
+    """Save Calendly API token, validate, fetch user info and event types."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    api_key = data.get("api_token", "").strip()
+    if not api_key:
+        return jsonify({"error": "API token is required"}), 400
+    admin_id = get_effective_admin_id(user)
+    result = calendly.connect_calendly(api_key, admin_id)
+    if result.get("error"):
+        return jsonify(result), 400
+    # Auto-create webhook subscription
+    # Bug 7 fix: always construct webhook URL server-side to prevent SSRF
+    callback_url = request.host_url.rstrip("/") + "/api/integrations/calendly/webhook"
+    wh_result = calendly.create_webhook_subscription(admin_id, callback_url)
+    result["webhook"] = wh_result
+    db.log_admin_action(admin_id, user, "Connected Calendly integration", "")
+    return jsonify(result)
+
+
+@app.route("/api/integrations/calendly/event-types", methods=["GET"])
+def api_calendly_event_types():
+    """List available Calendly event types."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    event_types = calendly.get_event_types(admin_id)
+    return jsonify({"event_types": event_types})
+
+
+@app.route("/api/integrations/calendly/configure", methods=["POST"])
+def api_calendly_configure():
+    """Map Calendly event types to ChatGenius services/doctors."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    mappings = data.get("mappings", [])
+    admin_id = get_effective_admin_id(user)
+    result = calendly.save_event_mappings(admin_id, mappings)
+    db.log_admin_action(admin_id, user, "Updated Calendly event mappings", f"{len(mappings)} mappings")
+    return jsonify(result)
+
+
+@app.route("/api/integrations/calendly/mappings", methods=["GET"])
+def api_calendly_get_mappings():
+    """Get saved Calendly event type mappings."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    mappings = calendly.get_event_mappings(admin_id)
+    return jsonify({"mappings": mappings})
+
+
+@app.route("/api/integrations/calendly/webhook", methods=["POST"])
+def api_calendly_webhook():
+    """Incoming Calendly webhook endpoint with org verification. For single mode."""
+    payload = request.get_json(silent=True) or {}
+    # Bug 1 fix: verify webhook organization matches a known admin
+    verified, verified_admin_id = calendly.verify_webhook_org(payload)
+    if not verified:
+        return jsonify({"error": "Webhook verification failed"}), 403
+    result = calendly.process_webhook(payload, admin_id_hint=verified_admin_id)
+    return jsonify(result), 200
+
+
+@app.route("/api/integrations/calendly/doctor-webhook/<int:doctor_id>", methods=["POST"])
+def api_calendly_doctor_webhook(doctor_id):
+    """Incoming Calendly webhook for a specific doctor (multiple mode).
+    Bug 3 fix: look up admin_id from doctor connections for proper scoping."""
+    payload = request.get_json(silent=True) or {}
+    # Bug 1 fix: verify webhook organization
+    verified, verified_admin_id = calendly.verify_webhook_org(payload)
+    if not verified:
+        return jsonify({"error": "Webhook verification failed"}), 403
+    # Bug 6 fix: reject if verified_admin_id is None — cannot determine admin cross-tenant
+    if not verified_admin_id:
+        return jsonify({"error": "Cannot determine admin for legacy doctor webhook"}), 403
+    # Bug 3 fix: resolve admin_id from the doctor connection to avoid cross-admin collision
+    conn = db.get_db()
+    doc_conn = conn.execute(
+        "SELECT admin_id FROM calendly_doctor_connections WHERE doctor_id=%s AND connected=1",
+        (doctor_id,),
+    ).fetchone()
+    conn.close()
+    admin_id_hint = doc_conn["admin_id"] if doc_conn else None
+    if admin_id_hint and verified_admin_id != admin_id_hint:
+        return jsonify({"error": "Webhook org does not match doctor connection"}), 403
+    result = calendly.process_webhook(payload, doctor_id=doctor_id, admin_id_hint=admin_id_hint or verified_admin_id)
+    return jsonify(result), 200
+
+
+@app.route("/api/integrations/calendly/doctor-webhook/<int:admin_id>/<int:doctor_id>", methods=["POST"])
+def api_calendly_doctor_webhook_with_admin(admin_id, doctor_id):
+    """Incoming Calendly webhook for a specific doctor scoped to an admin (multiple mode)."""
+    payload = request.get_json(silent=True) or {}
+    # Bug 1 fix: verify webhook organization matches the claimed admin
+    verified, verified_admin_id = calendly.verify_webhook_org(payload, admin_id_hint=admin_id)
+    if not verified:
+        return jsonify({"error": "Webhook verification failed"}), 403
+    result = calendly.process_webhook(payload, doctor_id=doctor_id, admin_id_hint=admin_id)
+    return jsonify(result), 200
+
+
+@app.route("/api/integrations/calendly/status", methods=["GET"])
+def api_calendly_status():
+    """Get Calendly connection status."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    status = calendly.get_connection(admin_id)
+    if status.get("connected"):
+        status["mappings"] = calendly.get_event_mappings(admin_id)
+    # Include doctor connections for multiple mode
+    status["doctor_connections"] = calendly.get_all_doctor_connections(admin_id)
+    return jsonify(status)
+
+
+@app.route("/api/integrations/calendly/mode", methods=["POST"])
+def api_calendly_set_mode():
+    """Set Calendly mode to single or multiple."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    mode = data.get("mode", "").strip()
+    admin_id = get_effective_admin_id(user)
+    result = calendly.set_calendly_mode(admin_id, mode)
+    if result.get("error"):
+        return jsonify(result), 400
+    db.log_admin_action(admin_id, user, f"Set Calendly mode to '{mode}'", "")
+    return jsonify(result)
+
+
+@app.route("/api/integrations/calendly/doctor-connect", methods=["POST"])
+def api_calendly_doctor_connect():
+    """Connect Calendly for a specific doctor (admin or doctor themselves)."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    api_key = data.get("api_token", "").strip()
+    doctor_id = data.get("doctor_id")
+    if not api_key:
+        return jsonify({"error": "API token is required"}), 400
+
+    # Determine admin_id and doctor_id
+    if is_admin_role(user):
+        admin_id = get_effective_admin_id(user)
+        if not doctor_id:
+            return jsonify({"error": "doctor_id is required"}), 400
+        # Bug 2 fix: verify the doctor belongs to this admin
+        doc_check = db.get_doctor_by_id(doctor_id)
+        if not doc_check or doc_check.get("admin_id") != admin_id:
+            return jsonify({"error": "Unauthorized: doctor does not belong to your clinic"}), 403
+    else:
+        # Doctor connecting their own
+        admin_id = get_effective_admin_id(user)
+        doc = db.get_doctor_by_user_id(user["id"])
+        if not doc:
+            return jsonify({"error": "No doctor profile found"}), 404
+        doctor_id = doc["id"]
+
+    result = calendly.connect_doctor_calendly(api_key, admin_id, doctor_id)
+    if result.get("error"):
+        return jsonify(result), 400
+
+    # Create webhook subscription with full URL (include admin_id for disambiguation)
+    callback_url = request.host_url.rstrip("/") + f"/api/integrations/calendly/doctor-webhook/{admin_id}/{doctor_id}"
+    wh_result = calendly.create_doctor_webhook_subscription(admin_id, doctor_id, callback_url)
+    result["webhook"] = wh_result
+    return jsonify(result)
+
+
+@app.route("/api/integrations/calendly/doctor-disconnect", methods=["POST"])
+def api_calendly_doctor_disconnect():
+    """Disconnect Calendly for a specific doctor."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    doctor_id = data.get("doctor_id")
+
+    if is_admin_role(user):
+        admin_id = get_effective_admin_id(user)
+        if not doctor_id:
+            return jsonify({"error": "doctor_id is required"}), 400
+        # Bug 2 fix: verify the doctor belongs to this admin
+        doc_check = db.get_doctor_by_id(doctor_id)
+        if not doc_check or doc_check.get("admin_id") != admin_id:
+            return jsonify({"error": "Unauthorized: doctor does not belong to your clinic"}), 403
+    else:
+        admin_id = get_effective_admin_id(user)
+        doc = db.get_doctor_by_user_id(user["id"])
+        if not doc:
+            return jsonify({"error": "No doctor profile found"}), 404
+        doctor_id = doc["id"]
+
+    result = calendly.disconnect_doctor_calendly(admin_id, doctor_id)
+    return jsonify(result)
+
+
+@app.route("/api/integrations/calendly/doctor-status", methods=["GET"])
+def api_calendly_doctor_status():
+    """Get Calendly connection status for the current doctor."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    doctor_id = request.args.get("doctor_id")
+    if not doctor_id:
+        doc = db.get_doctor_by_user_id(user["id"])
+        if not doc:
+            return jsonify({"connected": False}), 200
+        doctor_id = doc["id"]
+    else:
+        # Bug 2 fix: verify the requested doctor belongs to this user's admin
+        conn = db.get_db()
+        doc_row = conn.execute(
+            "SELECT admin_id FROM doctors WHERE id=%s", (int(doctor_id),)
+        ).fetchone()
+        conn.close()
+        if not doc_row or doc_row["admin_id"] != admin_id:
+            return jsonify({"error": "Unauthorized: doctor does not belong to your clinic"}), 403
+    status = calendly.get_doctor_connection(admin_id, int(doctor_id))
+    return jsonify(status)
+
+
+@app.route("/api/integrations/calendly/disconnect", methods=["DELETE"])
+def api_calendly_disconnect():
+    """Remove Calendly credentials and webhook subscription."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    result = calendly.disconnect_calendly(admin_id)
+    db.log_admin_action(admin_id, user, "Disconnected Calendly integration", "")
+    return jsonify(result)
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -10813,10 +11831,14 @@ def api_checkin_booking(bid):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
     conn = db.get_db()
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    booking = conn.execute("SELECT * FROM bookings WHERE id=?", (bid,)).fetchone()
-    conn.execute("UPDATE bookings SET checked_in=1, checked_in_at=? WHERE id=?", (now, bid))
+    booking = conn.execute("SELECT * FROM bookings WHERE id=%s AND admin_id=%s", (bid, admin_id)).fetchone()
+    if not booking:
+        conn.close()
+        return jsonify({"error": "Booking not found"}), 404
+    conn.execute("UPDATE bookings SET checked_in=1, checked_in_at=%s WHERE id=%s AND admin_id=%s", (now, bid, admin_id))
     conn.commit()
     conn.close()
     admin_id = get_effective_admin_id(user)
@@ -10840,11 +11862,15 @@ def api_complete_booking(bid):
     data = request.get_json() or {}
     admin_id = get_effective_admin_id(user)
     conn = db.get_db()
-    conn.execute("UPDATE bookings SET status='completed', outcome=?, treatment_type=? WHERE id=?",
-                 (data.get("outcome", ""), data.get("treatment_type", ""), bid))
+    booking = conn.execute("SELECT * FROM bookings WHERE id=%s AND admin_id=%s", (bid, admin_id)).fetchone()
+    if not booking:
+        conn.close()
+        return jsonify({"error": "Booking not found"}), 404
+    conn.execute("UPDATE bookings SET status='completed', outcome=%s, treatment_type=%s WHERE id=%s AND admin_id=%s",
+                 (data.get("outcome", ""), data.get("treatment_type", ""), bid, admin_id))
     conn.commit()
     # Award loyalty points
-    booking = conn.execute("SELECT * FROM bookings WHERE id=?", (bid,)).fetchone()
+    booking = conn.execute("SELECT * FROM bookings WHERE id=%s", (bid,)).fetchone()
     db.log_admin_action(admin_id, user, "Completed booking", f"Booking #{bid}" + (f" for {booking['customer_name']} on {booking['date']} at {booking['time']}" if booking else ""))
     conn.close()
     if booking:
@@ -10853,8 +11879,8 @@ def api_complete_booking(bid):
             phone=booking.get("customer_phone",""), increment_booking=False)
         if patient:
             conn2 = db.get_db()
-            conn2.execute("UPDATE bookings SET patient_id=? WHERE id=?", (patient["id"], bid))
-            conn2.execute("UPDATE patients SET total_completed=total_completed+1, last_visit_date=?, last_treatment=? WHERE id=?",
+            conn2.execute("UPDATE bookings SET patient_id=%s WHERE id=%s", (patient["id"], bid))
+            conn2.execute("UPDATE patients SET total_completed=total_completed+1, last_visit_date=%s, last_treatment=%s WHERE id=%s",
                           (datetime.now().strftime("%Y-%m-%d"), data.get("treatment_type", ""), patient["id"]))
             conn2.commit()
             conn2.close()
@@ -10869,6 +11895,17 @@ def api_complete_booking(bid):
 #  Booking Cancellation with Waitlist Integration (Feature 1)
 # ══════════════════════════════════════════════════════════════════
 
+
+    # -- Zapier webhook: booking completed --
+    try:
+        if booking:
+            zapier_engine.trigger_booking_completed(admin_id, dict(booking))
+    except Exception:
+        pass
+
+    return jsonify({"ok": True, "booking_id": bid})
+
+
 @app.route("/api/bookings/<int:bid>/cancel", methods=["POST"])
 def api_cancel_booking(bid):
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
@@ -10878,15 +11915,19 @@ def api_cancel_booking(bid):
     payload = request.get_json(silent=True) or {}
     reason = (payload.get("reason") or "").strip()
     conn = db.get_db()
-    booking = conn.execute("SELECT * FROM bookings WHERE id=?", (bid,)).fetchone()
+    booking = conn.execute("SELECT * FROM bookings WHERE id=%s", (bid,)).fetchone()
     if not booking:
         conn.close()
         return jsonify({"error": "Booking not found"}), 404
     booking = dict(booking)
-    conn.execute("UPDATE bookings SET status='cancelled', revenue_amount=0, cancelled_at=CURRENT_TIMESTAMP WHERE id=?", (bid,))
+    admin_id = get_effective_admin_id(user)
+    if booking.get("admin_id") != admin_id:
+        conn.close()
+        return jsonify({"error": "Unauthorized"}), 403
+    conn.execute("UPDATE bookings SET status='cancelled', revenue_amount=0, cancelled_at=CURRENT_TIMESTAMP WHERE id=%s", (bid,))
     # Track cancellation on patient profile
     if booking.get("patient_id"):
-        conn.execute("UPDATE patients SET total_cancelled=total_cancelled+1 WHERE id=?", (booking["patient_id"],))
+        conn.execute("UPDATE patients SET total_cancelled=total_cancelled+1 WHERE id=%s", (booking["patient_id"],))
     conn.commit()
     conn.close()
     admin_id = get_effective_admin_id(user)
@@ -10896,7 +11937,7 @@ def api_cancel_booking(bid):
         doctor_name = ""
         if booking.get("doctor_id"):
             dconn = db.get_db()
-            drow = dconn.execute("SELECT name FROM doctors WHERE id=?", (booking["doctor_id"],)).fetchone()
+            drow = dconn.execute("SELECT name FROM doctors WHERE id=%s", (booking["doctor_id"],)).fetchone()
             dconn.close()
             if drow:
                 doctor_name = drow["name"]
@@ -10917,6 +11958,11 @@ def api_cancel_booking(bid):
             )
     except Exception as e:
         logger.warning(f"Failed to send cancellation email: {e}")
+    # ── Zapier webhook: booking cancelled ──
+    try:
+        zapier_engine.trigger_booking_cancelled(booking["admin_id"], booking, reason)
+    except Exception:
+        pass
     # ── Feature 16: Emit real-time cancellation event ──
     try:
         realtime.emit_booking_cancelled(booking["admin_id"], bid, booking["customer_name"])
@@ -11032,7 +12078,7 @@ def api_survey_page(token):
     # Show star rating UI
     stars_html = ""
     for s in range(1, 6):
-        stars_html += f'<a href="/api/survey/{token}?rating={s}" style="font-size:48px;text-decoration:none;margin:0 8px;">{"&#11088;" * s}</a><br>'
+        stars_html += f'<a href="/api/survey/{token}%srating={s}" style="font-size:48px;text-decoration:none;margin:0 8px;">{"&#11088;" * s}</a><br>'
     return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rate Your Experience</title>
     <style>body{{font-family:sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#fafafa;}}
     .card{{background:#fff;padding:40px 60px;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.08);text-align:center;}}
@@ -11342,7 +12388,7 @@ def api_invoice_generate():
     if not booking_id:
         return jsonify({"error": "booking_id required"}), 400
     inv_id = invoice_engine.generate_invoice(booking_id, admin_id)
-    _bk = db.get_db().execute("SELECT date, time, customer_name FROM bookings WHERE id=?", (booking_id,)).fetchone()
+    _bk = db.get_db().execute("SELECT date, time, customer_name FROM bookings WHERE id=%s", (booking_id,)).fetchone()
     _bk_detail = f" ({_bk['customer_name']} on {_bk['date']} at {_bk['time']})" if _bk else ""
     db.log_admin_action(admin_id, user, "Generated invoice", f"Invoice #{inv_id} for booking #{booking_id}{_bk_detail}")
     return jsonify({"ok": True, "invoice_id": inv_id})
@@ -11665,11 +12711,11 @@ def api_whitelabel():
     admin_id = user["admin_id"] or user["id"]
     conn = db.get_db()
     if request.method == "GET":
-        config = conn.execute("SELECT * FROM whitelabel_config WHERE admin_id=?", (admin_id,)).fetchone()
+        config = conn.execute("SELECT * FROM whitelabel_config WHERE admin_id=%s", (admin_id,)).fetchone()
         conn.close()
         return jsonify(dict(config) if config else {})
     data = request.get_json() or {}
-    existing = conn.execute("SELECT id FROM whitelabel_config WHERE admin_id=?", (admin_id,)).fetchone()
+    existing = conn.execute("SELECT id FROM whitelabel_config WHERE admin_id=%s", (admin_id,)).fetchone()
     if existing:
         sets = []
         params = []
@@ -11677,15 +12723,15 @@ def api_whitelabel():
                      "font_family", "custom_css", "email_from_name", "email_from_address",
                      "hide_powered_by", "custom_domain"]:
             if key in data:
-                sets.append(f"{key}=?")
+                sets.append(f"{key}=%s")
                 params.append(data[key])
         if sets:
             params.append(admin_id)
-            conn.execute(f"UPDATE whitelabel_config SET {','.join(sets)} WHERE admin_id=?", params)
+            conn.execute(f"UPDATE whitelabel_config SET {','.join(sets)} WHERE admin_id=%s", params)
     else:
         conn.execute(
             """INSERT INTO whitelabel_config (admin_id, brand_name, logo_url, primary_color, secondary_color,
-               custom_css, hide_powered_by, custom_domain) VALUES (?,?,?,?,?,?,?,?)""",
+               custom_css, hide_powered_by, custom_domain) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
             (admin_id, data.get("brand_name", ""), data.get("logo_url", ""),
              data.get("primary_color", "#2563eb"), data.get("secondary_color", "#1e40af"),
              data.get("custom_css", ""), data.get("hide_powered_by", 0), data.get("custom_domain", ""))
@@ -11722,7 +12768,7 @@ def save_email_template():
     # Plan check — Pro+ only
     plan = user.get("plan", "free_trial")
     if plan not in ("pro", "agency"):
-        return jsonify({"error": "Email customization requires Pro or Agency plan."}), 403
+        return jsonify({"error": "Email customization requires Pro or Enterprise plan."}), 403
 
     admin_id = get_effective_admin_id(user)
     data = request.json or {}
@@ -11760,7 +12806,7 @@ def upload_email_image():
         return jsonify({"error": "Not authorized"}), 403
     plan = user.get("plan", "free_trial")
     if plan not in ("pro", "agency"):
-        return jsonify({"error": "Email customization requires Pro or Agency plan."}), 403
+        return jsonify({"error": "Email customization requires Pro or Enterprise plan."}), 403
 
     if "image" not in request.files:
         return jsonify({"error": "No image file provided."}), 400
@@ -11877,7 +12923,7 @@ def send_test_email():
         return jsonify({"error": "Not authorized"}), 403
     plan = user.get("plan", "free_trial")
     if plan not in ("pro", "agency"):
-        return jsonify({"error": "Pro or Agency plan required."}), 403
+        return jsonify({"error": "Pro or Enterprise plan required."}), 403
 
     data = request.json or {}
     to_email = data.get("email", user.get("email", ""))
@@ -11926,6 +12972,303 @@ def get_email_variables():
     })
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+#  Twilio SMS Integration
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route("/api/integrations/twilio/configure", methods=["POST"])
+def api_twilio_configure():
+    """Save Twilio credentials (account_sid, auth_token, phone_number)."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    data = request.get_json() or {}
+    account_sid = data.get("account_sid", "").strip()
+    auth_token = data.get("auth_token", "").strip()
+    phone_number = data.get("phone_number", "").strip()
+    if not account_sid or not auth_token or not phone_number:
+        return jsonify({"error": "All fields are required: account_sid, auth_token, phone_number"}), 400
+    if not re.match(r'^\+[1-9]\d{9,14}$', phone_number):
+        return jsonify({"error": "Invalid phone number. Must be in E.164 format (e.g. +14155551234)."}), 400
+    sms_engine.save_twilio_config(admin_id, account_sid, auth_token, phone_number)
+    db.log_admin_action(admin_id, user, "Configured Twilio SMS integration", "")
+    return jsonify({"ok": True, "message": "Twilio credentials saved."})
+
+
+@app.route("/api/integrations/twilio/status", methods=["GET"])
+def api_twilio_status():
+    """Check if Twilio is configured for the current admin."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 403
+    admin_id = get_effective_admin_id(user)
+    configured = sms_engine.is_configured(admin_id)
+    result = {"configured": configured}
+    if configured:
+        # Return masked phone number for display
+        _, _, phone = sms_engine._get_twilio_credentials(admin_id)
+        result["phone_number"] = phone[:4] + "****" + phone[-2:] if phone and len(phone) > 6 else phone
+    return jsonify(result)
+
+
+@app.route("/api/integrations/twilio/test", methods=["POST"])
+def api_twilio_test():
+    """Send a test SMS to verify configuration."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    data = request.get_json() or {}
+    to_number = data.get("to_number", "").strip()
+    if not to_number:
+        return jsonify({"error": "to_number is required"}), 400
+    if not re.match(r'^\+[1-9]\d{9,14}$', to_number):
+        return jsonify({"error": "Invalid phone number. Must start with + followed by 10-15 digits (e.g. +14155551234)."}), 400
+    result = sms_engine.test_sms(admin_id, to_number)
+    if not result.get("success"):
+        return jsonify({"success": False, "error": "SMS test failed. Please verify your Twilio credentials and try again."})
+    return jsonify(result)
+
+
+@app.route("/api/integrations/twilio/stats", methods=["GET"])
+def api_twilio_stats():
+    """Get SMS usage stats."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 403
+    admin_id = get_effective_admin_id(user)
+    return jsonify(sms_engine.get_sms_stats(admin_id))
+
+
+@app.route("/api/integrations/twilio/disconnect", methods=["POST"])
+def api_twilio_disconnect():
+    """Remove Twilio credentials."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    sms_engine.delete_twilio_config(admin_id)
+    # Disable all SMS feature toggles on disconnect
+    db.save_feature_config(admin_id, {
+        "sms_booking_confirmation": 0,
+        "sms_appointment_reminder": 0,
+        "sms_noshow_recovery": 0,
+    })
+    db.log_admin_action(admin_id, user, "Disconnected Twilio SMS integration", "")
+    return jsonify({"ok": True, "message": "Twilio disconnected."})
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Mailchimp Email Marketing Integration
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route("/api/integrations/mailchimp/connect", methods=["POST"])
+def api_mailchimp_connect():
+    """Save API key, validate, fetch account info."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    api_key = (data.get("api_key") or "").strip()
+    if not api_key:
+        return jsonify({"error": "API key is required"}), 400
+    admin_id = get_effective_admin_id(user)
+    result = mailchimp.connect_mailchimp(api_key, admin_id)
+    if result.get("error"):
+        return jsonify(result), 400
+    return jsonify(result)
+
+
+@app.route("/api/integrations/mailchimp/lists", methods=["GET"])
+def api_mailchimp_lists():
+    """Get available Mailchimp audiences/lists."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    result = mailchimp.get_lists(admin_id)
+    if result.get("error"):
+        return jsonify(result), 400
+    return jsonify(result)
+
+
+@app.route("/api/integrations/mailchimp/configure", methods=["POST"])
+def api_mailchimp_configure():
+    """Set which list to sync to and auto-sync toggle."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    admin_id = get_effective_admin_id(user)
+    list_id = (data.get("list_id") or "").strip()
+    auto_sync = bool(data.get("auto_sync", False))
+    if not list_id:
+        return jsonify({"error": "list_id is required"}), 400
+    result = mailchimp.configure(admin_id, list_id, auto_sync)
+    return jsonify(result)
+
+
+@app.route("/api/integrations/mailchimp/sync", methods=["POST"])
+def api_mailchimp_sync():
+    """Trigger manual sync of all patients to Mailchimp."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    result = mailchimp.sync_all_patients(admin_id)
+    if result.get("error"):
+        return jsonify(result), 400
+    return jsonify(result)
+
+
+@app.route("/api/integrations/mailchimp/status", methods=["GET"])
+def api_mailchimp_status():
+    """Connection status and sync stats."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    stats = mailchimp.get_sync_stats(admin_id)
+    return jsonify(stats)
+
+
+@app.route("/api/integrations/mailchimp/disconnect", methods=["DELETE"])
+def api_mailchimp_disconnect():
+    """Remove Mailchimp credentials and disconnect."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    result = mailchimp.disconnect(admin_id)
+    return jsonify(result)
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Zapier Webhook Integration
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/integrations/zapier/configure", methods=["POST"])
+def api_zapier_configure():
+    """Save webhook URL(s) per event type."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    data = request.get_json(silent=True) or {}
+    events = data.get("events", {})
+    if not events:
+        return jsonify({"error": "No events provided. Expected {event_type: webhook_url, ...}"}), 400
+    # Pre-validate ALL URLs before saving any (prevent partial config apply)
+    validated_events = []
+    for event_type, webhook_url in events.items():
+        if event_type not in zapier_engine.EVENT_TYPES:
+            continue
+        webhook_url = (webhook_url or "").strip()
+        if webhook_url:
+            valid, reason = zapier_engine._validate_webhook_url(webhook_url)
+            if not valid:
+                return jsonify({"error": f"Invalid webhook URL for {event_type}: {reason}"}), 400
+        validated_events.append((event_type, webhook_url))
+    # All URLs passed validation — now apply changes
+    saved = []
+    for event_type, webhook_url in validated_events:
+        if not webhook_url:
+            zapier_engine.remove_config(admin_id, event_type)
+        else:
+            zapier_engine.save_config(admin_id, event_type, webhook_url)
+            saved.append(event_type)
+    db.log_admin_action(admin_id, user, "Configured Zapier webhooks", f"Events: {', '.join(saved)}")
+    return jsonify({"ok": True, "configured": saved})
+
+
+@app.route("/api/integrations/zapier/status", methods=["GET"])
+def api_zapier_status():
+    """Check Zapier webhook configuration status."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    configs = zapier_engine.get_config(admin_id)
+    return jsonify({
+        "connected": len(configs) > 0,
+        "event_types": zapier_engine.EVENT_TYPES,
+        "configured": {c["event_type"]: {"url": zapier_engine._mask_url(c["webhook_url"]), "active": bool(c["is_active"])} for c in configs},
+    })
+
+
+@app.route("/api/integrations/zapier/test", methods=["POST"])
+def api_zapier_test():
+    """Send a test webhook with sample data."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    data = request.get_json(silent=True) or {}
+    event_type = data.get("event_type")  # optional: test specific event
+    results = zapier_engine.send_test_webhook(admin_id, event_type)
+    return jsonify({"ok": True, "results": results})
+
+
+@app.route("/api/integrations/zapier/disconnect", methods=["DELETE"])
+def api_zapier_disconnect():
+    """Remove all Zapier webhook configurations."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    zapier_engine.remove_config(admin_id)
+    db.log_admin_action(admin_id, user, "Disconnected Zapier", "All webhooks removed")
+    return jsonify({"ok": True, "message": "Zapier webhooks disconnected"})
+
+
+@app.route("/api/integrations/zapier/logs", methods=["GET"])
+def api_zapier_logs():
+    """View recent webhook delivery logs (last 50)."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    logs = zapier_engine.get_logs(admin_id, limit=50)
+    return jsonify(logs)
+
+
+# ══════════════════════════════════════════════
+#  Support Bot — ChatGenius website assistant
+# ══════════════════════════════════════════════
+
+@app.route("/api/support-chat", methods=["POST"])
+def api_support_chat():
+    import chatgenius_support_bot as sb
+    data = request.get_json(silent=True) or {}
+    msg = (data.get("message") or "").strip()
+    if not msg:
+        return jsonify({"error": "Please type a message."}), 400
+    history = data.get("history") or []
+    result = sb.ask_support_bot(msg, history)
+    return jsonify(result)
+
+
 @app.route("/health")
 def health():
     return jsonify({
@@ -11941,7 +13284,8 @@ def health():
                       "smart_reminders", "satisfaction_surveys", "smart_upsell",
                       "unified_inbox", "invoices", "performance_reports",
                       "treatment_packages", "doctor_portal", "noshow_recovery",
-                      "whitelabel"],
+                      "whitelabel", "twilio_sms", "mailchimp_integration",
+                      "zapier_webhooks", "google_calendar_sync", "calendly_integration"],
     })
 
 

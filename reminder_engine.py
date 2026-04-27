@@ -61,7 +61,7 @@ FALLBACK_RESPONSE = (
     "4. **2 hours before** — final reminder with directions and check-in info\n\n"
     "Reminders are sent via **SMS and WhatsApp** by default. "
     "You can also opt in for **email reminders**.\n\n"
-    "Need to **confirm, reschedule, or cancel** an appointment? "
+    "Need to **confirm, reschedule, or cancel** an appointment%s "
     "Please contact our front desk and we'll be happy to help!"
     + CONTACT_FOOTER
 )

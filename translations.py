@@ -52,17 +52,17 @@ TRANSLATIONS = {
     },
 
     'nice_to_meet': {
-        'en': "Nice to meet you, {name}! What type of doctor would you like to see?",
+        'en': "Nice to meet you, {name}! What type of doctor would you like to see%s",
         'ar': "تشرفنا بك يا {name}! ما التخصص الذي تودّ حجز موعد فيه؟",
         'ur': "آپ سے مل کر خوشی ہوئی، {name}! آپ کس قسم کے ڈاکٹر سے ملنا چاہیں گے؟",
-        'tl': "Ikinagagalak kitang makilala, {name}! Anong uri ng doktor ang gusto mong puntahan?"
+        'tl': "Ikinagagalak kitang makilala, {name}! Anong uri ng doktor ang gusto mong puntahan%s"
     },
 
     'ask_category': {
-        'en': "What type of doctor would you like to see?",
+        'en': "What type of doctor would you like to see%s",
         'ar': "ما التخصص الذي تودّ حجز موعد فيه؟",
         'ur': "آپ کس قسم کے ڈاکٹر سے ملنا چاہیں گے؟",
-        'tl': "Anong uri ng doktor ang gusto mong puntahan?"
+        'tl': "Anong uri ng doktor ang gusto mong puntahan%s"
     },
 
     'invalid_category': {
@@ -73,10 +73,10 @@ TRANSLATIONS = {
     },
 
     'ask_doctor': {
-        'en': "Which doctor would you like to see?",
+        'en': "Which doctor would you like to see%s",
         'ar': "أيّ طبيب تودّ زيارته؟",
         'ur': "آپ کس ڈاکٹر سے ملنا چاہیں گے؟",
-        'tl': "Aling doktor ang gusto mong puntahan?"
+        'tl': "Aling doktor ang gusto mong puntahan%s"
     },
 
     'invalid_doctor': {
@@ -115,7 +115,7 @@ TRANSLATIONS = {
     },
 
     'ask_time': {
-        'en': "What time works best for you?",
+        'en': "What time works best for you%s",
         'ar': "ما الوقت الأنسب لك؟",
         'ur': "آپ کے لیے کون سا وقت مناسب ہے؟",
         'tl': "Anong oras ang pinakamaginhawa para sa iyo?"
@@ -210,7 +210,7 @@ TRANSLATIONS = {
     # ── Waitlist ──────────────────────────────────────────────────────────
 
     'slot_booked': {
-        'en': "This slot is fully booked. Would you like to join the waitlist? We'll notify you immediately if a spot opens.",
+        'en': "This slot is fully booked. Would you like to join the waitlist%s We'll notify you immediately if a spot opens.",
         'ar': "هذا الموعد محجوز بالكامل. هل تودّ الانضمام إلى قائمة الانتظار؟ سنُعلمك فوراً عند توفّر مكان.",
         'ur': "یہ سلاٹ مکمل طور پر بک ہے۔ کیا آپ ویٹ لسٹ میں شامل ہونا چاہیں گے؟ جگہ خالی ہونے پر ہم آپ کو فوراً مطلع کریں گے۔",
         'tl': "Puno na ang slot na ito. Gusto mo bang sumali sa waitlist? Aabisuhan ka namin kaagad kapag may nagbukas na puwesto."
@@ -231,7 +231,7 @@ TRANSLATIONS = {
     },
 
     'waitlist_expired': {
-        'en': "Your waitlist spot has expired. Would you like to join the waitlist for another slot?",
+        'en': "Your waitlist spot has expired. Would you like to join the waitlist for another slot%s",
         'ar': "انتهت صلاحية مكانك في قائمة الانتظار. هل تودّ الانضمام لقائمة انتظار موعد آخر؟",
         'ur': "آپ کی ویٹ لسٹ کی جگہ ختم ہو گئی ہے۔ کیا آپ کسی اور سلاٹ کی ویٹ لسٹ میں شامل ہونا چاہیں گے؟",
         'tl': "Nag-expire na ang iyong puwesto sa waitlist. Gusto mo bang sumali sa waitlist para sa ibang slot?"
@@ -270,7 +270,7 @@ TRANSLATIONS = {
     # ── General ───────────────────────────────────────────────────────────
 
     'welcome_back': {
-        'en': "Welcome back, {name}! Great to hear from you again. How can I help?",
+        'en': "Welcome back, {name}! Great to hear from you again. How can I help%s",
         'ar': "أهلاً بعودتك يا {name}! سعيدون بتواصلك مجدداً. كيف يمكنني مساعدتك؟",
         'ur': "خوش آمدید واپس، {name}! آپ سے دوبارہ بات کر کے خوشی ہوئی۔ میں کیسے مدد کر سکتا ہوں؟",
         'tl': "Maligayang pagbabalik, {name}! Natutuwa akong marinig ka ulit. Paano kita matutulungan?"

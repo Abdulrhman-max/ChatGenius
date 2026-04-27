@@ -310,8 +310,8 @@
 </div><!-- end auth-container -->
 
 <!-- Role Picker Overlay (shown when new user logs in via social without an account) -->
-<div id="rolePickerOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center">
-    <div style="background:var(--navy-card);border-radius:20px;padding:2.5rem;width:90%;max-width:440px;border:1px solid rgba(0,212,255,0.1);box-shadow:0 20px 60px rgba(0,0,0,0.4)">
+<div id="rolePickerOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:#0f1118;border-radius:20px;padding:2.5rem;width:90%;max-width:440px;border:1px solid rgba(139,92,246,0.15);box-shadow:0 20px 60px rgba(0,0,0,0.6),0 0 40px rgba(139,92,246,0.05)">
         <h2 style="font-size:1.4rem;font-weight:800;text-align:center;margin-bottom:0.5rem">Welcome! Choose your role</h2>
         <p style="color:var(--gray);text-align:center;margin-bottom:1.75rem;font-size:0.9rem">It looks like you don't have an account yet. How will you use ChatGenius?</p>
         <div class="role-selector" style="flex-wrap:wrap">
@@ -350,8 +350,10 @@
 
 <script>
     // Redirect if already logged in
+    var _redir = new URLSearchParams(window.location.search).get('redirect');
+    var _loginDest = _redir === 'demo' ? '/user-dashboard#demo' : _redir === 'pricing' ? '/pricing-plans' : '/user-dashboard';
     if (localStorage.getItem('token') && localStorage.getItem('user')) {
-        window.location.href = '/user-dashboard';
+        window.location.href = _loginDest;
     }
 
     let GOOGLE_CLIENT_ID = '';
@@ -421,7 +423,7 @@
             } else {
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
-                window.location.href = '/user-dashboard';
+                window.location.href = _loginDest;
             }
         } catch (err) {
             showAlert('loginError', 'Login failed. Please try again.');
@@ -483,6 +485,14 @@
             showAlert('signupError', 'Password must be at least 8 characters.');
             return;
         }
+        if (password.length > 128) {
+            showAlert('signupError', 'Password is too long (max 128 characters).');
+            return;
+        }
+        if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+            showAlert('signupError', 'Password must contain at least one uppercase letter, one lowercase letter, and one number.');
+            return;
+        }
         document.getElementById('signupForm').style.display = 'none';
         document.getElementById('roleForm').style.display = 'block';
     }
@@ -530,7 +540,7 @@
             } else {
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
-                window.location.href = '/user-dashboard';
+                window.location.href = _loginDest;
             }
         } catch (err) {
             showAlert('loginError', 'Login failed. Please try again.');
@@ -630,7 +640,7 @@
             } else {
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
-                window.location.href = '/user-dashboard';
+                window.location.href = _loginDest;
             }
         } catch (err) {
             showAlert('loginError', 'Could not reach the server. Please try again.');
@@ -685,7 +695,7 @@
             } else {
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
-                window.location.href = '/user-dashboard';
+                window.location.href = _loginDest;
             }
         } catch (err) {
             showAlert('roleError', 'Could not reach the server. Please try again.');
@@ -752,7 +762,7 @@
             } else {
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
-                window.location.href = '/user-dashboard';
+                window.location.href = _loginDest;
             }
         } catch (err) {
             showAlert('verifyError', 'Could not reach the server. Please try again.');
@@ -822,5 +832,6 @@
     window.addEventListener('load', () => { loadSocialConfig(); });
 </script>
 
+<script src="/static/support-bot.js"></script>
 </body>
 </html>

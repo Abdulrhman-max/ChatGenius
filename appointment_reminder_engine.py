@@ -27,7 +27,7 @@ def _is_high_risk_patient(booking, admin_id, threshold=4):
     if patient_id:
         conn = db.get_db()
         row = conn.execute(
-            "SELECT total_cancelled, total_no_shows FROM patients WHERE id=?",
+            "SELECT total_cancelled, total_no_shows FROM patients WHERE id=%s",
             (patient_id,)
         ).fetchone()
         conn.close()
@@ -42,13 +42,13 @@ def _is_high_risk_patient(booking, admin_id, threshold=4):
         cancelled_count = 0
         if email:
             row = conn.execute(
-                "SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND customer_email=? AND status IN ('cancelled','no_show')",
+                "SELECT COUNT(*) as c FROM bookings WHERE admin_id=%s AND customer_email=%s AND status IN ('cancelled','no_show')",
                 (admin_id, email)
             ).fetchone()
             cancelled_count = row["c"] if row else 0
         if not cancelled_count and phone:
             row = conn.execute(
-                "SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND customer_phone=? AND status IN ('cancelled','no_show')",
+                "SELECT COUNT(*) as c FROM bookings WHERE admin_id=%s AND customer_phone=%s AND status IN ('cancelled','no_show')",
                 (admin_id, phone)
             ).fetchone()
             cancelled_count = row["c"] if row else 0
@@ -232,6 +232,18 @@ def send_reminder(reminder_id):
     else:
         db.update_reminder_status(reminder_id, "failed")
         print(f"[Reminders] Failed to send reminder {reminder_id} to {customer_email}.")
+
+    # Also send SMS reminder if Twilio is configured and SMS reminders are enabled
+    try:
+        admin_id = reminder.get("admin_id", 0)
+        if db.is_feature_enabled(admin_id, "sms_appointment_reminder"):
+            import sms_engine
+            if sms_engine.is_configured(admin_id):
+                sms_sent = sms_engine.send_appointment_reminder_sms(booking["id"])
+                if sms_sent:
+                    print(f"[Reminders] SMS reminder also sent for booking {booking['id']}.")
+    except Exception as sms_err:
+        print(f"[Reminders] SMS reminder failed for booking {booking['id']}: {sms_err}")
 
     return success
 

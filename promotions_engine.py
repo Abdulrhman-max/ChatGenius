@@ -26,7 +26,7 @@ def validate_discount_code(admin_id, code, treatment=None, booking_value=None):
     conn = db.get_db()
 
     promo = conn.execute(
-        "SELECT * FROM promotions WHERE admin_id=? AND code=? LIMIT 1",
+        "SELECT * FROM promotions WHERE admin_id=%s AND code=%s LIMIT 1",
         (admin_id, code.strip())
     ).fetchone()
 
@@ -89,7 +89,7 @@ def apply_discount(code_id, original_amount, admin_id=0):
     """
     import database as db
     conn = db.get_db()
-    promo = conn.execute("SELECT * FROM promotions WHERE id=?", (code_id,)).fetchone()
+    promo = conn.execute("SELECT * FROM promotions WHERE id=%s", (code_id,)).fetchone()
     conn.close()
 
     if not promo:
@@ -131,10 +131,10 @@ def record_usage(code_id, booking_id, patient_name, patient_email, discount_amou
     conn.execute(
         """INSERT INTO promotion_usage
            (promotion_id, booking_id, patient_name, patient_email, discount_amount, original_amount, used_at)
-           VALUES (?,?,?,?,?,?,?)""",
+           VALUES (%s,%s,%s,%s,%s,%s,%s)""",
         (code_id, booking_id, patient_name, patient_email, discount_amount, original_amount, now)
     )
-    conn.execute("UPDATE promotions SET current_uses = current_uses + 1 WHERE id=?", (code_id,))
+    conn.execute("UPDATE promotions SET current_uses = current_uses + 1 WHERE id=%s", (code_id,))
     conn.commit()
     conn.close()
     logger.info(f"Discount code #{code_id} used by {patient_name} on booking #{booking_id}, saved {discount_amount}")
@@ -147,13 +147,13 @@ def get_promotion_analytics(admin_id):
     import database as db
     conn = db.get_db()
 
-    promos = conn.execute("SELECT * FROM promotions WHERE admin_id=? ORDER BY created_at DESC", (admin_id,)).fetchall()
+    promos = conn.execute("SELECT * FROM promotions WHERE admin_id=%s ORDER BY created_at DESC", (admin_id,)).fetchall()
     result = []
 
     for p in promos:
         p = dict(p)
         usage = conn.execute(
-            "SELECT COUNT(*) as total_uses, COALESCE(SUM(original_amount),0) as total_revenue, COALESCE(SUM(discount_amount),0) as total_savings FROM promotion_usage WHERE promotion_id=?",
+            "SELECT COUNT(*) as total_uses, COALESCE(SUM(original_amount),0) as total_revenue, COALESCE(SUM(discount_amount),0) as total_savings FROM promotion_usage WHERE promotion_id=%s",
             (p["id"],)
         ).fetchone()
         usage = dict(usage) if usage else {}
@@ -200,7 +200,7 @@ def create_promotion(admin_id, code, discount_type, discount_value,
 
     # Check if code already exists for this admin
     existing = conn.execute(
-        "SELECT id FROM promotions WHERE admin_id=? AND code=?",
+        "SELECT id FROM promotions WHERE admin_id=%s AND code=%s",
         (admin_id, code.strip())
     ).fetchone()
     if existing:
@@ -208,16 +208,16 @@ def create_promotion(admin_id, code, discount_type, discount_value,
         return {"error": "A promotion with this code already exists."}
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    conn.execute(
+    _ins_cur = conn.execute(
         """INSERT INTO promotions
            (admin_id, code, discount_type, discount_value, applicable_treatments,
             expiry_date, max_uses, current_uses, min_booking_value, is_active, created_at)
-           VALUES (?,?,?,?,?,?,?,0,?,1,?)""",
+           VALUES (%s,%s,%s,%s,%s,%s,%s,0,%s,1,%s) RETURNING id""",
         (admin_id, code.strip(), discount_type, discount_value,
          applicable_treatments, expiry_date, max_uses, min_booking_value, now)
     )
+    new_id = _ins_cur.fetchone()['id']
     conn.commit()
-    new_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     conn.close()
     return {"id": new_id, "code": code.strip()}
 
@@ -226,7 +226,7 @@ def deactivate_promotion(promotion_id):
     """Deactivate a promotion code."""
     import database as db
     conn = db.get_db()
-    conn.execute("UPDATE promotions SET is_active=0 WHERE id=?", (promotion_id,))
+    conn.execute("UPDATE promotions SET is_active=0 WHERE id=%s", (promotion_id,))
     conn.commit()
     conn.close()
 
@@ -242,7 +242,7 @@ def generate_unique_code(admin_id, prefix=""):
         code = f"{prefix}{suffix}" if prefix else suffix
         conn = db.get_db()
         existing = conn.execute(
-            "SELECT id FROM promotions WHERE admin_id=? AND code=?", (admin_id, code)
+            "SELECT id FROM promotions WHERE admin_id=%s AND code=%s", (admin_id, code)
         ).fetchone()
         conn.close()
         if not existing:

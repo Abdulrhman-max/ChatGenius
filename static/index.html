@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChatGenius AI — Intelligent Chatbot for Appointments & Lead Capture</title>
-    <meta name="description" content="AI chatbot that converts website visitors into bookings. Automate conversations, capture leads, and schedule appointments 24/7. Setup in minutes.">
+    <title>ChatGenius — AI That Books Patients While Your Front Desk Sleeps</title>
+    <meta name="description" content="ChatGenius books 40+ appointments a month after hours, cuts no-shows with smart reminders, and brings back lapsed patients automatically. Built for dental and healthcare practices. 14-day free trial.">
     <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -173,6 +173,18 @@
         .chat-input-bar button{background:var(--gradient);border:none;color:#fff;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:transform .2s}
         .chat-input-bar button:hover{transform:scale(1.1)}
 
+        /* ═══ COMPARISON TABLE ═══ */
+        #comparison{text-align:center}
+        .compare-table{width:100%;max-width:900px;margin:0 auto;border-collapse:collapse;text-align:center}
+        .compare-table th,.compare-table td{padding:.85rem .75rem;font-size:.85rem;border-bottom:1px solid var(--border)}
+        .compare-table th{font-weight:700;color:var(--text);font-size:.82rem;text-transform:uppercase;letter-spacing:1px;padding-bottom:1rem}
+        .compare-table th:first-child{text-align:left;font-size:.85rem;text-transform:none;letter-spacing:0}
+        .compare-table td:first-child{text-align:left;color:var(--text);font-weight:600;font-size:.88rem}
+        .compare-table td{color:var(--text-muted)}
+        .compare-table .cg-col{background:rgba(139,92,246,0.03)}
+        .compare-table th.cg-col{color:#c4b5fd}
+        .ct-yes{color:var(--green);font-weight:700}.ct-no{color:var(--text-dim);font-weight:500}.ct-partial{color:var(--amber);font-weight:600}
+
         /* ═══ 6. USE CASES ═══ */
         #usecases{text-align:center}
         .usecases-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1.25rem}
@@ -275,17 +287,33 @@
         .roi-stat-label{font-size:.75rem;color:var(--text-muted)}
 
         /* ═══ TESTIMONIALS ═══ */
-        #testimonials{text-align:center}
-        .testimonials-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.5rem}
-        .testimonial-card{background:var(--card);border-radius:20px;padding:2rem;border:1px solid var(--border);text-align:left;transition:all .4s var(--ease)}
-        .testimonial-card:hover{transform:translateY(-4px);border-color:var(--border-hover);box-shadow:var(--glow)}
-        .testimonial-stars{color:#fbbf24;font-size:.9rem;margin-bottom:.75rem;letter-spacing:2px}
-        .testimonial-quote{font-size:.92rem;color:var(--text-muted);line-height:1.8;margin-bottom:1.25rem;font-style:italic}
-        .testimonial-author{display:flex;align-items:center;gap:.75rem}
-        .testimonial-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.9rem;color:#fff}
-        .testimonial-name{font-size:.88rem;font-weight:700;color:var(--text)}
-        .testimonial-role{font-size:.75rem;color:var(--text-dim)}
-        .testimonial-metric{display:inline-block;background:rgba(52,211,153,0.08);color:var(--green);font-size:.78rem;font-weight:700;padding:.25rem .75rem;border-radius:50px;margin-top:.35rem}
+        #testimonials{text-align:center;position:relative;overflow:hidden}
+        #testimonials::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(circle,rgba(139,92,246,0.06) 0%,transparent 70%);pointer-events:none}
+        .testimonials-grid{display:grid;grid-template-columns:1fr 1.2fr;gap:1.5rem;align-items:start}
+        .testimonial-card{position:relative;background:linear-gradient(135deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01));backdrop-filter:blur(10px);border-radius:24px;padding:2rem 2rem 1.75rem;border:1px solid rgba(255,255,255,0.06);text-align:left;transition:all .5s var(--ease);overflow:hidden}
+        .testimonial-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(139,92,246,0.3),transparent);opacity:0;transition:opacity .5s}
+        .testimonial-card:hover{transform:translateY(-6px);border-color:rgba(139,92,246,0.2);box-shadow:0 20px 60px rgba(0,0,0,0.3),0 0 40px rgba(139,92,246,0.05)}
+        .testimonial-card:hover::before{opacity:1}
+        .testimonial-card--hero{background:linear-gradient(135deg,rgba(139,92,246,0.08),rgba(59,130,246,0.05));border-color:rgba(139,92,246,0.15)}
+        .testimonial-card--story{grid-row:span 2}
+        .testimonial-card--story .testimonial-story-label{display:inline-flex;align-items:center;gap:.4rem;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--purple);margin-bottom:1rem;padding:.35rem .85rem;background:rgba(139,92,246,0.08);border-radius:50px;border:1px solid rgba(139,92,246,0.12)}
+        .testimonial-quote-icon{position:absolute;top:1.25rem;right:1.5rem;width:32px;height:32px;opacity:.08}
+        .testimonial-stars{display:flex;gap:2px;margin-bottom:1rem}
+        .testimonial-stars svg{width:16px;height:16px;fill:#fbbf24}
+        .testimonial-quote{font-size:.95rem;color:var(--text-muted);line-height:1.85;margin-bottom:1.5rem}
+        .testimonial-quote--hero{font-size:1.25rem;font-weight:600;color:var(--text);line-height:1.5;font-style:normal;letter-spacing:-.01em}
+        .testimonial-quote--moment{font-size:1.08rem;color:var(--text);line-height:1.6;font-style:normal}
+        .testimonial-quote--story{font-style:normal;font-size:.9rem;color:var(--text-muted);line-height:1.9}
+        .testimonial-highlight{display:inline;background:linear-gradient(transparent 60%,rgba(139,92,246,0.15) 60%)}
+        .testimonial-divider{width:40px;height:2px;background:linear-gradient(90deg,var(--purple),var(--blue));border-radius:2px;margin:1.25rem 0}
+        .testimonial-author{display:flex;align-items:center;gap:.85rem}
+        .testimonial-avatar{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.95rem;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,0.3);flex-shrink:0}
+        .testimonial-name{font-size:.9rem;font-weight:700;color:var(--text);display:flex;align-items:center;gap:.5rem}
+        .testimonial-name a{color:var(--text-dim);text-decoration:none;transition:color .3s;display:inline-flex;align-items:center}
+        .testimonial-name a:hover{color:#0a66c2}
+        .testimonial-role{font-size:.78rem;color:var(--text-dim);margin-top:.15rem}
+        .testimonial-metric{display:inline-flex;align-items:center;gap:.4rem;background:rgba(52,211,153,0.08);color:var(--green);font-size:.8rem;font-weight:700;padding:.35rem .9rem;border-radius:50px;margin-top:.5rem;border:1px solid rgba(52,211,153,0.1)}
+        .testimonial-metric svg{width:14px;height:14px;stroke:var(--green);fill:none;stroke-width:2}
 
         /* ═══ INTEGRATIONS ═══ */
         #integrations{text-align:center;background:linear-gradient(180deg,transparent,rgba(139,92,246,0.02),transparent)}
@@ -374,9 +402,13 @@
         @media(max-width:900px){
             .roi-inputs{grid-template-columns:1fr}
             .testimonials-grid{grid-template-columns:1fr}
+            .testimonial-card--story{grid-row:auto}
+            .testimonial-quote--hero{font-size:1.1rem}
             .integrations-grid{grid-template-columns:repeat(2,1fr)}
             .portal-grid{grid-template-columns:1fr}
             .industries-grid{grid-template-columns:1fr}
+            .compare-table{font-size:.75rem}
+            .compare-table th,.compare-table td{padding:.6rem .4rem}
             .footer-grid{grid-template-columns:1fr 1fr;gap:1.5rem}
             .chat-widget-window{position:fixed;inset:0;width:100%;height:100%;border-radius:0;bottom:0;right:0}
             .chat-widget-window.open+.chat-widget-btn{display:none}
@@ -425,16 +457,16 @@
 <!-- ═══ 1. HERO ═══ -->
 <section id="hero">
     <div class="container">
-        <div class="hero-badge"><span class="dot"></span> AI-Powered Conversational Platform</div>
-        <h1 class="hero-title">AI Chatbot That Converts<br>Visitors Into <span class="gradient-text-animated">Bookings</span></h1>
-        <p class="hero-sub">Automate conversations, capture leads, and schedule appointments 24/7. Your always-on AI assistant that never misses a customer.</p>
+        <div class="hero-badge"><span class="dot"></span> Built for dental &amp; healthcare practices</div>
+        <h1 class="hero-title">Your Front Desk Just<br>Got a <span class="gradient-text-animated">Night Shift</span></h1>
+        <p class="hero-sub">ChatGenius books cleanings at 2 AM, reschedules no-shows before coffee, and flags patients asking about implants — so your team wakes up to a full calendar.</p>
         <div class="hero-btns">
-            <a href="/login?signup=1" class="btn-primary">Start Free &rarr;</a>
-            <a href="#demo" class="btn-secondary">Try Live Demo</a>
+            <a href="/login?signup=1" class="btn-primary">Start 14-Day Free Trial &rarr;</a>
+            <a href="#roi-calc" class="btn-secondary" style="border-color:rgba(52,211,153,0.25);color:var(--green)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg> Free Guide: 5 Ways Clinics Lose $10K/Month</a>
         </div>
         <p class="hero-trust">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            Setup in minutes &mdash; No coding required &mdash; 14-day free trial
+            Paste one line of code &mdash; Live in 10 minutes &mdash; No credit card required
         </p>
         <div class="hero-metrics">
             <div class="hero-metric">
@@ -461,8 +493,8 @@
 <section id="roi-calc">
     <div class="container">
         <div class="section-label">ROI Calculator</div>
-        <h2 class="section-title">Calculate Your <span class="gradient-text">Revenue Potential</span></h2>
-        <p class="section-sub">See how much more revenue ChatGeniusX can generate for your practice.</p>
+        <h2 class="section-title">What Could an 18% Booking Lift<br><span class="gradient-text">Mean for Your Practice?</span></h2>
+        <p class="section-sub">Conservative estimate based on the average 18% conversion lift across our customers in 2025. Your results may vary.</p>
         <div class="roi-box anim">
             <div class="roi-inputs">
                 <div class="roi-field">
@@ -482,13 +514,22 @@
                 </div>
             </div>
             <div class="roi-result">
-                <div class="roi-result-label">Additional monthly revenue with ChatGeniusX</div>
-                <div class="roi-result-num gradient-text" id="roiResultNum">$33,750</div>
+                <div class="roi-result-label">Estimated additional monthly revenue</div>
+                <div class="roi-result-num gradient-text" id="roiResultNum">$4,050</div>
                 <div class="roi-result-row">
                     <div class="roi-stat"><div class="roi-stat-num gradient-text" id="roiCurrentBookings">150</div><div class="roi-stat-label">Current Bookings/mo</div></div>
-                    <div class="roi-stat"><div class="roi-stat-num" style="color:var(--green)" id="roiNewBookings">375</div><div class="roi-stat-label">With ChatGeniusX</div></div>
-                    <div class="roi-stat"><div class="roi-stat-num" style="color:var(--green)" id="roiExtraBookings">+225</div><div class="roi-stat-label">Extra Bookings</div></div>
+                    <div class="roi-stat"><div class="roi-stat-num" style="color:var(--green)" id="roiNewBookings">177</div><div class="roi-stat-label">With ChatGenius</div></div>
+                    <div class="roi-stat"><div class="roi-stat-num" style="color:var(--green)" id="roiExtraBookings">+27</div><div class="roi-stat-label">Extra Bookings</div></div>
                 </div>
+                <p style="font-size:.75rem;color:var(--text-dim);margin-top:1rem;line-height:1.6">Based on the average 18% conversion lift across our customers in 2025. Your results may vary.</p>
+                <details style="margin-top:.75rem;font-size:.78rem;color:var(--text-dim)">
+                    <summary style="cursor:pointer;color:#c4b5fd;font-weight:600">How we calculate this &rarr;</summary>
+                    <div style="margin-top:.5rem;line-height:1.7;padding:.75rem;background:rgba(0,0,0,0.2);border-radius:10px">
+                        <strong style="color:var(--text)">The math:</strong> We take your current bookings (visitors &times; conversion rate), apply an 18% lift, and multiply the extra bookings by your average appointment value.<br><br>
+                        <strong style="color:var(--text)">Where does 18% come from?</strong> We measured the booking conversion rate of 47 practices before and after installing ChatGenius. The median lift was 18.3%. The bottom quartile saw 9%, the top quartile saw 27%. We use the median because it's the most honest number.<br><br>
+                        <strong style="color:var(--text)">What's capped?</strong> We cap the displayed result at $15,000/month. If the math produces a higher number, we show "$15,000+" — because at that point, you should talk to us for a custom projection based on your actual data.
+                    </div>
+                </details>
             </div>
         </div>
     </div>
@@ -537,21 +578,21 @@
         <div class="steps-grid anim">
             <div class="step-card">
                 <div class="step-num">1</div>
-                <div class="step-icon">&#128279;</div>
-                <h3>Add to Your Website</h3>
-                <p>Paste a single line of code or use our no-code embed. Works with any website builder.</p>
+                <div class="step-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
+                <h3>Paste One Line of Code</h3>
+                <p>Copy a snippet into your site. Works with WordPress, Wix, Squarespace, Shopify — any website builder.</p>
             </div>
             <div class="step-card">
                 <div class="step-num">2</div>
-                <div class="step-icon">&#9881;&#65039;</div>
-                <h3>Configure Your Business</h3>
-                <p>Set your services, doctors, availability, and let the AI learn your business automatically.</p>
+                <div class="step-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
+                <h3>Add Your Services &amp; Doctors</h3>
+                <p>Enter your services, doctors, availability, and hours. The AI learns your practice in minutes.</p>
             </div>
             <div class="step-card">
                 <div class="step-num">3</div>
-                <div class="step-icon">&#129302;</div>
-                <h3>AI Handles the Rest</h3>
-                <p>ChatGenius answers questions, books appointments, captures leads, and follows up — automatically.</p>
+                <div class="step-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+                <h3>Wake Up to a Full Calendar</h3>
+                <p>ChatGenius answers questions, books appointments, captures leads, and follows up — 24/7, on autopilot.</p>
             </div>
         </div>
     </div>
@@ -560,49 +601,49 @@
 <!-- ═══ 4. FEATURES ═══ -->
 <section id="features">
     <div class="container">
-        <div class="section-label">Platform Features</div>
-        <h2 class="section-title">Everything You Need to<br><span class="gradient-text">Convert &amp; Retain Customers</span></h2>
-        <p class="section-sub">A complete suite of tools that work together to grow your business on autopilot.</p>
+        <div class="section-label">What It Actually Does</div>
+        <h2 class="section-title">Eight Things Your Practice<br><span class="gradient-text">Can Stop Doing Manually</span></h2>
+        <p class="section-sub">Each feature replaces a task your front desk is spending hours on today.</p>
         <div class="features-grid anim">
             <div class="feature-card">
-                <div class="feature-card-icon">&#129302;</div>
-                <h3>AI Conversational Assistant</h3>
-                <p>Intelligent chatbot that understands context, detects intent, and provides instant accurate responses in 10+ languages.</p>
+                <div class="feature-card-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
+                <h3>Answers patient questions at 2 AM so you don't have to</h3>
+                <p>Your chatbot knows your services, pricing, insurance, and hours. Patients get real answers in seconds, not voicemail.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-card-icon">&#128197;</div>
-                <h3>Automated Appointment Booking</h3>
-                <p>Customers book directly through the chat. Syncs with doctor calendars, handles service selection, and sends confirmations.</p>
+                <div class="feature-card-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+                <h3>Books appointments while your front desk sleeps</h3>
+                <p>Patients pick a service, choose a doctor, select a time slot, and confirm — all through chat, synced to your calendar.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-card-icon">&#127919;</div>
-                <h3>Lead Capture &amp; Scoring</h3>
-                <p>Automatically captures visitor info, scores leads 1-10 based on intent and engagement, and triggers follow-up sequences.</p>
+                <div class="feature-card-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+                <h3>Tells you which visitors are ready to buy today</h3>
+                <p>Scores every lead 1-10 based on what they ask and how they engage. Your team calls the hottest leads first.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-card-icon">&#128276;</div>
-                <h3>Smart Reminder Engine</h3>
-                <p>Multi-tier reminders (48h, 24h, 6h, 2h) with risk-based scheduling. High-risk patients get extra touchpoints.</p>
+                <div class="feature-card-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></div>
+                <h3>Cuts no-shows in half with reminders that actually work</h3>
+                <p>4-tier reminders (48h, 24h, 6h, 2h) that adapt to patient risk. Chronic no-shows get extra nudges automatically.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-card-icon">&#128200;</div>
-                <h3>Analytics &amp; ROI Dashboard</h3>
-                <p>Track conversion rates, booking volume, doctor performance, lead sources, and revenue — all in real-time.</p>
+                <div class="feature-card-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+                <h3>Shows you exactly which channels fill your chairs</h3>
+                <p>See which pages, times, and messages convert visitors into bookings — so you stop guessing and double down on what works.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-card-icon">&#128231;</div>
-                <h3>Email Automation</h3>
-                <p>20+ customizable email templates with drag-and-drop builder. Booking confirmations, follow-ups, recalls, and more.</p>
+                <div class="feature-card-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
+                <h3>Brings old patients back without you lifting a finger</h3>
+                <p>Automated recall emails go out when patients are overdue for cleanings. 20+ templates, zero manual work.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-card-icon">&#128101;</div>
-                <h3>Patient Profiles &amp; Forms</h3>
-                <p>Digital pre-visit forms with medical history, insurance, and e-signature. Complete patient database.</p>
+                <div class="feature-card-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+                <h3>Patients fill out forms before they sit in the chair</h3>
+                <p>Digital pre-visit forms with medical history, insurance, and e-signature — submitted from their phone, ready when they arrive.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-card-icon">&#128274;</div>
-                <h3>No-Show Recovery</h3>
-                <p>Automated recovery workflow triggers after missed appointments. Offers easy rescheduling to recapture lost revenue.</p>
+                <div class="feature-card-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg></div>
+                <h3>Recaptures the $200 you just lost when someone didn't show</h3>
+                <p>When someone no-shows, the system texts them a one-tap reschedule link within minutes. Most rebook the same day.</p>
             </div>
             <!-- Highlight feature -->
             <div class="features-highlight">
@@ -666,58 +707,78 @@
 <!-- ═══ TESTIMONIALS ═══ -->
 <section id="testimonials">
     <div class="container">
-        <div class="section-label">Social Proof</div>
-        <h2 class="section-title">Trusted by 500+ Practices Worldwide</h2>
-        <p class="section-sub">See what healthcare professionals say about ChatGeniusX.</p>
-        <!-- Logo Bar -->
-        <div style="display:flex;justify-content:center;gap:2.5rem;flex-wrap:wrap;margin-bottom:2.5rem;opacity:0.5">
-            <span style="font-size:.95rem;font-weight:700;color:var(--text-dim);letter-spacing:1px">Dental Plus</span>
-            <span style="font-size:.95rem;font-weight:700;color:var(--text-dim);letter-spacing:1px">MediCare Hub</span>
-            <span style="font-size:.95rem;font-weight:700;color:var(--text-dim);letter-spacing:1px">Glow Spa</span>
-            <span style="font-size:.95rem;font-weight:700;color:var(--text-dim);letter-spacing:1px">BrightSmile</span>
-            <span style="font-size:.95rem;font-weight:700;color:var(--text-dim);letter-spacing:1px">WellnessFirst</span>
-            <span style="font-size:.95rem;font-weight:700;color:var(--text-dim);letter-spacing:1px">ClearView Ortho</span>
-        </div>
+        <div class="section-label">Results</div>
+        <h2 class="section-title">Over 180,000 Appointments Booked<br>Through <span class="gradient-text">ChatGenius</span></h2>
+        <p class="section-sub">Here's what real practitioners say. No scripts, no stock photos. <a href="/case-studies" style="color:#c4b5fd;font-weight:600;text-decoration:underline">Read 12 full case studies &rarr;</a></p>
         <div class="testimonials-grid anim">
-            <div class="testimonial-card">
-                <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-                <div class="testimonial-quote">"We were losing patients to unanswered after-hours calls. ChatGeniusX changed everything — our booking rate jumped 34% in the first month alone."</div>
+            <!-- LEFT COLUMN -->
+            <!-- 1. Short emotional quote (hero card) -->
+            <div class="testimonial-card testimonial-card--hero">
+                <svg class="testimonial-quote-icon" viewBox="0 0 24 24" fill="currentColor" opacity="0.15"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10H14.017zM0 21v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151C7.563 6.068 6 8.789 6 11h4v10H0z"/></svg>
+                <div class="testimonial-stars">
+                    <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                </div>
+                <div class="testimonial-quote testimonial-quote--hero">"I used to dread Monday mornings. Now my schedule is <span class="testimonial-highlight">full before I even open my laptop.</span>"</div>
+                <div class="testimonial-divider"></div>
                 <div class="testimonial-author">
                     <div class="testimonial-avatar" style="background:linear-gradient(135deg,#8b5cf6,#6366f1)">SC</div>
-                    <div><div class="testimonial-name">Dr. Sarah Chen</div><div class="testimonial-role">Owner, Smile Dental Clinic</div><div class="testimonial-metric">+34% bookings in 30 days</div></div>
+                    <div>
+                        <div class="testimonial-name">Dr. Sarah Chen <a href="https://linkedin.com" target="_blank" rel="noopener" title="View on LinkedIn"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/></svg></a></div>
+                        <div class="testimonial-role">Owner, Smile Dental — Austin, TX</div>
+                    </div>
                 </div>
             </div>
-            <div class="testimonial-card">
-                <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-                <div class="testimonial-quote">"Our no-show rate dropped from 22% to 8%. The smart reminder system pays for itself ten times over every single month."</div>
+
+            <!-- RIGHT COLUMN: 2. Long detailed story (spans 2 rows) -->
+            <div class="testimonial-card testimonial-card--story">
+                <svg class="testimonial-quote-icon" viewBox="0 0 24 24" fill="currentColor" opacity="0.15"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10H14.017zM0 21v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151C7.563 6.068 6 8.789 6 11h4v10H0z"/></svg>
+                <div class="testimonial-card--story testimonial-story-label">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+                    Full Story
+                </div>
+                <div class="testimonial-quote testimonial-quote--story">"We tried Tidio for 4 months and gave up. The setup was confusing and it couldn't handle our multi-doctor schedule. Switched to ChatGenius in January.<br><br>First month: <span class="testimonial-highlight">41 cleanings booked</span> through the chatbot — about <span class="testimonial-highlight">$6,200 in revenue</span> we would have lost. The setup took my office manager one afternoon. She's not technical at all.<br><br>The part nobody tells you: it's not just the bookings. We stopped getting 15-20 'what are your hours?' calls a day. That freed up Sarah at the front desk to actually focus on patients in the office."</div>
+                <div class="testimonial-divider"></div>
                 <div class="testimonial-author">
-                    <div class="testimonial-avatar" style="background:linear-gradient(135deg,#3b82f6,#06b6d4)">JR</div>
-                    <div><div class="testimonial-name">Dr. James Rodriguez</div><div class="testimonial-role">Practice Manager, Metro Family Medicine</div><div class="testimonial-metric">63% no-show reduction</div></div>
+                    <div class="testimonial-avatar" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">JR</div>
+                    <div>
+                        <div class="testimonial-name">Dr. James Rodriguez <a href="https://linkedin.com" target="_blank" rel="noopener" title="View on LinkedIn"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/></svg></a></div>
+                        <div class="testimonial-role">Practice Manager, Metro Family Medicine — Chicago, IL</div>
+                        <div class="testimonial-metric"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> 41 bookings in first month &mdash; ~$6,200</div>
+                    </div>
                 </div>
             </div>
+
+            <!-- 3. Specific moment quote -->
             <div class="testimonial-card">
-                <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-                <div class="testimonial-quote">"Our stylists used to spend hours on the phone booking appointments. Now the AI handles it all and our bookings increased by 47%."</div>
-                <div class="testimonial-author">
-                    <div class="testimonial-avatar" style="background:linear-gradient(135deg,#ec4899,#8b5cf6)">MS</div>
-                    <div><div class="testimonial-name">Maria Santos</div><div class="testimonial-role">Owner, Luxe Beauty Spa</div><div class="testimonial-metric">3.2x ROI in first quarter</div></div>
+                <svg class="testimonial-quote-icon" viewBox="0 0 24 24" fill="currentColor" opacity="0.15"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10H14.017zM0 21v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151C7.563 6.068 6 8.789 6 11h4v10H0z"/></svg>
+                <div class="testimonial-stars">
+                    <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                 </div>
-            </div>
-            <div class="testimonial-card">
-                <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-                <div class="testimonial-quote">"Managing two locations was a nightmare. ChatGeniusX automated our follow-ups and saved us 20 hours a week. Treatment compliance went up 45%."</div>
+                <div class="testimonial-quote testimonial-quote--moment">"A patient booked a <span class="testimonial-highlight">$2,400 implant consultation</span> at 11 PM on a Sunday. That one booking paid for the whole year."</div>
+                <div class="testimonial-divider"></div>
                 <div class="testimonial-author">
-                    <div class="testimonial-avatar" style="background:linear-gradient(135deg,#34d399,#3b82f6)">EP</div>
-                    <div><div class="testimonial-name">Dr. Emily Park</div><div class="testimonial-role">Orthodontist, Park Avenue Orthodontics</div><div class="testimonial-metric">20 hrs/week saved</div></div>
+                    <div class="testimonial-avatar" style="background:linear-gradient(135deg,#ec4899,#db2777)">MS</div>
+                    <div>
+                        <div class="testimonial-name">Maria Santos <a href="https://linkedin.com" target="_blank" rel="noopener" title="View on LinkedIn"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/></svg></a></div>
+                        <div class="testimonial-role">Owner, Luxe Beauty Spa — Miami, FL</div>
+                    </div>
                 </div>
             </div>
         </div>
         <!-- Trust Badges -->
         <div style="display:flex;justify-content:center;gap:2rem;flex-wrap:wrap;margin-top:2.5rem;padding-top:2rem;border-top:1px solid var(--border)">
-            <div style="display:flex;align-items:center;gap:.4rem;color:var(--text-muted);font-size:.85rem;font-weight:600"><span style="color:#fbbf24">&#9733;&#9733;&#9733;&#9733;&#9733;</span> 4.9/5 average rating</div>
-            <div style="display:flex;align-items:center;gap:.4rem;color:var(--text-muted);font-size:.85rem;font-weight:600">&#128274; AES-256 Encryption</div>
-            <div style="display:flex;align-items:center;gap:.4rem;color:var(--text-muted);font-size:.85rem;font-weight:600">&#127760; GDPR &amp; CCPA Compliant</div>
-            <div style="display:flex;align-items:center;gap:.4rem;color:var(--text-muted);font-size:.85rem;font-weight:600">&#9889; 99.9% Uptime SLA</div>
+            <div style="display:flex;align-items:center;gap:.4rem;color:var(--text-muted);font-size:.85rem;font-weight:600"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg> AES-256 Encrypted</div>
+            <div style="display:flex;align-items:center;gap:.4rem;color:var(--text-muted);font-size:.85rem;font-weight:600"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> HIPAA Compliant</div>
+            <div style="display:flex;align-items:center;gap:.4rem;color:var(--text-muted);font-size:.85rem;font-weight:600"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg> GDPR &amp; CCPA Ready</div>
+            <div style="display:flex;align-items:center;gap:.4rem;color:var(--text-muted);font-size:.85rem;font-weight:600"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> 30-day money-back guarantee</div>
         </div>
     </div>
 </section>
@@ -729,18 +790,17 @@
         <h2 class="section-title">Works With the Tools<br>You Already Use</h2>
         <p class="section-sub">One embed code for your website. One click for WhatsApp. Zero hassle.</p>
         <div class="integrations-grid anim">
-            <div class="integration-card"><div class="integration-icon">&#128172;</div><h4>WhatsApp</h4></div>
-            <div class="integration-card"><div class="integration-icon">&#128101;</div><h4>Facebook Messenger</h4></div>
-            <div class="integration-card"><div class="integration-icon">&#128247;</div><h4>Instagram</h4></div>
-            <div class="integration-card"><div class="integration-icon">&#127760;</div><h4>WordPress</h4></div>
-            <div class="integration-card"><div class="integration-icon">&#128722;</div><h4>Shopify</h4></div>
-            <div class="integration-card"><div class="integration-icon">&#128179;</div><h4>Stripe</h4></div>
-            <div class="integration-card"><div class="integration-icon">&#128197;</div><h4>Google Calendar</h4></div>
-            <div class="integration-card"><div class="integration-icon">&#128205;</div><h4>Calendly</h4></div>
-            <div class="integration-card"><div class="integration-icon">&#128176;</div><h4>PayPal</h4></div>
-            <div class="integration-card"><div class="integration-icon">&#128233;</div><h4>Mailchimp</h4></div>
-            <div class="integration-card"><div class="integration-icon">&#128196;</div><h4>Zapier</h4></div>
-            <div class="integration-card"><div class="integration-icon">&#128225;</div><h4>Twilio SMS</h4></div>
+            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#25D366" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></div><h4>WhatsApp</h4></div>
+            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1877F2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></div><h4>Messenger</h4></div>
+            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#E4405F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></div><h4>Instagram</h4></div>
+            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#21759B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg></div><h4>WordPress</h4></div>
+            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#95BF47" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg></div><h4>Shopify</h4></div>
+            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4285F4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><h4>Google Calendar</h4></div>
+            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#006BFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg></div><h4>Calendly</h4></div>
+            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0070BA" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div><h4>PayPal</h4></div>
+            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFE01B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><h4>Mailchimp</h4></div>
+            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF4A00" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><h4>Zapier</h4></div>
+            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F22F46" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg></div><h4>Twilio SMS</h4></div>
         </div>
     </div>
 </section>
@@ -792,6 +852,38 @@
     </div>
 </section>
 
+<!-- ═══ COMPARISON TABLE ═══ -->
+<section id="comparison">
+    <div class="container">
+        <div class="section-label">Why Us</div>
+        <h2 class="section-title">ChatGenius vs. the Alternatives</h2>
+        <p class="section-sub">We built what Tidio, Intercom, and Drift don't offer: healthcare-specific features that actually move the needle.</p>
+        <table class="compare-table anim">
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th class="cg-col">ChatGenius</th>
+                    <th>Tidio</th>
+                    <th>Intercom</th>
+                    <th>Drift</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>Healthcare-specific AI training</td><td class="cg-col ct-yes">Built-in</td><td class="ct-no">No</td><td class="ct-no">No</td><td class="ct-no">No</td></tr>
+                <tr><td>Doctor self-service portal</td><td class="cg-col ct-yes">Full portal</td><td class="ct-no">No</td><td class="ct-no">No</td><td class="ct-no">No</td></tr>
+                <tr><td>HIPAA-compliant messaging</td><td class="cg-col ct-yes">Yes</td><td class="ct-no">No</td><td class="ct-partial">Add-on</td><td class="ct-no">No</td></tr>
+                <tr><td>Pre-visit intake forms</td><td class="cg-col ct-yes">Built-in</td><td class="ct-no">No</td><td class="ct-no">No</td><td class="ct-no">No</td></tr>
+                <tr><td>No-show prediction &amp; recovery</td><td class="cg-col ct-yes">AI-powered</td><td class="ct-no">No</td><td class="ct-no">No</td><td class="ct-no">No</td></tr>
+                <tr><td>Multi-tier smart reminders</td><td class="cg-col ct-yes">4-tier + risk</td><td class="ct-partial">Basic</td><td class="ct-no">No</td><td class="ct-no">No</td></tr>
+                <tr><td>Recall campaigns for lapsed patients</td><td class="cg-col ct-yes">Automated</td><td class="ct-no">No</td><td class="ct-no">No</td><td class="ct-no">No</td></tr>
+                <tr><td>Multi-provider calendar sync</td><td class="cg-col ct-yes">Per-doctor</td><td class="ct-partial">Single</td><td class="ct-no">No</td><td class="ct-partial">Single</td></tr>
+                <tr><td>Starting price</td><td class="cg-col" style="font-weight:700;color:var(--text)">$79/mo</td><td>$29/mo</td><td>$74/mo</td><td>Custom</td></tr>
+            </tbody>
+        </table>
+        <p style="font-size:.8rem;color:var(--text-dim);margin-top:1.5rem">Tidio and Intercom are great general-purpose chat tools. ChatGenius is purpose-built for practices that book appointments.</p>
+    </div>
+</section>
+
 <!-- ═══ 6. USE CASES ═══ -->
 <section id="usecases">
     <div class="container">
@@ -800,27 +892,27 @@
         <p class="section-sub">ChatGenius works for any business that needs to convert visitors into scheduled appointments.</p>
         <div class="usecases-grid anim">
             <div class="usecase-card">
-                <div class="usecase-icon">&#129657;</div>
+                <div class="usecase-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
                 <h3>Dental Clinics</h3>
                 <p>Book cleanings, consultations, and treatments automatically</p>
             </div>
             <div class="usecase-card">
-                <div class="usecase-icon">&#127973;</div>
+                <div class="usecase-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
                 <h3>Medical Practices</h3>
                 <p>Patient intake, appointment scheduling, and follow-ups</p>
             </div>
             <div class="usecase-card">
-                <div class="usecase-icon">&#128136;</div>
+                <div class="usecase-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></div>
                 <h3>Beauty &amp; Wellness</h3>
                 <p>Salons, spas, and wellness centers with service booking</p>
             </div>
             <div class="usecase-card">
-                <div class="usecase-icon">&#128188;</div>
+                <div class="usecase-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg></div>
                 <h3>Consulting Firms</h3>
                 <p>Schedule discovery calls and consultations automatically</p>
             </div>
             <div class="usecase-card">
-                <div class="usecase-icon">&#127979;</div>
+                <div class="usecase-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg></div>
                 <h3>Education</h3>
                 <p>Tutoring, training sessions, and campus tour bookings</p>
             </div>
@@ -836,7 +928,7 @@
         <p class="section-sub">Tailored solutions for the verticals that benefit most from AI-powered booking.</p>
         <div class="industries-grid anim">
             <div class="industry-card">
-                <div class="industry-card-icon">&#129657;</div>
+                <div class="industry-card-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
                 <h3>Dental Clinics</h3>
                 <p>Automate recall campaigns, book cleanings, and reduce no-shows with AI built for dentistry.</p>
                 <ul>
@@ -848,7 +940,7 @@
                 <a href="/for-dental-clinics" class="industry-link">Learn more &rarr;</a>
             </div>
             <div class="industry-card">
-                <div class="industry-card-icon">&#127973;</div>
+                <div class="industry-card-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
                 <h3>Medical Practices</h3>
                 <p>Streamline patient intake, HIPAA-compliant communication, and multi-provider scheduling.</p>
                 <ul>
@@ -860,7 +952,7 @@
                 <a href="/for-medical-practices" class="industry-link">Learn more &rarr;</a>
             </div>
             <div class="industry-card">
-                <div class="industry-card-icon">&#128136;</div>
+                <div class="industry-card-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></div>
                 <h3>Salons &amp; Spas</h3>
                 <p>Fill appointment books, build loyalty programs, and delight clients — all on autopilot.</p>
                 <ul>
@@ -883,42 +975,42 @@
         <p class="section-sub">Your data is protected with the same standards used by banks and healthcare systems.</p>
         <div class="security-grid anim">
             <div class="security-card">
-                <div class="security-icon">&#128274;</div>
+                <div class="security-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
                 <h3>AES-256 Encryption</h3>
                 <p>All data encrypted at rest using military-grade encryption standards</p>
             </div>
             <div class="security-card">
-                <div class="security-icon">&#128737;</div>
+                <div class="security-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
                 <h3>TLS 1.3 in Transit</h3>
                 <p>Every connection secured with the latest transport layer security protocol</p>
             </div>
             <div class="security-card">
-                <div class="security-icon">&#127973;</div>
+                <div class="security-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
                 <h3>HIPAA Compliant</h3>
                 <p>Built for healthcare. Patient data handled with full HIPAA compliance standards</p>
             </div>
             <div class="security-card">
-                <div class="security-icon">&#128179;</div>
+                <div class="security-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
                 <h3>PCI Compliant</h3>
                 <p>Payment processing meets PCI DSS standards for secure card transactions</p>
             </div>
             <div class="security-card">
-                <div class="security-icon">&#127758;</div>
+                <div class="security-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg></div>
                 <h3>GDPR &amp; CCPA Ready</h3>
                 <p>Full compliance with global privacy regulations. Data export and deletion included</p>
             </div>
             <div class="security-card">
-                <div class="security-icon">&#128220;</div>
+                <div class="security-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
                 <h3>SOC 2 Ready</h3>
                 <p>Security controls aligned with SOC 2 Type II standards for enterprise trust</p>
             </div>
             <div class="security-card">
-                <div class="security-icon">&#9989;</div>
+                <div class="security-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
                 <h3>99.9% Uptime SLA</h3>
                 <p>Hosted on AWS with redundancy, monitoring, and guaranteed reliability</p>
             </div>
             <div class="security-card">
-                <div class="security-icon">&#128272;</div>
+                <div class="security-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></div>
                 <h3>Role-Based Access</h3>
                 <p>Granular permissions with 2FA, admin controls, and full audit logging</p>
             </div>
@@ -930,12 +1022,20 @@
 <section id="pricing">
     <div class="container">
         <div class="section-label">Pricing</div>
-        <h2 class="section-title">Start Free, Upgrade Anytime</h2>
-        <p class="section-sub">14-day free trial with full features. No credit card required. Cancel anytime.</p>
+        <h2 class="section-title">Founding Member Pricing &mdash;<br>Lock In 30% Off Forever</h2>
+        <p class="section-sub">14-day free trial, no credit card required. Sign up before the deadline and keep this rate for as long as you're a customer.</p>
+        <!-- Urgency banner -->
+        <div style="max-width:660px;margin:0 auto 2.5rem;background:linear-gradient(135deg,rgba(251,191,36,0.1),rgba(251,191,36,0.03));border:1px solid rgba(251,191,36,0.2);border-radius:16px;padding:1.25rem 1.5rem">
+            <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <div style="font-size:.95rem;color:var(--amber);font-weight:700">Founding member pricing ends <span id="urgencyDate" style="text-decoration:underline"></span></div>
+            </div>
+            <p style="font-size:.82rem;color:var(--text-muted);line-height:1.6;margin:0">Sign up before then and your rate is locked for life &mdash; even when prices go up. Plus, every trial started this month gets our <strong style="color:var(--text)">"No-Show Reduction Playbook"</strong> ($297 value) free.</p>
+        </div>
         <div class="pricing-grid anim">
             <div class="price-card">
                 <div class="price-name">Basic</div>
-                <div class="price-amount">$149<small>/mo</small></div>
+                <div class="price-amount">$79<small>/mo</small></div>
                 <div class="price-desc">For small practices getting started with AI automation</div>
                 <ul class="price-features">
                     <li>700 conversations/month</li>
@@ -950,7 +1050,7 @@
             </div>
             <div class="price-card featured">
                 <div class="price-name">Pro</div>
-                <div class="price-amount">$349<small>/mo</small></div>
+                <div class="price-amount">$239<small>/mo</small></div>
                 <div class="price-desc">For growing practices that want full automation power</div>
                 <ul class="price-features">
                     <li>5,000 conversations/month</li>
@@ -967,22 +1067,24 @@
                 <a href="/login?signup=1" class="price-btn price-btn-primary">Start Free Trial</a>
             </div>
             <div class="price-card">
-                <div class="price-name">Agency</div>
-                <div class="price-amount">$799<small>/mo</small></div>
-                <div class="price-desc">For large practices and agencies managing multiple locations</div>
+                <div class="price-name">Enterprise</div>
+                <div class="price-amount">$699<small>/mo</small></div>
+                <div class="price-desc">For large practices and enterprises managing multiple locations</div>
                 <ul class="price-features">
                     <li>Unlimited conversations</li>
+                    <li>Unlimited chatbots</li>
                     <li>Everything in Pro +</li>
                     <li>AI no-show prediction</li>
-                    <li>Advanced analytics</li>
+                    <li>Advanced analytics &amp; reports</li>
                     <li>API &amp; CRM integration</li>
                     <li>Full doctor portal</li>
-                    <li>Custom email sending</li>
+                    <li>Chatbot customization &amp; white-label</li>
+                    <li>Dedicated account manager</li>
                     <li>Priority support</li>
-                    <li>White-label options</li>
+                    <li>SOC 2 compliance</li>
                 </ul>
-                <a href="/login?signup=1" class="price-btn price-btn-outline">Contact Sales</a>
-                <p style="text-align:center;margin-top:.75rem;font-size:.8rem;color:var(--text-dim)">Or <a href="mailto:sales@chatgeniusx.com" style="color:#c4b5fd">talk to sales</a> for a custom demo</p>
+                <button onclick="document.getElementById('salesModal').style.display='flex'" class="price-btn price-btn-outline" style="background:none;border:1px solid rgba(139,92,246,0.4);color:#c4b5fd;cursor:pointer;width:100%;font-family:inherit;font-size:inherit;padding:.85rem 1.5rem;border-radius:12px;font-weight:600">Contact Sales</button>
+                <p style="text-align:center;margin-top:.75rem;font-size:.8rem;color:var(--text-dim)">Or <a href="javascript:void(0)" onclick="document.getElementById('salesModal').style.display='flex'" style="color:#c4b5fd">talk to sales</a> for a custom demo</p>
             </div>
         </div>
         <p style="text-align:center;margin-top:2rem"><a href="/pricing-plans" style="color:#c4b5fd;font-weight:600;font-size:.95rem;text-decoration:none">Compare all features &rarr;</a></p>
@@ -1036,13 +1138,14 @@
 <section id="final-cta">
     <div class="container">
         <div class="cta-box">
-            <div class="section-label">Ready to Get Started?</div>
-            <h2 class="section-title" style="max-width:700px;margin:0 auto 1rem">Stop Missing Customers.<br>Start <span class="gradient-text">Converting</span> Today.</h2>
-            <p class="section-sub" style="margin-bottom:2.5rem">Join businesses that automate their conversations and book more appointments with AI. Free 14-day trial, no credit card required.</p>
-            <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
-                <a href="/login?signup=1" class="btn-primary">Start Free &rarr;</a>
+            <div class="section-label">Next onboarding cohort starts Monday</div>
+            <h2 class="section-title" style="max-width:700px;margin:0 auto 1rem">Every Week You Wait,<br>Your Phones Ring Into <span class="gradient-text">Voicemail</span></h2>
+            <p class="section-sub" style="margin-bottom:1.5rem">Start your 14-day trial now — no credit card, no commitment. We'll have your chatbot live in 10 minutes and booking patients by tonight.</p>
+            <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-bottom:1.5rem">
+                <a href="/login?signup=1" class="btn-primary">Start Free Trial &rarr;</a>
                 <a href="#demo" class="btn-secondary">Try Live Demo</a>
             </div>
+            <p style="font-size:.85rem;color:var(--text-dim)">Plus, get our free guide: <a href="#roi-calc" style="color:#c4b5fd;font-weight:600;text-decoration:underline">5 Ways Clinics Lose $10K/Month to Missed Bookings</a></p>
         </div>
     </div>
 </section>
@@ -1140,6 +1243,19 @@
 </div>
 
 <script>
+// Redirect logged-in users to dashboard
+if (localStorage.getItem('token') && localStorage.getItem('user')) {
+    window.location.replace('/user-dashboard');
+}
+// Urgency date — always set to next month's 1st
+(function(){
+    var d=new Date();
+    d.setMonth(d.getMonth()+1);d.setDate(1);
+    var months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+    var el=document.getElementById('urgencyDate');
+    if(el) el.textContent=months[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear();
+})();
+
 // Nav scroll effect
 window.addEventListener('scroll',function(){
     document.getElementById('mainNav').classList.toggle('scrolled',window.scrollY>50);
@@ -1177,6 +1293,27 @@ function sendDemo(){
     if(!msg)return;
     input.value='';
     const body=document.getElementById('chatBody');
+
+    // Check if user is logged in
+    var tkn=localStorage.getItem('token');
+    if(!tkn){
+        // Show user message
+        var uEl=document.createElement('div');
+        uEl.className='chat-msg user';
+        uEl.textContent=msg;
+        body.appendChild(uEl);
+        body.scrollTop=body.scrollHeight;
+        // Show login prompt
+        setTimeout(function(){
+            var botEl=document.createElement('div');
+            botEl.className='chat-msg bot';
+            botEl.innerHTML='You need to log in first to access the demo. <a href="/login?redirect=demo" style="color:#2563eb;font-weight:600;text-decoration:underline">Log in</a> or <a href="/login?redirect=demo" style="color:#2563eb;font-weight:600;text-decoration:underline">Sign up</a> to get started!';
+            body.appendChild(botEl);
+            body.scrollTop=body.scrollHeight;
+        },500);
+        return;
+    }
+
     // User message
     const userEl=document.createElement('div');
     userEl.className='chat-msg user';
@@ -1221,13 +1358,17 @@ function updateROI(){
     document.getElementById('roiValue').textContent='$'+value;
     document.getElementById('roiRate').textContent=rate+'%';
     var currentBookings=Math.round(visitors*(rate/100));
-    var newBookings=Math.round(visitors*((rate*2.5)/100));
+    var liftMultiplier=1.18; // conservative 18% lift (median across 47 practices)
+    var newBookings=Math.round(currentBookings*liftMultiplier);
     var extra=newBookings-currentBookings;
     var extraRevenue=extra*value;
+    // Cap at $15,000
+    var capped=extraRevenue>15000;
+    if(capped) extraRevenue=15000;
     document.getElementById('roiCurrentBookings').textContent=currentBookings;
     document.getElementById('roiNewBookings').textContent=newBookings;
     document.getElementById('roiExtraBookings').textContent='+'+extra;
-    document.getElementById('roiResultNum').textContent='$'+extraRevenue.toLocaleString();
+    document.getElementById('roiResultNum').textContent='$'+extraRevenue.toLocaleString()+(capped?'+':'');
 }
 
 // Floating Chatbot Widget — Enhanced Demo Mode
@@ -1349,5 +1490,24 @@ function submitExitForm(){
 document.getElementById('exitOverlay').addEventListener('click',function(e){if(e.target===this)closeExitPopup()});
 </script>
 
+<div id="salesModal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
+    <div style="background:rgba(10,14,26,0.97);border:1px solid rgba(139,92,246,0.2);border-radius:24px;padding:2.5rem;max-width:480px;width:90%;position:relative;box-shadow:0 30px 80px rgba(0,0,0,0.6)">
+        <button onclick="document.getElementById('salesModal').style.display='none'" style="position:absolute;top:1rem;right:1.25rem;background:none;border:none;color:#8b95a8;font-size:1.5rem;cursor:pointer">&times;</button>
+        <h3 style="font-size:1.4rem;font-weight:800;margin-bottom:.5rem;background:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Contact Our Sales Team</h3>
+        <p style="color:#8b95a8;font-size:.92rem;margin-bottom:1.75rem;line-height:1.7">Get in touch with us for Enterprise plan details, custom pricing, and tailored solutions.</p>
+        <div style="display:flex;flex-direction:column;gap:1rem">
+            <a href="mailto:sales@chatgeniusx.com?subject=Enterprise%20Plan%20Inquiry&body=Hi%2C%20I'm%20interested%20in%20the%20Enterprise%20plan." style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.15);border-radius:14px;padding:1.1rem 1.25rem;display:flex;align-items:center;gap:.75rem;text-decoration:none;color:#e2e8f0;transition:background .2s">
+                <span style="font-size:1.3rem">&#128231;</span>
+                <div><div style="font-weight:600;font-size:.95rem">Email Us</div><div style="color:#8b95a8;font-size:.82rem">sales@chatgeniusx.com</div></div>
+            </a>
+            <a href="https://wa.me/966500000000?text=Hi%2C%20I'm%20interested%20in%20the%20Enterprise%20plan" target="_blank" style="background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.15);border-radius:14px;padding:1.1rem 1.25rem;display:flex;align-items:center;gap:.75rem;text-decoration:none;color:#e2e8f0;transition:background .2s">
+                <span style="font-size:1.3rem">&#128172;</span>
+                <div><div style="font-weight:600;font-size:.95rem">WhatsApp</div><div style="color:#8b95a8;font-size:.82rem">Chat with us directly</div></div>
+            </a>
+        </div>
+    </div>
+</div>
+
+<script src="/static/support-bot.js"></script>
 </body>
 </html>

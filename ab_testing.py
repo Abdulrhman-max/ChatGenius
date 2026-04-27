@@ -36,7 +36,7 @@ def create_test(admin_id, test_name, test_type, variant_a, variant_b):
 
     # Check for existing active test of this type
     existing = conn.execute(
-        "SELECT id FROM ab_tests WHERE admin_id=? AND test_type=? AND status='running'",
+        "SELECT id FROM ab_tests WHERE admin_id=%s AND test_type=%s AND status='running'",
         (admin_id, test_type)
     ).fetchone()
 
@@ -45,17 +45,17 @@ def create_test(admin_id, test_name, test_type, variant_a, variant_b):
         return {"error": f"There is already an active A/B test for {test_type}. End it first before creating a new one."}
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    conn.execute(
+    _ins_cur = conn.execute(
         """INSERT INTO ab_tests
            (admin_id, test_name, test_type, variant_a, variant_b,
             variant_a_conversations, variant_a_bookings,
             variant_b_conversations, variant_b_bookings,
             status, created_at)
-           VALUES (?,?,?,?,?,0,0,0,0,'running',?)""",
+           VALUES (%s,%s,%s,%s,%s,0,0,0,0,'running',%s) RETURNING id""",
         (admin_id, test_name, test_type, variant_a, variant_b, now)
     )
+    test_id = _ins_cur.fetchone()['id']
     conn.commit()
-    test_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     conn.close()
 
     logger.info(f"A/B test #{test_id} created: {test_name}")
@@ -72,7 +72,7 @@ def get_variant_for_session(admin_id, test_type, session_id):
 
     # Find active test
     test = conn.execute(
-        "SELECT * FROM ab_tests WHERE admin_id=? AND test_type=? AND status='running' LIMIT 1",
+        "SELECT * FROM ab_tests WHERE admin_id=%s AND test_type=%s AND status='running' LIMIT 1",
         (admin_id, test_type)
     ).fetchone()
 
@@ -84,7 +84,7 @@ def get_variant_for_session(admin_id, test_type, session_id):
 
     # Check if session already has an assignment
     existing = conn.execute(
-        "SELECT variant FROM ab_assignments WHERE test_id=? AND session_id=?",
+        "SELECT variant FROM ab_assignments WHERE test_id=%s AND session_id=%s",
         (test["id"], session_id)
     ).fetchone()
 
@@ -95,14 +95,14 @@ def get_variant_for_session(admin_id, test_type, session_id):
         variant = random.choice(["A", "B"])
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         conn.execute(
-            "INSERT INTO ab_assignments (test_id, session_id, variant, created_at) VALUES (?,?,?,?)",
+            "INSERT INTO ab_assignments (test_id, session_id, variant, created_at) VALUES (%s,%s,%s,%s)",
             (test["id"], session_id, variant, now)
         )
         # Increment conversation count
         if variant == "A":
-            conn.execute("UPDATE ab_tests SET variant_a_conversations = variant_a_conversations + 1 WHERE id=?", (test["id"],))
+            conn.execute("UPDATE ab_tests SET variant_a_conversations = variant_a_conversations + 1 WHERE id=%s", (test["id"],))
         else:
-            conn.execute("UPDATE ab_tests SET variant_b_conversations = variant_b_conversations + 1 WHERE id=?", (test["id"],))
+            conn.execute("UPDATE ab_tests SET variant_b_conversations = variant_b_conversations + 1 WHERE id=%s", (test["id"],))
         conn.commit()
 
     conn.close()
@@ -120,7 +120,7 @@ def record_conversion(admin_id, test_type, session_id):
     conn = db.get_db()
 
     test = conn.execute(
-        "SELECT id FROM ab_tests WHERE admin_id=? AND test_type=? AND status='running' LIMIT 1",
+        "SELECT id FROM ab_tests WHERE admin_id=%s AND test_type=%s AND status='running' LIMIT 1",
         (admin_id, test_type)
     ).fetchone()
 
@@ -131,7 +131,7 @@ def record_conversion(admin_id, test_type, session_id):
     test_id = test["id"]
 
     assignment = conn.execute(
-        "SELECT id, variant, converted FROM ab_assignments WHERE test_id=? AND session_id=?",
+        "SELECT id, variant, converted FROM ab_assignments WHERE test_id=%s AND session_id=%s",
         (test_id, session_id)
     ).fetchone()
 
@@ -140,12 +140,12 @@ def record_conversion(admin_id, test_type, session_id):
         return  # No assignment or already converted
 
     variant = assignment["variant"]
-    conn.execute("UPDATE ab_assignments SET converted=1 WHERE id=?", (assignment["id"],))
+    conn.execute("UPDATE ab_assignments SET converted=1 WHERE id=%s", (assignment["id"],))
 
     if variant == "A":
-        conn.execute("UPDATE ab_tests SET variant_a_bookings = variant_a_bookings + 1 WHERE id=?", (test_id,))
+        conn.execute("UPDATE ab_tests SET variant_a_bookings = variant_a_bookings + 1 WHERE id=%s", (test_id,))
     else:
-        conn.execute("UPDATE ab_tests SET variant_b_bookings = variant_b_bookings + 1 WHERE id=?", (test_id,))
+        conn.execute("UPDATE ab_tests SET variant_b_bookings = variant_b_bookings + 1 WHERE id=%s", (test_id,))
 
     conn.commit()
     conn.close()
@@ -158,7 +158,7 @@ def _check_auto_winner(test_id):
     """Check if both variants have enough data to declare a winner."""
     import database as db
     conn = db.get_db()
-    test = conn.execute("SELECT * FROM ab_tests WHERE id=?", (test_id,)).fetchone()
+    test = conn.execute("SELECT * FROM ab_tests WHERE id=%s", (test_id,)).fetchone()
 
     if not test:
         conn.close()
@@ -177,7 +177,7 @@ def _check_auto_winner(test_id):
             winner = "A" if a_rate > b_rate else "B"
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             conn.execute(
-                "UPDATE ab_tests SET status='completed', winner=?, completed_at=? WHERE id=?",
+                "UPDATE ab_tests SET status='completed', winner=%s, completed_at=%s WHERE id=%s",
                 (winner, now, test_id)
             )
             conn.commit()
@@ -193,7 +193,7 @@ def end_test(test_id, winner=None):
     """
     import database as db
     conn = db.get_db()
-    test = conn.execute("SELECT * FROM ab_tests WHERE id=?", (test_id,)).fetchone()
+    test = conn.execute("SELECT * FROM ab_tests WHERE id=%s", (test_id,)).fetchone()
 
     if not test:
         conn.close()
@@ -215,7 +215,7 @@ def end_test(test_id, winner=None):
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     conn.execute(
-        "UPDATE ab_tests SET status='completed', winner=?, completed_at=? WHERE id=?",
+        "UPDATE ab_tests SET status='completed', winner=%s, completed_at=%s WHERE id=%s",
         (winner, now, test_id)
     )
     conn.commit()
@@ -247,7 +247,7 @@ def apply_winner(test_id, admin_id):
     """Apply the winning variant as the permanent message."""
     import database as db
     conn = db.get_db()
-    test = conn.execute("SELECT * FROM ab_tests WHERE id=? AND admin_id=?", (test_id, admin_id)).fetchone()
+    test = conn.execute("SELECT * FROM ab_tests WHERE id=%s AND admin_id=%s", (test_id, admin_id)).fetchone()
 
     if not test:
         conn.close()
@@ -263,13 +263,13 @@ def apply_winner(test_id, admin_id):
 
     # Save to company_info or a config table
     conn.execute(
-        "UPDATE ab_tests SET status='applied' WHERE id=?", (test_id,)
+        "UPDATE ab_tests SET status='applied' WHERE id=%s", (test_id,)
     )
 
     # Store the winning message in company_info based on test_type
     if test_type == "opening_message":
         conn.execute(
-            "UPDATE company_info SET chatbot_welcome_msg = ? WHERE user_id = ?",
+            "UPDATE company_info SET chatbot_welcome_msg = %s WHERE user_id = %s",
             (winning_message, admin_id)
         )
 
@@ -284,7 +284,7 @@ def get_tests(admin_id):
     import database as db
     conn = db.get_db()
     tests = conn.execute(
-        "SELECT * FROM ab_tests WHERE admin_id=? ORDER BY created_at DESC",
+        "SELECT * FROM ab_tests WHERE admin_id=%s ORDER BY created_at DESC",
         (admin_id,)
     ).fetchall()
     conn.close()

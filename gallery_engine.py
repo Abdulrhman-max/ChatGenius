@@ -43,7 +43,7 @@ def upload_image(admin_id, treatment_type, image_file, image_type="before", capt
     # Check count limit
     conn = db.get_db()
     count = conn.execute(
-        "SELECT COUNT(*) as c FROM gallery WHERE admin_id=? AND treatment_type=?",
+        "SELECT COUNT(*) as c FROM gallery WHERE admin_id=%s AND treatment_type=%s",
         (admin_id, treatment_type)
     ).fetchone()["c"]
 
@@ -75,7 +75,7 @@ def upload_image(admin_id, treatment_type, image_file, image_type="before", capt
 
     # Get next sort order
     max_order = conn.execute(
-        "SELECT MAX(sort_order) as m FROM gallery WHERE admin_id=? AND treatment_type=?",
+        "SELECT MAX(sort_order) as m FROM gallery WHERE admin_id=%s AND treatment_type=%s",
         (admin_id, treatment_type)
     ).fetchone()["m"]
     sort_order = (max_order or 0) + 1
@@ -86,14 +86,14 @@ def upload_image(admin_id, treatment_type, image_file, image_type="before", capt
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     image_url = f"/uploads/gallery/{unique_name}"
 
-    conn.execute(
+    _ins_cur = conn.execute(
         """INSERT INTO gallery
            (admin_id, treatment_type, image_url, image_type, pair_id, caption, sort_order, created_at)
-           VALUES (?,?,?,?,?,?,?,?)""",
+           VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
         (admin_id, treatment_type, image_url, image_type, pair_id, caption, sort_order, now)
     )
+    image_id = _ins_cur.fetchone()['id']
     conn.commit()
-    image_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     conn.close()
 
     logger.info(f"Gallery image uploaded: {treatment_type}/{image_type} for admin #{admin_id}")
@@ -129,7 +129,7 @@ def delete_image(image_id, admin_id):
     conn = db.get_db()
 
     image = conn.execute(
-        "SELECT * FROM gallery WHERE id=? AND admin_id=?", (image_id, admin_id)
+        "SELECT * FROM gallery WHERE id=%s AND admin_id=%s", (image_id, admin_id)
     ).fetchone()
 
     if not image:
@@ -145,7 +145,7 @@ def delete_image(image_id, admin_id):
         os.remove(filepath)
 
     # Delete DB record
-    conn.execute("DELETE FROM gallery WHERE id=?", (image_id,))
+    conn.execute("DELETE FROM gallery WHERE id=%s", (image_id,))
     conn.commit()
     conn.close()
 
@@ -160,12 +160,12 @@ def get_gallery(admin_id, treatment_type=None):
 
     if treatment_type:
         images = conn.execute(
-            "SELECT * FROM gallery WHERE admin_id=? AND treatment_type=? ORDER BY sort_order",
+            "SELECT * FROM gallery WHERE admin_id=%s AND treatment_type=%s ORDER BY sort_order",
             (admin_id, treatment_type)
         ).fetchall()
     else:
         images = conn.execute(
-            "SELECT * FROM gallery WHERE admin_id=? ORDER BY treatment_type, sort_order",
+            "SELECT * FROM gallery WHERE admin_id=%s ORDER BY treatment_type, sort_order",
             (admin_id,)
         ).fetchall()
 
@@ -179,7 +179,7 @@ def get_public_gallery(admin_id, treatment_type):
     conn = db.get_db()
 
     images = conn.execute(
-        "SELECT id, image_url, image_type, caption, sort_order FROM gallery WHERE admin_id=? AND treatment_type=? ORDER BY sort_order",
+        "SELECT id, image_url, image_type, caption, sort_order FROM gallery WHERE admin_id=%s AND treatment_type=%s ORDER BY sort_order",
         (admin_id, treatment_type)
     ).fetchall()
     conn.close()
@@ -192,7 +192,7 @@ def get_treatment_types(admin_id):
     import database as db
     conn = db.get_db()
     types = conn.execute(
-        "SELECT DISTINCT treatment_type, COUNT(*) as count FROM gallery WHERE admin_id=? GROUP BY treatment_type",
+        "SELECT DISTINCT treatment_type, COUNT(*) as count FROM gallery WHERE admin_id=%s GROUP BY treatment_type",
         (admin_id,)
     ).fetchall()
     conn.close()
@@ -233,7 +233,7 @@ def get_chatbot_gallery(admin_id, message):
     # Check if we have images for this treatment
     conn = db.get_db()
     images = conn.execute(
-        "SELECT id, image_url, image_type, caption FROM gallery WHERE admin_id=? AND LOWER(treatment_type) LIKE ? ORDER BY sort_order",
+        "SELECT id, image_url, image_type, caption FROM gallery WHERE admin_id=%s AND LOWER(treatment_type) LIKE %s ORDER BY sort_order",
         (admin_id, f"%{matched_treatment}%")
     ).fetchall()
     conn.close()

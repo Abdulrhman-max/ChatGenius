@@ -291,7 +291,7 @@ def get_available_slots(date_str):
     """Get list of available time slots for a given date string."""
     date_obj = _parse_date(date_str)
     if not date_obj:
-        return None, "I couldn't understand that date. Could you try a format like 'Monday', 'tomorrow', or '2026-04-10'?"
+        return None, "I couldn't understand that date. Could you try a format like 'Monday', 'tomorrow', or '2026-04-10'%s"
 
     now = datetime.now()
     if date_obj < now.date():

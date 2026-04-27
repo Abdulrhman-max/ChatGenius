@@ -42,14 +42,14 @@
 ### Example 6
 **User:** How much does it cost?
 
-**Assistant:** We have three plans: Basic at $49/month (500 conversations, 1 chatbot), Pro at $149/month (5,000 conversations, 3 chatbots, appointment booking, CRM integration), and Agency at $299/month (unlimited everything, white-label, API access). All plans come with a free 14-day trial — no credit card needed!
+**Assistant:** We have three plans: Basic at $149/month (700 conversations, 1 chatbot), Pro at $349/month (5,000 conversations, 3 chatbots, appointment booking, CRM integration), and Agency at $799/month (unlimited everything, white-label, API access). All plans come with a free 14-day trial — no credit card needed!
 
 ---
 
 ### Example 7
 **User:** What's your pricing?
 
-**Assistant:** Our pricing is simple and transparent: Basic is $49/month for small businesses, Pro is $149/month for growing businesses that need booking and CRM features, and Agency is $299/month for agencies and larger teams. Every plan includes a 14-day free trial with full Pro access.
+**Assistant:** Our pricing is simple and transparent: Basic is $149/month for small businesses, Pro is $349/month for growing businesses that need booking and CRM features, and Agency is $799/month for agencies and larger teams. Every plan includes a 14-day free trial with full Pro access.
 
 ---
 
@@ -63,28 +63,28 @@
 ### Example 9
 **User:** What's the cheapest plan?
 
-**Assistant:** Our Basic plan starts at just $49/month — or $39/month if you go with annual billing. It includes 500 conversations, 1 chatbot, lead capture, and email support. Perfect for solo businesses getting started. And you can try it free for 14 days first!
+**Assistant:** Our Basic plan starts at just $149/month — or $119/month if you go with annual billing. It includes 700 conversations, 1 chatbot, lead capture, and email support. Perfect for solo businesses getting started. And you can try it free for 14 days first!
 
 ---
 
 ### Example 10
 **User:** Do you have annual pricing?
 
-**Assistant:** Yes! You save 20% with annual billing. Basic drops to $39/month, Pro to $119/month, and Agency to $249/month. Plus non-profits get an additional 30% off any plan.
+**Assistant:** Yes! You save 20% with annual billing. Basic drops to $119/month, Pro to $279/month, and Agency to $639/month. Plus non-profits get an additional 30% off any plan.
 
 ---
 
 ### Example 11
 **User:** What's included in the Pro plan?
 
-**Assistant:** The Pro plan at $149/month includes 5,000 conversations, 3 chatbots, advanced lead capture, automated appointment booking, CRM integration with HubSpot/Salesforce/Zoho, calendar sync, priority support, advanced analytics, custom chatbot personality, multi-language support, and conversation exports. It's our most popular plan!
+**Assistant:** The Pro plan at $349/month includes 5,000 conversations, 3 chatbots, advanced lead capture, automated appointment booking, CRM integration with HubSpot/Salesforce/Zoho, calendar sync, priority support, advanced analytics, custom chatbot personality, multi-language support, and conversation exports. It's our most popular plan!
 
 ---
 
 ### Example 12
 **User:** What's the Agency plan?
 
-**Assistant:** The Agency plan at $299/month is built for agencies and larger businesses. It includes everything in Pro, plus unlimited conversations and chatbots, white-label branding, full API access, a dedicated account manager, custom integrations, team management for up to 10 users, SOC 2 compliance, custom AI training, webhook support, and an SLA guarantee. You also get a priority onboarding call and quarterly business reviews.
+**Assistant:** The Agency plan at $799/month is built for agencies and larger businesses. It includes everything in Pro, plus unlimited conversations and chatbots, white-label branding, full API access, a dedicated account manager, custom integrations, team management for up to 10 users, SOC 2 compliance, custom AI training, webhook support, and an SLA guarantee. You also get a priority onboarding call and quarterly business reviews.
 
 ---
 
@@ -112,7 +112,7 @@
 ### Example 16
 **User:** Compare Basic vs Pro
 
-**Assistant:** The main differences: Basic gives you 500 conversations and 1 chatbot with email support. Pro upgrades you to 5,000 conversations, 3 chatbots, and adds appointment booking, CRM integration, calendar sync, priority support, analytics, multi-language support, and removes ChatGenius branding. Pro is ideal if you need booking or CRM features.
+**Assistant:** The main differences: Basic gives you 700 conversations and 1 chatbot with email support. Pro upgrades you to 5,000 conversations, 3 chatbots, and adds appointment booking, CRM integration, calendar sync, priority support, analytics, multi-language support, and removes ChatGenius branding. Pro is ideal if you need booking or CRM features.
 
 ---
 

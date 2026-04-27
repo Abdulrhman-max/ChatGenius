@@ -41,33 +41,33 @@ def generate_monthly_report(admin_id, year, month):
     conn = db.get_db()
     try:
         total_bookings = conn.execute(
-            "SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND date BETWEEN ? AND ?",
+            "SELECT COUNT(*) as c FROM bookings WHERE admin_id=%s AND date BETWEEN %s AND %s",
             (admin_id, date_from, date_to),
         ).fetchone()["c"]
 
         completed = conn.execute(
-            "SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND date BETWEEN ? AND ? AND status='completed'",
+            "SELECT COUNT(*) as c FROM bookings WHERE admin_id=%s AND date BETWEEN %s AND %s AND status='completed'",
             (admin_id, date_from, date_to),
         ).fetchone()["c"]
 
         cancelled = conn.execute(
-            "SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND date BETWEEN ? AND ? AND status='cancelled'",
+            "SELECT COUNT(*) as c FROM bookings WHERE admin_id=%s AND date BETWEEN %s AND %s AND status='cancelled'",
             (admin_id, date_from, date_to),
         ).fetchone()["c"]
 
         no_shows = conn.execute(
-            "SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND date BETWEEN ? AND ? AND status='no_show'",
+            "SELECT COUNT(*) as c FROM bookings WHERE admin_id=%s AND date BETWEEN %s AND %s AND status='no_show'",
             (admin_id, date_from, date_to),
         ).fetchone()["c"]
 
         confirmed = conn.execute(
-            "SELECT COUNT(*) as c FROM bookings WHERE admin_id=? AND date BETWEEN ? AND ? AND status='confirmed'",
+            "SELECT COUNT(*) as c FROM bookings WHERE admin_id=%s AND date BETWEEN %s AND %s AND status='confirmed'",
             (admin_id, date_from, date_to),
         ).fetchone()["c"]
 
         # New patients this month
         new_patients = conn.execute(
-            "SELECT COUNT(*) as c FROM patients WHERE admin_id=? AND DATE(created_at) BETWEEN ? AND ?",
+            "SELECT COUNT(*) as c FROM patients WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s",
             (admin_id, date_from, date_to),
         ).fetchone()["c"]
 
@@ -76,7 +76,7 @@ def generate_monthly_report(admin_id, year, month):
         try:
             revenue_row = conn.execute(
                 "SELECT SUM(total) as revenue, COUNT(*) as count FROM invoices "
-                "WHERE admin_id=? AND payment_status='paid' AND DATE(created_at) BETWEEN ? AND ?",
+                "WHERE admin_id=%s AND payment_status='paid' AND DATE(created_at) BETWEEN %s AND %s",
                 (admin_id, date_from, date_to),
             ).fetchone()
         except Exception:
@@ -88,7 +88,7 @@ def generate_monthly_report(admin_id, year, month):
         # Top services
         top_services = conn.execute(
             """SELECT service, COUNT(*) as count FROM bookings
-               WHERE admin_id=? AND date BETWEEN ? AND ? AND status != 'cancelled'
+               WHERE admin_id=%s AND date BETWEEN %s AND %s AND status != 'cancelled'
                GROUP BY service ORDER BY count DESC LIMIT 10""",
             (admin_id, date_from, date_to),
         ).fetchall()
@@ -101,7 +101,7 @@ def generate_monthly_report(admin_id, year, month):
                       SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed,
                       SUM(CASE WHEN status='no_show' THEN 1 ELSE 0 END) as no_shows,
                       SUM(CASE WHEN status='cancelled' THEN 1 ELSE 0 END) as cancelled
-               FROM bookings WHERE admin_id=? AND date BETWEEN ? AND ?
+               FROM bookings WHERE admin_id=%s AND date BETWEEN %s AND %s
                GROUP BY doctor_id ORDER BY total DESC""",
             (admin_id, date_from, date_to),
         ).fetchall()
@@ -110,7 +110,7 @@ def generate_monthly_report(admin_id, year, month):
         # Daily booking distribution
         daily_dist = conn.execute(
             """SELECT date, COUNT(*) as count FROM bookings
-               WHERE admin_id=? AND date BETWEEN ? AND ? AND status != 'cancelled'
+               WHERE admin_id=%s AND date BETWEEN %s AND %s AND status != 'cancelled'
                GROUP BY date ORDER BY date""",
             (admin_id, date_from, date_to),
         ).fetchall()
@@ -397,7 +397,7 @@ def email_report(report_id, recipients=None):
     if sent_count > 0:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         conn = db.get_db()
-        conn.execute("UPDATE performance_reports SET emailed_at=? WHERE id=?", (now, report_id))
+        conn.execute("UPDATE performance_reports SET emailed_at=%s WHERE id=%s", (now, report_id))
         conn.commit()
         conn.close()
 
@@ -439,7 +439,7 @@ def generate_all_monthly_reports():
         # Check if already generated
         conn2 = db.get_db()
         existing = conn2.execute(
-            "SELECT id FROM performance_reports WHERE admin_id=? AND month=? AND year=?",
+            "SELECT id FROM performance_reports WHERE admin_id=%s AND month=%s AND year=%s",
             (admin_id, target_month, target_year),
         ).fetchone()
         conn2.close()

@@ -16,14 +16,14 @@ def get_or_create_referral_code(admin_id):
     import database as db
     conn = db.get_db()
 
-    user = conn.execute("SELECT referral_code FROM users WHERE id=?", (admin_id,)).fetchone()
+    user = conn.execute("SELECT referral_code FROM users WHERE id=%s", (admin_id,)).fetchone()
     if user and user["referral_code"]:
         conn.close()
         return user["referral_code"]
 
     # Generate unique code
     code = _generate_code(admin_id)
-    conn.execute("UPDATE users SET referral_code=? WHERE id=?", (code, admin_id))
+    conn.execute("UPDATE users SET referral_code=%s WHERE id=%s", (code, admin_id))
     conn.commit()
     conn.close()
     return code
@@ -33,7 +33,7 @@ def _generate_code(admin_id):
     """Generate a unique referral code based on business name or random."""
     import database as db
     conn = db.get_db()
-    company = conn.execute("SELECT business_name FROM company_info WHERE user_id=?", (admin_id,)).fetchone()
+    company = conn.execute("SELECT business_name FROM company_info WHERE user_id=%s", (admin_id,)).fetchone()
     conn.close()
 
     if company and company["business_name"]:
@@ -45,7 +45,7 @@ def _generate_code(admin_id):
     # Ensure uniqueness
     import database as db
     conn = db.get_db()
-    existing = conn.execute("SELECT id FROM users WHERE referral_code=?", (base,)).fetchone()
+    existing = conn.execute("SELECT id FROM users WHERE referral_code=%s", (base,)).fetchone()
     if existing:
         base = base + ''.join(random.choices(string.digits, k=3))
     conn.close()
@@ -68,7 +68,7 @@ def track_signup(referred_email, referral_code):
     conn = db.get_db()
 
     # Find the referrer
-    referrer = conn.execute("SELECT id FROM users WHERE referral_code=?", (referral_code,)).fetchone()
+    referrer = conn.execute("SELECT id FROM users WHERE referral_code=%s", (referral_code,)).fetchone()
     if not referrer:
         conn.close()
         return None
@@ -76,14 +76,14 @@ def track_signup(referred_email, referral_code):
     referrer_id = referrer["id"]
 
     # Prevent self-referral
-    referred_user = conn.execute("SELECT id FROM users WHERE email=?", (referred_email,)).fetchone()
+    referred_user = conn.execute("SELECT id FROM users WHERE email=%s", (referred_email,)).fetchone()
     if referred_user and referred_user["id"] == referrer_id:
         conn.close()
         return None
 
     # Check if referral already tracked
     existing = conn.execute(
-        "SELECT id FROM referrals WHERE referrer_admin_id=? AND referred_email=?",
+        "SELECT id FROM referrals WHERE referrer_admin_id=%s AND referred_email=%s",
         (referrer_id, referred_email)
     ).fetchone()
     if existing:
@@ -94,7 +94,7 @@ def track_signup(referred_email, referral_code):
     conn.execute(
         """INSERT INTO referrals
            (referrer_admin_id, referred_email, referral_code, status, reward_type, reward_value, created_at)
-           VALUES (?,?,?,?,?,?,?)""",
+           VALUES (%s,%s,%s,%s,%s,%s,%s)""",
         (referrer_id, referred_email, referral_code, "pending", "free_month", 1, now)
     )
     conn.commit()
@@ -113,7 +113,7 @@ def convert_referral(referred_email, referred_admin_id):
     conn = db.get_db()
 
     referral = conn.execute(
-        "SELECT * FROM referrals WHERE referred_email=? AND status='pending' LIMIT 1",
+        "SELECT * FROM referrals WHERE referred_email=%s AND status='pending' LIMIT 1",
         (referred_email,)
     ).fetchone()
 
@@ -125,8 +125,8 @@ def convert_referral(referred_email, referred_admin_id):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     conn.execute(
-        """UPDATE referrals SET status='converted', referred_admin_id=?,
-           converted_at=?, reward_applied=0 WHERE id=?""",
+        """UPDATE referrals SET status='converted', referred_admin_id=%s,
+           converted_at=%s, reward_applied=0 WHERE id=%s""",
         (referred_admin_id, now, referral["id"])
     )
     conn.commit()
@@ -144,7 +144,7 @@ def _apply_reward(admin_id, referral_id):
     import database as db
     conn = db.get_db()
 
-    referral = conn.execute("SELECT * FROM referrals WHERE id=?", (referral_id,)).fetchone()
+    referral = conn.execute("SELECT * FROM referrals WHERE id=%s", (referral_id,)).fetchone()
     if not referral:
         conn.close()
         return
@@ -152,7 +152,7 @@ def _apply_reward(admin_id, referral_id):
     referral = dict(referral)
 
     # Mark reward as applied
-    conn.execute("UPDATE referrals SET reward_applied=1 WHERE id=?", (referral_id,))
+    conn.execute("UPDATE referrals SET reward_applied=1 WHERE id=%s", (referral_id,))
     conn.commit()
     conn.close()
 
@@ -164,7 +164,7 @@ def cancel_referral(referred_email):
     import database as db
     conn = db.get_db()
     conn.execute(
-        "UPDATE referrals SET status='cancelled' WHERE referred_email=? AND status='pending'",
+        "UPDATE referrals SET status='cancelled' WHERE referred_email=%s AND status='pending'",
         (referred_email,)
     )
     conn.commit()
@@ -179,23 +179,23 @@ def get_referral_stats(admin_id):
     code = get_or_create_referral_code(admin_id)
 
     total_sent = conn.execute(
-        "SELECT COUNT(*) as c FROM referrals WHERE referrer_admin_id=?", (admin_id,)
+        "SELECT COUNT(*) as c FROM referrals WHERE referrer_admin_id=%s", (admin_id,)
     ).fetchone()["c"]
 
     converted = conn.execute(
-        "SELECT COUNT(*) as c FROM referrals WHERE referrer_admin_id=? AND status='converted'", (admin_id,)
+        "SELECT COUNT(*) as c FROM referrals WHERE referrer_admin_id=%s AND status='converted'", (admin_id,)
     ).fetchone()["c"]
 
     rewards_earned = conn.execute(
-        "SELECT COUNT(*) as c FROM referrals WHERE referrer_admin_id=? AND reward_applied=1", (admin_id,)
+        "SELECT COUNT(*) as c FROM referrals WHERE referrer_admin_id=%s AND reward_applied=1", (admin_id,)
     ).fetchone()["c"]
 
     pending = conn.execute(
-        "SELECT COUNT(*) as c FROM referrals WHERE referrer_admin_id=? AND status='pending'", (admin_id,)
+        "SELECT COUNT(*) as c FROM referrals WHERE referrer_admin_id=%s AND status='pending'", (admin_id,)
     ).fetchone()["c"]
 
     referrals_list = conn.execute(
-        "SELECT * FROM referrals WHERE referrer_admin_id=? ORDER BY created_at DESC",
+        "SELECT * FROM referrals WHERE referrer_admin_id=%s ORDER BY created_at DESC",
         (admin_id,)
     ).fetchall()
 

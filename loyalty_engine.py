@@ -93,11 +93,11 @@ def revoke_points(patient_id, admin_id, points, action, description="", booking_
         conn.execute(
             "INSERT INTO loyalty_transactions "
             "(patient_id, admin_id, points, action, description, booking_id) "
-            "VALUES (?,?,?,?,?,?)",
+            "VALUES (%s,%s,%s,%s,%s,%s)",
             (patient_id, admin_id, -abs(points), f"revoke_{action}", description, booking_id),
         )
         conn.execute(
-            "UPDATE patients SET loyalty_points = MAX(0, loyalty_points - ?) WHERE id=?",
+            "UPDATE patients SET loyalty_points = MAX(0, loyalty_points - %s) WHERE id=%s",
             (abs(points), patient_id),
         )
         conn.commit()
@@ -116,7 +116,7 @@ def get_balance(patient_id):
     conn = db.get_db()
     try:
         row = conn.execute(
-            "SELECT loyalty_points FROM patients WHERE id=?", (patient_id,)
+            "SELECT loyalty_points FROM patients WHERE id=%s", (patient_id,)
         ).fetchone()
     finally:
         conn.close()
@@ -178,7 +178,7 @@ def get_patient_history(patient_id):
     conn = db.get_db()
     try:
         rows = conn.execute(
-            "SELECT * FROM loyalty_transactions WHERE patient_id=? ORDER BY created_at DESC",
+            "SELECT * FROM loyalty_transactions WHERE patient_id=%s ORDER BY created_at DESC",
             (patient_id,),
         ).fetchall()
     finally:
@@ -256,7 +256,7 @@ def on_booking_cancelled(patient_id, admin_id, booking_id):
         row = conn.execute(
             "SELECT COALESCE(SUM(points), 0) AS total "
             "FROM loyalty_transactions "
-            "WHERE patient_id=? AND booking_id=? AND points > 0",
+            "WHERE patient_id=%s AND booking_id=%s AND points > 0",
             (patient_id, booking_id),
         ).fetchone()
     finally:

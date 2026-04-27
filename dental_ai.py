@@ -74,7 +74,7 @@ def think_and_respond(user_message, company_info=None, doctors=None, history=Non
                         hours_parts = []
                         for day in working:
                             h = daily[day]
-                            hours_parts.append(f"{day}: {h.get('from','?')} - {h.get('to','?')}")
+                            hours_parts.append(f"{day}: {h.get('from','%s')} - {h.get('to','%s')}")
                         working_days_str += " | Hours: " + "; ".join(hours_parts)
                 except Exception:
                     pass
@@ -104,7 +104,7 @@ Analyze the patient's message and respond helpfully about dental topics.
 
 HOW TO RESPOND:
 
-1. AVAILABILITY QUESTIONS — "is doctor X free?", "when is doctor available?", "what times?"
+1. AVAILABILITY QUESTIONS — "is doctor X free%s", "when is doctor available%s", "what times%s"
    → Check the time slots data above and give a SPECIFIC answer
    → Always mention the doctor by name
 

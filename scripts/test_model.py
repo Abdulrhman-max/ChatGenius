@@ -80,9 +80,9 @@ TEST_CASES = {
         {"input": "Hello, what do you do?", "expect_contains": ["chatbot", "business"]},
     ],
     "Pricing": [
-        {"input": "How much does ChatGenius cost?", "expect_contains": ["49", "149", "299"]},
+        {"input": "How much does ChatGenius cost?", "expect_contains": ["149", "349", "799"]},
         {"input": "Is there a free trial?", "expect_contains": ["14", "free", "trial"]},
-        {"input": "What's in the Pro plan?", "expect_contains": ["149", "pro"]},
+        {"input": "What's in the Pro plan?", "expect_contains": ["349", "pro"]},
         {"input": "Do you offer discounts?", "expect_contains": ["annual", "20%"]},
     ],
     "Features": [
@@ -92,12 +92,12 @@ TEST_CASES = {
         {"input": "What languages do you support?", "expect_contains": ["language", "english"]},
     ],
     "Setup": [
-        {"input": "How do I set it up?", "expect_contains": ["setup", "minute", "code"]},
+        {"input": "How do I set it up%s", "expect_contains": ["setup", "minute", "code"]},
         {"input": "Do I need a developer?", "expect_contains": ["no", "code"]},
     ],
     "Industries": [
-        {"input": "Does it work for dental offices?", "expect_contains": ["dental", "appointment"]},
-        {"input": "Can I use it for my restaurant?", "expect_contains": ["restaurant", "menu"]},
+        {"input": "Does it work for dental offices%s", "expect_contains": ["dental", "appointment"]},
+        {"input": "Can I use it for my restaurant%s", "expect_contains": ["restaurant", "menu"]},
         {"input": "What industries do you support?", "expect_contains": ["industry", "business"]},
     ],
     "Security": [
@@ -105,7 +105,7 @@ TEST_CASES = {
         {"input": "Are you GDPR compliant?", "expect_contains": ["gdpr", "compliant"]},
     ],
     "Comparisons": [
-        {"input": "How are you different from Intercom?", "expect_contains": ["intercom"]},
+        {"input": "How are you different from Intercom%s", "expect_contains": ["intercom"]},
         {"input": "Why choose ChatGenius over regular chatbots?", "expect_contains": ["ai", "chatbot"]},
     ],
     "Support": [
@@ -208,7 +208,7 @@ def run_quality_tests(model, tokenizer):
         {
             "name": "No hallucinated prices",
             "input": "How much is the Basic plan?",
-            "check": lambda r: "$49" in r or "49" in r,
+            "check": lambda r: "$149" in r or "149" in r,
         },
         {
             "name": "Stays on topic (doesn't talk about unrelated things)",

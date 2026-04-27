@@ -11,7 +11,7 @@ logger = logging.getLogger("treatment_followup")
 # Follow-up schedule: day number -> message template
 FOLLOWUP_SCHEDULE = {
     2: {
-        'en': "Hi {patient_name}! Dr. {doctor_name} recommended a {treatment_name} consultation for you. Ready to take the next step? Book here: {booking_url}",
+        'en': "Hi {patient_name}! Dr. {doctor_name} recommended a {treatment_name} consultation for you. Ready to take the next step%s Book here: {booking_url}",
         'ar': "مرحباً {patient_name}! أوصى د. {doctor_name} باستشارة {treatment_name} لك. هل أنت مستعد للخطوة التالية؟ احجز هنا: {booking_url}",
     },
     5: {
@@ -38,15 +38,15 @@ def create_followup(admin_id, doctor_id, doctor_name, patient_name, patient_emai
     ids = []
 
     for day in [2, 5, 10]:
-        conn.execute(
+        _ins_cur = conn.execute(
             """INSERT INTO treatment_followups
                (admin_id, doctor_id, patient_name, patient_email, patient_phone,
                 treatment_name, recommended_date, followup_day, status, created_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?)""",
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
             (admin_id, doctor_id, patient_name, patient_email, patient_phone,
              treatment_name, now_str, day, "pending", now_str)
         )
-        ids.append(conn.execute("SELECT last_insert_rowid()").fetchone()[0])
+        ids.append(_ins_cur.fetchone()['id'])
 
     conn.commit()
     conn.close()
@@ -85,9 +85,9 @@ def process_pending_followups():
             # Check if patient has booked this treatment since recommendation
             booked = conn.execute(
                 """SELECT id FROM bookings
-                   WHERE admin_id=? AND customer_email=?
-                   AND (service LIKE ? OR treatment_type LIKE ?)
-                   AND created_at > ? AND status != 'cancelled'""",
+                   WHERE admin_id=%s AND customer_email=%s
+                   AND (service LIKE %s OR treatment_type LIKE %s)
+                   AND created_at > %s AND status != 'cancelled'""",
                 (fu["admin_id"], fu["patient_email"],
                  f"%{fu['treatment_name']}%", f"%{fu['treatment_name']}%",
                  fu["recommended_date"])
@@ -102,7 +102,7 @@ def process_pending_followups():
             booking_url = f"https://chatgenius.com/book/{fu['admin_id']}"
 
             # Get doctor name
-            doctor = conn.execute("SELECT name FROM doctors WHERE id=?", (fu["doctor_id"],)).fetchone()
+            doctor = conn.execute("SELECT name FROM doctors WHERE id=%s", (fu["doctor_id"],)).fetchone()
             doctor_name = doctor["name"] if doctor else "your doctor"
 
             try:
@@ -112,7 +112,7 @@ def process_pending_followups():
                 )
                 now_str = now.strftime("%Y-%m-%d %H:%M:%S")
                 conn.execute(
-                    "UPDATE treatment_followups SET status='sent', sent_at=? WHERE id=?",
+                    "UPDATE treatment_followups SET status='sent', sent_at=%s WHERE id=%s",
                     (now_str, fu["id"])
                 )
                 conn.commit()
@@ -128,7 +128,7 @@ def cancel_sequence(followup_id):
     import database as db
     conn = db.get_db()
 
-    fu = conn.execute("SELECT * FROM treatment_followups WHERE id=?", (followup_id,)).fetchone()
+    fu = conn.execute("SELECT * FROM treatment_followups WHERE id=%s", (followup_id,)).fetchone()
     if not fu:
         conn.close()
         return {"error": "Follow-up not found"}
@@ -138,8 +138,8 @@ def cancel_sequence(followup_id):
 
     # Cancel all pending followups for this patient+treatment
     conn.execute(
-        """UPDATE treatment_followups SET status='cancelled', cancelled_at=?
-           WHERE admin_id=? AND patient_email=? AND treatment_name=? AND status='pending'""",
+        """UPDATE treatment_followups SET status='cancelled', cancelled_at=%s
+           WHERE admin_id=%s AND patient_email=%s AND treatment_name=%s AND status='pending'""",
         (now, fu["admin_id"], fu["patient_email"], fu["treatment_name"])
     )
     conn.commit()
@@ -156,14 +156,14 @@ def cancel_sequence_by_patient(admin_id, patient_email, treatment_name=None):
 
     if treatment_name:
         conn.execute(
-            """UPDATE treatment_followups SET status='cancelled', cancelled_at=?
-               WHERE admin_id=? AND patient_email=? AND treatment_name=? AND status='pending'""",
+            """UPDATE treatment_followups SET status='cancelled', cancelled_at=%s
+               WHERE admin_id=%s AND patient_email=%s AND treatment_name=%s AND status='pending'""",
             (now, admin_id, patient_email, treatment_name)
         )
     else:
         conn.execute(
-            """UPDATE treatment_followups SET status='cancelled', cancelled_at=?
-               WHERE admin_id=? AND patient_email=? AND status='pending'""",
+            """UPDATE treatment_followups SET status='cancelled', cancelled_at=%s
+               WHERE admin_id=%s AND patient_email=%s AND status='pending'""",
             (now, admin_id, patient_email)
         )
     conn.commit()
@@ -182,12 +182,12 @@ def get_followups(admin_id, status=None):
 
     if status:
         rows = conn.execute(
-            "SELECT * FROM treatment_followups WHERE admin_id=? AND status=? ORDER BY created_at DESC",
+            "SELECT * FROM treatment_followups WHERE admin_id=%s AND status=%s ORDER BY created_at DESC",
             (admin_id, status)
         ).fetchall()
     else:
         rows = conn.execute(
-            "SELECT * FROM treatment_followups WHERE admin_id=? ORDER BY created_at DESC",
+            "SELECT * FROM treatment_followups WHERE admin_id=%s ORDER BY created_at DESC",
             (admin_id,)
         ).fetchall()
     conn.close()
@@ -221,14 +221,14 @@ def get_followup_stats(admin_id):
     import database as db
     conn = db.get_db()
 
-    total = conn.execute("SELECT COUNT(*) as c FROM treatment_followups WHERE admin_id=?", (admin_id,)).fetchone()["c"]
-    sent = conn.execute("SELECT COUNT(*) as c FROM treatment_followups WHERE admin_id=? AND status='sent'", (admin_id,)).fetchone()["c"]
-    pending = conn.execute("SELECT COUNT(*) as c FROM treatment_followups WHERE admin_id=? AND status='pending'", (admin_id,)).fetchone()["c"]
-    cancelled = conn.execute("SELECT COUNT(*) as c FROM treatment_followups WHERE admin_id=? AND status='cancelled'", (admin_id,)).fetchone()["c"]
+    total = conn.execute("SELECT COUNT(*) as c FROM treatment_followups WHERE admin_id=%s", (admin_id,)).fetchone()["c"]
+    sent = conn.execute("SELECT COUNT(*) as c FROM treatment_followups WHERE admin_id=%s AND status='sent'", (admin_id,)).fetchone()["c"]
+    pending = conn.execute("SELECT COUNT(*) as c FROM treatment_followups WHERE admin_id=%s AND status='pending'", (admin_id,)).fetchone()["c"]
+    cancelled = conn.execute("SELECT COUNT(*) as c FROM treatment_followups WHERE admin_id=%s AND status='cancelled'", (admin_id,)).fetchone()["c"]
 
     # Count unique patients with active sequences
     active_patients = conn.execute(
-        "SELECT COUNT(DISTINCT patient_email) as c FROM treatment_followups WHERE admin_id=? AND status='pending'",
+        "SELECT COUNT(DISTINCT patient_email) as c FROM treatment_followups WHERE admin_id=%s AND status='pending'",
         (admin_id,)
     ).fetchone()["c"]
 

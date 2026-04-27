@@ -152,7 +152,7 @@ def _cleanup_past_date_waitlist():
         today = datetime.now().strftime("%Y-%m-%d")
         conn = db.get_db()
         result = conn.execute(
-            "UPDATE waitlist SET status='expired', expired_at=? WHERE date < ? AND status IN ('waiting','notified')",
+            "UPDATE waitlist SET status='expired', expired_at=%s WHERE date < %s AND status IN ('waiting','notified')",
             (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), today)
         )
         changed = result.rowcount
@@ -189,10 +189,10 @@ def _process_expired_waitlist_notifications():
             try:
                 conn = db.get_db()
                 pending = conn.execute(
-                    "SELECT id FROM bookings WHERE waitlist_id=? AND status='pending'",
+                    "SELECT id FROM bookings WHERE waitlist_id=%s AND status='pending'",
                     (entry["id"],)).fetchone()
                 if pending:
-                    conn.execute("UPDATE bookings SET status='cancelled' WHERE id=?", (pending["id"],))
+                    conn.execute("UPDATE bookings SET status='cancelled' WHERE id=%s", (pending["id"],))
                     conn.commit()
                     logger.info(f"Waitlist: cancelled pending booking {pending['id']} for expired entry {entry['id']}")
                 conn.close()
@@ -236,7 +236,7 @@ def _process_noshow_detection():
         now = datetime.now()
         today = now.strftime("%Y-%m-%d")
         rows = conn.execute(
-            "SELECT * FROM bookings WHERE date=? AND status='confirmed'",
+            "SELECT * FROM bookings WHERE date=%s AND status='confirmed'",
             (today,)
         ).fetchall()
         for row in rows:
@@ -252,9 +252,9 @@ def _process_noshow_detection():
                 admin_id = row.get("admin_id", 0)
                 # Only auto-mark as no_show if admin opted in AND patient didn't check in
                 if not row.get("checked_in") and db.is_feature_enabled(admin_id, "auto_noshow_detection"):
-                    conn.execute("UPDATE bookings SET status='no_show', revenue_amount=0 WHERE id=? AND status='confirmed'", (row["id"],))
+                    conn.execute("UPDATE bookings SET status='no_show', revenue_amount=0 WHERE id=%s AND status='confirmed'", (row["id"],))
                     if row.get("patient_id"):
-                        conn.execute("UPDATE patients SET total_no_shows=total_no_shows+1 WHERE id=?", (row["patient_id"],))
+                        conn.execute("UPDATE patients SET total_no_shows=total_no_shows+1 WHERE id=%s", (row["patient_id"],))
                     conn.commit()
                     logger.info(f"No-show detected: booking {row['id']} for {row['customer_name']}")
                     # Trigger no-show recovery if feature is enabled
@@ -266,22 +266,22 @@ def _process_noshow_detection():
                             logger.warning(f"No-show recovery trigger failed for booking {row['id']}: {e}")
                 else:
                     # Default: mark as completed (Attended)
-                    conn.execute("UPDATE bookings SET status='completed' WHERE id=? AND status='confirmed'", (row["id"],))
+                    conn.execute("UPDATE bookings SET status='completed' WHERE id=%s AND status='confirmed'", (row["id"],))
                     # Update patient stats
                     if row.get("patient_id"):
                         conn.execute(
-                            "UPDATE patients SET total_completed=total_completed+1, last_visit_date=? WHERE id=? AND (last_visit_date IS NULL OR last_visit_date < ?)",
+                            "UPDATE patients SET total_completed=total_completed+1, last_visit_date=%s WHERE id=%s AND (last_visit_date IS NULL OR last_visit_date < %s)",
                             (row["date"], row["patient_id"], row["date"])
                         )
                     else:
                         pat = None
                         if row.get("customer_email"):
-                            pat = conn.execute("SELECT id FROM patients WHERE admin_id=? AND email=?", (admin_id, row["customer_email"])).fetchone()
+                            pat = conn.execute("SELECT id FROM patients WHERE admin_id=%s AND email=%s", (admin_id, row["customer_email"])).fetchone()
                         if not pat and row.get("customer_phone"):
-                            pat = conn.execute("SELECT id FROM patients WHERE admin_id=? AND phone=?", (admin_id, row["customer_phone"])).fetchone()
+                            pat = conn.execute("SELECT id FROM patients WHERE admin_id=%s AND phone=%s", (admin_id, row["customer_phone"])).fetchone()
                         if pat:
                             conn.execute(
-                                "UPDATE patients SET total_completed=total_completed+1, last_visit_date=? WHERE id=? AND (last_visit_date IS NULL OR last_visit_date < ?)",
+                                "UPDATE patients SET total_completed=total_completed+1, last_visit_date=%s WHERE id=%s AND (last_visit_date IS NULL OR last_visit_date < %s)",
                                 (row["date"], pat["id"], row["date"])
                             )
                     conn.commit()

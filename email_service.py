@@ -82,7 +82,7 @@ def _get_admin_plan(admin_id):
     try:
         import database as db
         conn = db.get_db()
-        row = conn.execute("SELECT plan FROM users WHERE id=?", (admin_id,)).fetchone()
+        row = conn.execute("SELECT plan FROM users WHERE id=%s", (admin_id,)).fetchone()
         conn.close()
         return row["plan"] if row else "free_trial"
     except Exception:

@@ -20,7 +20,7 @@ def schedule_survey(booking_id, admin_id):
     import database as db
 
     conn = db.get_db()
-    booking = conn.execute("SELECT * FROM bookings WHERE id = ?", (booking_id,)).fetchone()
+    booking = conn.execute("SELECT * FROM bookings WHERE id = %s", (booking_id,)).fetchone()
     if not booking:
         conn.close()
         return None
@@ -54,7 +54,7 @@ def send_survey(survey_id):
     import database as db
 
     conn = db.get_db()
-    survey = conn.execute("SELECT * FROM surveys WHERE id = ?", (survey_id,)).fetchone()
+    survey = conn.execute("SELECT * FROM surveys WHERE id = %s", (survey_id,)).fetchone()
     if not survey:
         conn.close()
         return False
@@ -75,13 +75,13 @@ def send_survey(survey_id):
     # Get patient info for email
     patient = None
     if survey.get("patient_id"):
-        patient = conn.execute("SELECT * FROM patients WHERE id = ?", (survey["patient_id"],)).fetchone()
+        patient = conn.execute("SELECT * FROM patients WHERE id = %s", (survey["patient_id"],)).fetchone()
         if patient:
             patient = dict(patient)
 
     # Mark as sent
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    conn.execute("UPDATE surveys SET sent_at = ? WHERE id = ?", (now, survey_id))
+    conn.execute("UPDATE surveys SET sent_at = %s WHERE id = %s", (now, survey_id))
     conn.commit()
     conn.close()
 
@@ -145,7 +145,7 @@ def record_google_review_click(token):
         return {"error": "Survey not found or invalid token."}
 
     conn = db.get_db()
-    conn.execute("UPDATE surveys SET google_review_clicked = 1 WHERE token = ?", (token,))
+    conn.execute("UPDATE surveys SET google_review_clicked = 1 WHERE token = %s", (token,))
     conn.commit()
     conn.close()
 
@@ -176,10 +176,10 @@ def get_survey_analytics(admin_id, date_from=None, date_to=None):
     params = [admin_id]
     date_filter = ""
     if date_from:
-        date_filter += " AND completed_at >= ?"
+        date_filter += " AND completed_at >= %s"
         params.append(date_from)
     if date_to:
-        date_filter += " AND completed_at <= ?"
+        date_filter += " AND completed_at <= %s"
         params.append(date_to)
 
     nps_data = conn.execute(
@@ -187,7 +187,7 @@ def get_survey_analytics(admin_id, date_from=None, date_to=None):
             SUM(CASE WHEN star_rating >= 4 THEN 1 ELSE 0 END) as promoters,
             SUM(CASE WHEN star_rating <= 2 THEN 1 ELSE 0 END) as detractors,
             COUNT(*) as total
-        FROM surveys WHERE admin_id = ? AND star_rating IS NOT NULL {date_filter}""",
+        FROM surveys WHERE admin_id = %s AND star_rating IS NOT NULL {date_filter}""",
         params,
     ).fetchone()
     conn.close()

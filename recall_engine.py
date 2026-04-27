@@ -23,13 +23,13 @@ def create_recall_rule(admin_id, treatment_type, recall_days, message_template=N
             "with Dr. {doctor_name}. Time for your next visit — book here: {booking_url}"
         )
 
-    conn.execute(
+    _ins_cur = conn.execute(
         """INSERT INTO recall_rules (admin_id, treatment_type, recall_days, message_template, is_active, created_at)
-           VALUES (?,?,?,?,1,?)""",
+           VALUES (%s,%s,%s,%s,1,%s) RETURNING id""",
         (admin_id, treatment_type, recall_days, message_template, now)
     )
+    rule_id = _ins_cur.fetchone()['id']
     conn.commit()
-    rule_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     conn.close()
     return {"id": rule_id}
 
@@ -38,7 +38,7 @@ def get_recall_rules(admin_id):
     """Get all recall rules for an admin."""
     import database as db
     conn = db.get_db()
-    rules = conn.execute("SELECT * FROM recall_rules WHERE admin_id=? ORDER BY created_at DESC", (admin_id,)).fetchall()
+    rules = conn.execute("SELECT * FROM recall_rules WHERE admin_id=%s ORDER BY created_at DESC", (admin_id,)).fetchall()
     conn.close()
     return [dict(r) for r in rules]
 
@@ -53,7 +53,7 @@ def update_recall_rule(rule_id, **kwargs):
     conn = db.get_db()
     set_clause = ", ".join(f"{k}=?" for k in updates)
     values = list(updates.values()) + [rule_id]
-    conn.execute(f"UPDATE recall_rules SET {set_clause} WHERE id=?", values)
+    conn.execute(f"UPDATE recall_rules SET {set_clause} WHERE id=%s", values)
     conn.commit()
     conn.close()
 
@@ -62,8 +62,8 @@ def delete_recall_rule(rule_id):
     """Delete a recall rule and cancel all pending campaigns for it."""
     import database as db
     conn = db.get_db()
-    conn.execute("UPDATE recall_campaigns SET status='cancelled' WHERE rule_id=? AND status='pending'", (rule_id,))
-    conn.execute("DELETE FROM recall_rules WHERE id=?", (rule_id,))
+    conn.execute("UPDATE recall_campaigns SET status='cancelled' WHERE rule_id=%s AND status='pending'", (rule_id,))
+    conn.execute("DELETE FROM recall_rules WHERE id=%s", (rule_id,))
     conn.commit()
     conn.close()
 
@@ -85,7 +85,7 @@ def process_recall_campaigns(admin_id=None):
         if not db.is_feature_enabled(admin_id, "auto_recall"):
             conn.close()
             return
-        rules = conn.execute("SELECT * FROM recall_rules WHERE admin_id=? AND is_active=1", (admin_id,)).fetchall()
+        rules = conn.execute("SELECT * FROM recall_rules WHERE admin_id=%s AND is_active=1", (admin_id,)).fetchall()
     else:
         # Process all admins - filter by feature flag
         all_admins = conn.execute("SELECT DISTINCT admin_id FROM recall_rules WHERE is_active=1").fetchall()
@@ -93,7 +93,7 @@ def process_recall_campaigns(admin_id=None):
         for admin_row in all_admins:
             a_id = admin_row["admin_id"]
             if db.is_feature_enabled(a_id, "auto_recall"):
-                admin_rules = conn.execute("SELECT * FROM recall_rules WHERE admin_id=? AND is_active=1", (a_id,)).fetchall()
+                admin_rules = conn.execute("SELECT * FROM recall_rules WHERE admin_id=%s AND is_active=1", (a_id,)).fetchall()
                 rules.extend(admin_rules)
 
     today = datetime.now().strftime("%Y-%m-%d")
@@ -107,8 +107,8 @@ def process_recall_campaigns(admin_id=None):
             """SELECT b.*, p.email as patient_email, p.name as patient_name, p.phone as patient_phone
                FROM bookings b
                LEFT JOIN patients p ON b.patient_id = p.id
-               WHERE b.admin_id=? AND b.status='completed'
-               AND b.date=? AND (b.service LIKE ? OR b.treatment_type LIKE ?)""",
+               WHERE b.admin_id=%s AND b.status='completed'
+               AND b.date=%s AND (b.service LIKE %s OR b.treatment_type LIKE %s)""",
             (rule["admin_id"], recall_date,
              f"%{rule['treatment_type']}%", f"%{rule['treatment_type']}%")
         ).fetchall()
@@ -123,7 +123,7 @@ def process_recall_campaigns(admin_id=None):
 
             # Check if a campaign already exists for this patient+rule
             existing = conn.execute(
-                "SELECT id FROM recall_campaigns WHERE rule_id=? AND patient_email=? AND status IN ('pending','sent')",
+                "SELECT id FROM recall_campaigns WHERE rule_id=%s AND patient_email=%s AND status IN ('pending','sent')",
                 (rule["id"], patient_email)
             ).fetchone()
             if existing:
@@ -170,7 +170,7 @@ def process_recall_campaigns(admin_id=None):
                 )
                 now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 conn.execute(
-                    "UPDATE recall_campaigns SET status='sent', sent_at=? WHERE id=?",
+                    "UPDATE recall_campaigns SET status='sent', sent_at=%s WHERE id=%s",
                     (now, campaign["id"])
                 )
                 conn.commit()
@@ -194,7 +194,7 @@ def process_second_reminders():
         """SELECT rc.*, rr.treatment_type, rr.admin_id
            FROM recall_campaigns rc
            JOIN recall_rules rr ON rc.rule_id = rr.id
-           WHERE rc.status='sent' AND rc.sent_at <= ? AND rc.booked_at IS NULL
+           WHERE rc.status='sent' AND rc.sent_at <= %s AND rc.booked_at IS NULL
            AND rc.recall_type='recall'""",
         (two_weeks_ago,)
     ).fetchall()
@@ -222,7 +222,7 @@ def process_second_reminders():
             )
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             conn.execute(
-                "UPDATE recall_campaigns SET recall_type='second_reminder', sent_at=? WHERE id=?",
+                "UPDATE recall_campaigns SET recall_type='second_reminder', sent_at=%s WHERE id=%s",
                 (now, camp["id"])
             )
             conn.commit()
@@ -249,7 +249,7 @@ def process_birthday_greetings():
                   (SELECT user_id FROM company_info WHERE user_id = p.admin_id) as admin_user_id
            FROM patients p
            WHERE p.date_of_birth IS NOT NULL
-           AND SUBSTR(p.date_of_birth, 6) = ?""",
+           AND SUBSTR(p.date_of_birth, 6) = %s""",
         (today_md,)
     ).fetchall()
 
@@ -260,7 +260,7 @@ def process_birthday_greetings():
 
         # Check if already sent this year
         existing = conn.execute(
-            "SELECT id FROM recall_campaigns WHERE patient_email=? AND recall_type='birthday' AND created_at LIKE ?",
+            "SELECT id FROM recall_campaigns WHERE patient_email=%s AND recall_type='birthday' AND created_at LIKE %s",
             (patient["email"], f"{year}%")
         ).fetchone()
         if existing:
@@ -277,7 +277,7 @@ def process_birthday_greetings():
             )
 
         # Get business name
-        company = conn.execute("SELECT business_name FROM company_info WHERE user_id=?", (patient["admin_id"],)).fetchone()
+        company = conn.execute("SELECT business_name FROM company_info WHERE user_id=%s", (patient["admin_id"],)).fetchone()
         business_name = company["business_name"] if company else "our clinic"
 
         booking_url = f"https://chatgenius.com/book/{patient['admin_id']}"
@@ -293,7 +293,7 @@ def process_birthday_greetings():
             """INSERT INTO recall_campaigns
                (admin_id, rule_id, patient_name, patient_email, patient_phone,
                 recall_type, status, sent_at, created_at)
-               VALUES (?,0,?,?,?,?,?,?,?)""",
+               VALUES (%s,0,%s,%s,%s,%s,%s,%s,%s)""",
             (patient["admin_id"], patient["name"], patient["email"], patient.get("phone"),
              "birthday", "sent", now, now)
         )
@@ -324,7 +324,7 @@ def process_reengagement():
 
     patients = conn.execute(
         """SELECT * FROM patients
-           WHERE last_visit_date IS NOT NULL AND last_visit_date <= ?
+           WHERE last_visit_date IS NOT NULL AND last_visit_date <= %s
            AND email IS NOT NULL AND email != ''""",
         (cutoff,)
     ).fetchall()
@@ -334,13 +334,13 @@ def process_reengagement():
 
         # Check if already sent reengagement recently (within 30 days)
         recent = conn.execute(
-            "SELECT id FROM recall_campaigns WHERE patient_email=? AND recall_type='reengagement' AND created_at >= ?",
+            "SELECT id FROM recall_campaigns WHERE patient_email=%s AND recall_type='reengagement' AND created_at >= %s",
             (patient["email"], (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S"))
         ).fetchone()
         if recent:
             continue
 
-        company = conn.execute("SELECT business_name FROM company_info WHERE user_id=?", (patient["admin_id"],)).fetchone()
+        company = conn.execute("SELECT business_name FROM company_info WHERE user_id=%s", (patient["admin_id"],)).fetchone()
         business_name = company["business_name"] if company else "our clinic"
 
         booking_url = f"https://chatgenius.com/book/{patient['admin_id']}"
@@ -354,7 +354,7 @@ def process_reengagement():
             """INSERT INTO recall_campaigns
                (admin_id, rule_id, patient_name, patient_email, patient_phone,
                 recall_type, status, sent_at, created_at)
-               VALUES (?,0,?,?,?,?,?,?,?)""",
+               VALUES (%s,0,%s,%s,%s,%s,%s,%s,%s)""",
             (patient["admin_id"], patient["name"], patient["email"], patient.get("phone"),
              "reengagement", "sent", now, now)
         )
@@ -381,22 +381,22 @@ def get_campaign_analytics(admin_id):
     conn = db.get_db()
 
     total_sent = conn.execute(
-        "SELECT COUNT(*) as c FROM recall_campaigns WHERE admin_id=? AND status='sent'", (admin_id,)
+        "SELECT COUNT(*) as c FROM recall_campaigns WHERE admin_id=%s AND status='sent'", (admin_id,)
     ).fetchone()["c"]
 
     total_opened = conn.execute(
-        "SELECT COUNT(*) as c FROM recall_campaigns WHERE admin_id=? AND opened_at IS NOT NULL", (admin_id,)
+        "SELECT COUNT(*) as c FROM recall_campaigns WHERE admin_id=%s AND opened_at IS NOT NULL", (admin_id,)
     ).fetchone()["c"]
 
     total_booked = conn.execute(
-        "SELECT COUNT(*) as c FROM recall_campaigns WHERE admin_id=? AND booked_at IS NOT NULL", (admin_id,)
+        "SELECT COUNT(*) as c FROM recall_campaigns WHERE admin_id=%s AND booked_at IS NOT NULL", (admin_id,)
     ).fetchone()["c"]
 
     # By type
     by_type = conn.execute(
         """SELECT recall_type, COUNT(*) as total,
                   SUM(CASE WHEN booked_at IS NOT NULL THEN 1 ELSE 0 END) as converted
-           FROM recall_campaigns WHERE admin_id=?
+           FROM recall_campaigns WHERE admin_id=%s
            GROUP BY recall_type""",
         (admin_id,)
     ).fetchall()
@@ -417,7 +417,7 @@ def mark_campaign_opened(campaign_id):
     import database as db
     conn = db.get_db()
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    conn.execute("UPDATE recall_campaigns SET opened_at=? WHERE id=? AND opened_at IS NULL", (now, campaign_id))
+    conn.execute("UPDATE recall_campaigns SET opened_at=%s WHERE id=%s AND opened_at IS NULL", (now, campaign_id))
     conn.commit()
     conn.close()
 
@@ -428,8 +428,8 @@ def mark_campaign_booked(patient_email, admin_id, booking_id):
     conn = db.get_db()
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     conn.execute(
-        """UPDATE recall_campaigns SET booked_at=?, booking_id=?
-           WHERE patient_email=? AND admin_id=? AND booked_at IS NULL
+        """UPDATE recall_campaigns SET booked_at=%s, booking_id=%s
+           WHERE patient_email=%s AND admin_id=%s AND booked_at IS NULL
            ORDER BY created_at DESC LIMIT 1""",
         (now, booking_id, patient_email, admin_id)
     )
@@ -441,6 +441,6 @@ def toggle_all_recalls(admin_id, active):
     """Pause or resume all recall rules for an admin."""
     import database as db
     conn = db.get_db()
-    conn.execute("UPDATE recall_rules SET is_active=? WHERE admin_id=?", (1 if active else 0, admin_id))
+    conn.execute("UPDATE recall_rules SET is_active=%s WHERE admin_id=%s", (1 if active else 0, admin_id))
     conn.commit()
     conn.close()

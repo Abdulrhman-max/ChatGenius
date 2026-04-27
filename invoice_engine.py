@@ -32,7 +32,7 @@ def generate_invoice(booking_id, admin_id):
     try:
         conn.execute("BEGIN IMMEDIATE")
         config_row = conn.execute(
-            "SELECT next_invoice_number FROM invoice_config WHERE admin_id=?",
+            "SELECT next_invoice_number FROM invoice_config WHERE admin_id=%s",
             (admin_id,)
         ).fetchone()
         next_num = config_row["next_invoice_number"] if config_row else 1
@@ -42,12 +42,12 @@ def generate_invoice(booking_id, admin_id):
         # Increment the next invoice number atomically
         if config_row:
             conn.execute(
-                "UPDATE invoice_config SET next_invoice_number=? WHERE admin_id=?",
+                "UPDATE invoice_config SET next_invoice_number=%s WHERE admin_id=%s",
                 (next_num + 1, admin_id)
             )
         else:
             conn.execute(
-                "INSERT INTO invoice_config (admin_id, next_invoice_number) VALUES (?, ?)",
+                "INSERT INTO invoice_config (admin_id, next_invoice_number) VALUES (%s, %s)",
                 (admin_id, next_num + 1)
             )
         conn.commit()
@@ -101,7 +101,7 @@ def _get_service_price(service_name, admin_id):
     # Try to find from a services/pricing table if it exists
     try:
         row = conn.execute(
-            "SELECT pricing_insurance FROM company_info WHERE user_id=?", (admin_id,)
+            "SELECT pricing_insurance FROM company_info WHERE user_id=%s", (admin_id,)
         ).fetchone()
         if row and row["pricing_insurance"]:
             # Try parsing pricing info for the service
@@ -153,7 +153,7 @@ def mark_paid(invoice_id, payment_method="cash"):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     conn = db.get_db()
     conn.execute(
-        "UPDATE invoices SET payment_status='paid', payment_method=?, paid_at=? WHERE id=?",
+        "UPDATE invoices SET payment_status='paid', payment_method=%s, paid_at=%s WHERE id=%s",
         (payment_method, now, invoice_id),
     )
     conn.commit()
@@ -169,7 +169,7 @@ def void_invoice(invoice_id, reason=""):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     conn = db.get_db()
     conn.execute(
-        "UPDATE invoices SET payment_status='voided', voided_at=?, void_reason=? WHERE id=?",
+        "UPDATE invoices SET payment_status='voided', voided_at=%s, void_reason=%s WHERE id=%s",
         (now, reason, invoice_id),
     )
     conn.commit()
@@ -186,7 +186,7 @@ def generate_invoice_html(invoice_id):
     import database as db
 
     conn = db.get_db()
-    invoice = conn.execute("SELECT * FROM invoices WHERE id=?", (invoice_id,)).fetchone()
+    invoice = conn.execute("SELECT * FROM invoices WHERE id=%s", (invoice_id,)).fetchone()
     if not invoice:
         conn.close()
         return None
@@ -348,7 +348,7 @@ def send_invoice_email(invoice_id):
     import email_service as email_svc
 
     conn = db.get_db()
-    invoice = conn.execute("SELECT * FROM invoices WHERE id=?", (invoice_id,)).fetchone()
+    invoice = conn.execute("SELECT * FROM invoices WHERE id=%s", (invoice_id,)).fetchone()
     if not invoice:
         conn.close()
         return False

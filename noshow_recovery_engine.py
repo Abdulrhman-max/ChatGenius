@@ -33,7 +33,7 @@ def on_noshow_detected(booking_id):
     noshow_count = 1
     if patient_id:
         conn = db.get_db()
-        patient = conn.execute("SELECT total_no_shows FROM patients WHERE id=?", (patient_id,)).fetchone()
+        patient = conn.execute("SELECT total_no_shows FROM patients WHERE id=%s", (patient_id,)).fetchone()
         if patient:
             noshow_count = patient["total_no_shows"] or 1
         conn.close()
@@ -93,7 +93,7 @@ def send_recovery_message(recovery_id):
     import email_service as email_svc
 
     conn = db.get_db()
-    recovery = conn.execute("SELECT * FROM noshow_recovery WHERE id=?", (recovery_id,)).fetchone()
+    recovery = conn.execute("SELECT * FROM noshow_recovery WHERE id=%s", (recovery_id,)).fetchone()
     if not recovery:
         conn.close()
         logger.warning(f"No-show recovery: recovery {recovery_id} not found")
@@ -133,14 +133,26 @@ def send_recovery_message(recovery_id):
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if sent:
-        conn.execute("UPDATE noshow_recovery SET recovery_status='sent', message_sent_at=? WHERE id=?",
+        conn.execute("UPDATE noshow_recovery SET recovery_status='sent', message_sent_at=%s WHERE id=%s",
                       (now, recovery_id))
     else:
-        conn.execute("UPDATE noshow_recovery SET recovery_status='send_failed' WHERE id=?", (recovery_id,))
+        conn.execute("UPDATE noshow_recovery SET recovery_status='send_failed' WHERE id=%s", (recovery_id,))
 
     conn.commit()
     conn.close()
     logger.info(f"No-show recovery: message {'sent' if sent else 'failed'} for recovery {recovery_id}")
+
+    # Also send SMS if Twilio is configured and SMS no-show recovery is enabled
+    try:
+        if db.is_feature_enabled(admin_id, "sms_noshow_recovery"):
+            import sms_engine
+            if sms_engine.is_configured(admin_id):
+                sms_sent = sms_engine.send_noshow_recovery_sms(recovery["booking_id"])
+                if sms_sent:
+                    logger.info(f"No-show recovery: SMS also sent for booking {recovery['booking_id']}")
+    except Exception as sms_err:
+        logger.warning(f"No-show recovery: SMS failed for booking {recovery['booking_id']}: {sms_err}")
+
     return sent
 
 
@@ -173,7 +185,7 @@ def _build_recovery_email(patient_name, booking, reschedule_url, cancel_url):
         on <strong>{date_display}</strong> at <strong>{time_display}</strong>.
     </p>
     <p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 30px;">
-        We understand that things come up. Would you like to reschedule at a time that works better for you?
+        We understand that things come up. Would you like to reschedule at a time that works better for you%s
     </p>
     <div style="text-align:center;margin:30px 0;">
         <a href="{reschedule_url}" style="display:inline-block;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:14px 40px;border-radius:30px;text-decoration:none;font-weight:600;font-size:15px;margin:0 8px;">
@@ -253,7 +265,7 @@ def check_deposit_required(patient_id, admin_id):
     max_noshows = policy.get("max_noshows_before_deposit", 2) if policy else 2
 
     conn = db.get_db()
-    patient = conn.execute("SELECT total_no_shows FROM patients WHERE id=?", (patient_id,)).fetchone()
+    patient = conn.execute("SELECT total_no_shows FROM patients WHERE id=%s", (patient_id,)).fetchone()
     conn.close()
 
     if not patient:
@@ -280,7 +292,7 @@ def process_expired_recoveries():
     cutoff = (datetime.now() - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
     result = conn.execute(
         """UPDATE noshow_recovery SET recovery_status='expired'
-           WHERE recovery_status IN ('pending', 'sent') AND created_at < ?""",
+           WHERE recovery_status IN ('pending', 'sent') AND created_at < %s""",
         (cutoff,)
     )
     count = result.rowcount

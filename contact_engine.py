@@ -54,8 +54,8 @@ FALLBACK_RESPONSE = (
     "I'd love to help connect you with our team! Could you please share:\n\n"
     "- Your **full name**\n"
     "- **Phone number** (we'll default to +966 country code)\n"
-    "- **Preferred contact method** — phone call, WhatsApp, or email?\n"
-    "- **Best time to reach you** — morning, afternoon, or evening?\n\n"
+    "- **Preferred contact method** — phone call, WhatsApp, or email%s\n"
+    "- **Best time to reach you** — morning, afternoon, or evening%s\n\n"
     "And if you could briefly share the **reason for your inquiry**, "
     "we'll make sure the right person gets back to you!"
     + CONTACT_FOOTER

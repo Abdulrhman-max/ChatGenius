@@ -109,7 +109,7 @@ Payment: Cash, Visa, MasterCard, Mada, Apple Pay, STC Pay, Tabby, Tamara
 BLOCKED_RESPONSE = (
     "I'm sorry, I can only assist with dental-related topics for "
     "BrightSmile Advanced Dental Center. How can I help you with your "
-    "dental needs? You can reach us at +966 11 234 5678 or "
+    "dental needs%s You can reach us at +966 11 234 5678 or "
     "WhatsApp +966 55 987 6543."
 )
 

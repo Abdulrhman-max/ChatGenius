@@ -22,13 +22,13 @@ def recognize_patient(admin_id, phone=None, email=None):
         # Normalize phone: remove spaces, dashes, leading zeros
         clean_phone = phone.strip().replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
         patient = conn.execute(
-            "SELECT * FROM patients WHERE admin_id=? AND (phone=? OR phone=?)",
+            "SELECT * FROM patients WHERE admin_id=%s AND (phone=%s OR phone=%s)",
             (admin_id, phone, clean_phone)
         ).fetchone()
 
     if not patient and email:
         patient = conn.execute(
-            "SELECT * FROM patients WHERE admin_id=? AND email=?",
+            "SELECT * FROM patients WHERE admin_id=%s AND email=%s",
             (admin_id, email.strip().lower())
         ).fetchone()
 
@@ -62,31 +62,31 @@ def get_or_create_patient(admin_id, name, phone=None, email=None, increment_book
 
         if increment_booking:
             conn.execute(
-                "UPDATE patients SET total_bookings = COALESCE(total_bookings, 0) + 1 WHERE id=?",
+                "UPDATE patients SET total_bookings = COALESCE(total_bookings, 0) + 1 WHERE id=%s",
                 (patient["id"],)
             )
 
         if updates:
             for key, val in updates.items():
-                conn.execute(f"UPDATE patients SET {key}=? WHERE id=?", (val, patient["id"]))
+                conn.execute(f"UPDATE patients SET {key}=%s WHERE id=%s", (val, patient["id"]))
 
         conn.commit()
 
         # Re-fetch
-        patient = conn.execute("SELECT * FROM patients WHERE id=?", (patient["id"],)).fetchone()
+        patient = conn.execute("SELECT * FROM patients WHERE id=%s", (patient["id"],)).fetchone()
         conn.close()
         return dict(patient)
 
     # Create new patient
-    conn.execute(
+    _ins_cur = conn.execute(
         """INSERT INTO patients
            (admin_id, name, email, phone, total_bookings, total_completed, total_cancelled, total_no_shows, loyalty_points, created_at)
-           VALUES (?,?,?,?,?,0,0,0,0,?)""",
+           VALUES (%s,%s,%s,%s,%s,0,0,0,0,%s) RETURNING id""",
         (admin_id, name, email, phone, 1 if increment_booking else 0, now)
     )
+    patient_id = _ins_cur.fetchone()['id']
     conn.commit()
-    patient_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    patient = conn.execute("SELECT * FROM patients WHERE id=?", (patient_id,)).fetchone()
+    patient = conn.execute("SELECT * FROM patients WHERE id=%s", (patient_id,)).fetchone()
     conn.close()
 
     logger.info(f"New patient created: {name} (#{patient_id})")
@@ -98,7 +98,7 @@ def get_patient_profile(patient_id):
     import database as db
     conn = db.get_db()
 
-    patient = conn.execute("SELECT * FROM patients WHERE id=?", (patient_id,)).fetchone()
+    patient = conn.execute("SELECT * FROM patients WHERE id=%s", (patient_id,)).fetchone()
     if not patient:
         conn.close()
         return None
@@ -108,7 +108,7 @@ def get_patient_profile(patient_id):
     # Appointments history
     appointments = conn.execute(
         """SELECT id, date, time, doctor_name, service, treatment_type, status, created_at
-           FROM bookings WHERE patient_id=? ORDER BY date DESC, time DESC""",
+           FROM bookings WHERE patient_id=%s ORDER BY date DESC, time DESC""",
         (patient_id,)
     ).fetchall()
     patient["appointments"] = [dict(a) for a in appointments]
@@ -117,7 +117,7 @@ def get_patient_profile(patient_id):
     today = datetime.now().strftime("%Y-%m-%d")
     upcoming = conn.execute(
         """SELECT id, date, time, doctor_name, service, status
-           FROM bookings WHERE patient_id=? AND date >= ? AND status='confirmed'
+           FROM bookings WHERE patient_id=%s AND date >= %s AND status='confirmed'
            ORDER BY date, time""",
         (patient_id, today)
     ).fetchall()
@@ -128,7 +128,7 @@ def get_patient_profile(patient_id):
         """SELECT pn.*, u.name as doctor_name
            FROM patient_notes pn
            LEFT JOIN users u ON pn.doctor_id = u.id
-           WHERE pn.patient_id=? ORDER BY pn.created_at DESC""",
+           WHERE pn.patient_id=%s ORDER BY pn.created_at DESC""",
         (patient_id,)
     ).fetchall()
     patient["notes"] = [dict(n) for n in notes]
@@ -138,7 +138,7 @@ def get_patient_profile(patient_id):
         """SELECT pf.id, pf.booking_id, pf.submitted_at, pf.full_name
            FROM patient_forms pf
            JOIN bookings b ON pf.booking_id = b.id
-           WHERE b.patient_id=? AND pf.submitted_at IS NOT NULL
+           WHERE b.patient_id=%s AND pf.submitted_at IS NOT NULL
            ORDER BY pf.submitted_at DESC""",
         (patient_id,)
     ).fetchall()
@@ -146,7 +146,7 @@ def get_patient_profile(patient_id):
 
     # Loyalty history
     loyalty = conn.execute(
-        "SELECT * FROM loyalty_transactions WHERE patient_id=? ORDER BY created_at DESC LIMIT 20",
+        "SELECT * FROM loyalty_transactions WHERE patient_id=%s ORDER BY created_at DESC LIMIT 20",
         (patient_id,)
     ).fetchall()
     patient["loyalty_history"] = [dict(l) for l in loyalty]
@@ -161,12 +161,12 @@ def add_note(patient_id, doctor_id, note, booking_id=None):
     conn = db.get_db()
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    conn.execute(
-        "INSERT INTO patient_notes (patient_id, doctor_id, booking_id, note, created_at) VALUES (?,?,?,?,?)",
+    _ins_cur = conn.execute(
+        "INSERT INTO patient_notes (patient_id, doctor_id, booking_id, note, created_at) VALUES (%s,%s,%s,%s,%s) RETURNING id",
         (patient_id, doctor_id, booking_id, note, now)
     )
+    note_id = _ins_cur.fetchone()['id']
     conn.commit()
-    note_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     conn.close()
     return {"id": note_id}
 
@@ -184,7 +184,7 @@ def update_patient(patient_id, **kwargs):
     conn = db.get_db()
     set_clause = ", ".join(f"{k}=?" for k in updates)
     values = list(updates.values()) + [patient_id]
-    conn.execute(f"UPDATE patients SET {set_clause} WHERE id=?", values)
+    conn.execute(f"UPDATE patients SET {set_clause} WHERE id=%s", values)
     conn.commit()
     conn.close()
 
@@ -197,7 +197,7 @@ def search_patients(admin_id, query):
     search = f"%{query}%"
     patients = conn.execute(
         """SELECT id, name, email, phone, total_bookings, last_visit_date, loyalty_points
-           FROM patients WHERE admin_id=? AND (name LIKE ? OR phone LIKE ? OR email LIKE ?)
+           FROM patients WHERE admin_id=%s AND (name LIKE %s OR phone LIKE %s OR email LIKE %s)
            ORDER BY name LIMIT 50""",
         (admin_id, search, search, search)
     ).fetchall()
@@ -216,17 +216,17 @@ def delete_patient(patient_id, admin_id):
 
     # Verify ownership
     patient = conn.execute(
-        "SELECT id FROM patients WHERE id=? AND admin_id=?", (patient_id, admin_id)
+        "SELECT id FROM patients WHERE id=%s AND admin_id=%s", (patient_id, admin_id)
     ).fetchone()
     if not patient:
         conn.close()
         return {"error": "Patient not found"}
 
     # Delete associated data
-    conn.execute("DELETE FROM patient_notes WHERE patient_id=?", (patient_id,))
-    conn.execute("DELETE FROM loyalty_transactions WHERE patient_id=?", (patient_id,))
-    conn.execute("UPDATE bookings SET patient_id=NULL WHERE patient_id=?", (patient_id,))
-    conn.execute("DELETE FROM patients WHERE id=?", (patient_id,))
+    conn.execute("DELETE FROM patient_notes WHERE patient_id=%s", (patient_id,))
+    conn.execute("DELETE FROM loyalty_transactions WHERE patient_id=%s", (patient_id,))
+    conn.execute("UPDATE bookings SET patient_id=NULL WHERE patient_id=%s", (patient_id,))
+    conn.execute("DELETE FROM patients WHERE id=%s", (patient_id,))
     conn.commit()
     conn.close()
 
@@ -239,7 +239,7 @@ def record_visit(patient_id):
     import database as db
     conn = db.get_db()
     today = datetime.now().strftime("%Y-%m-%d")
-    conn.execute("UPDATE patients SET last_visit_date=? WHERE id=?", (today, patient_id))
+    conn.execute("UPDATE patients SET last_visit_date=%s WHERE id=%s", (today, patient_id))
     conn.commit()
     conn.close()
 
@@ -251,4 +251,4 @@ def get_welcome_message(patient, lang='en'):
 
     if lang == 'ar':
         return f"مرحباً مجدداً {name}! سعداء بعودتك. كيف يمكنني مساعدتك؟"
-    return f"Welcome back, {name}! Great to hear from you again. How can I help?"
+    return f"Welcome back, {name}! Great to hear from you again. How can I help%s"
