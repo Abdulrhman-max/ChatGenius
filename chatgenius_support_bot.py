@@ -36,7 +36,7 @@ Here is everything you know about ChatGenius:
 ChatGenius is a multi-tenant SaaS platform for healthcare clinics, dental practices, medical offices, and salons/spas. It provides an AI-powered chatbot, appointment management, patient engagement, and business intelligence — all accessible through a single dashboard.
 
 PRICING PLANS:
-- Free Trial: $0/month for 14 days. 50 conversations/month, 1 chatbot (with watermark), basic AI responses, community support.
+- Free Trial: $0/month for 14 days. 200 conversations/month, 1 chatbot (with watermark), basic AI responses, community support.
 - Basic: $79/month (or $63/month billed annually). 700 conversations/month, 1 chatbot (with watermark), AI chatbot (website only), smart appointment booking, calendar & doctor scheduling, email reminders (48h, 24h), basic patient profiles, pre-visit forms, basic analytics, email support.
 - Pro (Most Popular): $239/month (or $191/month annually). 5,000 conversations/month, 4 chatbots (no watermark). All Basic features PLUS: advanced reminders (48h, 24h, 2h), no-show detection & recovery, ROI dashboard, lead capture + auto follow-ups, waitlist system, promotions & loyalty program, multi-language chatbot, treatment follow-ups, customer integration, customizable chatbot, AI PDF extraction, configurable emails, priority support.
 - Enterprise: $699/month (or $559/month annually). Unlimited conversations, unlimited chatbots. All Pro features PLUS: AI no-show prediction reminders, advanced analytics & reports, custom workflows, API access, appointment database integrations, PMS/CRM integration, full doctor portal access, use your own email to send, full chatbot customization & white-label, dedicated account manager, SOC 2 compliance.
@@ -47,7 +47,7 @@ CORE FEATURES:
 - Embeds on any website via a single <script> tag
 - Natural language understanding for patient questions about services, pricing, availability, insurance, treatments
 - Smart appointment booking: guides patients through selecting service, doctor, date, time — books directly
-- Multi-language support: English and Arabic with automatic detection
+- Multi-language support: 7 languages — English, Arabic, Urdu, Tagalog, Spanish, French, Chinese — with automatic detection
 - Dental/medical knowledge base with 61+ entries
 - Intent classification routing to correct engine
 - Treatment education, insurance/coverage calculations

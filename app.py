@@ -66,12 +66,24 @@ import noshow_recovery_engine
 import sms_engine
 import zapier_engine
 
+# ── Faster-Whisper for voice transcription ──
+import tempfile
+_whisper_model = None
+def _get_whisper_model():
+    global _whisper_model
+    if _whisper_model is None:
+        from faster_whisper import WhisperModel
+        # "small" gives good accuracy for voice commands. "base" is too inaccurate.
+        _whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
+        print("[voice] Faster-Whisper 'small' model loaded", flush=True)
+    return _whisper_model
+
 app = Flask(__name__, static_folder="static")
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max upload
 
 # ── CORS for embedded chatbot ──
 from flask_cors import CORS
-CORS(app, resources={r"/chat": {"origins": "*"}, r"/static/chatbot-embed.js": {"origins": "*"}, r"/api/chatbot-customization/public/*": {"origins": "*"}})
+CORS(app, resources={r"/chat": {"origins": "*"}, r"/static/chatbot-embed.js": {"origins": "*"}, r"/api/chatbot-customization/public/*": {"origins": "*"}, r"/api/proactive-config/public/*": {"origins": "*"}, r"/api/voice/*": {"origins": "*"}})
 
 # ── Rate limiting ──
 from flask_limiter import Limiter
@@ -86,7 +98,7 @@ def set_security_headers(response):
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-    response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+    response.headers['Permissions-Policy'] = 'camera=(), microphone=(self), geolocation=()'
     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
     if 'text/html' in response.content_type:
         response.headers['Content-Security-Policy'] = (
@@ -261,7 +273,7 @@ KB_RESPONSES = {
     "pricing": "We have three plans: **Basic** at $79/month (700 conversations, 1 chatbot, smart booking, calendar scheduling, email reminders, patient profiles, pre-visit forms, basic analytics), **Pro** at $239/month (5,000 conversations, 4 chatbots, everything in Basic + advanced reminders, no-show recovery, ROI dashboard, lead capture, waitlist, promotions, multi-language, AI PDF extraction), and **Enterprise** at $699/month (unlimited conversations, everything in Pro + AI no-show prediction, advanced analytics, API access, PMS/CRM integration, full doctor portal, chatbot customization, white-label, dedicated account manager, SOC 2 compliance). All include a 14-day free trial — no credit card required!",
     "features": "ChatGenius includes: 24/7 instant AI replies (under 2 seconds), automated appointment booking with calendar sync, smart lead capture with CRM integration, one-line website integration, a no-code dashboard, and templates for 20+ industries. Pro adds multi-language support, analytics, and human handoff.",
     "setup": "Setup takes under 5 minutes: 1) Sign up free, 2) Enter your business info, 3) Upload your knowledge base or let AI learn from your website, 4) Customize the look, 5) Paste one line of code on your site. No coding or technical skills needed!",
-    "trial": "We offer a 14-day free trial with full Pro features — no credit card required. After the trial, choose a paid plan or continue with a limited free tier (50 conversations/month). We also have a 30-day money-back guarantee on all paid plans. Zero risk!",
+    "trial": "We offer a 14-day free trial with full Pro features — no credit card required. After the trial, choose a paid plan or continue with a limited free tier (200 conversations/month). We also have a 30-day money-back guarantee on all paid plans. Zero risk!",
     "industries": "ChatGenius works for any industry! Popular verticals: dental clinics, law firms, real estate, restaurants, e-commerce, fitness studios, salons, automotive, professional services, and education. We have pre-built templates for 20+ industries, and the AI adapts to your specific business.",
     "integration": "We integrate with HubSpot, Salesforce, Zoho, Pipedrive (CRM), Google Calendar, Calendly, Outlook (scheduling), Slack, Teams (communication), Zapier, Make (automation), and Google Analytics. Works on WordPress, Shopify, Wix, Squarespace, Webflow, and any custom website.",
     "security": "All data is encrypted with AES-256 at rest and TLS 1.3 in transit. We're GDPR and CCPA compliant, hosted on AWS with 99.9% uptime. Enterprise plan includes SOC 2 Type II compliance. We never sell your data — you own everything and can export or delete anytime.",
@@ -743,7 +755,7 @@ def _is_negative(text):
     if t in ("no", "nah", "nope", "n", "no thanks", "no thank you", "other times",
              "show me", "skip", "pass", "never mind", "nevermind", "not now"):
         return True
-    if re.search(r'\b(no|nah|nope|don\'%st|not)\b', t) and not re.search(r'\b(yes|yeah|sure|okay)\b', t):
+    if re.search(r'\b(no|nah|nope|don\'t|not)\b', t) and not re.search(r'\b(yes|yeah|sure|okay)\b', t):
         return True
     return False
 
@@ -1476,7 +1488,7 @@ def _init_fast_booking(session, extracted, doctors, admin_id):
                 data["_categories"] = categories
                 session["step"] = "get_category"
                 ui = {"type": "categories", "items": [{"name": c} for c in categories]}
-                return "I'd love to help you book! What type of doctor would you like to see%s", ui
+                return "I'd love to help you book! What type of doctor would you like to see?", ui
             else:
                 data["_doctors"] = doctors
                 session["step"] = "get_doctor"
@@ -1484,7 +1496,7 @@ def _init_fast_booking(session, extracted, doctors, admin_id):
                     _doctor_dropdown_item(d)
                     for d in doctors
                 ]}
-                return "I'd love to help you book! Which doctor would you like to see%s", ui
+                return "I'd love to help you book! Which doctor would you like to see?", ui
         else:
             if "name" not in data:
                 session["step"] = "get_name"
@@ -1584,23 +1596,23 @@ def _init_fast_booking(session, extracted, doctors, admin_id):
 
     if "phone" not in data:
         session["step"] = "get_phone"
-        return "And your phone number%s (In case we need to reach you)", None
+        return "And your phone number? (In case we need to reach you)", None
 
     # Service booking: collect patient type and notes if not already done
     if data.get("_service_id") and "patient_type" not in data:
         session["step"] = "get_patient_type"
-        return "Almost done! Are you a **new** or **returning** patient%s", {"type": "confirm_yesno", "items": [{"name": "New patient", "value": "new"}, {"name": "Returning patient", "value": "returning"}]}
+        return "Almost done! Are you a **new** or **returning** patient?", {"type": "confirm_yesno", "items": [{"name": "New patient", "value": "new"}, {"name": "Returning patient", "value": "returning"}]}
 
     if data.get("_service_id") and "patient_notes" not in data:
         session["step"] = "get_patient_notes"
-        return "Any notes or concerns for the doctor%s (or say **skip**)", None
+        return "Any notes or concerns for the doctor? (or say **skip**)", None
 
     # Everything provided — skip to discount or finalize
     try:
         promos_available = promo.has_active_promotions(data.get("_admin_id", 1))
         if promos_available:
             session["step"] = "ask_discount"
-            return "Do you have a discount or promo code%s (or say **skip**)", None
+            return "Do you have a discount or promo code? (or say **skip**)", None
     except Exception:
         pass
 
@@ -1624,11 +1636,12 @@ def _init_fast_booking(session, extracted, doctors, admin_id):
         summary_parts.append(f"**Email:** {data['email']}")
 
     session["step"] = "finalize_booking"
+    _confirm_ui = {"type": "confirm_yesno", "items": [{"name": "Confirm", "value": "confirm"}, {"name": "Edit", "value": "edit"}]}
     if summary_parts and data.get("_service_id"):
         summary = "\n".join(summary_parts)
-        return f"Here's your booking summary:\n\n{summary}\n\nSay **confirm** to book it, or **edit** to make changes.", None
+        return f"Here's your booking summary:\n\n{summary}\n\nSay **confirm** to book it, or **edit** to make changes.", _confirm_ui
     conf = " | ".join(confirmations)
-    return f"Perfect! {conf} for **{data['name']}**. Just say **confirm** to book it.", None
+    return f"Perfect! {conf} for **{data['name']}**. Just say **confirm** to book it.", _confirm_ui
 
 
 def _is_booked_slot(slot_time, booked_list):
@@ -1739,7 +1752,7 @@ def handle_booking(session, user_message, corrected_message=None):
                     "type": "doctors",
                     "items": [{"id": d["id"], "name": d["name"], "specialty": d.get("specialty", "")} for d in doc_list]
                 }
-            return "No problem! Which doctor would you like to see instead%s"
+            return "No problem! Which doctor would you like to see instead?"
 
     # At any step, detect promo/discount code intent and store for later
     if step and step not in (None, "ask_discount", "finalize_booking"):
@@ -1755,7 +1768,7 @@ def handle_booking(session, user_message, corrected_message=None):
 
     # At any step, handle conversational questions
     if step and step not in (None, "ask_name"):
-        # "What slots/times are available%s" — show slots if we have a date
+        # "What slots/times are available?" — show slots if we have a date
         if any(w in lower for w in ["available", "slots", "times", "options", "what time", "show me", "list"]):
             if data.get("date_str") and step in ("get_time",):
                 # Re-show the slots
@@ -1794,8 +1807,8 @@ def handle_booking(session, user_message, corrected_message=None):
             except Exception:
                 pass
 
-        if data.get("name") and session.get("_patient_prefilled"):
-            # Patient already known — skip name
+        if data.get("name"):
+            # Patient name already known (from DB prefill or extraction) — skip name question
             admin_id = data.get("_admin_id", 1)
 
             # If service was detected from context or initial message, skip straight to service flow
@@ -1821,15 +1834,26 @@ def handle_booking(session, user_message, corrected_message=None):
             if services and doctors:
                 data["_all_doctors"] = doctors
                 data["_services"] = services
-                session["step"] = "get_booking_type"
-                session["_ui_options"] = {
-                    "type": "booking_type",
-                    "items": [
-                        {"name": "Book a Service", "value": "service"},
-                        {"name": "Book an Appointment", "value": "appointment"},
-                    ]
-                }
-                return f"Hi {data['name']}! How would you like to book?"
+                # Show services directly as clickable options (skip booking_type step)
+                active_services = [s for s in services if s.get("is_active", 1)]
+                if active_services:
+                    session["step"] = "get_service"
+                    session["_ui_options"] = {
+                        "type": "services",
+                        "items": [{"name": s["name"], "id": s["id"]} for s in active_services]
+                    }
+                    return f"Hi {data['name']}! Which service would you like to book?"
+                else:
+                    # No active services — fall through to doctor selection
+                    session["step"] = "get_booking_type"
+                    session["_ui_options"] = {
+                        "type": "booking_type",
+                        "items": [
+                            {"name": "Book a Service", "value": "service"},
+                            {"name": "Book an Appointment", "value": "appointment"},
+                        ]
+                    }
+                    return f"Hi {data['name']}! How would you like to book?"
             elif doctors:
                 cat_set = set()
                 for d in doctors:
@@ -1859,9 +1883,14 @@ def handle_booking(session, user_message, corrected_message=None):
 
     if step == "get_name":
         name = user_message.strip()
+        # Check for cancellation phrases before treating as a name
+        cancel_phrases = r'\b(cancel|stop|quit|exit|no|nope|never\s*mind|nevermind|not doing|don\'?t want|forget it|go back|end|abort)\b'
+        if re.search(cancel_phrases, name, re.IGNORECASE) and len(name.split()) <= 6:
+            session.clear()
+            return "No problem! Booking cancelled. Is there anything else I can help with?"
         name = re.sub(r'^(my name is|i\'?m|it\'?s|name:?|hi,?\s*(i\'?m)?)\s*', '', name, flags=re.IGNORECASE).strip()
         if len(name) < 2:
-            return "I didn't quite catch your name. Could you tell me your full name%s"
+            return "I didn't quite catch your name. Could you tell me your full name?"
         data["name"] = name.title()
 
         # If service was pre-detected from the initial booking message, skip to service flow
@@ -1878,7 +1907,7 @@ def handle_booking(session, user_message, corrected_message=None):
             session["step"] = "get_service"
             return handle_booking(session, svc_full["name"], svc_full["name"])
 
-        # Check if services exist — if so, ask "Service or Appointment%s"
+        # Check if services exist — if so, ask "Service or Appointment?"
         admin_id = data.get("_admin_id", 1)
         services = db.get_services_with_doctors(admin_id)
         all_doctors = db.get_doctors(admin_id)
@@ -1887,15 +1916,25 @@ def handle_booking(session, user_message, corrected_message=None):
         if services and doctors:
             data["_all_doctors"] = doctors
             data["_services"] = services
-            session["step"] = "get_booking_type"
-            session["_ui_options"] = {
-                "type": "booking_type",
-                "items": [
-                    {"name": "Book a Service", "value": "service"},
-                    {"name": "Book an Appointment", "value": "appointment"},
-                ]
-            }
-            return f"Nice to meet you, {data['name']}! How would you like to book%s"
+            # Show services directly as clickable options (skip booking_type step)
+            active_services = [s for s in services if s.get("is_active", 1)]
+            if active_services:
+                session["step"] = "get_service"
+                session["_ui_options"] = {
+                    "type": "services",
+                    "items": [{"name": s["name"], "id": s["id"]} for s in active_services]
+                }
+                return f"Nice to meet you, {data['name']}! Which service would you like to book?"
+            else:
+                session["step"] = "get_booking_type"
+                session["_ui_options"] = {
+                    "type": "booking_type",
+                    "items": [
+                        {"name": "Book a Service", "value": "service"},
+                        {"name": "Book an Appointment", "value": "appointment"},
+                    ]
+                }
+                return f"Nice to meet you, {data['name']}! How would you like to book?"
         elif doctors:
             # No services configured — go straight to doctor selection
             cat_set = set()
@@ -1912,12 +1951,12 @@ def handle_booking(session, user_message, corrected_message=None):
                 data["_categories"] = categories
                 session["step"] = "get_category"
                 session["_ui_options"] = {"type": "categories", "items": [{"name": c} for c in categories]}
-                return f"Nice to meet you, {data['name']}! What type of doctor would you like to see%s"
+                return f"Nice to meet you, {data['name']}! What type of doctor would you like to see?"
             else:
                 data["_doctors"] = doctors
                 session["step"] = "get_doctor"
                 session["_ui_options"] = {"type": "doctors", "items": [_doctor_dropdown_item(d) for d in doctors]}
-                return f"Nice to meet you, {data['name']}! Which doctor would you like to see%s"
+                return f"Nice to meet you, {data['name']}! Which doctor would you like to see?"
         else:
             if "email" in data and "phone" in data:
                 session["step"] = "get_date"
@@ -2116,7 +2155,7 @@ def handle_booking(session, user_message, corrected_message=None):
                 ]
             }
             return (f"We do offer **{chosen_svc['name']}**, but right now no doctors are assigned to this service. "
-                    f"Would you like to be notified when a doctor becomes available for it%s")
+                    f"Would you like to be notified when a doctor becomes available for it?")
 
         data["_doctors"] = doctors
         # Always show doctor dropdown so patient can see who performs this service
@@ -2133,7 +2172,7 @@ def handle_booking(session, user_message, corrected_message=None):
             "type": "doctors",
             "items": doc_items
         }
-        return f"{svc_detail_msg}\n\nWhich doctor would you prefer%s"
+        return f"{svc_detail_msg}\n\nWhich doctor would you prefer?"
 
     # Step: Confirm single auto-selected doctor for a service
     if step == "confirm_service_doctor":
@@ -2145,7 +2184,7 @@ def handle_booking(session, user_message, corrected_message=None):
             session["step"] = "get_date"
             off_dates = _get_off_dates_with_blocks(d["id"], data.get("_admin_id", 0))
             session["_ui_options"] = {"type": "calendar", "doctor_id": d["id"], "off_dates": off_dates}
-            return f"When would you like to come in for your **{data.get('service_name', '')}** appointment%s"
+            return f"When would you like to come in for your **{data.get('service_name', '')}** appointment?"
         else:
             # Go back to service selection
             services = data.get("_services", [])
@@ -2155,7 +2194,7 @@ def handle_booking(session, user_message, corrected_message=None):
                 "type": "services",
                 "items": [{"name": s["name"], "id": s["id"]} for s in services]
             }
-            return "No problem! Which service would you like instead%s"
+            return "No problem! Which service would you like instead?"
 
     # Step: User wants to be notified when a doctor is assigned to a service
     if step == "get_service_notify":
@@ -2178,7 +2217,7 @@ def handle_booking(session, user_message, corrected_message=None):
                         f"**{data.get('service_name', 'this service')}**. Is there anything else I can help with?")
             else:
                 session["step"] = "get_service_notify_email"
-                return "Sure! What's your **email address** so we can notify you%s"
+                return "Sure! What's your **email address** so we can notify you?"
         else:
             # User said no — show all active services except the one they just rejected
             services = data.get("_services", [])
@@ -2191,11 +2230,11 @@ def handle_booking(session, user_message, corrected_message=None):
                     "type": "services",
                     "items": [{"name": s["name"], "id": s["id"]} for s in remaining]
                 }
-                return "No problem! Would you like to choose a different service%s"
+                return "No problem! Would you like to choose a different service?"
             else:
                 session["flow"] = None
                 session["step"] = None
-                return "No problem! Is there anything else I can help with%s"
+                return "No problem! Is there anything else I can help with?"
 
     # Step: Collect email for service notification
     if step == "get_service_notify_email":
@@ -2288,6 +2327,7 @@ def handle_booking(session, user_message, corrected_message=None):
         else:
             data["patient_type"] = raw_lower if raw_lower in ("new", "returning") else "new"
         session["step"] = "get_patient_notes"
+        session["_ui_options"] = {"type": "confirm_yesno", "items": [{"name": "Skip", "value": "skip"}]}
         return "Any notes or concerns for the doctor? (or say **skip**)"
 
     # Step: Patient notes for the doctor
@@ -2302,6 +2342,7 @@ def handle_booking(session, user_message, corrected_message=None):
             promos_available = promo.has_active_promotions(data.get("_admin_id", 1))
             if promos_available:
                 session["step"] = "ask_discount"
+                session["_ui_options"] = {"type": "confirm_yesno", "items": [{"name": "No code", "value": "skip"}, {"name": "I have a code", "value": "yes"}]}
                 return "Do you have a discount or promo code? (or say **skip**)"
         except Exception:
             pass
@@ -2324,6 +2365,7 @@ def handle_booking(session, user_message, corrected_message=None):
         if data.get("email"):
             summary_parts.append(f"**Email:** {data['email']}")
         session["step"] = "finalize_booking"
+        session["_ui_options"] = {"type": "confirm_yesno", "items": [{"name": "Confirm", "value": "confirm"}, {"name": "Edit", "value": "edit"}]}
         summary = "\n".join(summary_parts)
         return f"Here's your booking summary:\n\n{summary}\n\nSay **confirm** to book it, or **edit** to make changes."
 
@@ -2427,7 +2469,7 @@ def handle_booking(session, user_message, corrected_message=None):
         session["step"] = "get_date"
         off_dates = _get_off_dates_with_blocks(chosen["id"], data.get("_admin_id", 0))
         session["_ui_options"] = {"type": "calendar", "doctor_id": chosen["id"], "off_dates": off_dates}
-        return f"Great choice! You'll be seeing **Dr. {chosen['name']}**.\n\nWhen would you like to come in%s"
+        return f"Great choice! You'll be seeing **Dr. {chosen['name']}**.\n\nWhen would you like to come in?"
 
     # Step 3: Got date, show time slot dropdown
     if step == "get_date":
@@ -2544,7 +2586,7 @@ def handle_booking(session, user_message, corrected_message=None):
                 data["chosen_time"] = time_str_all
                 if "email" in data and "phone" in data:
                     session["step"] = "ask_discount"
-                    return f"**{time_str_all}** on **{data['date_display']}** — great choice!\n\nDo you have a **promotion code** for a discount%s If yes, type it now, or say **no** to continue."
+                    return f"**{time_str_all}** on **{data['date_display']}** — great choice!\n\nDo you have a **promotion code** for a discount? If yes, type it now, or say **no** to continue."
                 if "email" in data:
                     session["step"] = "get_phone"
                     return f"**{time_str_all}** on **{data['date_display']}** — great choice!\n\nWhat's your phone number? (In case we need to reach you)"
@@ -2566,7 +2608,7 @@ def handle_booking(session, user_message, corrected_message=None):
             data["chosen_time"] = time_str
             if "email" in data and "phone" in data:
                 session["step"] = "ask_discount"
-                return f"**{time_str}** on **{data['date_display']}** — great choice!\n\nDo you have a **promotion code** for a discount%s If yes, type it now, or say **no** to continue."
+                return f"**{time_str}** on **{data['date_display']}** — great choice!\n\nDo you have a **promotion code** for a discount? If yes, type it now, or say **no** to continue."
             if "email" in data:
                 session["step"] = "get_phone"
                 return f"**{time_str}** on **{data['date_display']}** — great choice!\n\nWhat's your phone number? (In case we need to reach you)"
@@ -2620,7 +2662,7 @@ def handle_booking(session, user_message, corrected_message=None):
                     "type": "doctors",
                     "items": [{"id": d["id"], "name": d["name"], "specialty": d.get("specialty", "")} for d in doc_list]
                 }
-            return "No problem! Let's start fresh. Which doctor would you like to see%s"
+            return "No problem! Let's start fresh. Which doctor would you like to see?"
         return "Please say **yes** to join the waitlist or **no** to see other available times."
 
     # Step 4c: Waitlist — get name
@@ -2640,7 +2682,7 @@ def handle_booking(session, user_message, corrected_message=None):
             data["waitlist_email"] = ""
             session["step"] = "waitlist_get_phone"
             return "No worries! What's your **phone number** then?"
-        return "I couldn't find a valid email. Could you type it out%s Example: john@example.com\n\nOr say **skip**."
+        return "I couldn't find a valid email. Could you type it out? Example: john@example.com\n\nOr say **skip**."
 
     # Step 4e: Waitlist — get phone and add to waitlist
     if step == "waitlist_get_phone":
@@ -2746,12 +2788,12 @@ def handle_booking(session, user_message, corrected_message=None):
         if extracted_email:
             data["email"] = extracted_email
             session["step"] = "get_phone"
-            return "Got it! And your phone number%s (In case we need to reach you)"
+            return "Got it! And your phone number? (In case we need to reach you)"
         if any(w in lower for w in ["skip", "no email", "don't have", "dont have", "none", "no thanks", "n/a", "na"]):
             data["email"] = ""
             session["step"] = "get_phone"
             return "No worries! What's your phone number instead?"
-        return "I couldn't find a valid email in that. Could you type it out%s Example: john@example.com\n\nOr say **skip** if you'd rather not provide one."
+        return "I couldn't find a valid email in that. Could you type it out? Example: john@example.com\n\nOr say **skip** if you'd rather not provide one."
 
     # Step 6a: Promotion code step
     if step == "ask_discount":
@@ -2781,7 +2823,7 @@ def handle_booking(session, user_message, corrected_message=None):
             return handle_booking(session, user_message, corrected_message)
         data["_invalid_code"] = code
         session["step"] = "ask_discount_invalid"
-        return (f"The code **{code}** isn't valid. Would you like to **try another code**, or **continue** without a promotion code%s\n\n"
+        return (f"The code **{code}** isn't valid. Would you like to **try another code**, or **continue** without a promotion code?\n\n"
                 f"Reply **retry** to enter a new code, or **continue** to book without one.")
 
     # Step 6a-i: After invalid promo code
@@ -3171,18 +3213,20 @@ def handle_booking(session, user_message, corrected_message=None):
     if step == "get_phone":
         extracted_phone = _extract_phone(user_message)
         if not extracted_phone:
-            return "I couldn't find a valid phone number. Could you try again%s Example: (555) 123-4567 or 5551234567"
+            return "I couldn't find a valid phone number. Could you try again? Example: (555) 123-4567 or 5551234567"
 
         data["phone"] = extracted_phone
 
         # For service bookings: ask patient type next
         if data.get("_service_id"):
             session["step"] = "get_patient_type"
-            return "Are you a **new patient** or a **returning patient**%s"
+            session["_ui_options"] = {"type": "confirm_yesno", "items": [{"name": "New patient", "value": "new"}, {"name": "Returning patient", "value": "returning"}]}
+            return "Are you a **new patient** or a **returning patient**?"
 
         # Always offer promotion code before finalizing
         session["step"] = "ask_discount"
-        return "Do you have a **promotion code** for a discount%s If yes, type it now, or say **no** to continue."
+        session["_ui_options"] = {"type": "confirm_yesno", "items": [{"name": "No code", "value": "no"}, {"name": "I have a code", "value": "yes"}]}
+        return "Do you have a **promotion code** for a discount? If yes, type it now, or say **no** to continue."
 
         time_str = data.get("chosen_time", "")
 
@@ -3485,7 +3529,7 @@ def handle_cancel_appointment(session, user_message, admin_id):
         from calendar_service import _parse_date
         parsed_date = _parse_date(user_message)
         if not parsed_date:
-            return "I didn't understand that date. Could you try again%s (e.g. Monday, April 10, tomorrow)"
+            return "I didn't understand that date. Could you try again? (e.g. Monday, April 10, tomorrow)"
 
         date_iso = parsed_date.isoformat()
         date_display = parsed_date.strftime("%A, %B %d, %Y")
@@ -3689,7 +3733,7 @@ def handle_reschedule(session, user_message, admin_id):
         from calendar_service import _parse_date
         parsed_date = _parse_date(user_message)
         if not parsed_date:
-            return "I didn't understand that date. Could you try again%s (e.g. Monday, April 10, tomorrow)"
+            return "I didn't understand that date. Could you try again? (e.g. Monday, April 10, tomorrow)"
 
         date_iso = parsed_date.isoformat()
         date_display = parsed_date.strftime("%A, %B %d, %Y")
@@ -3740,7 +3784,7 @@ def handle_reschedule(session, user_message, admin_id):
             session["_ui_options"] = {"type": "confirm_yesno", "items": [{"name": "Yes, same doctor", "value": "yes"}, {"name": "No, different doctor", "value": "no"}]}
             return (f"I found your appointment on **{date_display}**:\n\n"
                     f"**{b['customer_name']}** — {b['time']}{doctor_info}{service_info}\n\n"
-                    f"Would you like to keep the same doctor%s")
+                    f"Would you like to keep the same doctor?")
 
         # Multiple bookings — show dropdown
         data["_bookings_list"] = bookings
@@ -3757,7 +3801,7 @@ def handle_reschedule(session, user_message, admin_id):
                 for i, b in enumerate(bookings, 1)
             ]
         }
-        return f"I found **{len(bookings)}** appointments on **{date_display}**:\n\n" + "\n".join(lines) + "\n\nWhich one would you like to reschedule%s"
+        return f"I found **{len(bookings)}** appointments on **{date_display}**:\n\n" + "\n".join(lines) + "\n\nWhich one would you like to reschedule?"
 
     # ── Step 2: Choose which booking (multiple bookings) ──
     if step == "choose_booking":
@@ -3843,7 +3887,7 @@ def handle_reschedule(session, user_message, admin_id):
             data["_available_doctors"] = doctors
             session["step"] = "select_doctor"
             session["_ui_options"] = {"type": "doctors", "items": [_doctor_dropdown_item(d) for d in doctors]}
-            return "Which doctor would you like to see instead%s"
+            return "Which doctor would you like to see instead?"
 
         return "Please say **yes** to keep the same doctor or **no** to choose a different one."
 
@@ -3877,7 +3921,7 @@ def handle_reschedule(session, user_message, admin_id):
         from calendar_service import _parse_date
         parsed_date = _parse_date(user_message)
         if not parsed_date:
-            return "I didn't understand that date. Could you try again%s (e.g. Monday, April 10, tomorrow)"
+            return "I didn't understand that date. Could you try again? (e.g. Monday, April 10, tomorrow)"
 
         date_iso = parsed_date.isoformat()
         date_display = parsed_date.strftime("%A, %B %d, %Y")
@@ -4130,9 +4174,9 @@ def handle_lead_capture(session, user_message):
                 f"In the meantime, feel free to ask me any questions about our services!"
             )
         else:
-            return "That doesn't look like a valid phone number. Could you try again%s Example: (555) 123-4567"
+            return "That doesn't look like a valid phone number. Could you try again? Example: (555) 123-4567"
 
-    return "Let me start over. Would you like to leave your contact information%s"
+    return "Let me start over. Would you like to leave your contact information?"
 
 
 def _ask_ai_during_booking(user_message, session, admin_id=1):
@@ -4432,7 +4476,7 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
     except Exception:
         pass
     # Fallback: check via db (skip stale handoffs older than 30 min)
-    handoff = db.get_handoff_by_session(session_id)
+    handoff = db.get_handoff_by_session(session_id, admin_id=admin_id)
     if handoff and handoff["status"] in ("queued", "assigned"):
         # Check if handoff is stale (older than 30 min)
         _handoff_stale = False
@@ -4650,7 +4694,7 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
                 categories = data.get("_categories", [])
                 if categories:
                     session["_ui_options"] = {"type": "categories", "items": [{"name": c} for c in categories]}
-                return _reply("Let's continue! What type of doctor would you like to see%s")
+                return _reply("Let's continue! What type of doctor would you like to see?")
             elif step == "get_doctor":
                 doctors = data.get("_doctors", [])
                 if doctors:
@@ -4660,7 +4704,7 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
                 doctor_id = data.get("doctor_id")
                 off_dates = _get_off_dates_with_blocks(doctor_id, data.get("_admin_id", 0))
                 session["_ui_options"] = {"type": "calendar", "doctor_id": doctor_id, "off_dates": off_dates}
-                return _reply("Let's continue! When would you like to come in%s")
+                return _reply("Let's continue! When would you like to come in?")
             elif step == "get_time":
                 # Regenerate time slots for the chosen doctor/date
                 doctor_id = data.get("doctor_id")
@@ -4754,7 +4798,7 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
         session["step"] = None
         session["data"] = {}
         if not identity or len(identity) < 2:
-            return _reply("I couldn't understand that. Would you like to **book a new appointment** instead%s")
+            return _reply("I couldn't understand that. Would you like to **book a new appointment** instead?")
         # Try matching as name or email
         is_email = "@" in identity
         upcoming = db.find_upcoming_bookings_for_customer(
@@ -4771,7 +4815,7 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
                 _doc = bk.get("doctor_name", "")
                 _svc = bk.get("service", "")
                 lines.append(f"**{i}.** {_d} at {_t}" + (f" — Dr. {_doc}" if _doc else "") + (f" ({_svc})" if _svc else ""))
-            lines.append("\nWould you like to **cancel** or **reschedule** any of these%s")
+            lines.append("\nWould you like to **cancel** or **reschedule** any of these?")
             return _reply("\n".join(lines))
         else:
             return _reply(f"I couldn't find any upcoming appointments for **{identity}**. Would you like to **book one**?")
@@ -4900,7 +4944,7 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
                     _doc = bk.get("doctor_name", "")
                     _svc = bk.get("service", "")
                     lines.append(f"**{i}.** {_d} at {_t}" + (f" — Dr. {_doc}" if _doc else "") + (f" ({_svc})" if _svc else ""))
-                lines.append("\nWould you like to **cancel** or **reschedule** any of these%s")
+                lines.append("\nWould you like to **cancel** or **reschedule** any of these?")
                 return _reply("\n".join(lines))
             else:
                 return _reply("You don't have any upcoming appointments. Would you like to **book one**?")
@@ -4910,7 +4954,7 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
             session["flow"] = "appointment_lookup"
             session["step"] = "get_identity"
             session["data"] = {"_admin_id": admin_id}
-            return _reply("Sure! Could you tell me your **name** or **email** so I can look up your appointments%s")
+            return _reply("Sure! Could you tell me your **name** or **email** so I can look up your appointments?")
 
     # ── Route based on classifier intent ──
     # Check if login is required for booking/reschedule/cancel actions
@@ -5097,6 +5141,16 @@ def blog_page():
     return send_from_directory("static", "blog.html")
 
 
+@app.route("/integrations")
+def integrations_page():
+    return send_from_directory("static", "integrations.html")
+
+
+@app.route("/developers")
+def developers_page():
+    return send_from_directory("static", "developers.html")
+
+
 @app.route("/case-studies")
 def case_studies_page():
     return send_from_directory("static", "case-studies.html")
@@ -5117,6 +5171,83 @@ def for_salons_spas():
     return send_from_directory("static", "for-salons-spas.html")
 
 
+@app.route("/ai-technology")
+def ai_technology_page():
+    return send_from_directory("static", "ai-technology.html")
+
+
+@app.route("/compare")
+def compare_page():
+    return send_from_directory("static", "compare.html")
+
+
+@app.route("/compare-tidio")
+def compare_tidio_page():
+    return send_from_directory("static", "compare-tidio.html")
+
+
+@app.route("/compare-intercom")
+def compare_intercom_page():
+    return send_from_directory("static", "compare-intercom.html")
+
+
+@app.route("/compare-drift")
+def compare_drift_page():
+    return send_from_directory("static", "compare-drift.html")
+
+
+@app.route("/compare-zendesk")
+def compare_zendesk_page():
+    return send_from_directory("static", "compare-zendesk.html")
+
+
+@app.route("/compare-freshdesk")
+def compare_freshdesk_page():
+    return send_from_directory("static", "compare-freshdesk.html")
+
+
+@app.route("/agent-marketplace")
+def agent_marketplace_page():
+    return send_from_directory("static", "agent-marketplace.html")
+
+
+@app.route("/mobile-app")
+def mobile_app_page():
+    return send_from_directory("static", "mobile-app.html")
+
+
+@app.route("/voice-agent")
+def voice_agent_page():
+    return send_from_directory("static", "voice-agent.html")
+
+
+@app.route("/partners")
+def partners_page():
+    return send_from_directory("static", "partners.html")
+
+
+@app.route("/trust-center")
+def trust_center_page():
+    return send_from_directory("static", "trust-center.html")
+
+
+@app.route("/api/mobile-app-interest", methods=["POST"])
+def mobile_app_interest():
+    data = request.get_json(silent=True) or {}
+    email = data.get("email", "").strip()
+    if not email or not re.match(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$', email):
+        return jsonify({"error": "Valid email required"}), 400
+    try:
+        db.save_mobile_app_interest(email)
+    except Exception as e:
+        err_msg = str(e).lower()
+        if "duplicate" not in err_msg and "unique" not in err_msg:
+            app.logger.error(f"Failed to save mobile app interest for {email}: {e}")
+            return jsonify({"error": "Failed to save interest"}), 500
+        # Duplicate entry is fine — user already registered interest
+    return jsonify({"success": True, "message": "Thanks! We will notify you when the app launches."})
+
+
 # ══════════════════════════════════════════════
 #  Routes — Auth
 # ══════════════════════════════════════════════
@@ -5124,7 +5255,7 @@ def for_salons_spas():
 @app.route("/auth/signup", methods=["POST"])
 @limiter.limit("5 per minute")
 def auth_signup():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     name = data.get("name", "").strip()
     email_addr = data.get("email", "").strip().lower()
     password = data.get("password", "")
@@ -5173,7 +5304,7 @@ def auth_signup():
 @app.route("/auth/verify-code", methods=["POST"])
 @limiter.limit("10 per minute")
 def auth_verify_code():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     email_addr = data.get("email", "").strip().lower()
     code = data.get("code", "").strip()
 
@@ -5190,7 +5321,7 @@ def auth_verify_code():
 @app.route("/auth/resend-code", methods=["POST"])
 @limiter.limit("3 per minute")
 def auth_resend_code():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     email_addr = data.get("email", "").strip().lower()
 
     if not email_addr:
@@ -5213,7 +5344,7 @@ def auth_resend_code():
 @app.route("/auth/login", methods=["POST"])
 @limiter.limit("10 per minute")
 def auth_login():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     email_addr = data.get("email", "").strip().lower()
     password = data.get("password", "")
 
@@ -5263,7 +5394,7 @@ def auth_social_token():
     If provider credentials are NOT configured, falls back to demo mode
     (trusts the client-provided name/email for local development).
     """
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     provider = data.get("provider", "")
     token = data.get("token", "")
     client_name = data.get("name", "").strip()
@@ -5465,7 +5596,7 @@ def paypal_create_subscription():
     if user.get("role") != "head_admin":
         return jsonify({"error": "Only head admin can purchase plans"}), 403
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     plan = data.get("plan", "")
     if plan not in PLAN_PRICES:
         return jsonify({"error": "Invalid plan"}), 400
@@ -5534,7 +5665,7 @@ def paypal_activate_subscription():
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     subscription_id = data.get("subscription_id", "")
     if not subscription_id:
         return jsonify({"error": "Missing subscription ID"}), 400
@@ -5692,7 +5823,7 @@ def auth_update_plan():
     if user.get("role") != "head_admin":
         return jsonify({"error": "Only the head admin can change the plan."}), 403
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     plan = data.get("plan", "")
     if plan not in ("basic", "pro", "agency"):
         return jsonify({"error": "Invalid plan"}), 400
@@ -5871,7 +6002,7 @@ def auth_update_profile():
     if not user:
         return jsonify({"error": "Not authenticated"}), 401
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     name = data.get("name", "").strip()
     email_addr = data.get("email", "").strip().lower()
     current_password = data.get("current_password", "")
@@ -5912,7 +6043,7 @@ def auth_update_profile():
 @app.route("/chat", methods=["POST"])
 @limiter.limit("30 per minute")
 def chat():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     if not data:
         return jsonify({"error": "Invalid or missing JSON body"}), 400
     # Strip internal keys that could be injected by attacker
@@ -6013,7 +6144,7 @@ def patient_chat():
     if not auth_user:
         return jsonify({"error": "Not authenticated"}), 401
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     if not data:
         return jsonify({"error": "Invalid or missing JSON body"}), 400
 
@@ -6918,7 +7049,7 @@ def api_save_company_info():
         return jsonify({"error": "Not authenticated"}), 401
     if not is_admin_role(user):
         return jsonify({"error": "Only administrators can edit company info."}), 403
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     admin_id = get_effective_admin_id(user)
     db.save_company_info(admin_id, data)
     # Propagate currency to all services of this admin
@@ -7198,7 +7329,7 @@ def api_save_customers_api_config():
     plan = (user.get("plan") or "free_trial").lower()
     if plan not in ("pro", "agency"):
         return jsonify({"error": "Customer DB API requires a Pro or Enterprise plan."}), 403
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     api_url = data.get("customers_api_url", "").strip()
     # Bug 4 fix: SSRF validation on save as well
     if api_url:
@@ -7231,7 +7362,7 @@ def api_test_customers_api():
     plan = (user.get("plan") or "free_trial").lower()
     if plan not in ("pro", "agency"):
         return jsonify({"error": "Customer DB API requires a Pro or Enterprise plan."}), 403
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     url = data.get("customers_api_url", "").strip().rstrip("/")
     key = data.get("customers_api_key", "").strip()
     test_id = data.get("test_customer_id", "1").strip()
@@ -7276,7 +7407,7 @@ def api_add_doctor():
         return jsonify({"error": "Not authenticated"}), 401
     if not is_admin_role(user):
         return jsonify({"error": "Only administrators can add doctors."}), 403
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     name = data.get("name", "").strip()
     doctor_email = data.get("email", "").strip().lower()
     if not name:
@@ -7327,7 +7458,7 @@ def api_update_doctor(doctor_id):
         return jsonify({"error": "Not authenticated"}), 401
     if not is_admin_role(user):
         return jsonify({"error": "Only administrators can edit doctors."}), 403
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     name = data.get("name", "").strip()
     if not name:
         return jsonify({"error": "Doctor name is required"}), 400
@@ -7623,7 +7754,7 @@ def api_save_doctor_from_pdf():
     if not is_admin_role(user):
         return jsonify({"error": "Only administrators can add doctors."}), 403
 
-    payload = request.get_json()
+    payload = request.get_json(silent=True) or {}
     company_admin_id = get_effective_admin_id(user)
 
     # Support both single doctor and array of doctors
@@ -7726,7 +7857,7 @@ def api_add_break(doctor_id):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     start_time = data.get("start_time", "")
     end_time = data.get("end_time", "")
     day_of_week = data.get("day_of_week", "")
@@ -7804,7 +7935,7 @@ def api_add_off_day(doctor_id):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     off_id, err = db.add_doctor_off_day(doctor_id, data.get("date", ""), data.get("reason", ""))
     if err:
         return jsonify({"error": err}), 400
@@ -7953,7 +8084,7 @@ def api_add_category():
         return jsonify({"error": "Not authenticated"}), 401
     if not is_admin_role(user):
         return jsonify({"error": "Only administrators can add categories."}), 403
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     name = data.get("name", "").strip()
     if not name:
         return jsonify({"error": "Category name is required."}), 400
@@ -8006,7 +8137,7 @@ def api_respond_doctor_request(request_id):
     if user.get("role") != "doctor":
         return jsonify({"error": "Only doctors can respond to requests."}), 403
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     accept = data.get("accept", False)
 
     result, error = db.respond_to_doctor_request(request_id, user["id"], accept=accept)
@@ -8044,7 +8175,7 @@ def api_invite_admin():
         return jsonify({"error": "Not authenticated"}), 401
     if user.get("role") != "head_admin":
         return jsonify({"error": "Only head administrators can invite admins."}), 403
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     admin_email = data.get("email", "").strip().lower()
     if not admin_email:
         return jsonify({"error": "Email is required."}), 400
@@ -8096,7 +8227,7 @@ def api_respond_admin_request(request_id):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Not authenticated"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     accept = data.get("accept", False)
     result, error = db.respond_to_admin_request(request_id, user["id"], accept=accept)
     if error:
@@ -8163,7 +8294,7 @@ def api_public_doctors():
 def api_add_to_waitlist():
     """Add a patient to the waitlist for a specific slot."""
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     admin_id = data.get("admin_id", 1)
     wid = db.add_to_waitlist(
         admin_id=admin_id,
@@ -8484,6 +8615,7 @@ def get_chatbot_customization_public(admin_id_raw):
     customization = db.get_chatbot_customization(admin_id)
     result = customization or {}
     result["hide_watermark"] = (plan == "agency")
+    result["voice_enabled"] = (plan == "agency")
     return jsonify(result)
 
 
@@ -8578,7 +8710,7 @@ def api_get_form(token):
 @app.route("/api/forms/<token>", methods=["POST"])
 def api_submit_form(token):
     """Submit the form. Save all data + signature. Sync to patient profile."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     if not data:
         return jsonify({"error": "No data provided"}), 400
 
@@ -8758,7 +8890,7 @@ function submitReason(){{
 @app.route("/api/noshow-reason/<token>", methods=["POST"])
 def api_submit_noshow_reason(token):
     """Patient submits their no-show reason. Forward it to the doctor."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     reason = (data.get("reason", "") if data else "").strip()
     if not reason:
         return jsonify({"error": "Please provide a reason"}), 400
@@ -9042,7 +9174,7 @@ def api_add_recall_rule():
     user = db.get_user_by_token(token)
     if not user or not is_admin_role(user):
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     admin_id = get_effective_admin_id(user)
     if not db.is_feature_enabled(admin_id, "auto_recall"):
         return jsonify({"error": "Recall feature is disabled"}), 403
@@ -9059,7 +9191,7 @@ def api_update_recall_rule(rule_id):
     user = db.get_user_by_token(token)
     if not user or not is_admin_role(user):
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     admin_id = get_effective_admin_id(user)
     if not db.is_feature_enabled(admin_id, "auto_recall"):
         return jsonify({"error": "Recall feature is disabled"}), 403
@@ -9306,7 +9438,7 @@ async function loadSlots() {{
     container.innerHTML = '<span style="color:#8b95a8;font-size:0.85rem">Loading...</span>';
 
     try {{
-        const res = await fetch('/api/recall-book/slots%sdoctor_id=' + doctorId + '&date=' + date + '&admin_id=' + adminId);
+        const res = await fetch('/api/recall-book/slots?doctor_id=' + doctorId + '&date=' + date + '&admin_id=' + adminId);
         const data = await res.json();
         if (data.error) {{
             container.innerHTML = '<span style="color:#f87171;font-size:0.85rem">' + data.error + '</span>';
@@ -9476,7 +9608,7 @@ def api_recall_book_slots():
 @app.route("/api/recall-book", methods=["POST"])
 def api_recall_book():
     """Public endpoint: book an appointment from a recall email link."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     token = data.get("token", "")
     campaign = db.get_recall_campaign_by_token(token)
     if not campaign:
@@ -9566,7 +9698,7 @@ def api_toggle_missed_calls():
     user = db.get_user_by_token(token)
     if not user or not is_admin_role(user):
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     admin_id = get_effective_admin_id(user)
     conn = db.get_db()
     conn.execute("UPDATE company_info SET missed_call_enabled=%s, clinic_phone=%s WHERE user_id=%s",
@@ -9587,7 +9719,7 @@ def api_create_followup():
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     admin_id = get_effective_admin_id(user)
     if not db.is_feature_enabled(admin_id, "auto_followups"):
         return jsonify({"error": "Follow-ups feature is disabled"}), 403
@@ -9648,7 +9780,7 @@ def api_followup_from_booking():
     if not user:
         return jsonify({"error": "Not authenticated"}), 401
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     booking_id = data.get("booking_id")
     if not booking_id:
         return jsonify({"error": "Missing booking_id"}), 400
@@ -9927,7 +10059,7 @@ async function loadSlots() {{
 
     container.innerHTML = '<span style="color:#8b95a8;font-size:0.85rem">Loading...</span>';
     try {{
-        const res = await fetch('/api/recall-book/slots%sdoctor_id=' + doctorId + '&date=' + date + '&admin_id=' + adminId);
+        const res = await fetch('/api/recall-book/slots?doctor_id=' + doctorId + '&date=' + date + '&admin_id=' + adminId);
         const data = await res.json();
         if (data.error) {{
             container.innerHTML = '<span style="color:#f87171;font-size:0.85rem">' + data.error + '</span>';
@@ -9998,7 +10130,7 @@ function showToast(msg) {{
 @app.route("/api/followup-book", methods=["POST"])
 def api_followup_book():
     """Public endpoint: book a follow-up appointment from email link."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     token = data.get("token", "")
     followup = db.get_followup_by_token(token)
     if not followup:
@@ -10073,7 +10205,7 @@ def api_set_chat_language(session_id):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     lang = data.get("language", "en")
     if session_id in sessions:
         sessions[session_id]["language"] = lang
@@ -10259,10 +10391,19 @@ def api_assign_handoff(hid):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    # Verify handoff belongs to this admin
+    conn = db.get_db()
+    handoff = conn.execute("SELECT * FROM live_chat_handoffs WHERE id=%s", (hid,)).fetchone()
+    conn.close()
+    if not handoff:
+        return jsonify({"error": "Handoff not found"}), 404
+    if handoff["admin_id"] != admin_id:
+        return jsonify({"error": "Forbidden"}), 403
     try:
         handoff_engine.assign_handoff(hid, user["id"], user["name"])
     except Exception:
-        db.assign_handoff(hid, user["id"], user["name"])
+        db.assign_handoff(hid, user["id"], user["name"], admin_id=admin_id)
     return jsonify({"ok": True})
 
 @app.route("/api/handoffs/<int:hid>/resolve", methods=["POST"])
@@ -10271,11 +10412,20 @@ def api_resolve_handoff(hid):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    # Verify handoff belongs to this admin
+    conn = db.get_db()
+    handoff = conn.execute("SELECT * FROM live_chat_handoffs WHERE id=%s", (hid,)).fetchone()
+    conn.close()
+    if not handoff:
+        return jsonify({"error": "Handoff not found"}), 404
+    if handoff["admin_id"] != admin_id:
+        return jsonify({"error": "Forbidden"}), 403
     data = request.get_json() or {}
     try:
         handoff_engine.resolve_handoff(hid, data.get("notes", ""))
     except Exception:
-        db.resolve_handoff(hid, data.get("notes", ""))
+        db.resolve_handoff(hid, data.get("notes", ""), admin_id=admin_id)
     return jsonify({"ok": True})
 
 @app.route("/api/handoffs/<int:hid>/message", methods=["POST"])
@@ -10285,15 +10435,23 @@ def api_handoff_message(hid):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    admin_id = get_effective_admin_id(user)
+    data = request.get_json(silent=True) or {}
+    if not data or not data.get("message"):
+        return jsonify({"error": "message required"}), 400
+    # Verify handoff belongs to this admin
+    conn = db.get_db()
+    handoff = conn.execute("SELECT * FROM live_chat_handoffs WHERE id=%s", (hid,)).fetchone()
+    conn.close()
+    if not handoff:
+        return jsonify({"error": "Handoff not found"}), 404
+    if handoff["admin_id"] != admin_id:
+        return jsonify({"error": "Forbidden"}), 403
     try:
         handoff_engine.send_handoff_message(hid, "staff", user["name"], data["message"])
     except Exception:
         pass
     # Also store in session history (legacy)
-    handoff = db.get_handoff_by_session(data.get("session_id", ""))
-    if not handoff:
-        return jsonify({"error": "Handoff not found"}), 404
     sid = handoff["session_id"]
     if sid in sessions:
         sessions[sid]["history"].append({"role": "bot", "content": data["message"], "from_staff": True, "staff_name": user["name"]})
@@ -10345,7 +10503,7 @@ def api_add_schedule_block():
     user = db.get_user_by_token(token)
     if not user or not is_admin_role(user):
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     admin_id = get_effective_admin_id(user)
 
     block_type = data.get("block_type", "single_date")
@@ -10398,7 +10556,7 @@ def api_check_block_conflicts():
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     admin_id = get_effective_admin_id(user)
     start_date = data.get("start_date", "")
     end_date = data.get("end_date", start_date)
@@ -10444,7 +10602,7 @@ def api_create_promotion():
     user = db.get_user_by_token(token)
     if not user or not is_admin_role(user):
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     admin_id = get_effective_admin_id(user)
     pid = db.create_promotion(
         admin_id=admin_id,
@@ -10473,7 +10631,7 @@ def api_delete_promotion(pid):
 @app.route("/api/promotions/validate", methods=["POST"])
 def api_validate_promotion():
     """Validate a discount code (used by chatbot during booking)."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     admin_id = data.get("admin_id", 1)
     code = data.get("code", "")
     try:
@@ -10504,7 +10662,7 @@ def api_2fa_setup():
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     method = data.get("method", "email")
     try:
         result = tfa.setup_2fa(user["id"], method)
@@ -10526,7 +10684,7 @@ def api_2fa_enable():
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     otp = data.get("otp", "")
     try:
         result = tfa.verify_and_enable(user["id"], otp)
@@ -10563,7 +10721,7 @@ def api_2fa_disable():
 @app.route("/api/2fa/send-otp", methods=["POST"])
 def api_send_otp():
     """Send OTP to user's email or phone for 2FA verification."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     email_addr = data.get("email", "")
     try:
         result = tfa.send_otp(email_addr)
@@ -10586,7 +10744,7 @@ def api_send_otp():
 @app.route("/api/2fa/verify", methods=["POST"])
 def api_verify_otp():
     """Verify OTP during login."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     email_addr = data.get("email", "")
     otp = data.get("otp", "")
     try:
@@ -10618,7 +10776,7 @@ def api_enforce_2fa():
     user = db.get_user_by_token(token)
     if not user or user["role"] != "head_admin":
         return jsonify({"error": "Only head admins can enforce 2FA"}), 403
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     enforce = data.get("enforce", True)
     admin_id = user["id"]
     conn = db.get_db()
@@ -10675,7 +10833,7 @@ def api_get_referral():
 @app.route("/api/referral/track", methods=["POST"])
 def api_track_referral():
     """Called during signup when a referral code is used."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     code = data.get("referral_code", "")
     referred_email = data.get("email", "")
     try:
@@ -10720,7 +10878,7 @@ def api_update_patient(pid):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     db.update_patient(pid, **data)
     admin_id = get_effective_admin_id(user)
     db.log_admin_action(admin_id, user, "Updated patient", f"Patient #{pid}")
@@ -10747,7 +10905,7 @@ def api_add_patient_note(pid):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     doctor_id = 0
     if user["role"] == "doctor":
         doc = db.get_doctor_by_user_id(user["id"])
@@ -11158,7 +11316,7 @@ def api_create_ab_test():
     user = db.get_user_by_token(token)
     if not user or not is_admin_role(user):
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     admin_id = get_effective_admin_id(user)
     try:
         tid = ab_testing.create_ab_test(admin_id, data["test_name"], data.get("test_type", "opening_message"),
@@ -11175,7 +11333,7 @@ def api_end_ab_test(tid):
     user = db.get_user_by_token(token)
     if not user or not is_admin_role(user):
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     try:
         ab_testing.end_ab_test(tid, data.get("winner", "a"))
     except Exception:
@@ -11211,7 +11369,7 @@ def api_save_loyalty_config():
     user = db.get_user_by_token(token)
     if not user or not is_admin_role(user):
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     admin_id = get_effective_admin_id(user)
     try:
         loyalty.save_config(admin_id, **data)
@@ -11235,7 +11393,7 @@ def api_get_loyalty_stats():
 @app.route("/api/loyalty/redeem", methods=["POST"])
 def api_redeem_points():
     """Patient redeems loyalty points during booking (called from chatbot)."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     admin_id = data.get("admin_id", 1)
     if not db.is_feature_enabled(admin_id, "loyalty_program"):
         return jsonify({"error": "Loyalty program is disabled"}), 403
@@ -11287,7 +11445,7 @@ def api_connect_gmb():
     user = db.get_user_by_token(token)
     if not user or not is_admin_role(user):
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     admin_id = get_effective_admin_id(user)
     try:
         gmb.connect(admin_id, data)
@@ -11323,7 +11481,7 @@ def api_gmb_post():
     user = db.get_user_by_token(token)
     if not user or not is_admin_role(user):
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     try:
         result = gmb.create_post(get_effective_admin_id(user), data)
         return jsonify(result)
@@ -12231,7 +12389,7 @@ def api_inbox_conversations():
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    admin_id = user["admin_id"] or user["id"]
+    admin_id = get_effective_admin_id(user)
     channel_type = request.args.get("channel")
     unread_only = request.args.get("unread") == "1"
     search = request.args.get("search")
@@ -12246,7 +12404,17 @@ def api_inbox_messages(conv_id):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    messages = channel_engine.get_conversation_messages(conv_id)
+    admin_id = get_effective_admin_id(user)
+    # Verify conversation belongs to this admin
+    conv = channel_engine.get_conversation(conv_id)
+    if not conv:
+        return jsonify({"error": "Conversation not found"}), 404
+    if conv.get("admin_id") != admin_id:
+        return jsonify({"error": "Forbidden"}), 403
+    try:
+        messages = channel_engine.get_conversation_messages(conv_id)
+    except Exception:
+        return jsonify({"error": "Failed to fetch messages"}), 500
     return jsonify(messages)
 
 
@@ -12256,10 +12424,21 @@ def api_inbox_reply(conv_id):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json() or {}
-    text = data.get("text", "")
+    admin_id = get_effective_admin_id(user)
+    conv = channel_engine.get_conversation(conv_id)
+    if not conv:
+        return jsonify({"error": "Conversation not found"}), 404
+    if conv.get("admin_id") != admin_id:
+        return jsonify({"error": "Forbidden"}), 403
+    data = request.get_json(silent=True) or {}
+    text = (data.get("text") or "").strip()
+    if not text:
+        return jsonify({"error": "text is required"}), 400
     staff_name = user.get("name", "Staff")
-    result = channel_engine.send_reply(conv_id, text, staff_name=staff_name)
+    try:
+        result = channel_engine.send_reply(conv_id, text, staff_name=staff_name)
+    except Exception:
+        return jsonify({"error": "Failed to send reply"}), 500
     return jsonify(result)
 
 
@@ -12269,8 +12448,28 @@ def api_inbox_assign(conv_id):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json() or {}
-    return jsonify(channel_engine.assign_conversation(conv_id, data.get("staff_user_id", 0)))
+    admin_id = get_effective_admin_id(user)
+    conv = channel_engine.get_conversation(conv_id)
+    if not conv:
+        return jsonify({"error": "Conversation not found"}), 404
+    if conv.get("admin_id") != admin_id:
+        return jsonify({"error": "Forbidden"}), 403
+    data = request.get_json(silent=True) or {}
+    staff_user_id = data.get("staff_user_id")
+    if not isinstance(staff_user_id, int) or staff_user_id <= 0:
+        return jsonify({"error": "staff_user_id must be a positive integer"}), 400
+    # Verify staff belongs to same admin
+    staff_user = db.get_user_by_id(staff_user_id)
+    if not staff_user:
+        return jsonify({"error": "Staff user not found"}), 404
+    staff_admin_id = get_effective_admin_id(staff_user)
+    if staff_admin_id != admin_id:
+        return jsonify({"error": "Staff user does not belong to this organization"}), 403
+    try:
+        result = channel_engine.assign_conversation(conv_id, staff_user_id)
+    except Exception:
+        return jsonify({"error": "Failed to assign conversation"}), 500
+    return jsonify(result)
 
 
 @app.route("/api/inbox/conversations/<int:conv_id>/tag", methods=["POST"])
@@ -12279,8 +12478,23 @@ def api_inbox_tag(conv_id):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json() or {}
-    return jsonify(channel_engine.tag_conversation(conv_id, data.get("tag", "")))
+    admin_id = get_effective_admin_id(user)
+    conv = channel_engine.get_conversation(conv_id)
+    if not conv:
+        return jsonify({"error": "Conversation not found"}), 404
+    if conv.get("admin_id") != admin_id:
+        return jsonify({"error": "Forbidden"}), 403
+    data = request.get_json(silent=True) or {}
+    tag = (data.get("tag") or "").strip()
+    if not tag:
+        return jsonify({"error": "tag is required"}), 400
+    if len(tag) > 50 or not re.match(r'^[a-zA-Z0-9_\-\s]+$', tag):
+        return jsonify({"error": "Tag must be 1-50 alphanumeric characters, dashes, underscores, or spaces"}), 400
+    try:
+        result = channel_engine.tag_conversation(conv_id, tag)
+    except Exception:
+        return jsonify({"error": "Failed to tag conversation"}), 500
+    return jsonify(result)
 
 
 @app.route("/api/inbox/conversations/<int:conv_id>/resolve", methods=["POST"])
@@ -12289,7 +12503,17 @@ def api_inbox_resolve(conv_id):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    return jsonify(channel_engine.resolve_conversation(conv_id))
+    admin_id = get_effective_admin_id(user)
+    conv = channel_engine.get_conversation(conv_id)
+    if not conv:
+        return jsonify({"error": "Conversation not found"}), 404
+    if conv.get("admin_id") != admin_id:
+        return jsonify({"error": "Forbidden"}), 403
+    try:
+        result = channel_engine.resolve_conversation(conv_id)
+    except Exception:
+        return jsonify({"error": "Failed to resolve conversation"}), 500
+    return jsonify(result)
 
 
 @app.route("/api/inbox/stats")
@@ -12298,8 +12522,211 @@ def api_inbox_stats():
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    admin_id = user["admin_id"] or user["id"]
+    admin_id = get_effective_admin_id(user)
     return jsonify(channel_engine.get_inbox_stats(admin_id))
+
+
+@app.route("/api/inbox/stats/enhanced")
+def api_inbox_stats_enhanced():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    return jsonify(db.get_inbox_stats_enhanced(admin_id))
+
+
+@app.route("/api/inbox/analytics")
+def api_inbox_analytics():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    date_from = request.args.get("date_from", (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d"))
+    date_to = request.args.get("date_to", datetime.now().strftime("%Y-%m-%d"))
+    return jsonify(db.get_channel_analytics(admin_id, date_from, date_to))
+
+
+@app.route("/api/webhooks/sms", methods=["POST"])
+def api_webhook_sms():
+    """Twilio inbound SMS webhook — processes incoming SMS into the unified inbox."""
+    # Validate webhook secret if configured
+    sms_webhook_secret = os.environ.get("SMS_WEBHOOK_SECRET")
+    if sms_webhook_secret:
+        provided_secret = request.headers.get("X-Webhook-Secret", "")
+        if provided_secret != sms_webhook_secret:
+            app.logger.error("SMS webhook rejected: invalid X-Webhook-Secret header")
+            return jsonify({"error": "Forbidden"}), 403
+    # Twilio sends form-encoded data
+    from_number = request.form.get("From") or request.values.get("From", "")
+    body = request.form.get("Body") or request.values.get("Body", "")
+    to_number = request.form.get("To") or request.values.get("To", "")
+
+    if not from_number or not body:
+        return "<Response></Response>", 200
+
+    # Find admin by their Twilio phone number
+    admin_id = 0
+    conn = None
+    try:
+        conn = db.get_db()
+        row = conn.execute("SELECT admin_id FROM twilio_config WHERE phone_number=%s", (to_number,)).fetchone()
+        if row:
+            admin_id = row["admin_id"]
+    except Exception:
+        pass
+    finally:
+        if conn:
+            conn.close()
+
+    if admin_id:
+        channel_engine.process_inbound_sms(admin_id, from_number, body)
+
+    # Return TwiML empty response
+    return "<Response></Response>", 200
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Enhanced Live Chat Handoff — Canned Responses, Typing, Context
+# ══════════════════════════════════════════════════════════════════
+
+@app.route("/api/canned-responses", methods=["GET"])
+def api_get_canned_responses():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    return jsonify(db.get_canned_responses(admin_id))
+
+
+@app.route("/api/canned-responses", methods=["POST"])
+def api_create_canned_response():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    data = request.get_json(silent=True) or {}
+    title = data.get("title", "").strip()
+    message = data.get("message", "").strip()
+    category = data.get("category", "Custom").strip()
+    shortcut = data.get("shortcut", "").strip()
+    if not title or not message:
+        return jsonify({"error": "Title and message are required"}), 400
+    try:
+        rid = db.create_canned_response(admin_id, title, message, category, shortcut)
+    except Exception:
+        return jsonify({"error": "Failed to create canned response"}), 500
+    return jsonify({"ok": True, "id": rid})
+
+
+@app.route("/api/canned-responses/<int:rid>", methods=["DELETE"])
+def api_delete_canned_response(rid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    try:
+        db.delete_canned_response(admin_id, rid)
+    except Exception:
+        return jsonify({"error": "Failed to delete canned response"}), 500
+    return jsonify({"ok": True})
+
+
+@app.route("/api/canned-responses/<int:rid>/use", methods=["POST"])
+def api_use_canned_response(rid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    # Verify canned response belongs to this admin
+    conn = db.get_db()
+    try:
+        row = conn.execute("SELECT id FROM canned_responses WHERE id=%s AND admin_id=%s", (rid, admin_id)).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return jsonify({"error": "Canned response not found"}), 404
+    try:
+        db.increment_canned_usage(rid, admin_id=admin_id)
+    except Exception:
+        return jsonify({"error": "Failed to record usage"}), 500
+    return jsonify({"ok": True})
+
+
+@app.route("/api/handoffs/<int:hid>/typing", methods=["POST"])
+def api_handoff_typing(hid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    # Verify handoff belongs to this admin
+    conn = db.get_db()
+    try:
+        row = conn.execute("SELECT id FROM live_chat_handoffs WHERE id=%s AND admin_id=%s", (hid, admin_id)).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return jsonify({"error": "Handoff not found"}), 404
+    data = request.get_json(silent=True) or {}
+    is_typing = data.get("typing", False)
+    db.set_agent_typing(hid, is_typing, admin_id=admin_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/handoffs/<int:hid>/context")
+def api_handoff_context(hid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    # Verify handoff belongs to this admin
+    conn = db.get_db()
+    try:
+        row = conn.execute("SELECT id FROM live_chat_handoffs WHERE id=%s AND admin_id=%s", (hid, admin_id)).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return jsonify({"error": "Handoff not found"}), 404
+    context = db.get_handoff_context(hid, admin_id=admin_id)
+    if not context:
+        return jsonify({"error": "Handoff not found"}), 404
+    return jsonify(context)
+
+
+@app.route("/api/handoffs/<int:hid>/transfer", methods=["POST"])
+def api_handoff_transfer(hid):
+    """Transfer a handoff to a different staff member."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    new_staff_id = data.get("staff_user_id")
+    new_staff_name = data.get("staff_name", "")
+    if not new_staff_id:
+        return jsonify({"error": "staff_user_id required"}), 400
+    admin_id = get_effective_admin_id(user)
+    conn = db.get_db()
+    try:
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        conn.execute(
+            "UPDATE live_chat_handoffs SET staff_user_id=%s, staff_name=%s, assigned_at=%s WHERE id=%s AND admin_id=%s",
+            (new_staff_id, new_staff_name, now, hid, admin_id)
+        )
+        conn.commit()
+    except Exception as e:
+        app.logger.error(f"Handoff transfer failed: {e}")
+        return jsonify({"error": "Failed to transfer handoff"}), 500
+    finally:
+        conn.close()
+    return jsonify({"ok": True})
 
 
 # ══════════════════════════���═════════════════════════════════��═════════════════
@@ -12312,7 +12739,7 @@ def api_invoices_list():
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    admin_id = user["admin_id"] or user["id"]
+    admin_id = get_effective_admin_id(user)
     date_from = request.args.get("date_from")
     date_to = request.args.get("date_to")
     return jsonify(invoice_engine.get_invoices(admin_id, date_from, date_to))
@@ -12324,17 +12751,30 @@ def api_invoice_detail(inv_id):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
     inv = invoice_engine.get_invoice(inv_id)
     if not inv:
         return jsonify({"error": "Invoice not found"}), 404
+    if inv.get("admin_id") != admin_id:
+        return jsonify({"error": "Forbidden"}), 403
     return jsonify(inv)
 
 
 @app.route("/api/invoices/<int:inv_id>/html")
 def api_invoice_html(inv_id):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    inv = invoice_engine.get_invoice(inv_id)
+    if not inv:
+        return jsonify({"error": "Invoice not found"}), 404
+    if inv.get("admin_id") != admin_id:
+        return jsonify({"error": "Forbidden"}), 403
     html = invoice_engine.generate_invoice_html(inv_id)
     if not html:
-        return "Invoice not found", 404
+        return jsonify({"error": "Invoice not found"}), 404
     return html
 
 
@@ -12344,9 +12784,14 @@ def api_invoice_pay(inv_id):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    inv = invoice_engine.get_invoice(inv_id)
+    if not inv:
+        return jsonify({"error": "Invoice not found"}), 404
+    if inv.get("admin_id") != admin_id:
+        return jsonify({"error": "Forbidden"}), 403
     data = request.get_json() or {}
     invoice_engine.mark_paid(inv_id, data.get("payment_method", "cash"))
-    admin_id = get_effective_admin_id(user)
     db.log_admin_action(admin_id, user, "Marked invoice paid", f"Invoice #{inv_id}")
     return jsonify({"ok": True})
 
@@ -12357,9 +12802,14 @@ def api_invoice_void(inv_id):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    inv = invoice_engine.get_invoice(inv_id)
+    if not inv:
+        return jsonify({"error": "Invoice not found"}), 404
+    if inv.get("admin_id") != admin_id:
+        return jsonify({"error": "Forbidden"}), 403
     data = request.get_json() or {}
     invoice_engine.void_invoice(inv_id, data.get("reason", ""))
-    admin_id = get_effective_admin_id(user)
     db.log_admin_action(admin_id, user, "Voided invoice", f"Invoice #{inv_id}")
     return jsonify({"ok": True})
 
@@ -12370,6 +12820,12 @@ def api_invoice_email(inv_id):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    inv = invoice_engine.get_invoice(inv_id)
+    if not inv:
+        return jsonify({"error": "Invoice not found"}), 404
+    if inv.get("admin_id") != admin_id:
+        return jsonify({"error": "Forbidden"}), 403
     sent = invoice_engine.send_invoice_email(inv_id)
     return jsonify({"ok": sent})
 
@@ -12380,7 +12836,7 @@ def api_invoice_generate():
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    admin_id = user["admin_id"] or user["id"]
+    admin_id = get_effective_admin_id(user)
     if not db.is_feature_enabled(admin_id, "auto_invoices"):
         return jsonify({"error": "Auto-invoices feature is disabled"}), 403
     data = request.get_json() or {}
@@ -12388,6 +12844,8 @@ def api_invoice_generate():
     if not booking_id:
         return jsonify({"error": "booking_id required"}), 400
     inv_id = invoice_engine.generate_invoice(booking_id, admin_id)
+    if not inv_id:
+        return jsonify({"error": "Could not generate invoice"}), 400
     _bk = db.get_db().execute("SELECT date, time, customer_name FROM bookings WHERE id=%s", (booking_id,)).fetchone()
     _bk_detail = f" ({_bk['customer_name']} on {_bk['date']} at {_bk['time']})" if _bk else ""
     db.log_admin_action(admin_id, user, "Generated invoice", f"Invoice #{inv_id} for booking #{booking_id}{_bk_detail}")
@@ -12400,7 +12858,7 @@ def api_invoice_config():
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
-    admin_id = user["admin_id"] or user["id"]
+    admin_id = get_effective_admin_id(user)
     if request.method == "GET":
         config = invoice_engine.get_invoice_config(admin_id)
         return jsonify(config or {})
@@ -13079,7 +13537,7 @@ def api_mailchimp_connect():
     user = db.get_user_by_token(token)
     if not user or not is_admin_role(user):
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     api_key = (data.get("api_key") or "").strip()
     if not api_key:
         return jsonify({"error": "API key is required"}), 400
@@ -13111,7 +13569,7 @@ def api_mailchimp_configure():
     user = db.get_user_by_token(token)
     if not user or not is_admin_role(user):
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     admin_id = get_effective_admin_id(user)
     list_id = (data.get("list_id") or "").strip()
     auto_sync = bool(data.get("auto_sync", False))
@@ -13254,6 +13712,410 @@ def api_zapier_logs():
 
 
 # ══════════════════════════════════════════════
+#  EMR/EHR Integration Framework
+# ══════════════════════════════════════════════
+
+@app.route("/api/integrations/emr/request", methods=["POST"])
+def api_emr_request():
+    """Submit an EMR/EHR integration request. No auth required (lead capture), but saves admin_id if logged in."""
+    data = request.get_json(silent=True) or {}
+    integration_name = (data.get("integration_name") or "").strip()
+    contact_email = (data.get("contact_email") or "").strip()
+    if not integration_name or not contact_email:
+        return jsonify({"error": "integration_name and contact_email are required"}), 400
+
+    admin_id = 0
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    if token:
+        user = db.get_user_by_token(token)
+        if user:
+            admin_id = get_effective_admin_id(user)
+
+    try:
+        result = db.create_integration_request(admin_id, {
+            "integration_name": integration_name,
+            "contact_email": contact_email,
+            "practice_size": data.get("practice_size", ""),
+            "current_system": data.get("current_system", ""),
+            "notes": data.get("notes", ""),
+        })
+        if not result:
+            return jsonify({"error": "Failed to create integration request"}), 500
+        return jsonify({"ok": True, "message": "Integration request submitted successfully", "request_id": result["id"]})
+    except Exception:
+        return jsonify({"error": "Failed to submit integration request"}), 500
+
+
+@app.route("/api/integrations/emr/status", methods=["GET"])
+def api_emr_status():
+    """Get EMR integration status (auth required)."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+
+    # Get all EMR integrations for this admin
+    try:
+        conn = db.get_db()
+        rows = conn.execute(
+            "SELECT id, integration_type, api_endpoint, status, last_sync, sync_enabled, created_at FROM emr_integrations WHERE admin_id = %s ORDER BY created_at DESC",
+            (admin_id,)
+        ).fetchall()
+        requests_rows = conn.execute(
+            "SELECT * FROM integration_requests WHERE admin_id = %s ORDER BY created_at DESC",
+            (admin_id,)
+        ).fetchall()
+        conn.close()
+    except Exception:
+        return jsonify({"error": "Failed to fetch EMR status"}), 500
+
+    return jsonify({
+        "integrations": [dict(r) for r in rows],
+        "requests": [dict(r) for r in requests_rows],
+    })
+
+
+@app.route("/api/integrations/emr/configure", methods=["POST"])
+def api_emr_configure():
+    """Configure EMR connection (auth required, enterprise plan only)."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    if user.get("plan") not in ("agency", "enterprise", "enterprise_yearly"):
+        return jsonify({"error": "EMR integration requires an Enterprise plan"}), 403
+    admin_id = get_effective_admin_id(user)
+
+    data = request.get_json(silent=True) or {}
+    integration_type = (data.get("integration_type") or "").strip()
+    if not integration_type:
+        return jsonify({"error": "integration_type is required"}), 400
+
+    valid_types = ["dentrix", "opendental", "eaglesoft", "epic", "cerner", "athenahealth", "zocdoc"]
+    if integration_type not in valid_types:
+        return jsonify({"error": f"Invalid integration_type. Must be one of: {', '.join(valid_types)}"}), 400
+
+    result = db.save_emr_integration(admin_id, {
+        "integration_type": integration_type,
+        "api_endpoint": data.get("api_endpoint", ""),
+        "api_key": data.get("api_key", ""),
+        "status": "configured",
+        "sync_enabled": data.get("sync_enabled", False),
+    })
+    return jsonify({"ok": True, "message": f"{integration_type} integration configured successfully"})
+
+
+@app.route("/api/integrations/emr/sync", methods=["GET"])
+def api_emr_sync():
+    """Trigger manual EMR sync (auth required, enterprise plan only)."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    if user.get("plan") not in ("agency", "enterprise", "enterprise_yearly"):
+        return jsonify({"error": "EMR sync requires an Enterprise plan"}), 403
+    admin_id = get_effective_admin_id(user)
+
+    integration_type = request.args.get("type", "").strip()
+    if not integration_type:
+        return jsonify({"error": "type query parameter is required"}), 400
+
+    emr = db.get_emr_integration(admin_id, integration_type)
+    if not emr:
+        return jsonify({"error": f"No {integration_type} integration configured"}), 404
+
+    # Attempt sync via adapter
+    try:
+        from services.pms.adapters import get_adapter
+        adapter = get_adapter(integration_type, {
+            "api_url": emr.get("api_endpoint", ""),
+            "admin_id": admin_id,
+        })
+        sync_result = adapter.sync_all()
+        db.update_emr_sync_timestamp(admin_id, integration_type)
+        return jsonify({"ok": True, "sync": sync_result})
+    except NotImplementedError:
+        # Adapter not yet fully implemented — update timestamp anyway
+        db.update_emr_sync_timestamp(admin_id, integration_type)
+        return jsonify({"ok": True, "message": f"{integration_type} sync queued. Full adapter implementation pending.", "status": "queued"})
+    except Exception as e:
+        app.logger.error(f"EMR sync failed: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+# ══════════════════════════════════════════════
+#  Voice AI Agent — Process endpoint
+# ══════════════════════════════════════════════
+
+@app.route("/api/voice/transcribe", methods=["POST"])
+@limiter.limit("30 per minute")
+def api_voice_transcribe():
+    """Accept audio blob, transcribe with Faster-Whisper, return text."""
+    if "audio" not in request.files:
+        return jsonify({"error": "No audio file provided"}), 400
+
+    audio_file = request.files["audio"]
+    lang_hint = request.form.get("lang", "en")
+    # Map frontend lang codes to Whisper codes
+    whisper_lang = "ar" if lang_hint.startswith("ar") else "en"
+
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp:
+            audio_file.save(tmp)
+            tmp_path = tmp.name
+
+        model = _get_whisper_model()
+        # Use language hint + beam_size=3 for speed, vad_filter to skip silence
+        segments, info = model.transcribe(
+            tmp_path,
+            language=whisper_lang,
+            beam_size=3,
+            vad_filter=True,
+            vad_parameters=dict(min_silence_duration_ms=500),
+        )
+        raw_text = " ".join(seg.text for seg in segments).strip()
+
+        if not raw_text:
+            return jsonify({"text": "", "corrected": "", "lang": whisper_lang})
+
+        # Spelling correction via Groq — skip if text is very short or looks clean
+        corrected = raw_text
+        if grok_cleaner.is_configured() and len(raw_text) > 3:
+            corrected = grok_cleaner.clean(raw_text)
+
+        print(f"[voice] STT: '{raw_text}' -> '{corrected}'", flush=True)
+
+        return jsonify({
+            "text": raw_text,
+            "corrected": corrected,
+            "lang": whisper_lang,
+        })
+    except Exception as e:
+        app.logger.error(f"Voice transcription failed: {e}")
+        return jsonify({"error": "Transcription failed"}), 500
+    finally:
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+
+@app.route("/api/voice/process", methods=["POST"])
+@limiter.limit("30 per minute", deduct_when=lambda resp: resp.status_code < 400, key_func=lambda: request.headers.get("Authorization", request.remote_addr))
+def api_voice_process():
+    """
+    Full voice pipeline:
+    1. Accept text (already transcribed+corrected by /transcribe, or raw text from text mode)
+    2. Classify intent
+    3. Route to appropriate handler (flow or general AI)
+    4. Return response
+    """
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    authenticated_user = db.get_user_by_token(token) if token else None
+
+    data = request.get_json(silent=True) or {}
+    text = (data.get("text") or "").strip()
+    session_id = data.get("session_id", str(uuid.uuid4()))
+    admin_id_raw = data.get("admin_id")
+    lang = data.get("lang", "en")
+
+    if not authenticated_user and not admin_id_raw:
+        return jsonify({"error": "Authentication token or admin_id is required"}), 401
+
+    if not text:
+        return jsonify({"error": "text is required"}), 400
+
+    # Resolve admin_id
+    admin_id = None
+    if admin_id_raw:
+        admin_id_str = str(admin_id_raw).strip()
+        if not admin_id_str.isdigit():
+            resolved_user = db.get_user_by_public_id(admin_id_str)
+            if resolved_user:
+                admin_id = resolved_user["id"]
+    if admin_id_raw and not admin_id:
+        try:
+            admin_id = int(admin_id_raw)
+        except (ValueError, TypeError):
+            return jsonify({"error": "Invalid admin_id"}), 400
+    if not admin_id:
+        if authenticated_user:
+            admin_id = get_effective_admin_id(authenticated_user)
+        else:
+            return jsonify({"error": "admin_id is required for unauthenticated requests"}), 400
+
+    try:
+        response_text = ""
+        booking_data = None
+
+        # Step 1: Classify intent to know if it's a flow or general question
+        intent_name, intent_confidence = intent_classifier.classify(text)
+        print(f"[voice] Intent: {intent_name} ({intent_confidence:.2f}) for: '{text}'", flush=True)
+
+        # Step 2: Route through the main chat pipeline (process_message)
+        try:
+            result = process_message(session_id, text, admin_id=admin_id)
+            print(f"[voice] process_message result type={type(result).__name__}: {str(result)[:200]}", flush=True)
+            if isinstance(result, dict):
+                response_text = result.get("response", result.get("message", ""))
+                booking_data = result.get("booking")
+            elif isinstance(result, str):
+                response_text = result
+        except Exception as e:
+            print(f"[voice] process_message error: {e}", flush=True)
+
+        if not response_text:
+            response_text = "I'm sorry, I couldn't process that. Could you please try again?"
+
+        # Generate SSML hints for TTS
+        ssml_text = response_text
+        ssml_text = ssml_text.replace(". ", '. <break time="300ms"/> ')
+        ssml_text = ssml_text.replace("? ", '? <break time="400ms"/> ')
+        ssml_text = ssml_text.replace("! ", '! <break time="300ms"/> ')
+
+        # Check if session has UI options to send to frontend
+        session = get_session(session_id)
+        ui_options = session.pop("_ui_options", None)
+        booking_confirmed = session.pop("_booking_confirmed", False)
+
+        result = {
+            "response": response_text,
+            "ssml": ssml_text,
+            "session_id": session_id,
+            "intent": intent_name,
+            "intent_confidence": round(intent_confidence, 3),
+        }
+        if booking_data:
+            result["booking"] = booking_data
+        if ui_options:
+            result["options"] = ui_options
+        if booking_confirmed:
+            result["booking_confirmed"] = True
+
+        return jsonify(result)
+
+    except Exception as e:
+        app.logger.error(f"Voice processing failed: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+# ══════════════════════════════════════════════
+#  AI Resolution Rate
+# ══════════════════════════════════════════════
+
+@app.route("/api/ai-resolution-rate", methods=["GET"])
+def api_ai_resolution_rate():
+    """Get AI resolution rate metrics with optional date range filtering."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    date_from = request.args.get("date_from")
+    date_to = request.args.get("date_to")
+    current = db.get_ai_resolution_rate(admin_id, date_from, date_to)
+
+    # Calculate previous period for trend
+    prev = None
+    if date_from and date_to:
+        try:
+            from datetime import datetime as _dt, timedelta
+            df = _dt.strptime(date_from, "%Y-%m-%d")
+            dt = _dt.strptime(date_to, "%Y-%m-%d")
+            delta = (dt - df).days + 1
+            prev_to = (df - timedelta(days=1)).strftime("%Y-%m-%d")
+            prev_from = (df - timedelta(days=delta)).strftime("%Y-%m-%d")
+            prev = db.get_ai_resolution_rate(admin_id, prev_from, prev_to)
+        except Exception:
+            prev = None
+    else:
+        # Default: compare last 30 days vs previous 30 days
+        from datetime import datetime as _dt, timedelta
+        now = _dt.now()
+        cur_from = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+        cur_to = now.strftime("%Y-%m-%d")
+        current = db.get_ai_resolution_rate(admin_id, cur_from, cur_to)
+        prev_from = (now - timedelta(days=60)).strftime("%Y-%m-%d")
+        prev_to = (now - timedelta(days=31)).strftime("%Y-%m-%d")
+        prev = db.get_ai_resolution_rate(admin_id, prev_from, prev_to)
+
+    # Handle None return from database
+    if not current:
+        current = {"resolution_rate": 0, "total_conversations": 0, "ai_resolved": 0}
+
+    result = dict(current)
+    if prev:
+        prev_rate = prev.get("resolution_rate", 0)
+        cur_rate = current.get("resolution_rate", 0)
+        result["trend"] = round(cur_rate - prev_rate, 1)
+        result["previous_rate"] = prev_rate
+    else:
+        result["trend"] = 0
+        result["previous_rate"] = 0
+
+    return jsonify(result)
+
+
+# ══════════════════════════════════════════════
+#  Proactive Engagement Config
+# ══════════════════════════════════════════════
+
+@app.route("/api/proactive-config", methods=["GET"])
+def api_get_proactive_config():
+    """Get proactive engagement settings."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    config = db.get_proactive_config(admin_id)
+    return jsonify(config or {})
+
+
+@app.route("/api/proactive-config", methods=["POST"])
+def api_save_proactive_config():
+    """Save proactive engagement settings."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    data = request.get_json(silent=True) or {}
+    db.save_proactive_config(admin_id, data)
+    return jsonify({"ok": True, "message": "Proactive engagement settings saved"})
+
+
+@app.route("/api/proactive-config/public/<admin_id_raw>")
+def api_get_proactive_config_public(admin_id_raw):
+    """Public endpoint for the embedded widget — no auth required."""
+    admin_id_str = str(admin_id_raw).strip()
+    if not admin_id_str.isdigit():
+        resolved_user = db.get_user_by_public_id(admin_id_str)
+        if not resolved_user:
+            return jsonify({"enabled": False})
+        admin_id = resolved_user["id"]
+    else:
+        admin_id = int(admin_id_str)
+    # Check feature toggle
+    if not db.is_feature_enabled(admin_id, "proactive_engagement"):
+        return jsonify({"enabled": False})
+    config = db.get_proactive_config(admin_id)
+    if not config or not config.get("enabled"):
+        return jsonify({"enabled": False})
+    # Return safe public config (no admin_id, no internal fields)
+    return jsonify({
+        "enabled": True,
+        "dwell_time_seconds": config.get("dwell_time_seconds", 30),
+        "scroll_depth_percent": config.get("scroll_depth_percent", 60),
+        "exit_intent_enabled": bool(config.get("exit_intent_enabled", 1)),
+        "trigger_message": config.get("trigger_message") or "Need help? I can assist with booking appointments!",
+    })
+
+
+# ══════════════════════════════════════════════
 #  Support Bot — ChatGenius website assistant
 # ══════════════════════════════════════════════
 
@@ -13267,6 +14129,80 @@ def api_support_chat():
     history = data.get("history") or []
     result = sb.ask_support_bot(msg, history)
     return jsonify(result)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Partner Program API
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route("/api/partners/apply", methods=["POST"])
+def api_partner_apply():
+    """Submit a partner application (public endpoint, no auth required)."""
+    data = request.get_json(silent=True) or {}
+    agency_name = (data.get("agency_name") or "").strip()
+    contact_name = (data.get("contact_name") or "").strip()
+    email_addr = (data.get("email") or "").strip()
+
+    # Required fields
+    if not agency_name:
+        return jsonify({"error": "Agency name is required"}), 400
+    if not contact_name:
+        return jsonify({"error": "Contact name is required"}), 400
+    if not email_addr:
+        return jsonify({"error": "Email is required"}), 400
+
+    # Length validation
+    if len(agency_name) > 200:
+        return jsonify({"error": "Agency name must be 200 characters or fewer"}), 400
+    if len(contact_name) > 200:
+        return jsonify({"error": "Contact name must be 200 characters or fewer"}), 400
+    if len(email_addr) > 254:
+        return jsonify({"error": "Email must be 254 characters or fewer"}), 400
+    phone = (data.get("phone") or "").strip()
+    if len(phone) > 30:
+        return jsonify({"error": "Phone must be 30 characters or fewer"}), 400
+    website = (data.get("website") or "").strip()
+    if len(website) > 500:
+        return jsonify({"error": "Website must be 500 characters or fewer"}), 400
+    referral_source = (data.get("referral_source") or "").strip()
+    if len(referral_source) > 200:
+        return jsonify({"error": "Referral source must be 200 characters or fewer"}), 400
+
+    # Email format validation
+    if not re.match(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$', email_addr):
+        return jsonify({"error": "Invalid email format"}), 400
+
+    try:
+        client_count = int(data.get("client_count") or 0)
+    except (ValueError, TypeError):
+        return jsonify({"error": "client_count must be a number"}), 400
+
+    try:
+        db.create_partner_application({
+            "agency_name": agency_name,
+            "contact_name": contact_name,
+            "email": email_addr,
+            "phone": phone,
+            "website": website,
+            "client_count": client_count,
+            "referral_source": referral_source,
+        })
+    except Exception:
+        return jsonify({"error": "Failed to submit application"}), 500
+    return jsonify({"ok": True, "message": "Partner application submitted successfully"})
+
+
+@app.route("/api/partners/applications", methods=["GET"])
+def api_partner_applications():
+    """List all partner applications (admin only)."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if user.get("role") != "head_admin":
+        return jsonify({"error": "Forbidden"}), 403
+    applications = db.get_partner_applications()
+    return jsonify({"applications": applications})
 
 
 @app.route("/health")
@@ -13285,8 +14221,130 @@ def health():
                       "unified_inbox", "invoices", "performance_reports",
                       "treatment_packages", "doctor_portal", "noshow_recovery",
                       "whitelabel", "twilio_sms", "mailchimp_integration",
-                      "zapier_webhooks", "google_calendar_sync", "calendly_integration"],
+                      "zapier_webhooks", "google_calendar_sync", "calendly_integration",
+                      "emr_integration", "voice_ai_agent"],
     })
+
+
+# ══════════════════════════════════════════════
+#  Chatbot Flow Builder
+# ══════════════════════════════════════════════
+
+@app.route("/api/chatbot-flows", methods=["GET"])
+def api_list_chatbot_flows():
+    """List all chatbot flows for the current admin."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    flows = db.get_chatbot_flows(admin_id)
+    return jsonify(flows)
+
+
+@app.route("/api/chatbot-flows", methods=["POST"])
+def api_create_chatbot_flow():
+    """Create a new chatbot flow."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "name is required"}), 400
+    if len(name) > 200:
+        return jsonify({"error": "name must be 200 characters or fewer"}), 400
+    description = (data.get("description") or "").strip()
+    if len(description) > 2000:
+        return jsonify({"error": "description must be 2000 characters or fewer"}), 400
+    flow_data = data.get("flow_data", {"nodes": [], "connections": [], "startNode": None})
+    if len(json.dumps(flow_data)) > 500000:
+        return jsonify({"error": "flow_data is too large"}), 400
+    try:
+        result = db.save_chatbot_flow(admin_id, name, description, flow_data)
+    except Exception:
+        return jsonify({"error": "Failed to create chatbot flow"}), 500
+    return jsonify({"ok": True, "flow": result}), 201
+
+
+@app.route("/api/chatbot-flows/<int:flow_id>", methods=["GET"])
+def api_get_chatbot_flow(flow_id):
+    """Get a single chatbot flow with full flow_data."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    flow = db.get_chatbot_flow(admin_id, flow_id)
+    if not flow:
+        return jsonify({"error": "Flow not found"}), 404
+    return jsonify(flow)
+
+
+@app.route("/api/chatbot-flows/<int:flow_id>", methods=["PUT"])
+def api_update_chatbot_flow(flow_id):
+    """Update a chatbot flow."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    data = request.get_json(silent=True) or {}
+    # Fetch existing to get defaults for optional fields
+    existing = db.get_chatbot_flow(admin_id, flow_id)
+    if not existing:
+        return jsonify({"error": "Flow not found"}), 404
+    name = (data.get("name") or existing["name"]).strip()
+    if not name:
+        return jsonify({"error": "name cannot be empty"}), 400
+    if len(name) > 200:
+        return jsonify({"error": "name must be 200 characters or fewer"}), 400
+    description = (data.get("description") if "description" in data else existing["description"]) or ""
+    if len(description) > 2000:
+        return jsonify({"error": "description must be 2000 characters or fewer"}), 400
+    flow_data = data.get("flow_data", existing["flow_data"])
+    if len(json.dumps(flow_data)) > 500000:
+        return jsonify({"error": "flow_data is too large"}), 400
+    try:
+        # admin_id is included in the UPDATE WHERE clause atomically
+        db.update_chatbot_flow(flow_id, admin_id, name, description, flow_data)
+    except Exception:
+        return jsonify({"error": "Failed to update chatbot flow"}), 500
+    return jsonify({"ok": True})
+
+
+@app.route("/api/chatbot-flows/<int:flow_id>", methods=["DELETE"])
+def api_delete_chatbot_flow(flow_id):
+    """Delete a chatbot flow."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    try:
+        # admin_id is included in the DELETE WHERE clause atomically
+        db.delete_chatbot_flow(flow_id, admin_id)
+    except Exception:
+        return jsonify({"error": "Failed to delete chatbot flow"}), 500
+    return jsonify({"ok": True})
+
+
+@app.route("/api/chatbot-flows/<int:flow_id>/activate", methods=["POST"])
+def api_activate_chatbot_flow(flow_id):
+    """Activate a chatbot flow (deactivates all others)."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    try:
+        # admin_id is included in the UPDATE WHERE clause atomically
+        db.activate_chatbot_flow(flow_id, admin_id)
+    except Exception:
+        return jsonify({"error": "Failed to activate chatbot flow"}), 500
+    return jsonify({"ok": True, "message": "Flow activated"})
 
 
 if __name__ == "__main__":

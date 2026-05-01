@@ -78,7 +78,7 @@
       "plan_access": "Full Pro features",
       "credit_card_required": false,
       "auto_renew": false,
-      "what_happens_after": "After 14 days, you can choose a paid plan or your account switches to a limited free tier with 50 conversations/month"
+      "what_happens_after": "After 14 days, you can choose a paid plan or your account switches to a limited free tier with 200 conversations/month"
     },
     "refund_policy": "30-day money-back guarantee on all plans. No questions asked.",
     "discounts": "20% off with annual billing. Non-profit organizations get 30% off any plan. Contact sales for custom enterprise pricing."
@@ -271,7 +271,7 @@
     },
     {
       "q": "How does the free trial work?",
-      "a": "Sign up with just your email — no credit card needed. You get full access to all Pro features for 14 days. After the trial, choose a paid plan or continue with our limited free tier (50 conversations/month)."
+      "a": "Sign up with just your email — no credit card needed. You get full access to all Pro features for 14 days. After the trial, choose a paid plan or continue with our limited free tier (200 conversations/month)."
     },
     {
       "q": "Can the chatbot handle multiple languages?",

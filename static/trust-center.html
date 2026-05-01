@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trust Center — ChatGeniusX</title>
+    <meta name="description" content="ChatGenius Trust Center — Enterprise-grade security, HIPAA compliance, SOC 2, GDPR, and more for healthcare AI chatbots.">
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#050710;--bg2:#0a0e1a;--card:rgba(255,255,255,0.028);--card-hover:rgba(255,255,255,0.045);--border:rgba(255,255,255,0.06);--border-hover:rgba(139,92,246,0.2);--purple:#8b5cf6;--indigo:#6366f1;--green:#34d399;--blue:#3b82f6;--cyan:#06b6d4;--text:#f1f5f9;--text-muted:#8b95a8;--text-dim:#64748b;--gradient:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);--gradient2:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);--ease:cubic-bezier(0.22,1,0.36,1);--glow:0 0 60px rgba(139,92,246,0.08)}
+        ::selection{background:rgba(139,92,246,0.35)}
+        html{scroll-behavior:smooth}
+        body{font-family:'Outfit','Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+        body::after{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:0.018;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+        .aurora{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+        .aurora div{position:absolute;border-radius:50%;filter:blur(120px);opacity:0.1;animation:aurMove 20s ease-in-out infinite}
+        .aurora div:nth-child(1){width:60vw;height:60vw;top:-20%;left:-15%;background:conic-gradient(from 0deg,#8b5cf6,#6366f1,#3b82f6,#8b5cf6);animation-duration:24s}
+        .aurora div:nth-child(2){width:50vw;height:50vw;top:30%;right:-15%;background:conic-gradient(from 120deg,#3b82f6,#06b6d4,#8b5cf6);animation-duration:30s;animation-delay:-8s}
+        .aurora div:nth-child(3){width:45vw;height:45vw;bottom:-15%;left:20%;background:conic-gradient(from 240deg,#ec4899,#8b5cf6,#6366f1);animation-duration:26s;animation-delay:-15s}
+        @keyframes aurMove{0%{transform:translate(0,0) rotate(0) scale(1)}33%{transform:translate(40px,-30px) rotate(120deg) scale(1.06)}66%{transform:translate(-30px,20px) rotate(240deg) scale(.95)}100%{transform:translate(0,0) rotate(360deg) scale(1)}}
+        /* Nav */
+        nav{position:fixed;top:0;width:100%;z-index:1000;background:rgba(5,7,16,0.85);backdrop-filter:blur(24px);border-bottom:1px solid var(--border);padding:0 2rem}
+        .nav-inner{max-width:1200px;margin:auto;display:flex;align-items:center;justify-content:space-between;height:72px}
+        .logo{font-size:1.5rem;font-weight:800;letter-spacing:-.5px;text-decoration:none;color:var(--text)}.logo span{background:var(--gradient2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .nav-links{display:flex;gap:2rem;list-style:none;align-items:center}
+        .nav-links a{color:var(--text-muted);text-decoration:none;font-size:.88rem;font-weight:500;transition:color .3s}.nav-links a:hover{color:#fff}
+        .nav-links>li{position:relative}
+        .nav-dropdown-trigger{cursor:pointer;display:flex;align-items:center;gap:4px}
+        .nav-dropdown-trigger::after{content:'';display:none}
+        .nav-dropdown-trigger svg{width:12px;height:12px;opacity:.5;transition:transform .3s}
+        .nav-dropdown{position:absolute;top:calc(100% + 12px);left:50%;transform:translateX(-50%) translateY(8px);min-width:220px;background:rgba(10,14,26,0.98);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:.5rem;opacity:0;visibility:hidden;transition:all .25s var(--ease);z-index:1001;box-shadow:0 20px 50px rgba(0,0,0,0.5)}
+        .nav-links>li:hover .nav-dropdown{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+        .nav-links>li:hover .nav-dropdown-trigger svg{transform:rotate(180deg)}
+        .nav-dropdown a{display:flex;align-items:center;gap:.6rem;padding:.55rem .85rem;border-radius:8px;font-size:.82rem;color:var(--text-muted);transition:all .2s}
+        .nav-dropdown a::after{display:none}
+        .nav-dropdown a:hover{background:rgba(139,92,246,0.08);color:#fff}
+        .nav-dropdown a small{font-size:.7rem;color:var(--text-dim);display:block;margin-top:1px}
+        .nav-dd-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0}
+
+        .nav-btn{background:var(--gradient);color:#fff;border:none;padding:.6rem 1.6rem;border-radius:50px;font-weight:600;cursor:pointer;font-size:.88rem;text-decoration:none;box-shadow:0 4px 20px rgba(139,92,246,0.25)}
+        .nav-btn-outline{background:transparent;border:1px solid var(--border);color:var(--text);padding:.55rem 1.4rem;border-radius:50px;font-weight:500;cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .3s var(--ease);text-decoration:none}
+        .nav-btn-outline:hover{border-color:var(--border-hover);background:rgba(139,92,246,0.05)}
+
+        section{padding:5rem 2rem;position:relative}.container{max-width:1140px;margin:auto}
+        .section-label{text-transform:uppercase;font-size:.7rem;letter-spacing:4px;font-weight:700;display:inline-block;padding:.4rem 1.2rem;border-radius:50px;background:rgba(52,211,153,0.08);color:var(--green);border:1px solid rgba(52,211,153,0.12);margin-bottom:1rem}
+        .section-title{font-size:clamp(2rem,4.5vw,3rem);font-weight:800;margin-bottom:1rem;letter-spacing:-.03em;line-height:1.15}
+        .section-sub{color:var(--text-muted);max-width:620px;margin:0 auto 3rem;font-size:1.05rem;line-height:1.85}
+        .gradient-text{background:linear-gradient(135deg,#34d399,#3b82f6,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .btn-primary{display:inline-flex;align-items:center;gap:.5rem;color:#fff;padding:.95rem 2.4rem;border-radius:50px;font-weight:700;text-decoration:none;font-size:1rem;background:var(--gradient);box-shadow:0 4px 25px rgba(139,92,246,0.3);transition:all .4s var(--ease);border:none;cursor:pointer;font-family:inherit}
+        .btn-primary:hover{transform:translateY(-3px);box-shadow:0 8px 35px rgba(139,92,246,0.4)}
+
+        /* Hero */
+        .hero-sec{text-align:center;padding-top:120px}
+        .hero-badges{display:flex;justify-content:center;gap:1rem;flex-wrap:wrap;margin-top:2rem}
+        .hero-badge{display:flex;align-items:center;gap:.5rem;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.12);padding:.5rem 1.2rem;border-radius:50px;font-size:.82rem;font-weight:600;color:var(--green)}
+
+        /* Cards */
+        .sec-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.5rem;margin-top:2rem}
+        .sec-card{background:var(--card);border-radius:20px;padding:2rem;border:1px solid var(--border);transition:all .4s var(--ease)}
+        .sec-card:hover{transform:translateY(-4px);border-color:rgba(52,211,153,0.15)}
+        .sec-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.1);margin-bottom:1.25rem}
+        .sec-card h3{font-size:1.05rem;font-weight:700;margin-bottom:.4rem}
+        .sec-card p{color:var(--text-muted);font-size:.88rem;line-height:1.8}
+
+        /* Compliance grid */
+        .compliance-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:1.25rem;margin-top:2rem}
+        .compliance-card{background:var(--card);border-radius:20px;padding:1.75rem 1.25rem;border:1px solid var(--border);text-align:center;transition:all .35s var(--ease)}
+        .compliance-card:hover{border-color:rgba(52,211,153,0.15);transform:translateY(-3px)}
+        .compliance-icon{font-size:2rem;margin-bottom:.75rem}
+        .compliance-card h4{font-size:.9rem;font-weight:700;margin-bottom:.25rem}
+        .compliance-card p{color:var(--text-muted);font-size:.78rem;line-height:1.6}
+        .compliance-card .badge{display:inline-block;font-size:.65rem;font-weight:700;padding:.15rem .5rem;border-radius:50px;margin-top:.4rem}
+        .badge-green{background:rgba(52,211,153,0.1);color:var(--green)}
+        .badge-blue{background:rgba(59,130,246,0.1);color:#60a5fa}
+
+        /* Data section */
+        .data-section{background:linear-gradient(135deg,rgba(52,211,153,0.04),rgba(59,130,246,0.03));border-radius:28px;padding:3rem;border:1px solid rgba(52,211,153,0.1);margin-top:2rem}
+        .data-section h3{font-size:1.4rem;font-weight:800;margin-bottom:1rem}
+        .data-list{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+        .data-list li{padding:.5rem 0;font-size:.9rem;color:var(--text-muted);display:flex;align-items:center;gap:.6rem}
+        .data-list li::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0}
+
+        /* Status indicator */
+        .status-bar{display:flex;align-items:center;justify-content:center;gap:.75rem;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.15);border-radius:16px;padding:1rem 2rem;margin:2rem auto;max-width:400px}
+        .status-dot{width:12px;height:12px;border-radius:50%;background:#34d399;box-shadow:0 0 12px rgba(52,211,153,0.6);animation:pulse 2s ease-in-out infinite}
+        @keyframes pulse{0%,100%{box-shadow:0 0 12px rgba(52,211,153,0.6)}50%{box-shadow:0 0 24px rgba(52,211,153,0.9)}}
+        .status-text{font-weight:700;color:var(--green);font-size:.95rem}
+
+        /* Incident table */
+        .incident-table{width:100%;border-collapse:collapse;margin-top:1.5rem}
+        .incident-table th,.incident-table td{padding:.75rem 1rem;text-align:left;font-size:.85rem;border-bottom:1px solid var(--border)}
+        .incident-table th{color:var(--text-muted);font-weight:600;font-size:.75rem;text-transform:uppercase;letter-spacing:1px}
+        .incident-table td{color:var(--text-muted)}
+
+        /* FAQ */
+        .faq-section{max-width:800px;margin:0 auto}
+        .faq-item{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:.75rem;overflow:hidden;transition:border-color .2s}
+        .faq-item:hover{border-color:rgba(139,92,246,0.15)}
+        .faq-q{display:flex;justify-content:space-between;align-items:center;padding:1.1rem 1.5rem;cursor:pointer;font-weight:600;font-size:.95rem;user-select:none}
+        .faq-q .faq-icon{font-size:1.2rem;color:var(--text-dim);transition:transform .3s}
+        .faq-item.open .faq-q .faq-icon{transform:rotate(45deg)}
+        .faq-a{max-height:0;overflow:hidden;transition:max-height .4s var(--ease)}
+        .faq-item.open .faq-a{max-height:300px}
+        .faq-a p{padding:0 1.5rem 1.25rem;color:var(--text-muted);font-size:.9rem;line-height:1.8}
+
+        /* Downloadable section / printable */
+        .download-section{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:2.5rem;margin-top:2rem;position:relative}
+        .download-section h3{font-size:1.15rem;font-weight:700;margin-bottom:.75rem}
+        .download-section p,.download-section li{color:var(--text-muted);font-size:.88rem;line-height:1.8}
+        .download-section ul{list-style:none;padding:0;margin:.75rem 0}
+        .download-section ul li{padding:.3rem 0;padding-left:1.3rem;position:relative}
+        .download-section ul li::before{content:'\2713';position:absolute;left:0;color:var(--green);font-weight:700;font-size:.8rem}
+        .btn-download{display:inline-flex;align-items:center;gap:.5rem;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.15);color:var(--green);padding:.6rem 1.4rem;border-radius:50px;font-weight:600;font-size:.85rem;cursor:pointer;transition:all .3s;text-decoration:none;font-family:inherit;margin-top:1rem}
+        .btn-download:hover{background:rgba(52,211,153,0.15);text-decoration:none}
+
+        /* CTA */
+        .cta-box{background:var(--card);border-radius:32px;padding:4rem 2.5rem;border:1px solid rgba(139,92,246,0.1);text-align:center;margin-top:3rem}
+
+        @media print{
+            body{background:#fff;color:#111}
+            nav,.aurora,.btn-primary,.btn-download,footer{display:none}
+            .sec-card,.compliance-card,.download-section,.faq-item,.data-section{border-color:#ddd;background:#fafafa;break-inside:avoid}
+            .section-title,.sec-card h3,.compliance-card h4,.download-section h3{color:#111}
+            .sec-card p,.compliance-card p,.download-section p,.download-section li,.data-list li,.faq-a p{color:#444}
+            .status-bar{border-color:#34d399}
+        }
+
+        @media(max-width:900px){.nav-links{display:none}.sec-grid{grid-template-columns:1fr}.compliance-grid{grid-template-columns:repeat(2,1fr)}.data-list{grid-template-columns:1fr}}
+        @media(max-width:480px){.compliance-grid{grid-template-columns:1fr}}
+    
+        /* FOOTER */
+        footer{padding:3rem 2rem;border-top:1px solid var(--border);background:rgba(5,7,16,0.5)}
+        .footer-inner{max-width:1140px;margin:auto}
+        .footer-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 1fr;gap:2rem;margin-bottom:2rem}
+        .footer-col{display:flex;flex-direction:column;gap:.5rem}
+        .footer-col h4{font-size:.85rem;font-weight:700;margin-bottom:.5rem;color:var(--text)}
+        .footer-col a{color:var(--text-dim);text-decoration:none;font-size:.82rem;transition:color .3s;padding:.15rem 0}
+        .footer-col a:hover{color:var(--text)}
+        .footer-col p{color:var(--text-dim);font-size:.82rem;line-height:1.7}
+        .footer-logo{font-size:1.2rem;font-weight:800;letter-spacing:-.5px}
+        .footer-logo span{background:var(--gradient2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .footer-newsletter{display:flex;gap:.5rem}
+        .footer-newsletter input{flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-size:.82rem;font-family:inherit}
+        .footer-newsletter input::placeholder{color:var(--text-dim)}
+        .footer-newsletter button{background:var(--gradient);color:#fff;border:none;padding:.5rem 1rem;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .3s}
+        .footer-newsletter button:hover{transform:translateY(-1px)}
+        .footer-bottom{display:flex;justify-content:space-between;align-items:center;padding-top:1.5rem;border-top:1px solid var(--border)}
+        .footer-copy{color:var(--text-dim);font-size:.8rem}
+        @media(max-width:900px){.footer-grid{grid-template-columns:1fr 1fr;gap:1.5rem}.footer-bottom{flex-direction:column;gap:.75rem;text-align:center}}
+        @media(max-width:480px){.footer-grid{grid-template-columns:1fr}}
+    
+        .hamburger{display:none;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;padding:.5rem}
+        .mobile-menu{display:none;position:fixed;top:72px;left:0;right:0;background:rgba(5,7,16,0.95);backdrop-filter:blur(20px);padding:1.5rem 2rem;border-bottom:1px solid var(--border);flex-direction:column;gap:1rem;z-index:999}
+        .mobile-menu.open{display:flex}
+        .mobile-menu a{color:var(--text-muted);text-decoration:none;font-size:1rem;padding:.75rem 0;border-bottom:1px solid var(--border);font-weight:500}
+        .mobile-menu a:last-child{border:none}
+        @media(max-width:900px){.nav-links{display:none!important}.hamburger{display:block}}
+    </style>
+</head>
+<body>
+<div class="aurora"><div></div><div></div><div></div></div>
+
+<nav id="mainNav">
+    <div class="nav-inner">
+        <a href="/" class="logo">Chat<span>Genius</span></a>
+        <ul class="nav-links">
+            <li>
+                <a href="#" class="nav-dropdown-trigger" onclick="return false">Product <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
+                <div class="nav-dropdown">
+                    <a href="/#features"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6">&#9889;</span><div>Features<small>All platform capabilities</small></div></a>
+                    <a href="/ai-technology"><span class="nav-dd-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6">&#129302;</span><div>AI Technology<small>Model transparency</small></div></a>
+                    <a href="/integrations"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#128268;</span><div>Integrations<small>Connect your stack</small></div></a>
+                    <a href="/trust-center"><span class="nav-dd-icon" style="background:rgba(6,182,212,0.1);color:#06b6d4">&#128274;</span><div>Trust Center<small>Security &amp; compliance</small></div></a>
+                    <a href="/agent-marketplace"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#129302;</span><div>Agent Marketplace<small>Pre-built AI agents</small></div></a>
+                    <a href="/voice-agent"><span class="nav-dd-icon" style="background:rgba(251,191,36,0.1);color:#fbbf24">&#127908;</span><div>Voice AI<small>Voice-powered calls</small></div></a>
+                    <a href="/mobile-app"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#c4b5fd">&#128241;</span><div>Mobile App<small>iOS &amp; Android</small></div></a>
+                </div>
+            </li>
+            <li><a href="/pricing-plans">Pricing</a></li>
+            <li>
+                <a href="#" class="nav-dropdown-trigger" onclick="return false">Resources <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
+                <div class="nav-dropdown">
+                    <a href="/developers"><span class="nav-dd-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6">&#128187;</span><div>API Docs<small>Developer portal</small></div></a>
+                    <a href="/compare"><span class="nav-dd-icon" style="background:rgba(251,191,36,0.1);color:#fbbf24">&#128200;</span><div>Compare<small>vs Intercom, Tidio</small></div></a>
+                    <a href="/partners"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#129309;</span><div>Partner Program<small>Earn commissions</small></div></a>
+                    <a href="/blog"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#128221;</span><div>Blog &amp; Guides<small>Tips &amp; insights</small></div></a>
+                    <a href="/case-studies"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6">&#128202;</span><div>Case Studies<small>Real results</small></div></a>
+                </div>
+            </li>
+            <li>
+                <a href="#" class="nav-dropdown-trigger" onclick="return false">Use Cases <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
+                <div class="nav-dropdown">
+                    <a href="/for-dental-clinics"><span class="nav-dd-icon" style="background:rgba(6,182,212,0.1);color:#06b6d4">&#129463;</span><div>Dental Clinics<small>Bookings &amp; recalls</small></div></a>
+                    <a href="/for-medical-practices"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#127973;</span><div>Medical Practices<small>Patient engagement</small></div></a>
+                    <a href="/for-salons-spas"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#128135;</span><div>Salons &amp; Spas<small>Beauty appointments</small></div></a>
+                </div>
+            </li>
+            <li><a href="/login" class="nav-btn-outline">Log In</a></li>
+            <li><a href="/login?signup=1" class="nav-btn">Start Free</a></li>
+        </ul>
+        <button class="hamburger" onclick="document.querySelector('.mobile-menu').classList.toggle('open')">&#9776;</button>
+    </div>
+    <div class="mobile-menu">
+        <a href="/#features">Features</a>
+        <a href="/pricing-plans">Pricing</a>
+        <a href="/ai-technology">AI Technology</a>
+        <a href="/integrations">Integrations</a>
+        <a href="/trust-center">Trust Center</a>
+        <a href="/agent-marketplace">Agent Marketplace</a>
+        <a href="/voice-agent">Voice AI</a>
+        <a href="/mobile-app">Mobile App</a>
+        <a href="/developers">API Docs</a>
+        <a href="/compare">Compare</a>
+        <a href="/partners">Partners</a>
+        <a href="/blog">Blog &amp; Guides</a>
+        <a href="/case-studies">Case Studies</a>
+        <a href="/for-dental-clinics">Dental</a>
+        <a href="/for-medical-practices">Medical</a>
+        <a href="/for-salons-spas">Salons</a>
+        <a href="/login">Log In</a>
+        <a href="/login?signup=1" style="color:#c4b5fd;font-weight:700">Start Free</a>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero-sec">
+    <div class="container">
+        <div class="section-label">Trust Center</div>
+        <h1 class="section-title">ChatGenius Trust Center<br><span class="gradient-text">Enterprise-Grade Security for Healthcare</span></h1>
+        <p class="section-sub">We protect your patient data with the highest security standards in the industry. Transparency, compliance, and trust are at our core.</p>
+        <div class="hero-badges">
+            <div class="hero-badge">&#127973; HIPAA Compliant</div>
+            <div class="hero-badge">&#128220; SOC 2 Type II In Progress</div>
+            <div class="hero-badge">&#127758; GDPR Compliant</div>
+            <div class="hero-badge">&#128179; PCI DSS Level 1</div>
+            <div class="hero-badge">&#128274; CCPA Compliant</div>
+            <div class="hero-badge">&#9989; 99.9% Uptime</div>
+        </div>
+    </div>
+</section>
+
+<!-- Section 1: Compliance Certifications -->
+<section style="text-align:center">
+    <div class="container">
+        <div class="section-label">Compliance</div>
+        <h2 class="section-title">Compliance Certifications</h2>
+        <p class="section-sub">Built for healthcare from day one. We meet and exceed the strictest compliance standards in the industry.</p>
+        <div class="compliance-grid">
+            <div class="compliance-card">
+                <div class="compliance-icon">&#127973;</div>
+                <h4>HIPAA</h4>
+                <p>Full HIPAA compliance for protected health information. Business Associate Agreements available.</p>
+                <span class="badge badge-green">Compliant</span>
+            </div>
+            <div class="compliance-card">
+                <div class="compliance-icon">&#128220;</div>
+                <h4>SOC 2 Type II</h4>
+                <p>Security controls aligned with AICPA Trust Service Criteria. Audit in progress.</p>
+                <span class="badge badge-blue">In Progress &mdash; Q3 2026</span>
+            </div>
+            <div class="compliance-card">
+                <div class="compliance-icon">&#127758;</div>
+                <h4>GDPR</h4>
+                <p>Full GDPR compliance including data processing agreements, right to erasure, and portability.</p>
+                <span class="badge badge-green">Compliant</span>
+            </div>
+            <div class="compliance-card">
+                <div class="compliance-icon">&#128179;</div>
+                <h4>PCI DSS Level 1</h4>
+                <p>Payment processing meets PCI DSS Level 1 through certified payment partners.</p>
+                <span class="badge badge-green">Compliant</span>
+            </div>
+            <div class="compliance-card">
+                <div class="compliance-icon">&#128203;</div>
+                <h4>CCPA</h4>
+                <p>California Consumer Privacy Act compliance. Full data transparency and consumer rights.</p>
+                <span class="badge badge-green">Compliant</span>
+            </div>
+        </div>
+
+        <!-- BAA Template (downloadable/printable) -->
+        <div class="download-section" id="baa-template">
+            <h3>&#128196; Business Associate Agreement (BAA) Template</h3>
+            <p>ChatGeniusX is committed to protecting Protected Health Information (PHI) in accordance with the Health Insurance Portability and Accountability Act of 1996 (HIPAA).</p>
+            <ul>
+                <li>ChatGeniusX acts as a Business Associate under HIPAA regulations</li>
+                <li>All PHI is encrypted at rest (AES-256) and in transit (TLS 1.3)</li>
+                <li>Access to PHI is restricted to authorized personnel only</li>
+                <li>Breach notification within 72 hours of discovery</li>
+                <li>PHI is never used for marketing, analytics, or AI model training</li>
+                <li>Data disposal upon termination per HIPAA requirements</li>
+                <li>Annual security risk assessments conducted</li>
+                <li>Subcontractor compliance ensured with downstream BAAs</li>
+            </ul>
+            <p style="margin-top:1rem;font-size:.8rem;color:var(--text-dim)">To execute a BAA, contact our compliance team at <strong>compliance@chatgeniusx.com</strong> or request one from your account dashboard.</p>
+            <button class="btn-download" onclick="window.print()">&#128424; Print / Save as PDF</button>
+        </div>
+    </div>
+</section>
+
+<!-- Section 2: Security Architecture -->
+<section style="text-align:center">
+    <div class="container">
+        <div class="section-label">Security</div>
+        <h2 class="section-title">Security Architecture</h2>
+        <p class="section-sub">Military-grade encryption and enterprise infrastructure protect your data at every layer.</p>
+        <div class="sec-grid">
+            <div class="sec-card">
+                <div class="sec-icon">&#128274;</div>
+                <h3>Data Encryption</h3>
+                <p>All stored data is encrypted using <strong>AES-256 at rest</strong>. All data in transit is protected with <strong>TLS 1.3</strong>. The same standards used by the U.S. government and financial institutions.</p>
+            </div>
+            <div class="sec-card">
+                <div class="sec-icon">&#9729;&#65039;</div>
+                <h3>Infrastructure</h3>
+                <p>Hosted on <strong>AWS with multi-AZ deployment</strong> for high availability. VPC isolation, private subnets, and automated failover ensure your chatbot is always running.</p>
+            </div>
+            <div class="sec-card">
+                <div class="sec-icon">&#128737;</div>
+                <h3>Network Security</h3>
+                <p>Enterprise-grade <strong>firewall rules</strong>, Web Application Firewall (WAF), and <strong>DDoS protection</strong> via AWS Shield. All traffic is monitored and analyzed in real time.</p>
+            </div>
+            <div class="sec-card">
+                <div class="sec-icon">&#128272;</div>
+                <h3>Key Management</h3>
+                <p>Encryption keys are managed through <strong>AWS KMS</strong> with automatic rotation. Keys are hardware-protected and never stored alongside data.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Section 3: Data Handling -->
+<section>
+    <div class="container">
+        <div style="text-align:center">
+            <div class="section-label">Data</div>
+            <h2 class="section-title">Data Handling &amp; Privacy</h2>
+            <p class="section-sub">You own your data. We never sell, share, or use it for advertising or AI training.</p>
+        </div>
+        <div class="data-section">
+            <div style="text-align:center;margin-bottom:2rem">
+                <h3>Your Data, Your Rules</h3>
+            </div>
+            <ul class="data-list">
+                <li><strong>Data Residency:</strong> Primary storage in AWS US-East (Virginia). EU data residency available for Enterprise customers</li>
+                <li><strong>Data Retention:</strong> Configurable retention policies. Default 24-month retention with automatic purge options</li>
+                <li><strong>Right to Erasure:</strong> Full GDPR Article 17 compliance. Delete all data with one click from your dashboard</li>
+                <li><strong>Data Portability:</strong> Export all your data at any time in CSV or JSON format</li>
+                <li><strong>No Data Mining:</strong> Your data is never sold, shared, or used for third-party purposes</li>
+                <li><strong>No AI Training:</strong> Patient data is never used to train AI models</li>
+                <li><strong>Automated Backups:</strong> Daily encrypted backups with 30-day retention and point-in-time recovery</li>
+                <li><strong>Data Integrity:</strong> Regular data integrity verification and checksums</li>
+            </ul>
+        </div>
+
+        <!-- DPA Download -->
+        <div class="download-section" id="dpa-template">
+            <h3>&#128196; Data Processing Agreement (DPA)</h3>
+            <p>Our Data Processing Agreement outlines how ChatGeniusX processes personal data on behalf of our customers, in compliance with GDPR and applicable data protection laws.</p>
+            <ul>
+                <li>Lawful basis for processing defined per GDPR Article 6</li>
+                <li>Data subject rights facilitated (access, rectification, erasure, portability)</li>
+                <li>Sub-processor list maintained and updated with advance notice</li>
+                <li>Data transfer mechanisms compliant with EU-US Data Privacy Framework</li>
+                <li>Data breach notification within 72 hours</li>
+                <li>Regular Data Protection Impact Assessments (DPIAs)</li>
+            </ul>
+            <p style="margin-top:1rem;font-size:.8rem;color:var(--text-dim)">Request your DPA at <strong>privacy@chatgeniusx.com</strong> or download from your account settings.</p>
+            <button class="btn-download" onclick="window.print()">&#128424; Print / Save as PDF</button>
+        </div>
+    </div>
+</section>
+
+<!-- Section 4: Access Controls -->
+<section style="text-align:center">
+    <div class="container">
+        <div class="section-label">Access</div>
+        <h2 class="section-title">Access Controls &amp; Authentication</h2>
+        <p class="section-sub">Granular permissions ensure the right people have access to the right data — nothing more.</p>
+        <div class="sec-grid">
+            <div class="sec-card">
+                <div class="sec-icon">&#128101;</div>
+                <h3>Role-Based Access Control</h3>
+                <p>Three distinct roles — <strong>Head Admin</strong>, <strong>Admin</strong>, and <strong>Doctor</strong> — each with precisely scoped permissions. No over-privileged accounts.</p>
+            </div>
+            <div class="sec-card">
+                <div class="sec-icon">&#128272;</div>
+                <h3>Two-Factor Authentication (2FA)</h3>
+                <p>Optional <strong>2FA for all accounts</strong>. Supports authenticator apps (TOTP) for an extra layer of security on every login.</p>
+            </div>
+            <div class="sec-card">
+                <div class="sec-icon">&#128231;</div>
+                <h3>Session Management</h3>
+                <p>JWT-based authentication with <strong>8-hour token expiry</strong>. Automatic logout on inactivity. Secure, httpOnly token storage.</p>
+            </div>
+            <div class="sec-card">
+                <div class="sec-icon">&#128196;</div>
+                <h3>Audit Logging</h3>
+                <p>Complete audit trail of all account actions. Track who changed what, when, and from where. <strong>Immutable and exportable</strong> logs.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Section 5: Uptime & Reliability -->
+<section style="text-align:center">
+    <div class="container">
+        <div class="section-label">Reliability</div>
+        <h2 class="section-title">Uptime &amp; Reliability</h2>
+        <p class="section-sub">Your chatbot is always available when your patients need it.</p>
+
+        <!-- Status indicator -->
+        <div class="status-bar">
+            <div class="status-dot"></div>
+            <span class="status-text">All Systems Operational</span>
+        </div>
+
+        <div class="sec-grid">
+            <div class="sec-card">
+                <div class="sec-icon">&#9989;</div>
+                <h3>99.9% Uptime SLA</h3>
+                <p>Guaranteed uptime with automated failover across multiple AWS availability zones. Enterprise customers receive contractual SLA guarantees.</p>
+            </div>
+            <div class="sec-card">
+                <div class="sec-icon">&#128260;</div>
+                <h3>Automated Backups</h3>
+                <p>Daily encrypted backups with <strong>30-day retention</strong>. Point-in-time recovery ensures no data is ever lost. Backups stored in a separate geographic region.</p>
+            </div>
+        </div>
+
+        <!-- Incident History -->
+        <div class="download-section" style="margin-top:2rem;text-align:left">
+            <h3>Incident History</h3>
+            <p>We maintain full transparency about service incidents and their resolution.</p>
+            <table class="incident-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Description</th>
+                        <th>Duration</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="4" style="text-align:center;padding:2rem;color:var(--green);font-weight:600">No incidents reported. All systems have been fully operational.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- Section 6: Penetration Testing -->
+<section style="text-align:center">
+    <div class="container">
+        <div class="section-label">Testing</div>
+        <h2 class="section-title">Penetration Testing &amp; Vulnerability Management</h2>
+        <p class="section-sub">Proactive security testing to identify and eliminate vulnerabilities before they become threats.</p>
+        <div class="sec-grid" style="max-width:800px;margin:2rem auto 0">
+            <div class="sec-card">
+                <div class="sec-icon">&#128270;</div>
+                <h3>Annual Third-Party Penetration Testing</h3>
+                <p>We engage independent, accredited third-party security firms to conduct comprehensive penetration tests of our infrastructure, APIs, and application layer annually.</p>
+            </div>
+            <div class="sec-card">
+                <div class="sec-icon">&#128196;</div>
+                <h3>Results Available on Request</h3>
+                <p>Penetration testing executive summaries are available upon request for <strong>Enterprise customers</strong> under NDA. Contact your account manager or our security team.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Section 7: FAQ -->
+<section style="text-align:center">
+    <div class="container">
+        <div class="section-label">FAQ</div>
+        <h2 class="section-title">Security &amp; Compliance FAQ</h2>
+        <p class="section-sub">Answers to your most common security questions.</p>
+        <div class="faq-section">
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)"><span>Do you sign BAAs?</span><span class="faq-icon">+</span></div>
+                <div class="faq-a"><p>Yes. We sign Business Associate Agreements (BAAs) with all healthcare customers. BAAs are available on all plans. Contact compliance@chatgeniusx.com or request one from your dashboard to get started.</p></div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)"><span>Where is my data stored?</span><span class="faq-icon">+</span></div>
+                <div class="faq-a"><p>All data is stored on AWS infrastructure in the US-East (Virginia) region. For Enterprise customers, we offer EU data residency options. All data is encrypted at rest with AES-256 and in transit with TLS 1.3.</p></div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)"><span>Can I export my data?</span><span class="faq-icon">+</span></div>
+                <div class="faq-a"><p>Yes. You can export all your data at any time in CSV or JSON format directly from your dashboard. This includes conversations, bookings, patient records, analytics, and all associated metadata. Your data is always yours.</p></div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)"><span>Do you use my data for AI training?</span><span class="faq-icon">+</span></div>
+                <div class="faq-a"><p>No, never. Your patient data, conversation logs, and business information are never used to train AI models. Your data is used exclusively to provide you with our service and nothing else. This is contractually guaranteed in our DPA and BAA.</p></div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)"><span>How do you handle data breaches?</span><span class="faq-icon">+</span></div>
+                <div class="faq-a"><p>In the unlikely event of a data breach, we notify affected customers within 72 hours as required by GDPR and HIPAA. Our incident response plan includes immediate containment, forensic investigation, regulatory notification, and remediation steps.</p></div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)"><span>What happens to my data if I cancel?</span><span class="faq-icon">+</span></div>
+                <div class="faq-a"><p>Upon account cancellation, you can export all your data. After a 30-day grace period, all data is permanently and irreversibly deleted from our systems, including backups. We provide written confirmation of data destruction upon request.</p></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section>
+    <div class="container">
+        <div class="cta-box">
+            <h2 class="section-title">Start Your Secure Free Trial</h2>
+            <p class="section-sub" style="margin-bottom:2rem">14 days free, no credit card required. Your data is protected from day one.</p>
+            <a href="/login?signup=1" class="btn-primary">Start Free Trial &rarr;</a>
+        </div>
+    </div>
+</section>
+
+<footer>
+    <div class="footer-inner" style="display:block;max-width:1140px;margin:auto">
+        <div class="footer-grid">
+            <div class="footer-col">
+                <div class="footer-logo" style="margin-bottom:1rem">Chat<span>Genius</span></div>
+                <p>AI chatbot platform that converts visitors into bookings. Built for healthcare, dental, and beauty practices.</p>
+                <div class="footer-newsletter" style="margin-top:1rem">
+                    <input type="email" id="footerEmail" placeholder="Your email">
+                    <button onclick="document.getElementById('footerEmail').value='';this.textContent='Subscribed!';setTimeout(()=>this.textContent='Subscribe',2000)">Subscribe</button>
+                </div>
+                <p style="font-size:.72rem;margin-top:.4rem;color:var(--text-dim)">Join 2,000+ practice owners getting AI tips</p>
+            </div>
+            <div class="footer-col">
+                <h4>Product</h4>
+                <a href="/#features">Features</a>
+                <a href="/ai-technology">AI Technology</a>
+                <a href="/integrations">Integrations</a>
+                <a href="/agent-marketplace">Agent Marketplace</a>
+                <a href="/voice-agent">Voice AI</a>
+                <a href="/mobile-app">Mobile App</a>
+            </div>
+            <div class="footer-col">
+                <h4>Resources</h4>
+                <a href="/developers">API Docs</a>
+                <a href="/blog">Blog &amp; Guides</a>
+                <a href="/case-studies">Case Studies</a>
+                <a href="/compare">Compare</a>
+            </div>
+            <div class="footer-col">
+                <h4>Company</h4>
+                <a href="/pricing-plans">Pricing</a>
+                <a href="/partners">Partner Program</a>
+                <a href="/trust-center">Trust Center</a>
+                <a href="/security">Security</a>
+            </div>
+            <div class="footer-col">
+                <h4>Legal</h4>
+                <a href="/privacy">Privacy Policy</a>
+                <a href="/terms">Terms of Service</a>
+                <a href="/refund">Refund Policy</a>
+                <a href="/data-deletion">Data Deletion</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="footer-copy">&copy; 2026 ChatGeniusX. All rights reserved.</div>
+            <div style="display:flex;gap:1.5rem">
+                <a href="/privacy" style="color:var(--text-dim);font-size:.8rem;text-decoration:none">Privacy</a>
+                <a href="/terms" style="color:var(--text-dim);font-size:.8rem;text-decoration:none">Terms</a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script>
+function toggleFaq(el){
+    const item = el.closest('.faq-item');
+    item.classList.toggle('open');
+}
+</script>
+</body>
+</html>

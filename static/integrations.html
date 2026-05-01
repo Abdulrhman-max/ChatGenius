@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integrations Marketplace — ChatGeniusX</title>
+    <meta name="description" content="Connect ChatGenius to your entire practice stack. 20+ integrations for scheduling, EMR/EHR, communication, marketing, and payments.">
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        
+        *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#050710;--bg2:#0a0e1a;--card:rgba(255,255,255,0.028);--card-hover:rgba(255,255,255,0.045);--border:rgba(255,255,255,0.06);--border-hover:rgba(139,92,246,0.2);--purple:#8b5cf6;--indigo:#6366f1;--green:#34d399;--blue:#3b82f6;--orange:#f59e0b;--amber:#fbbf24;--red:#f87171;--text:#f1f5f9;--text-muted:#8b95a8;--text-dim:#64748b;--gradient:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);--gradient2:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);--ease:cubic-bezier(0.22,1,0.36,1);--glow:0 0 60px rgba(139,92,246,0.08)}
+        ::selection{background:rgba(139,92,246,0.35)}
+        html{scroll-behavior:smooth}
+        body{font-family:'Outfit','Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+        body::after{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:0.018;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+        .aurora{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+        .aurora div{position:absolute;border-radius:50%;filter:blur(120px);opacity:0.1;animation:aurMove 20s ease-in-out infinite}
+        .aurora div:nth-child(1){width:60vw;height:60vw;top:-20%;left:-15%;background:conic-gradient(from 0deg,#8b5cf6,#6366f1,#3b82f6,#8b5cf6);animation-duration:24s}
+        .aurora div:nth-child(2){width:50vw;height:50vw;top:30%;right:-15%;background:conic-gradient(from 120deg,#3b82f6,#06b6d4,#8b5cf6);animation-duration:30s;animation-delay:-8s}
+        .aurora div:nth-child(3){width:45vw;height:45vw;bottom:-15%;left:20%;background:conic-gradient(from 240deg,#ec4899,#8b5cf6,#6366f1);animation-duration:26s;animation-delay:-15s}
+        @keyframes aurMove{0%{transform:translate(0,0) rotate(0) scale(1)}33%{transform:translate(40px,-30px) rotate(120deg) scale(1.06)}66%{transform:translate(-30px,20px) rotate(240deg) scale(.95)}100%{transform:translate(0,0) rotate(360deg) scale(1)}}
+        nav{position:fixed;top:0;width:100%;z-index:1000;background:rgba(5,7,16,0.85);backdrop-filter:blur(24px);border-bottom:1px solid var(--border);padding:0 2rem}
+        .nav-inner{max-width:1200px;margin:auto;display:flex;align-items:center;justify-content:space-between;height:72px}
+        .logo{font-size:1.5rem;font-weight:800;letter-spacing:-.5px;text-decoration:none;color:var(--text)}.logo span{background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .nav-links{display:flex;gap:2rem;list-style:none;align-items:center}
+        .nav-links a{color:var(--text-muted);text-decoration:none;font-size:.88rem;font-weight:500;transition:color .3s}.nav-links a:hover{color:#fff}
+        .nav-links>li{position:relative}
+        .nav-dropdown-trigger{cursor:pointer;display:flex;align-items:center;gap:4px}
+        .nav-dropdown-trigger::after{content:'';display:none}
+        .nav-dropdown-trigger svg{width:12px;height:12px;opacity:.5;transition:transform .3s}
+        .nav-dropdown{position:absolute;top:calc(100% + 12px);left:50%;transform:translateX(-50%) translateY(8px);min-width:220px;background:rgba(10,14,26,0.98);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:.5rem;opacity:0;visibility:hidden;transition:all .25s var(--ease);z-index:1001;box-shadow:0 20px 50px rgba(0,0,0,0.5)}
+        .nav-links>li:hover .nav-dropdown{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+        .nav-links>li:hover .nav-dropdown-trigger svg{transform:rotate(180deg)}
+        .nav-dropdown a{display:flex;align-items:center;gap:.6rem;padding:.55rem .85rem;border-radius:8px;font-size:.82rem;color:var(--text-muted);transition:all .2s}
+        .nav-dropdown a::after{display:none}
+        .nav-dropdown a:hover{background:rgba(139,92,246,0.08);color:#fff}
+        .nav-dropdown a small{font-size:.7rem;color:var(--text-dim);display:block;margin-top:1px}
+        .nav-dd-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0}
+
+        .nav-btn{background:var(--gradient);color:#fff;border:none;padding:.6rem 1.6rem;border-radius:50px;font-weight:600;cursor:pointer;font-size:.88rem;text-decoration:none;box-shadow:0 4px 20px rgba(139,92,246,0.25)}
+        .nav-btn-outline{background:transparent;border:1px solid var(--border);color:var(--text);padding:.55rem 1.4rem;border-radius:50px;font-weight:500;cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .3s var(--ease);text-decoration:none}
+        .nav-btn-outline:hover{border-color:var(--border-hover);background:rgba(139,92,246,0.05)}
+        section{padding:5rem 2rem;position:relative}.container{max-width:1140px;margin:auto}
+        .section-label{text-transform:uppercase;font-size:.7rem;letter-spacing:4px;font-weight:700;display:inline-block;padding:.4rem 1.2rem;border-radius:50px;margin-bottom:1rem}
+        .section-title{font-size:clamp(2rem,4.5vw,3rem);font-weight:800;margin-bottom:1rem;letter-spacing:-.03em;line-height:1.15}
+        .section-sub{color:var(--text-muted);max-width:620px;margin:0 auto 3rem;font-size:1.05rem;line-height:1.85}
+        .gradient-text{background:linear-gradient(135deg,#34d399,#3b82f6,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+        .hero-sec{text-align:center;padding-top:120px}
+        .hero-stat-row{display:flex;justify-content:center;gap:3rem;margin-top:2rem;flex-wrap:wrap}
+        .hero-stat{text-align:center}
+        .hero-stat-num{font-size:2.2rem;font-weight:800;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .hero-stat-label{font-size:.82rem;color:var(--text-muted);margin-top:.15rem}
+
+        .category-section{margin-bottom:3rem}
+        .category-header{display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem}
+        .category-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0}
+        .category-header h3{font-size:1.15rem;font-weight:700}
+        .category-count{font-size:.78rem;color:var(--text-muted);margin-left:.5rem}
+
+        .int-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.25rem}
+        .int-card{background:var(--card);border-radius:20px;padding:1.5rem;border:1px solid var(--border);transition:all .4s var(--ease);cursor:default;position:relative}
+        .int-card:hover{transform:translateY(-4px);border-color:rgba(139,92,246,0.15)}
+        .int-card-top{display:flex;align-items:center;gap:1rem;margin-bottom:.75rem}
+        .int-logo{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0}
+        .int-card-info h4{font-size:.95rem;font-weight:700}
+        .int-card-info .int-status{font-size:.7rem;font-weight:700;padding:.2rem .7rem;border-radius:50px;display:inline-block;margin-top:.2rem}
+        .int-card p{font-size:.82rem;color:var(--text-muted);line-height:1.7}
+
+        .status-connected{background:rgba(52,211,153,0.1);color:var(--green);border:1px solid rgba(52,211,153,0.15)}
+        .status-available{background:rgba(59,130,246,0.1);color:var(--blue);border:1px solid rgba(59,130,246,0.15)}
+        .status-coming{background:rgba(245,158,11,0.1);color:var(--orange);border:1px solid rgba(245,158,11,0.15)}
+        .status-request{background:rgba(139,92,246,0.1);color:var(--purple);border:1px solid rgba(139,92,246,0.15);cursor:pointer}
+        .status-request:hover{background:rgba(139,92,246,0.2)}
+
+        .request-btn{display:inline-block;margin-top:.75rem;padding:.45rem 1.2rem;border-radius:50px;font-size:.78rem;font-weight:600;border:1px solid rgba(139,92,246,0.2);background:rgba(139,92,246,0.08);color:var(--purple);cursor:pointer;transition:all .3s}
+        .request-btn:hover{background:rgba(139,92,246,0.15);border-color:rgba(139,92,246,0.3)}
+
+        /* Modal */
+        .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:2000;align-items:center;justify-content:center}
+        .modal-overlay.open{display:flex}
+        .modal{background:#0d0f1a;border:1px solid var(--border);border-radius:20px;padding:2.5rem;max-width:520px;width:90%;position:relative}
+        .modal h3{font-size:1.3rem;font-weight:800;margin-bottom:.5rem}
+        .modal p{color:var(--text-muted);font-size:.88rem;margin-bottom:1.5rem}
+        .modal-close{position:absolute;top:1rem;right:1.5rem;background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer}
+        .modal-close:hover{color:#fff}
+        .form-group{margin-bottom:1rem}
+        .form-group label{display:block;font-size:.82rem;font-weight:600;margin-bottom:.4rem;color:var(--text-muted)}
+        .form-group input,.form-group select,.form-group textarea{width:100%;padding:.65rem 1rem;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text);font-family:inherit;font-size:.88rem;transition:border-color .3s}
+        .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--purple)}
+        .form-group textarea{min-height:80px;resize:vertical}
+        .form-group select{appearance:none;cursor:pointer}
+        .form-submit{width:100%;padding:.8rem;border:none;border-radius:12px;background:var(--gradient);color:#fff;font-weight:700;font-size:.95rem;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(139,92,246,0.3);transition:all .3s}
+        .form-submit:hover{transform:translateY(-2px);box-shadow:0 6px 25px rgba(139,92,246,0.4)}
+        .form-submit:disabled{opacity:.5;cursor:not-allowed;transform:none}
+        .form-success{text-align:center;padding:2rem 0}
+        .form-success .check{font-size:3rem;margin-bottom:1rem}
+        .form-success h4{font-size:1.1rem;margin-bottom:.5rem}
+        .form-success p{color:var(--text-muted);font-size:.88rem}
+
+        @media(max-width:900px){.nav-links{display:none}.int-grid{grid-template-columns:1fr 1fr}.hero-stat-row{gap:1.5rem}}
+        @media(max-width:480px){.int-grid{grid-template-columns:1fr}}
+    
+        /* FOOTER */
+        footer{padding:3rem 2rem;border-top:1px solid var(--border);background:rgba(5,7,16,0.5)}
+        .footer-inner{max-width:1140px;margin:auto}
+        .footer-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 1fr;gap:2rem;margin-bottom:2rem}
+        .footer-col{display:flex;flex-direction:column;gap:.5rem}
+        .footer-col h4{font-size:.85rem;font-weight:700;margin-bottom:.5rem;color:var(--text)}
+        .footer-col a{color:var(--text-dim);text-decoration:none;font-size:.82rem;transition:color .3s;padding:.15rem 0}
+        .footer-col a:hover{color:var(--text)}
+        .footer-col p{color:var(--text-dim);font-size:.82rem;line-height:1.7}
+        .footer-logo{font-size:1.2rem;font-weight:800;letter-spacing:-.5px}
+        .footer-logo span{background:var(--gradient2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .footer-newsletter{display:flex;gap:.5rem}
+        .footer-newsletter input{flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-size:.82rem;font-family:inherit}
+        .footer-newsletter input::placeholder{color:var(--text-dim)}
+        .footer-newsletter button{background:var(--gradient);color:#fff;border:none;padding:.5rem 1rem;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .3s}
+        .footer-newsletter button:hover{transform:translateY(-1px)}
+        .footer-bottom{display:flex;justify-content:space-between;align-items:center;padding-top:1.5rem;border-top:1px solid var(--border)}
+        .footer-copy{color:var(--text-dim);font-size:.8rem}
+        @media(max-width:900px){.footer-grid{grid-template-columns:1fr 1fr;gap:1.5rem}.footer-bottom{flex-direction:column;gap:.75rem;text-align:center}}
+        @media(max-width:480px){.footer-grid{grid-template-columns:1fr}}
+    
+        .hamburger{display:none;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;padding:.5rem}
+        .mobile-menu{display:none;position:fixed;top:72px;left:0;right:0;background:rgba(5,7,16,0.95);backdrop-filter:blur(20px);padding:1.5rem 2rem;border-bottom:1px solid var(--border);flex-direction:column;gap:1rem;z-index:999}
+        .mobile-menu.open{display:flex}
+        .mobile-menu a{color:var(--text-muted);text-decoration:none;font-size:1rem;padding:.75rem 0;border-bottom:1px solid var(--border);font-weight:500}
+        .mobile-menu a:last-child{border:none}
+        @media(max-width:900px){.nav-links{display:none!important}.hamburger{display:block}}
+    </style>
+</head>
+<body>
+<div class="aurora"><div></div><div></div><div></div></div>
+
+<nav id="mainNav">
+    <div class="nav-inner">
+        <a href="/" class="logo">Chat<span>Genius</span></a>
+        <ul class="nav-links">
+            <li>
+                <a href="#" class="nav-dropdown-trigger" onclick="return false">Product <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
+                <div class="nav-dropdown">
+                    <a href="/#features"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6">&#9889;</span><div>Features<small>All platform capabilities</small></div></a>
+                    <a href="/ai-technology"><span class="nav-dd-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6">&#129302;</span><div>AI Technology<small>Model transparency</small></div></a>
+                    <a href="/integrations"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#128268;</span><div>Integrations<small>Connect your stack</small></div></a>
+                    <a href="/trust-center"><span class="nav-dd-icon" style="background:rgba(6,182,212,0.1);color:#06b6d4">&#128274;</span><div>Trust Center<small>Security &amp; compliance</small></div></a>
+                    <a href="/agent-marketplace"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#129302;</span><div>Agent Marketplace<small>Pre-built AI agents</small></div></a>
+                    <a href="/voice-agent"><span class="nav-dd-icon" style="background:rgba(251,191,36,0.1);color:#fbbf24">&#127908;</span><div>Voice AI<small>Voice-powered calls</small></div></a>
+                    <a href="/mobile-app"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#c4b5fd">&#128241;</span><div>Mobile App<small>iOS &amp; Android</small></div></a>
+                </div>
+            </li>
+            <li><a href="/pricing-plans">Pricing</a></li>
+            <li>
+                <a href="#" class="nav-dropdown-trigger" onclick="return false">Resources <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
+                <div class="nav-dropdown">
+                    <a href="/developers"><span class="nav-dd-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6">&#128187;</span><div>API Docs<small>Developer portal</small></div></a>
+                    <a href="/compare"><span class="nav-dd-icon" style="background:rgba(251,191,36,0.1);color:#fbbf24">&#128200;</span><div>Compare<small>vs Intercom, Tidio</small></div></a>
+                    <a href="/partners"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#129309;</span><div>Partner Program<small>Earn commissions</small></div></a>
+                    <a href="/blog"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#128221;</span><div>Blog &amp; Guides<small>Tips &amp; insights</small></div></a>
+                    <a href="/case-studies"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6">&#128202;</span><div>Case Studies<small>Real results</small></div></a>
+                </div>
+            </li>
+            <li>
+                <a href="#" class="nav-dropdown-trigger" onclick="return false">Use Cases <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
+                <div class="nav-dropdown">
+                    <a href="/for-dental-clinics"><span class="nav-dd-icon" style="background:rgba(6,182,212,0.1);color:#06b6d4">&#129463;</span><div>Dental Clinics<small>Bookings &amp; recalls</small></div></a>
+                    <a href="/for-medical-practices"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#127973;</span><div>Medical Practices<small>Patient engagement</small></div></a>
+                    <a href="/for-salons-spas"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#128135;</span><div>Salons &amp; Spas<small>Beauty appointments</small></div></a>
+                </div>
+            </li>
+            <li><a href="/login" class="nav-btn-outline">Log In</a></li>
+            <li><a href="/login?signup=1" class="nav-btn">Start Free</a></li>
+        </ul>
+        <button class="hamburger" onclick="document.querySelector('.mobile-menu').classList.toggle('open')">&#9776;</button>
+    </div>
+    <div class="mobile-menu">
+        <a href="/#features">Features</a>
+        <a href="/pricing-plans">Pricing</a>
+        <a href="/ai-technology">AI Technology</a>
+        <a href="/integrations">Integrations</a>
+        <a href="/trust-center">Trust Center</a>
+        <a href="/agent-marketplace">Agent Marketplace</a>
+        <a href="/voice-agent">Voice AI</a>
+        <a href="/mobile-app">Mobile App</a>
+        <a href="/developers">API Docs</a>
+        <a href="/compare">Compare</a>
+        <a href="/partners">Partners</a>
+        <a href="/blog">Blog &amp; Guides</a>
+        <a href="/case-studies">Case Studies</a>
+        <a href="/for-dental-clinics">Dental</a>
+        <a href="/for-medical-practices">Medical</a>
+        <a href="/for-salons-spas">Salons</a>
+        <a href="/login">Log In</a>
+        <a href="/login?signup=1" style="color:#c4b5fd;font-weight:700">Start Free</a>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero-sec">
+    <div class="container">
+        <div class="section-label" style="background:rgba(139,92,246,0.08);color:var(--purple);border:1px solid rgba(139,92,246,0.12)">Integrations</div>
+        <h1 class="section-title">Connect ChatGenius to Your<br>Entire <span class="gradient-text">Practice Stack</span></h1>
+        <p class="section-sub">Seamlessly integrate with your existing tools. From scheduling and EMR systems to marketing and payments — ChatGenius works with everything you already use.</p>
+        <div class="hero-stat-row">
+            <div class="hero-stat"><div class="hero-stat-num">20+</div><div class="hero-stat-label">Integrations</div></div>
+            <div class="hero-stat"><div class="hero-stat-num">5</div><div class="hero-stat-label">Live Now</div></div>
+            <div class="hero-stat"><div class="hero-stat-num">10+</div><div class="hero-stat-label">Coming Soon</div></div>
+            <div class="hero-stat"><div class="hero-stat-num">5 min</div><div class="hero-stat-label">Avg Setup Time</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- Integration Categories -->
+<section>
+<div class="container">
+
+    <!-- Calendar & Scheduling -->
+    <div class="category-section">
+        <div class="category-header">
+            <div class="category-icon" style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.12)">&#128197;</div>
+            <h3>Calendar &amp; Scheduling</h3>
+            <span class="category-count">2 connected</span>
+        </div>
+        <div class="int-grid">
+            <div class="int-card">
+                <div class="int-card-top">
+                    <div class="int-logo" style="background:rgba(66,133,244,0.1);border:1px solid rgba(66,133,244,0.15)">&#128197;</div>
+                    <div class="int-card-info">
+                        <h4>Google Calendar</h4>
+                        <span class="int-status status-connected">Connected</span>
+                    </div>
+                </div>
+                <p>Sync appointments directly with Google Calendar. Auto-create events, check availability, and prevent double bookings.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-card-top">
+                    <div class="int-logo" style="background:rgba(0,107,255,0.1);border:1px solid rgba(0,107,255,0.15)">&#128198;</div>
+                    <div class="int-card-info">
+                        <h4>Calendly</h4>
+                        <span class="int-status status-connected">Connected</span>
+                    </div>
+                </div>
+                <p>Connect Calendly for advanced scheduling. Map event types to doctors and services, with webhook sync for real-time updates.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Communication -->
+    <div class="category-section">
+        <div class="category-header">
+            <div class="category-icon" style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.12)">&#128172;</div>
+            <h3>Communication</h3>
+            <span class="category-count">1 connected, 2 coming soon</span>
+        </div>
+        <div class="int-grid">
+            <div class="int-card">
+                <div class="int-card-top">
+                    <div class="int-logo" style="background:rgba(241,80,80,0.1);border:1px solid rgba(241,80,80,0.15)">&#128241;</div>
+                    <div class="int-card-info">
+                        <h4>Twilio SMS</h4>
+                        <span class="int-status status-connected">Connected</span>
+                    </div>
+                </div>
+                <p>Send appointment reminders, confirmations, follow-ups, and no-show recovery messages via SMS through Twilio.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-card-top">
+                    <div class="int-logo" style="background:rgba(37,211,102,0.1);border:1px solid rgba(37,211,102,0.15)">&#128172;</div>
+                    <div class="int-card-info">
+                        <h4>WhatsApp Business</h4>
+                        <span class="int-status status-coming">Coming Soon</span>
+                    </div>
+                </div>
+                <p>Engage patients on WhatsApp. Send booking confirmations, reminders, and handle conversations in the unified inbox.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-card-top">
+                    <div class="int-logo" style="background:rgba(24,119,242,0.1);border:1px solid rgba(24,119,242,0.15)">&#128490;</div>
+                    <div class="int-card-info">
+                        <h4>Facebook Messenger</h4>
+                        <span class="int-status status-coming">Coming Soon</span>
+                    </div>
+                </div>
+                <p>Respond to patient inquiries on Facebook Messenger. Auto-route conversations to the AI chatbot or live agents.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Marketing -->
+    <div class="category-section">
+        <div class="category-header">
+            <div class="category-icon" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.12)">&#128227;</div>
+            <h3>Marketing</h3>
+            <span class="category-count">2 connected</span>
+        </div>
+        <div class="int-grid">
+            <div class="int-card">
+                <div class="int-card-top">
+                    <div class="int-logo" style="background:rgba(255,225,68,0.08);border:1px solid rgba(255,225,68,0.12)">&#128231;</div>
+                    <div class="int-card-info">
+                        <h4>Mailchimp</h4>
+                        <span class="int-status status-connected">Connected</span>
+                    </div>
+                </div>
+                <p>Sync patient data to Mailchimp audiences. Automate email campaigns for recalls, promotions, and newsletters.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-card-top">
+                    <div class="int-logo" style="background:rgba(255,74,39,0.08);border:1px solid rgba(255,74,39,0.12)">&#9889;</div>
+                    <div class="int-card-info">
+                        <h4>Zapier</h4>
+                        <span class="int-status status-connected">Connected</span>
+                    </div>
+                </div>
+                <p>Connect to 5,000+ apps via Zapier. Trigger workflows on new bookings, cancellations, leads, and form submissions.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- EMR/EHR Systems -->
+    <div class="category-section">
+        <div class="category-header">
+            <div class="category-icon" style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.12)">&#127973;</div>
+            <h3>EMR/EHR Systems</h3>
+            <span class="category-count">6 integrations</span>
+        </div>
+        <div class="int-grid">
+            <div class="int-card">
+                <div class="int-card-top">
+                    <div class="int-logo" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.12)">&#127973;</div>
+                    <div class="int-card-info">
+                        <h4>Epic</h4>
+                        <span class="int-status status-coming">Coming Soon</span>
+                    </div>
+                </div>
+                <p>FHIR R4 compliant integration with Epic EHR. Sync patients, appointments, and clinical data securely.</p>
+                <button class="request-btn" onclick="openRequestModal('Epic')">Request Access</button>
+            </div>
+            <div class="int-card">
+                <div class="int-card-top">
+                    <div class="int-logo" style="background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.12)">&#127973;</div>
+                    <div class="int-card-info">
+                        <h4>Cerner</h4>
+                        <span class="int-status status-coming">Coming Soon</span>
+                    </div>
+                </div>
+                <p>Oracle Health (Cerner) FHIR integration. Bi-directional sync of patient records and scheduling data.</p>
+                <button class="request-btn" onclick="openRequestModal('Cerner')">Request Access</button>
+            </div>
+            <div class="int-card">
+                <div class="int-card-top">
+                    <div class="int-logo" style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.12)">&#127973;</div>
+                    <div class="int-card-info">
+                        <h4>Athenahealth</h4>
+                        <span class="int-status status-coming">Coming Soon</span>
+                    </div>
+                </div>
+                <p>Connect with athenahealth for patient management, appointment booking, and clinical documentation sync.</p>
+                <button class="request-btn" onclick="openRequestModal('Athenahealth')">Request Access</button>
+            </div>
+            <div class="int-card">
+                <div class="int-card-top">
+                    <div class="int-logo" style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.12)">&#129701;</div>
+                    <div class="int-card-info">
+                        <h4>Dentrix</h4>
+                        <span class="int-status status-coming">Coming Soon</span>
+                    </div>
+                </div>
+                <p>Integrate with Dentrix for dental practice management. Sync patient records, appointments, and treatment plans.</p>
+                <button class="request-btn" onclick="openRequestModal('Dentrix')">Request Access</button>
+            </div>
+            <div class="int-card">
+                <div class="int-card-top">
+                    <div class="int-logo" style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.12)">&#129701;</div>
+                    <div class="int-card-info">
+                        <h4>Open Dental</h4>
+                        <span class="int-status status-coming">Coming Soon</span>
+                    </div>
+                </div>
+                <p>Open Dental REST API integration. Full patient, appointment, and provider sync via their documented API.</p>
+                <button class="request-btn" onclick="openRequestModal('Open Dental')">Request Access</button>
+            </div>
+            <div class="int-card">
+                <div class="int-card-top">
+                    <div class="int-logo" style="background:rgba(14,165,233,0.08);border:1px solid rgba(14,165,233,0.12)">&#129701;</div>
+                    <div class="int-card-info">
+                        <h4>Eaglesoft</h4>
+                        <span class="int-status status-coming">Coming Soon</span>
+                    </div>
+                </div>
+                <p>Patterson Eaglesoft integration via the Fuse API. Sync dental records, scheduling, and patient information.</p>
+                <button class="request-btn" onclick="openRequestModal('Eaglesoft')">Request Access</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Practice Management -->
+    <div class="category-section">
+        <div class="category-header">
+            <div class="category-icon" style="background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.12)">&#128188;</div>
+            <h3>Practice Management</h3>
+            <span class="category-count">2 coming soon</span>
+        </div>
+        <div class="int-grid">
+            <div class="int-card">
+                <div class="int-card-top">
+                    <div class="int-logo" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.12)">&#128197;</div>
+                    <div class="int-card-info">
+                        <h4>Zocdoc</h4>
+                        <span class="int-status status-coming">Coming Soon</span>
+                    </div>
+                </div>
+                <p>Sync your Zocdoc appointments and availability. New Zocdoc bookings automatically appear in your ChatGenius dashboard.</p>
+                <button class="request-btn" onclick="openRequestModal('Zocdoc')">Request Access</button>
+            </div>
+            <div class="int-card">
+                <div class="int-card-top">
+                    <div class="int-logo" style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.12)">&#11088;</div>
+                    <div class="int-card-info">
+                        <h4>Healthgrades</h4>
+                        <span class="int-status status-coming">Coming Soon</span>
+                    </div>
+                </div>
+                <p>Import reviews and sync your Healthgrades profile. Display ratings in the chatbot to build patient trust.</p>
+                <button class="request-btn" onclick="openRequestModal('Healthgrades')">Request Access</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment -->
+    <div class="category-section">
+        <div class="category-header">
+            <div class="category-icon" style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.12)">&#128179;</div>
+            <h3>Payment</h3>
+            <span class="category-count">1 connected</span>
+        </div>
+        <div class="int-grid">
+            <div class="int-card">
+                <div class="int-card-top">
+                    <div class="int-logo" style="background:rgba(0,112,209,0.08);border:1px solid rgba(0,112,209,0.12)">&#128179;</div>
+                    <div class="int-card-info">
+                        <h4>PayPal</h4>
+                        <span class="int-status status-connected">Connected</span>
+                    </div>
+                </div>
+                <p>Accept subscription payments via PayPal. Manage billing cycles, upgrades, and automatic renewals seamlessly.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reviews -->
+    <div class="category-section">
+        <div class="category-header">
+            <div class="category-icon" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.12)">&#11088;</div>
+            <h3>Reviews &amp; Reputation</h3>
+            <span class="category-count">1 coming soon</span>
+        </div>
+        <div class="int-grid">
+            <div class="int-card">
+                <div class="int-card-top">
+                    <div class="int-logo" style="background:rgba(66,133,244,0.1);border:1px solid rgba(66,133,244,0.15)">&#11088;</div>
+                    <div class="int-card-info">
+                        <h4>Google My Business</h4>
+                        <span class="int-status status-coming">Coming Soon</span>
+                    </div>
+                </div>
+                <p>Manage your Google Business Profile. Monitor reviews, respond to feedback, and track your online reputation.</p>
+                <button class="request-btn" onclick="openRequestModal('Google My Business')">Request Access</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+</section>
+
+<!-- CTA -->
+<section style="text-align:center">
+    <div class="container">
+        <div style="background:var(--card);border-radius:32px;padding:4rem 2.5rem;border:1px solid rgba(139,92,246,0.1)">
+            <h2 class="section-title">Need a Custom Integration?</h2>
+            <p class="section-sub" style="margin-bottom:2rem">Don't see your system? We build custom integrations for Enterprise customers. Contact our team to discuss your needs.</p>
+            <a href="/login?signup=1" class="nav-btn" style="padding:.9rem 2.5rem;font-size:1rem;display:inline-block">Get Started Free</a>
+        </div>
+    </div>
+</section>
+
+<footer>
+    <div class="footer-inner" style="display:block;max-width:1140px;margin:auto">
+        <div class="footer-grid">
+            <div class="footer-col">
+                <div class="footer-logo" style="margin-bottom:1rem">Chat<span>Genius</span></div>
+                <p>AI chatbot platform that converts visitors into bookings. Built for healthcare, dental, and beauty practices.</p>
+                <div class="footer-newsletter" style="margin-top:1rem">
+                    <input type="email" id="footerEmail" placeholder="Your email">
+                    <button onclick="document.getElementById('footerEmail').value='';this.textContent='Subscribed!';setTimeout(()=>this.textContent='Subscribe',2000)">Subscribe</button>
+                </div>
+                <p style="font-size:.72rem;margin-top:.4rem;color:var(--text-dim)">Join 2,000+ practice owners getting AI tips</p>
+            </div>
+            <div class="footer-col">
+                <h4>Product</h4>
+                <a href="/#features">Features</a>
+                <a href="/ai-technology">AI Technology</a>
+                <a href="/integrations">Integrations</a>
+                <a href="/agent-marketplace">Agent Marketplace</a>
+                <a href="/voice-agent">Voice AI</a>
+                <a href="/mobile-app">Mobile App</a>
+            </div>
+            <div class="footer-col">
+                <h4>Resources</h4>
+                <a href="/developers">API Docs</a>
+                <a href="/blog">Blog &amp; Guides</a>
+                <a href="/case-studies">Case Studies</a>
+                <a href="/compare">Compare</a>
+            </div>
+            <div class="footer-col">
+                <h4>Company</h4>
+                <a href="/pricing-plans">Pricing</a>
+                <a href="/partners">Partner Program</a>
+                <a href="/trust-center">Trust Center</a>
+                <a href="/security">Security</a>
+            </div>
+            <div class="footer-col">
+                <h4>Legal</h4>
+                <a href="/privacy">Privacy Policy</a>
+                <a href="/terms">Terms of Service</a>
+                <a href="/refund">Refund Policy</a>
+                <a href="/data-deletion">Data Deletion</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="footer-copy">&copy; 2026 ChatGeniusX. All rights reserved.</div>
+            <div style="display:flex;gap:1.5rem">
+                <a href="/privacy" style="color:var(--text-dim);font-size:.8rem;text-decoration:none">Privacy</a>
+                <a href="/terms" style="color:var(--text-dim);font-size:.8rem;text-decoration:none">Terms</a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- Request Integration Modal -->
+<div class="modal-overlay" id="requestModal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeRequestModal()">&times;</button>
+        <div id="requestForm">
+            <h3>Request <span id="modalIntegrationName"></span> Integration</h3>
+            <p>Tell us about your practice and we'll prioritize this integration for you.</p>
+            <div class="form-group">
+                <label>Your Email *</label>
+                <input type="email" id="reqEmail" placeholder="you@practice.com" required>
+            </div>
+            <div class="form-group">
+                <label>Practice Size</label>
+                <select id="reqSize">
+                    <option value="">Select practice size</option>
+                    <option value="solo">Solo Practice (1 provider)</option>
+                    <option value="small">Small (2-5 providers)</option>
+                    <option value="medium">Medium (6-20 providers)</option>
+                    <option value="large">Large (20+ providers)</option>
+                    <option value="enterprise">Enterprise / Multi-location</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Current System</label>
+                <input type="text" id="reqSystem" placeholder="e.g., Epic MyChart, Dentrix G7">
+            </div>
+            <div class="form-group">
+                <label>Additional Notes</label>
+                <textarea id="reqNotes" placeholder="Tell us about your integration needs..."></textarea>
+            </div>
+            <button class="form-submit" id="submitRequestBtn" onclick="submitRequest()">Submit Request</button>
+        </div>
+        <div class="form-success" id="requestSuccess" style="display:none">
+            <div class="check">&#9989;</div>
+            <h4>Request Submitted!</h4>
+            <p>We'll review your request and reach out within 24-48 hours. Thank you for your interest!</p>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentIntegration = '';
+
+function openRequestModal(name) {
+    currentIntegration = name;
+    document.getElementById('modalIntegrationName').textContent = name;
+    document.getElementById('requestModal').classList.add('open');
+    document.getElementById('requestForm').style.display = 'block';
+    document.getElementById('requestSuccess').style.display = 'none';
+}
+
+function closeRequestModal() {
+    document.getElementById('requestModal').classList.remove('open');
+}
+
+document.getElementById('requestModal').addEventListener('click', function(e) {
+    if (e.target === this) closeRequestModal();
+});
+
+async function submitRequest() {
+    const email = document.getElementById('reqEmail').value.trim();
+    if (!email) { alert('Please enter your email address.'); return; }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) { alert('Please enter a valid email address'); return; }
+
+    const btn = document.getElementById('submitRequestBtn');
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+
+    try {
+        const resp = await fetch('/api/integrations/emr/request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                integration_name: currentIntegration,
+                contact_email: email,
+                practice_size: document.getElementById('reqSize').value,
+                current_system: document.getElementById('reqSystem').value,
+                notes: document.getElementById('reqNotes').value,
+            })
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+            document.getElementById('requestForm').style.display = 'none';
+            document.getElementById('requestSuccess').style.display = 'block';
+        } else {
+            alert(data.error || 'Something went wrong. Please try again.');
+        }
+    } catch (err) {
+        alert('Network error. Please try again.');
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Submit Request';
+}
+</script>
+</body>
+</html>

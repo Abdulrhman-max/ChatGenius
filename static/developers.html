@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Developer Portal &amp; API Documentation — ChatGeniusX</title>
+    <meta name="description" content="Build on ChatGenius. Complete API documentation, webhook reference, code examples, and developer resources.">
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#050710;--bg2:#0a0e1a;--card:rgba(255,255,255,0.028);--card-hover:rgba(255,255,255,0.045);--border:rgba(255,255,255,0.06);--border-hover:rgba(139,92,246,0.2);--purple:#8b5cf6;--indigo:#6366f1;--green:#34d399;--blue:#3b82f6;--cyan:#06b6d4;--orange:#f59e0b;--text:#f1f5f9;--text-muted:#8b95a8;--text-dim:#64748b;--gradient:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);--gradient2:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);--ease:cubic-bezier(0.22,1,0.36,1);--glow:0 0 60px rgba(139,92,246,0.08);--code-bg:#0d1117;--code-border:rgba(255,255,255,0.05)}
+        ::selection{background:rgba(139,92,246,0.35)}
+        html{scroll-behavior:smooth}
+        body{font-family:'Outfit','Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+        body::after{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:0.018;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+        .aurora{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+        .aurora div{position:absolute;border-radius:50%;filter:blur(120px);opacity:0.1;animation:aurMove 20s ease-in-out infinite}
+        .aurora div:nth-child(1){width:60vw;height:60vw;top:-20%;left:-15%;background:conic-gradient(from 0deg,#8b5cf6,#6366f1,#3b82f6,#8b5cf6);animation-duration:24s}
+        .aurora div:nth-child(2){width:50vw;height:50vw;top:30%;right:-15%;background:conic-gradient(from 120deg,#3b82f6,#06b6d4,#8b5cf6);animation-duration:30s;animation-delay:-8s}
+        .aurora div:nth-child(3){width:45vw;height:45vw;bottom:-15%;left:20%;background:conic-gradient(from 240deg,#ec4899,#8b5cf6,#6366f1);animation-duration:26s;animation-delay:-15s}
+        @keyframes aurMove{0%{transform:translate(0,0) rotate(0) scale(1)}33%{transform:translate(40px,-30px) rotate(120deg) scale(1.06)}66%{transform:translate(-30px,20px) rotate(240deg) scale(.95)}100%{transform:translate(0,0) rotate(360deg) scale(1)}}
+        nav{position:fixed;top:0;width:100%;z-index:1000;background:rgba(5,7,16,0.85);backdrop-filter:blur(24px);border-bottom:1px solid var(--border);padding:0 2rem}
+        .nav-inner{max-width:1200px;margin:auto;display:flex;align-items:center;justify-content:space-between;height:72px}
+        .logo{font-size:1.5rem;font-weight:800;letter-spacing:-.5px;text-decoration:none;color:var(--text)}.logo span{background:var(--gradient2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .nav-links{display:flex;gap:2rem;list-style:none;align-items:center}
+        .nav-links a{color:var(--text-muted);text-decoration:none;font-size:.88rem;font-weight:500;transition:color .3s}.nav-links a:hover{color:#fff}
+        .nav-links>li{position:relative}
+        .nav-dropdown-trigger{cursor:pointer;display:flex;align-items:center;gap:4px}
+        .nav-dropdown-trigger::after{content:'';display:none}
+        .nav-dropdown-trigger svg{width:12px;height:12px;opacity:.5;transition:transform .3s}
+        .nav-dropdown{position:absolute;top:calc(100% + 12px);left:50%;transform:translateX(-50%) translateY(8px);min-width:220px;background:rgba(10,14,26,0.98);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:.5rem;opacity:0;visibility:hidden;transition:all .25s var(--ease);z-index:1001;box-shadow:0 20px 50px rgba(0,0,0,0.5)}
+        .nav-links>li:hover .nav-dropdown{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+        .nav-links>li:hover .nav-dropdown-trigger svg{transform:rotate(180deg)}
+        .nav-dropdown a{display:flex;align-items:center;gap:.6rem;padding:.55rem .85rem;border-radius:8px;font-size:.82rem;color:var(--text-muted);transition:all .2s}
+        .nav-dropdown a::after{display:none}
+        .nav-dropdown a:hover{background:rgba(139,92,246,0.08);color:#fff}
+        .nav-dropdown a small{font-size:.7rem;color:var(--text-dim);display:block;margin-top:1px}
+        .nav-dd-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0}
+
+        .nav-btn{background:var(--gradient);color:#fff;border:none;padding:.6rem 1.6rem;border-radius:50px;font-weight:600;cursor:pointer;font-size:.88rem;text-decoration:none;box-shadow:0 4px 20px rgba(139,92,246,0.25)}
+        .nav-btn-outline{background:transparent;border:1px solid var(--border);color:var(--text);padding:.55rem 1.4rem;border-radius:50px;font-weight:500;cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .3s var(--ease);text-decoration:none}
+        .nav-btn-outline:hover{border-color:var(--border-hover);background:rgba(139,92,246,0.05)}
+        section{padding:5rem 2rem;position:relative}.container{max-width:1140px;margin:auto}
+        .section-label{text-transform:uppercase;font-size:.7rem;letter-spacing:4px;font-weight:700;display:inline-block;padding:.4rem 1.2rem;border-radius:50px;margin-bottom:1rem}
+        .section-title{font-size:clamp(1.8rem,4vw,2.6rem);font-weight:800;margin-bottom:1rem;letter-spacing:-.03em;line-height:1.15}
+        .section-sub{color:var(--text-muted);max-width:620px;margin:0 auto 3rem;font-size:1.05rem;line-height:1.85}
+        .gradient-text{background:linear-gradient(135deg,#34d399,#3b82f6,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+        /* Layout: sidebar + content */
+        .docs-layout{display:grid;grid-template-columns:240px 1fr;gap:3rem;max-width:1200px;margin:0 auto;padding:100px 2rem 4rem}
+        .docs-sidebar{position:sticky;top:90px;height:fit-content;max-height:calc(100vh - 100px);overflow-y:auto}
+        .docs-sidebar::-webkit-scrollbar{width:4px}
+        .docs-sidebar::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+        .sidebar-nav{list-style:none}
+        .sidebar-nav li{margin-bottom:.15rem}
+        .sidebar-nav a{display:block;padding:.45rem .8rem;border-radius:8px;color:var(--text-muted);text-decoration:none;font-size:.82rem;font-weight:500;transition:all .3s;border-left:2px solid transparent}
+        .sidebar-nav a:hover,.sidebar-nav a.active{color:var(--text);background:rgba(139,92,246,0.06);border-left-color:var(--purple)}
+        .sidebar-section{font-size:.7rem;text-transform:uppercase;letter-spacing:2px;color:var(--text-dim);font-weight:700;padding:.8rem .8rem .3rem;margin-top:.5rem}
+
+        .docs-content{min-width:0}
+
+        /* Hero */
+        .dev-hero{text-align:center;padding:120px 2rem 2rem}
+
+        /* Doc sections */
+        .doc-section{margin-bottom:3.5rem;scroll-margin-top:90px}
+        .doc-section h2{font-size:1.5rem;font-weight:800;margin-bottom:.75rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)}
+        .doc-section h3{font-size:1.1rem;font-weight:700;margin:1.5rem 0 .5rem;color:var(--text)}
+        .doc-section p{color:var(--text-muted);font-size:.9rem;line-height:1.85;margin-bottom:1rem}
+        .doc-section ul,.doc-section ol{margin-left:1.5rem;margin-bottom:1rem}
+        .doc-section li{color:var(--text-muted);font-size:.9rem;margin-bottom:.4rem;line-height:1.7}
+
+        /* Code blocks */
+        pre{background:var(--code-bg);border:1px solid var(--code-border);border-radius:12px;padding:1.25rem;overflow-x:auto;margin-bottom:1.25rem;font-size:.82rem;line-height:1.75}
+        code{font-family:'SF Mono','Fira Code','Cascadia Code',monospace;font-size:.82rem}
+        pre code{color:#e6edf3}
+        p code,.li code{background:rgba(139,92,246,0.1);color:var(--purple);padding:.15rem .4rem;border-radius:4px;font-size:.8rem}
+
+        /* Syntax colors (simple) */
+        .kw{color:#ff7b72}.str{color:#a5d6ff}.num{color:#79c0ff}.cm{color:#8b949e}.fn{color:#d2a8ff}.op{color:#ff7b72}.key{color:#7ee787}
+
+        /* Endpoint cards */
+        .endpoint{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:1.5rem;margin-bottom:1.25rem}
+        .endpoint-header{display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;flex-wrap:wrap}
+        .method{font-size:.72rem;font-weight:800;padding:.25rem .7rem;border-radius:6px;font-family:monospace;letter-spacing:.5px}
+        .method-get{background:rgba(52,211,153,0.1);color:var(--green);border:1px solid rgba(52,211,153,0.15)}
+        .method-post{background:rgba(59,130,246,0.1);color:var(--blue);border:1px solid rgba(59,130,246,0.15)}
+        .method-put{background:rgba(245,158,11,0.1);color:var(--orange);border:1px solid rgba(245,158,11,0.15)}
+        .method-patch{background:rgba(168,85,247,0.1);color:#a855f7;border:1px solid rgba(168,85,247,0.15)}
+        .method-delete{background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.15)}
+        .endpoint-path{font-family:monospace;font-size:.88rem;font-weight:600;color:var(--text)}
+        .endpoint p{margin-bottom:.5rem}
+        .endpoint-auth{font-size:.72rem;padding:.2rem .6rem;border-radius:50px;background:rgba(245,158,11,0.08);color:var(--orange);border:1px solid rgba(245,158,11,0.12);font-weight:600}
+
+        /* Tabs for code examples */
+        .code-tabs{display:flex;gap:.5rem;margin-bottom:0;border-bottom:1px solid var(--border);padding-bottom:0}
+        .code-tab{padding:.4rem 1rem;font-size:.78rem;font-weight:600;color:var(--text-muted);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all .3s;font-family:inherit}
+        .code-tab:hover{color:var(--text)}
+        .code-tab.active{color:var(--purple);border-bottom-color:var(--purple)}
+        .code-panel{display:none}
+        .code-panel.active{display:block}
+
+        /* Webhook events table */
+        .event-table{width:100%;border-collapse:collapse;margin-bottom:1.5rem}
+        .event-table th{text-align:left;padding:.6rem .8rem;font-size:.78rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border)}
+        .event-table td{padding:.6rem .8rem;font-size:.85rem;border-bottom:1px solid var(--border);color:var(--text-muted)}
+        .event-table td code{font-size:.8rem}
+
+        /* Badge */
+        .badge-soon{display:inline-block;font-size:.65rem;font-weight:700;padding:.15rem .5rem;border-radius:50px;background:rgba(245,158,11,0.1);color:var(--orange);border:1px solid rgba(245,158,11,0.12);margin-left:.5rem}
+
+        /* Code copy button */
+        pre{position:relative}
+        .copy-btn{position:absolute;top:.5rem;right:.5rem;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);color:var(--text-muted);font-size:.72rem;font-weight:600;padding:.3rem .7rem;border-radius:6px;cursor:pointer;font-family:inherit;transition:all .2s;z-index:1}
+        .copy-btn:hover{background:rgba(139,92,246,0.15);color:#fff;border-color:rgba(139,92,246,0.3)}
+        .copy-btn.copied{background:rgba(52,211,153,0.15);color:var(--green);border-color:rgba(52,211,153,0.3)}
+
+        /* Try it section */
+        .try-it{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:2rem}
+        .try-select{width:100%;padding:.65rem 1rem;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text);font-family:inherit;font-size:.88rem;margin-bottom:1rem;appearance:none;cursor:pointer}
+        .try-select:focus{outline:none;border-color:var(--purple)}
+        .try-output{background:var(--code-bg);border:1px solid var(--code-border);border-radius:12px;padding:1.25rem;font-family:monospace;font-size:.82rem;color:#e6edf3;min-height:80px;white-space:pre-wrap}
+
+        @media(max-width:900px){.nav-links{display:none}.docs-layout{grid-template-columns:1fr}.docs-sidebar{display:none}.dev-hero h1{font-size:2rem}}
+    
+        /* FOOTER */
+        footer{padding:3rem 2rem;border-top:1px solid var(--border);background:rgba(5,7,16,0.5)}
+        .footer-inner{max-width:1140px;margin:auto}
+        .footer-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 1fr;gap:2rem;margin-bottom:2rem}
+        .footer-col{display:flex;flex-direction:column;gap:.5rem}
+        .footer-col h4{font-size:.85rem;font-weight:700;margin-bottom:.5rem;color:var(--text)}
+        .footer-col a{color:var(--text-dim);text-decoration:none;font-size:.82rem;transition:color .3s;padding:.15rem 0}
+        .footer-col a:hover{color:var(--text)}
+        .footer-col p{color:var(--text-dim);font-size:.82rem;line-height:1.7}
+        .footer-logo{font-size:1.2rem;font-weight:800;letter-spacing:-.5px}
+        .footer-logo span{background:var(--gradient2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .footer-newsletter{display:flex;gap:.5rem}
+        .footer-newsletter input{flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-size:.82rem;font-family:inherit}
+        .footer-newsletter input::placeholder{color:var(--text-dim)}
+        .footer-newsletter button{background:var(--gradient);color:#fff;border:none;padding:.5rem 1rem;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .3s}
+        .footer-newsletter button:hover{transform:translateY(-1px)}
+        .footer-bottom{display:flex;justify-content:space-between;align-items:center;padding-top:1.5rem;border-top:1px solid var(--border)}
+        .footer-copy{color:var(--text-dim);font-size:.8rem}
+        @media(max-width:900px){.footer-grid{grid-template-columns:1fr 1fr;gap:1.5rem}.footer-bottom{flex-direction:column;gap:.75rem;text-align:center}}
+        @media(max-width:480px){.footer-grid{grid-template-columns:1fr}}
+    
+        .hamburger{display:none;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;padding:.5rem}
+        .mobile-menu{display:none;position:fixed;top:72px;left:0;right:0;background:rgba(5,7,16,0.95);backdrop-filter:blur(20px);padding:1.5rem 2rem;border-bottom:1px solid var(--border);flex-direction:column;gap:1rem;z-index:999}
+        .mobile-menu.open{display:flex}
+        .mobile-menu a{color:var(--text-muted);text-decoration:none;font-size:1rem;padding:.75rem 0;border-bottom:1px solid var(--border);font-weight:500}
+        .mobile-menu a:last-child{border:none}
+        @media(max-width:900px){.nav-links{display:none!important}.hamburger{display:block}}
+    </style>
+</head>
+<body>
+<div class="aurora"><div></div><div></div><div></div></div>
+
+<nav id="mainNav">
+    <div class="nav-inner">
+        <a href="/" class="logo">Chat<span>Genius</span></a>
+        <ul class="nav-links">
+            <li>
+                <a href="#" class="nav-dropdown-trigger" onclick="return false">Product <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
+                <div class="nav-dropdown">
+                    <a href="/#features"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6">&#9889;</span><div>Features<small>All platform capabilities</small></div></a>
+                    <a href="/ai-technology"><span class="nav-dd-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6">&#129302;</span><div>AI Technology<small>Model transparency</small></div></a>
+                    <a href="/integrations"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#128268;</span><div>Integrations<small>Connect your stack</small></div></a>
+                    <a href="/trust-center"><span class="nav-dd-icon" style="background:rgba(6,182,212,0.1);color:#06b6d4">&#128274;</span><div>Trust Center<small>Security &amp; compliance</small></div></a>
+                    <a href="/agent-marketplace"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#129302;</span><div>Agent Marketplace<small>Pre-built AI agents</small></div></a>
+                    <a href="/voice-agent"><span class="nav-dd-icon" style="background:rgba(251,191,36,0.1);color:#fbbf24">&#127908;</span><div>Voice AI<small>Voice-powered calls</small></div></a>
+                    <a href="/mobile-app"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#c4b5fd">&#128241;</span><div>Mobile App<small>iOS &amp; Android</small></div></a>
+                </div>
+            </li>
+            <li><a href="/pricing-plans">Pricing</a></li>
+            <li>
+                <a href="#" class="nav-dropdown-trigger" onclick="return false">Resources <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
+                <div class="nav-dropdown">
+                    <a href="/developers"><span class="nav-dd-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6">&#128187;</span><div>API Docs<small>Developer portal</small></div></a>
+                    <a href="/compare"><span class="nav-dd-icon" style="background:rgba(251,191,36,0.1);color:#fbbf24">&#128200;</span><div>Compare<small>vs Intercom, Tidio</small></div></a>
+                    <a href="/partners"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#129309;</span><div>Partner Program<small>Earn commissions</small></div></a>
+                    <a href="/blog"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#128221;</span><div>Blog &amp; Guides<small>Tips &amp; insights</small></div></a>
+                    <a href="/case-studies"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6">&#128202;</span><div>Case Studies<small>Real results</small></div></a>
+                </div>
+            </li>
+            <li>
+                <a href="#" class="nav-dropdown-trigger" onclick="return false">Use Cases <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
+                <div class="nav-dropdown">
+                    <a href="/for-dental-clinics"><span class="nav-dd-icon" style="background:rgba(6,182,212,0.1);color:#06b6d4">&#129463;</span><div>Dental Clinics<small>Bookings &amp; recalls</small></div></a>
+                    <a href="/for-medical-practices"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#127973;</span><div>Medical Practices<small>Patient engagement</small></div></a>
+                    <a href="/for-salons-spas"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#128135;</span><div>Salons &amp; Spas<small>Beauty appointments</small></div></a>
+                </div>
+            </li>
+            <li><a href="/login" class="nav-btn-outline">Log In</a></li>
+            <li><a href="/login?signup=1" class="nav-btn">Start Free</a></li>
+        </ul>
+        <button class="hamburger" onclick="document.querySelector('.mobile-menu').classList.toggle('open')">&#9776;</button>
+    </div>
+    <div class="mobile-menu">
+        <a href="/#features">Features</a>
+        <a href="/pricing-plans">Pricing</a>
+        <a href="/ai-technology">AI Technology</a>
+        <a href="/integrations">Integrations</a>
+        <a href="/trust-center">Trust Center</a>
+        <a href="/agent-marketplace">Agent Marketplace</a>
+        <a href="/voice-agent">Voice AI</a>
+        <a href="/mobile-app">Mobile App</a>
+        <a href="/developers">API Docs</a>
+        <a href="/compare">Compare</a>
+        <a href="/partners">Partners</a>
+        <a href="/blog">Blog &amp; Guides</a>
+        <a href="/case-studies">Case Studies</a>
+        <a href="/for-dental-clinics">Dental</a>
+        <a href="/for-medical-practices">Medical</a>
+        <a href="/for-salons-spas">Salons</a>
+        <a href="/login">Log In</a>
+        <a href="/login?signup=1" style="color:#c4b5fd;font-weight:700">Start Free</a>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="dev-hero">
+    <div class="container">
+        <div class="section-label" style="background:rgba(59,130,246,0.08);color:var(--blue);border:1px solid rgba(59,130,246,0.12)">Developer Portal</div>
+        <h1 class="section-title">Build on ChatGenius<br><span class="gradient-text">API Documentation &amp; Developer Resources</span></h1>
+        <p class="section-sub">Integrate ChatGenius into your applications with our REST API. Manage bookings, patients, leads, and more programmatically.</p>
+    </div>
+</section>
+
+<!-- Docs Layout -->
+<div class="docs-layout">
+
+<!-- Sidebar -->
+<aside class="docs-sidebar">
+    <ul class="sidebar-nav">
+        <li class="sidebar-section">Getting Started</li>
+        <li><a href="#authentication" onclick="setActive(this)">Authentication</a></li>
+        <li><a href="#base-url" onclick="setActive(this)">Base URL &amp; Rate Limits</a></li>
+
+        <li class="sidebar-section">API Reference</li>
+        <li><a href="#bookings-api" onclick="setActive(this)">Bookings API</a></li>
+        <li><a href="#patients-api" onclick="setActive(this)">Patients API</a></li>
+        <li><a href="#leads-api" onclick="setActive(this)">Leads API</a></li>
+        <li><a href="#doctors-api" onclick="setActive(this)">Doctors API</a></li>
+        <li><a href="#chat-api" onclick="setActive(this)">Chat API</a></li>
+
+        <li class="sidebar-section">Webhooks</li>
+        <li><a href="#webhook-events" onclick="setActive(this)">Webhook Events</a></li>
+        <li><a href="#webhook-security" onclick="setActive(this)">Webhook Security</a></li>
+
+        <li class="sidebar-section">Code Examples</li>
+        <li><a href="#code-examples" onclick="setActive(this)">Examples</a></li>
+
+        <li class="sidebar-section">SDKs</li>
+        <li><a href="#sdks" onclick="setActive(this)">SDKs &amp; Libraries</a></li>
+
+        <li class="sidebar-section">Try It</li>
+        <li><a href="#try-it" onclick="setActive(this)">Interactive Explorer</a></li>
+    </ul>
+</aside>
+
+<!-- Content -->
+<main class="docs-content">
+
+<!-- Authentication -->
+<div class="doc-section" id="authentication">
+    <h2>Authentication</h2>
+    <p>All API requests require authentication using a Bearer token in the <code>Authorization</code> header. API keys are available on the Enterprise plan.</p>
+    <h3>Getting Your API Key</h3>
+    <ol>
+        <li>Log in to your ChatGenius dashboard</li>
+        <li>Navigate to <strong>Settings &rarr; API &amp; Integrations</strong></li>
+        <li>Click <strong>Generate API Key</strong> (Enterprise plan required)</li>
+        <li>Copy your API key and store it securely</li>
+    </ol>
+    <h3>Using the API Key</h3>
+    <p>Include the token in every request header:</p>
+<pre><code><span class="key">Authorization</span>: Bearer YOUR_API_TOKEN</code></pre>
+    <p>Example with cURL:</p>
+<pre><code>curl -H <span class="str">"Authorization: Bearer YOUR_API_TOKEN"</span> \
+     <span class="str">"https://api.chatgeniusx.com/api/bookings"</span></code></pre>
+</div>
+
+<!-- Base URL -->
+<div class="doc-section" id="base-url">
+    <h2>Base URL &amp; Rate Limits</h2>
+    <h3>Base URL</h3>
+<pre><code>https://api.chatgeniusx.com/api</code></pre>
+    <p>All endpoints are relative to this base URL. For example, the bookings endpoint is:</p>
+<pre><code>https://api.chatgeniusx.com/api/bookings</code></pre>
+    <h3>Rate Limits</h3>
+    <p>API requests are rate-limited to prevent abuse:</p>
+    <ul>
+        <li><strong>200 requests per minute</strong> per API key (default)</li>
+        <li><strong>30 requests per minute</strong> for the <code>/chat</code> endpoint</li>
+        <li>Rate limit headers are included in every response: <code>X-RateLimit-Remaining</code>, <code>X-RateLimit-Reset</code></li>
+    </ul>
+    <p>If you exceed the rate limit, you'll receive a <code>429 Too Many Requests</code> response. Wait until the reset window before retrying.</p>
+    <h3>Response Format</h3>
+    <p>All responses are JSON. Successful responses return the data directly. Errors return an object with an <code>error</code> field:</p>
+<pre><code><span class="cm">// Success</span>
+{ <span class="key">"ok"</span>: <span class="kw">true</span>, <span class="key">"data"</span>: { ... } }
+
+<span class="cm">// Error</span>
+{ <span class="key">"error"</span>: <span class="str">"Unauthorized"</span> }</code></pre>
+</div>
+
+<!-- Bookings API -->
+<div class="doc-section" id="bookings-api">
+    <h2>Bookings API</h2>
+
+    <div class="endpoint">
+        <div class="endpoint-header">
+            <span class="method method-post">POST</span>
+            <span class="endpoint-path">/api/external/booking</span>
+        </div>
+        <p>Create a new booking via external API. Uses the company's <code>external_api_key</code> for authentication.</p>
+        <h3>Request Body</h3>
+<pre><code>{
+  <span class="key">"api_key"</span>: <span class="str">"your_external_api_key"</span>,
+  <span class="key">"customer_name"</span>: <span class="str">"John Smith"</span>,
+  <span class="key">"customer_email"</span>: <span class="str">"john@example.com"</span>,
+  <span class="key">"customer_phone"</span>: <span class="str">"+1234567890"</span>,
+  <span class="key">"date"</span>: <span class="str">"2026-05-15"</span>,
+  <span class="key">"time"</span>: <span class="str">"10:00"</span>,
+  <span class="key">"service"</span>: <span class="str">"General Consultation"</span>,
+  <span class="key">"doctor_name"</span>: <span class="str">"Dr. Sarah Johnson"</span>,
+  <span class="key">"notes"</span>: <span class="str">"First visit"</span>
+}</code></pre>
+        <h3>Response (201)</h3>
+<pre><code>{
+  <span class="key">"ok"</span>: <span class="kw">true</span>,
+  <span class="key">"booking_id"</span>: <span class="num">142</span>,
+  <span class="key">"message"</span>: <span class="str">"Booking created"</span>
+}</code></pre>
+    </div>
+
+    <div class="endpoint">
+        <div class="endpoint-header">
+            <span class="method method-get">GET</span>
+            <span class="endpoint-path">/api/bookings</span>
+            <span class="endpoint-auth">Auth Required</span>
+        </div>
+        <p>Get all bookings for your account. Returns bookings sorted by date descending.</p>
+        <h3>Response (200)</h3>
+<pre><code>[
+  {
+    <span class="key">"id"</span>: <span class="num">142</span>,
+    <span class="key">"customer_name"</span>: <span class="str">"John Smith"</span>,
+    <span class="key">"customer_email"</span>: <span class="str">"john@example.com"</span>,
+    <span class="key">"date"</span>: <span class="str">"2026-05-15"</span>,
+    <span class="key">"time"</span>: <span class="str">"10:00"</span>,
+    <span class="key">"service"</span>: <span class="str">"General Consultation"</span>,
+    <span class="key">"doctor_name"</span>: <span class="str">"Dr. Sarah Johnson"</span>,
+    <span class="key">"status"</span>: <span class="str">"confirmed"</span>
+  }
+]</code></pre>
+    </div>
+</div>
+
+<!-- Patients API -->
+<div class="doc-section" id="patients-api">
+    <h2>Patients API</h2>
+
+    <div class="endpoint">
+        <div class="endpoint-header">
+            <span class="method method-get">GET</span>
+            <span class="endpoint-path">/api/patients</span>
+            <span class="endpoint-auth">Auth Required</span>
+        </div>
+        <p>Get all patients for your practice. Supports search via query parameters.</p>
+        <h3>Query Parameters</h3>
+        <ul>
+            <li><code>search</code> — Filter by name, email, or phone</li>
+        </ul>
+        <h3>Response (200)</h3>
+<pre><code>[
+  {
+    <span class="key">"id"</span>: <span class="num">1</span>,
+    <span class="key">"name"</span>: <span class="str">"Jane Doe"</span>,
+    <span class="key">"email"</span>: <span class="str">"jane@example.com"</span>,
+    <span class="key">"phone"</span>: <span class="str">"+1987654321"</span>,
+    <span class="key">"date_of_birth"</span>: <span class="str">"1990-06-15"</span>,
+    <span class="key">"insurance_provider"</span>: <span class="str">"Delta Dental"</span>
+  }
+]</code></pre>
+    </div>
+
+    <div class="endpoint">
+        <div class="endpoint-header">
+            <span class="method method-get">GET</span>
+            <span class="endpoint-path">/api/patients/:id</span>
+            <span class="endpoint-auth">Auth Required</span>
+        </div>
+        <p>Get a specific patient by ID. Returns full patient profile with booking history.</p>
+    </div>
+
+    <div class="endpoint">
+        <div class="endpoint-header">
+            <span class="method method-put">PUT</span>
+            <span class="endpoint-path">/api/patients/:id</span>
+            <span class="endpoint-auth">Auth Required</span>
+        </div>
+        <p>Update a patient's information. Only send the fields you want to change.</p>
+        <h3>Request Body</h3>
+<pre><code>{
+  <span class="key">"phone"</span>: <span class="str">"+1555000123"</span>,
+  <span class="key">"insurance_provider"</span>: <span class="str">"Aetna"</span>,
+  <span class="key">"notes"</span>: <span class="str">"Allergic to penicillin"</span>
+}</code></pre>
+    </div>
+</div>
+
+<!-- Leads API -->
+<div class="doc-section" id="leads-api">
+    <h2>Leads API</h2>
+
+    <div class="endpoint">
+        <div class="endpoint-header">
+            <span class="method method-get">GET</span>
+            <span class="endpoint-path">/api/leads</span>
+            <span class="endpoint-auth">Auth Required</span>
+        </div>
+        <p>Get all leads, sorted by score descending. Supports filtering by stage.</p>
+        <h3>Response (200)</h3>
+<pre><code>[
+  {
+    <span class="key">"id"</span>: <span class="num">23</span>,
+    <span class="key">"name"</span>: <span class="str">"Mike Wilson"</span>,
+    <span class="key">"phone"</span>: <span class="str">"+1555999888"</span>,
+    <span class="key">"email"</span>: <span class="str">"mike@email.com"</span>,
+    <span class="key">"stage"</span>: <span class="str">"qualified"</span>,
+    <span class="key">"score"</span>: <span class="num">7</span>,
+    <span class="key">"treatment_interest"</span>: <span class="str">"Teeth Whitening"</span>,
+    <span class="key">"source"</span>: <span class="str">"chatbot"</span>
+  }
+]</code></pre>
+    </div>
+
+    <div class="endpoint">
+        <div class="endpoint-header">
+            <span class="method method-patch">PATCH</span>
+            <span class="endpoint-path">/api/leads/:id/stage</span>
+            <span class="endpoint-auth">Auth Required</span>
+        </div>
+        <p>Update lead stage. Valid stages: <code>new</code>, <code>contacted</code>, <code>qualified</code>, <code>converted</code>, <code>lost</code>.</p>
+<pre><code>{ <span class="key">"stage"</span>: <span class="str">"qualified"</span> }</code></pre>
+    </div>
+
+    <div class="endpoint">
+        <div class="endpoint-header">
+            <span class="method method-patch">PATCH</span>
+            <span class="endpoint-path">/api/leads/:id/score</span>
+            <span class="endpoint-auth">Auth Required</span>
+        </div>
+        <p>Update lead score (0-10).</p>
+<pre><code>{ <span class="key">"score"</span>: <span class="num">8</span> }</code></pre>
+    </div>
+</div>
+
+<!-- Doctors API -->
+<div class="doc-section" id="doctors-api">
+    <h2>Doctors API</h2>
+
+    <div class="endpoint">
+        <div class="endpoint-header">
+            <span class="method method-get">GET</span>
+            <span class="endpoint-path">/api/doctors/public</span>
+        </div>
+        <p>Get public doctor profiles. No authentication required. Used by the chatbot widget to display available providers.</p>
+        <h3>Query Parameters</h3>
+        <ul>
+            <li><code>admin_id</code> — The public admin ID (GUID) from the embed code</li>
+        </ul>
+        <h3>Response (200)</h3>
+<pre><code>[
+  {
+    <span class="key">"id"</span>: <span class="num">5</span>,
+    <span class="key">"name"</span>: <span class="str">"Dr. Sarah Johnson"</span>,
+    <span class="key">"specialty"</span>: <span class="str">"General Dentist"</span>,
+    <span class="key">"bio"</span>: <span class="str">"15 years of experience..."</span>,
+    <span class="key">"photo_url"</span>: <span class="str">""</span>,
+    <span class="key">"availability"</span>: <span class="str">"Mon-Fri"</span>
+  }
+]</code></pre>
+    </div>
+</div>
+
+<!-- Chat API -->
+<div class="doc-section" id="chat-api">
+    <h2>Chat API</h2>
+
+    <div class="endpoint">
+        <div class="endpoint-header">
+            <span class="method method-post">POST</span>
+            <span class="endpoint-path">/chat</span>
+        </div>
+        <p>Send a message to the AI chatbot and receive a response. This is the core endpoint used by the embedded chat widget.</p>
+        <h3>Request Body</h3>
+<pre><code>{
+  <span class="key">"message"</span>: <span class="str">"I'd like to book a teeth cleaning"</span>,
+  <span class="key">"session_id"</span>: <span class="str">"unique-session-id"</span>,
+  <span class="key">"admin_id"</span>: <span class="str">"your-public-admin-guid"</span>
+}</code></pre>
+        <h3>Response (200)</h3>
+<pre><code>{
+  <span class="key">"response"</span>: <span class="str">"I'd be happy to help you book a teeth cleaning! Which date works best for you?"</span>,
+  <span class="key">"action"</span>: <span class="str">"booking_flow"</span>,
+  <span class="key">"session_id"</span>: <span class="str">"unique-session-id"</span>
+}</code></pre>
+        <p><strong>Note:</strong> The chat endpoint is rate-limited to 30 requests per minute. The <code>session_id</code> maintains conversation context across messages.</p>
+    </div>
+</div>
+
+<!-- Webhook Events -->
+<div class="doc-section" id="webhook-events">
+    <h2>Webhook Events</h2>
+    <p>ChatGenius can send real-time webhook notifications to your server via Zapier integration. Configure webhooks in your dashboard under <strong>Integrations &rarr; Zapier</strong>.</p>
+
+    <table class="event-table">
+        <thead>
+            <tr><th>Event</th><th>Description</th><th>Triggered When</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><code>new_booking</code></td><td>New appointment booked</td><td>Patient books via chatbot, dashboard, or API</td></tr>
+            <tr><td><code>booking_cancelled</code></td><td>Appointment cancelled</td><td>Patient or admin cancels a booking</td></tr>
+            <tr><td><code>booking_completed</code></td><td>Appointment completed</td><td>Admin marks booking as completed</td></tr>
+            <tr><td><code>new_lead</code></td><td>New lead captured</td><td>Chatbot captures name/phone/email during conversation</td></tr>
+            <tr><td><code>new_patient</code></td><td>New patient registered</td><td>Patient fills out registration form</td></tr>
+            <tr><td><code>no_show</code></td><td>Patient no-show</td><td>Appointment marked as no-show</td></tr>
+            <tr><td><code>form_submitted</code></td><td>Patient form submitted</td><td>Patient completes intake or consent form</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Webhook Payload Example</h3>
+    <p>Here's an example payload for the <code>new_booking</code> event:</p>
+<pre><code>{
+  <span class="key">"event"</span>: <span class="str">"new_booking"</span>,
+  <span class="key">"timestamp"</span>: <span class="str">"2026-04-27T14:30:00Z"</span>,
+  <span class="key">"data"</span>: {
+    <span class="key">"booking_id"</span>: <span class="num">142</span>,
+    <span class="key">"customer_name"</span>: <span class="str">"John Smith"</span>,
+    <span class="key">"customer_email"</span>: <span class="str">"john@example.com"</span>,
+    <span class="key">"customer_phone"</span>: <span class="str">"+1234567890"</span>,
+    <span class="key">"date"</span>: <span class="str">"2026-05-15"</span>,
+    <span class="key">"time"</span>: <span class="str">"10:00"</span>,
+    <span class="key">"service"</span>: <span class="str">"General Consultation"</span>,
+    <span class="key">"doctor_name"</span>: <span class="str">"Dr. Sarah Johnson"</span>,
+    <span class="key">"status"</span>: <span class="str">"confirmed"</span>
+  }
+}</code></pre>
+</div>
+
+<!-- Webhook Security -->
+<div class="doc-section" id="webhook-security">
+    <h2>Webhook Security</h2>
+    <p>To ensure webhook payloads are legitimate and haven't been tampered with:</p>
+    <ul>
+        <li><strong>HTTPS Only</strong> — Webhook URLs must use HTTPS. HTTP endpoints are rejected.</li>
+        <li><strong>Signature Verification</strong> — Each webhook includes an <code>X-ChatGenius-Signature</code> header containing an HMAC-SHA256 signature of the payload body.</li>
+        <li><strong>Timestamp Validation</strong> — Verify the <code>timestamp</code> field is within 5 minutes of current time to prevent replay attacks.</li>
+    </ul>
+    <h3>Verifying the Signature</h3>
+<pre><code><span class="kw">import</span> hmac, hashlib
+
+<span class="kw">def</span> <span class="fn">verify_signature</span>(payload_body, signature, secret):
+    <span class="str">"""Verify the X-ChatGenius-Signature header."""</span>
+    expected = hmac.new(
+        secret.encode(<span class="str">'utf-8'</span>),
+        payload_body,
+        hashlib.sha256
+    ).hexdigest()
+    <span class="kw">return</span> hmac.compare_digest(expected, signature)</code></pre>
+</div>
+
+<!-- Code Examples -->
+<div class="doc-section" id="code-examples">
+    <h2>Code Examples</h2>
+
+    <h3>Create a Booking</h3>
+    <div class="code-tabs">
+        <button class="code-tab active" onclick="switchTab(this,'book')">cURL</button>
+        <button class="code-tab" onclick="switchTab(this,'book')">Python</button>
+        <button class="code-tab" onclick="switchTab(this,'book')">Node.js</button>
+    </div>
+    <div class="code-panel active" data-group="book" data-lang="cURL">
+<pre><code>curl -X POST https://api.chatgeniusx.com/api/external/booking \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{
+    "api_key": "YOUR_EXTERNAL_API_KEY",
+    "customer_name": "John Smith",
+    "customer_email": "john@example.com",
+    "customer_phone": "+1234567890",
+    "date": "2026-05-15",
+    "time": "10:00",
+    "service": "General Consultation"
+  }'</span></code></pre>
+    </div>
+    <div class="code-panel" data-group="book" data-lang="Python">
+<pre><code><span class="kw">import</span> requests
+
+response = requests.post(
+    <span class="str">"https://api.chatgeniusx.com/api/external/booking"</span>,
+    json={
+        <span class="str">"api_key"</span>: <span class="str">"YOUR_EXTERNAL_API_KEY"</span>,
+        <span class="str">"customer_name"</span>: <span class="str">"John Smith"</span>,
+        <span class="str">"customer_email"</span>: <span class="str">"john@example.com"</span>,
+        <span class="str">"customer_phone"</span>: <span class="str">"+1234567890"</span>,
+        <span class="str">"date"</span>: <span class="str">"2026-05-15"</span>,
+        <span class="str">"time"</span>: <span class="str">"10:00"</span>,
+        <span class="str">"service"</span>: <span class="str">"General Consultation"</span>,
+    }
+)
+<span class="fn">print</span>(response.json())</code></pre>
+    </div>
+    <div class="code-panel" data-group="book" data-lang="Node.js">
+<pre><code><span class="kw">const</span> resp = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">"https://api.chatgeniusx.com/api/external/booking"</span>, {
+  method: <span class="str">"POST"</span>,
+  headers: { <span class="str">"Content-Type"</span>: <span class="str">"application/json"</span> },
+  body: JSON.stringify({
+    api_key: <span class="str">"YOUR_EXTERNAL_API_KEY"</span>,
+    customer_name: <span class="str">"John Smith"</span>,
+    customer_email: <span class="str">"john@example.com"</span>,
+    customer_phone: <span class="str">"+1234567890"</span>,
+    date: <span class="str">"2026-05-15"</span>,
+    time: <span class="str">"10:00"</span>,
+    service: <span class="str">"General Consultation"</span>,
+  })
+});
+<span class="kw">const</span> data = <span class="kw">await</span> resp.json();
+console.<span class="fn">log</span>(data);</code></pre>
+    </div>
+
+    <h3 style="margin-top:2rem">Get Patients</h3>
+    <div class="code-tabs">
+        <button class="code-tab active" onclick="switchTab(this,'patients')">cURL</button>
+        <button class="code-tab" onclick="switchTab(this,'patients')">Python</button>
+        <button class="code-tab" onclick="switchTab(this,'patients')">Node.js</button>
+    </div>
+    <div class="code-panel active" data-group="patients" data-lang="cURL">
+<pre><code>curl -H <span class="str">"Authorization: Bearer YOUR_API_TOKEN"</span> \
+     <span class="str">"https://api.chatgeniusx.com/api/patients"</span></code></pre>
+    </div>
+    <div class="code-panel" data-group="patients" data-lang="Python">
+<pre><code><span class="kw">import</span> requests
+
+response = requests.get(
+    <span class="str">"https://api.chatgeniusx.com/api/patients"</span>,
+    headers={<span class="str">"Authorization"</span>: <span class="str">"Bearer YOUR_API_TOKEN"</span>}
+)
+patients = response.json()
+<span class="kw">for</span> p <span class="kw">in</span> patients:
+    <span class="fn">print</span>(p[<span class="str">"name"</span>], p[<span class="str">"email"</span>])</code></pre>
+    </div>
+    <div class="code-panel" data-group="patients" data-lang="Node.js">
+<pre><code><span class="kw">const</span> resp = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">"https://api.chatgeniusx.com/api/patients"</span>, {
+  headers: { <span class="str">"Authorization"</span>: <span class="str">"Bearer YOUR_API_TOKEN"</span> }
+});
+<span class="kw">const</span> patients = <span class="kw">await</span> resp.json();
+patients.forEach(p => console.<span class="fn">log</span>(p.name, p.email));</code></pre>
+    </div>
+
+    <h3 style="margin-top:2rem">Send a Chat Message</h3>
+    <div class="code-tabs">
+        <button class="code-tab active" onclick="switchTab(this,'chatex')">cURL</button>
+        <button class="code-tab" onclick="switchTab(this,'chatex')">Python</button>
+        <button class="code-tab" onclick="switchTab(this,'chatex')">Node.js</button>
+    </div>
+    <div class="code-panel active" data-group="chatex" data-lang="cURL">
+<pre><code>curl -X POST https://api.chatgeniusx.com/chat \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{
+    "message": "I need to book a dental cleaning",
+    "session_id": "my-session-123",
+    "admin_id": "YOUR_PUBLIC_ADMIN_ID"
+  }'</span></code></pre>
+    </div>
+    <div class="code-panel" data-group="chatex" data-lang="Python">
+<pre><code><span class="kw">import</span> requests
+
+response = requests.post(
+    <span class="str">"https://api.chatgeniusx.com/chat"</span>,
+    json={
+        <span class="str">"message"</span>: <span class="str">"I need to book a dental cleaning"</span>,
+        <span class="str">"session_id"</span>: <span class="str">"my-session-123"</span>,
+        <span class="str">"admin_id"</span>: <span class="str">"YOUR_PUBLIC_ADMIN_ID"</span>,
+    }
+)
+<span class="fn">print</span>(response.json()[<span class="str">"response"</span>])</code></pre>
+    </div>
+    <div class="code-panel" data-group="chatex" data-lang="Node.js">
+<pre><code><span class="kw">const</span> resp = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">"https://api.chatgeniusx.com/chat"</span>, {
+  method: <span class="str">"POST"</span>,
+  headers: { <span class="str">"Content-Type"</span>: <span class="str">"application/json"</span> },
+  body: JSON.stringify({
+    message: <span class="str">"I need to book a dental cleaning"</span>,
+    session_id: <span class="str">"my-session-123"</span>,
+    admin_id: <span class="str">"YOUR_PUBLIC_ADMIN_ID"</span>,
+  })
+});
+<span class="kw">const</span> data = <span class="kw">await</span> resp.json();
+console.<span class="fn">log</span>(data.response);</code></pre>
+    </div>
+</div>
+
+<!-- SDKs -->
+<div class="doc-section" id="sdks">
+    <h2>SDKs &amp; Libraries <span class="badge-soon">Coming Soon</span></h2>
+    <p>Official SDKs for popular languages are in development. In the meantime, use the REST API directly with any HTTP client.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;margin-top:1.5rem">
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.25rem;text-align:center">
+            <div style="font-size:2rem;margin-bottom:.5rem">&#128013;</div>
+            <h4 style="font-size:.9rem">Python SDK</h4>
+            <p style="font-size:.78rem;color:var(--text-muted)">pip install chatgeniusx</p>
+            <span class="badge-soon">Coming Soon</span>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.25rem;text-align:center">
+            <div style="font-size:2rem;margin-bottom:.5rem">&#9889;</div>
+            <h4 style="font-size:.9rem">Node.js SDK</h4>
+            <p style="font-size:.78rem;color:var(--text-muted)">npm install @chatgeniusx/sdk</p>
+            <span class="badge-soon">Coming Soon</span>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.25rem;text-align:center">
+            <div style="font-size:2rem;margin-bottom:.5rem">&#128142;</div>
+            <h4 style="font-size:.9rem">Ruby Gem</h4>
+            <p style="font-size:.78rem;color:var(--text-muted)">gem install chatgeniusx</p>
+            <span class="badge-soon">Coming Soon</span>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.25rem;text-align:center">
+            <div style="font-size:2rem;margin-bottom:.5rem">&#9749;</div>
+            <h4 style="font-size:.9rem">PHP SDK</h4>
+            <p style="font-size:.78rem;color:var(--text-muted)">composer require chatgeniusx/sdk</p>
+            <span class="badge-soon">Coming Soon</span>
+        </div>
+    </div>
+</div>
+
+<!-- Try It -->
+<div class="doc-section" id="try-it">
+    <h2>Interactive API Explorer</h2>
+    <p>Select an endpoint to see the cURL command. Copy and run it in your terminal to test the API.</p>
+    <div class="try-it">
+        <select class="try-select" id="tryEndpoint" onchange="updateTryIt()">
+            <option value="bookings">GET /api/bookings</option>
+            <option value="patients">GET /api/patients</option>
+            <option value="leads">GET /api/leads</option>
+            <option value="doctors">GET /api/doctors/public</option>
+            <option value="chat">POST /chat</option>
+            <option value="external-booking">POST /api/external/booking</option>
+        </select>
+        <div class="try-output" id="tryOutput"></div>
+    </div>
+</div>
+
+</main>
+</div>
+
+<footer>
+    <div class="footer-inner" style="display:block;max-width:1140px;margin:auto">
+        <div class="footer-grid">
+            <div class="footer-col">
+                <div class="footer-logo" style="margin-bottom:1rem">Chat<span>Genius</span></div>
+                <p>AI chatbot platform that converts visitors into bookings. Built for healthcare, dental, and beauty practices.</p>
+                <div class="footer-newsletter" style="margin-top:1rem">
+                    <input type="email" id="footerEmail" placeholder="Your email">
+                    <button onclick="document.getElementById('footerEmail').value='';this.textContent='Subscribed!';setTimeout(()=>this.textContent='Subscribe',2000)">Subscribe</button>
+                </div>
+                <p style="font-size:.72rem;margin-top:.4rem;color:var(--text-dim)">Join 2,000+ practice owners getting AI tips</p>
+            </div>
+            <div class="footer-col">
+                <h4>Product</h4>
+                <a href="/#features">Features</a>
+                <a href="/ai-technology">AI Technology</a>
+                <a href="/integrations">Integrations</a>
+                <a href="/agent-marketplace">Agent Marketplace</a>
+                <a href="/voice-agent">Voice AI</a>
+                <a href="/mobile-app">Mobile App</a>
+            </div>
+            <div class="footer-col">
+                <h4>Resources</h4>
+                <a href="/developers">API Docs</a>
+                <a href="/blog">Blog &amp; Guides</a>
+                <a href="/case-studies">Case Studies</a>
+                <a href="/compare">Compare</a>
+            </div>
+            <div class="footer-col">
+                <h4>Company</h4>
+                <a href="/pricing-plans">Pricing</a>
+                <a href="/partners">Partner Program</a>
+                <a href="/trust-center">Trust Center</a>
+                <a href="/security">Security</a>
+            </div>
+            <div class="footer-col">
+                <h4>Legal</h4>
+                <a href="/privacy">Privacy Policy</a>
+                <a href="/terms">Terms of Service</a>
+                <a href="/refund">Refund Policy</a>
+                <a href="/data-deletion">Data Deletion</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="footer-copy">&copy; 2026 ChatGeniusX. All rights reserved.</div>
+            <div style="display:flex;gap:1.5rem">
+                <a href="/privacy" style="color:var(--text-dim);font-size:.8rem;text-decoration:none">Privacy</a>
+                <a href="/terms" style="color:var(--text-dim);font-size:.8rem;text-decoration:none">Terms</a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script>
+// Sidebar active link
+function setActive(el) {
+    document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
+    el.classList.add('active');
+}
+
+// Code tabs
+function switchTab(btn, group) {
+    const parent = btn.parentElement;
+    const lang = btn.textContent;
+    parent.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    let sibling = parent.nextElementSibling;
+    while (sibling && sibling.dataset && sibling.dataset.group === group) {
+        sibling.classList.toggle('active', sibling.dataset.lang === lang);
+        sibling = sibling.nextElementSibling;
+    }
+}
+
+// Scroll spy
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            const id = entry.target.id;
+            document.querySelectorAll('.sidebar-nav a').forEach(a => {
+                a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+            });
+        }
+    });
+}, { rootMargin: '-100px 0px -60% 0px' });
+
+document.querySelectorAll('.doc-section').forEach(s => observer.observe(s));
+
+// Try it
+const tryCommands = {
+    bookings: 'curl -H "Authorization: Bearer YOUR_API_TOKEN" \\\n     "https://api.chatgeniusx.com/api/bookings"',
+    patients: 'curl -H "Authorization: Bearer YOUR_API_TOKEN" \\\n     "https://api.chatgeniusx.com/api/patients"',
+    leads: 'curl -H "Authorization: Bearer YOUR_API_TOKEN" \\\n     "https://api.chatgeniusx.com/api/leads"',
+    doctors: 'curl "https://api.chatgeniusx.com/api/doctors/public?admin_id=YOUR_PUBLIC_ID"',
+    chat: 'curl -X POST "https://api.chatgeniusx.com/chat" \\\n     -H "Content-Type: application/json" \\\n     -d \'{"message":"Hello","session_id":"test-123","admin_id":"YOUR_PUBLIC_ID"}\'',
+    'external-booking': 'curl -X POST "https://api.chatgeniusx.com/api/external/booking" \\\n     -H "Content-Type: application/json" \\\n     -d \'{"api_key":"YOUR_KEY","customer_name":"John","date":"2026-05-15","time":"10:00"}\''
+};
+function updateTryIt() {
+    const sel = document.getElementById('tryEndpoint').value;
+    document.getElementById('tryOutput').textContent = tryCommands[sel] || '';
+}
+updateTryIt();
+
+// Add copy buttons to all <pre> code blocks
+document.querySelectorAll('pre').forEach(function(pre) {
+    var btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', function() {
+        var code = pre.querySelector('code');
+        var text = code ? code.textContent : pre.textContent;
+        navigator.clipboard.writeText(text).then(function() {
+            btn.textContent = 'Copied!';
+            btn.classList.add('copied');
+            setTimeout(function() {
+                btn.textContent = 'Copy';
+                btn.classList.remove('copied');
+            }, 2000);
+        }).catch(function() {
+            var textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            btn.textContent = 'Copied!';
+            btn.classList.add('copied');
+            setTimeout(function() {
+                btn.textContent = 'Copy';
+                btn.classList.remove('copied');
+            }, 2000);
+        });
+    });
+    pre.appendChild(btn);
+});
+</script>
+</body>
+</html>

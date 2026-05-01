@@ -12,10 +12,11 @@
     <!-- Facebook SDK -->
     <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
     <style>
-        html{font-size:90%}
-        *{margin:0;padding:0;box-sizing:border-box}
-        :root{--bg:#06080d;--card:rgba(255,255,255,0.035);--card-border:rgba(255,255,255,0.05);--primary:#8b5cf6;--gradient:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);--text:#f1f5f9;--text-muted:#8b95a8;--text-dim:#475569;--success:#34d399;--warning:#fbbf24;--danger:#f87171;--glow:0 4px 25px rgba(139,92,246,0.3)}
-        body{font-family:'Outfit','Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
+        *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#050710;--card:rgba(255,255,255,0.028);--card-border:rgba(255,255,255,0.06);--primary:#8b5cf6;--gradient:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);--gradient2:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);--text:#f1f5f9;--text-muted:#8b95a8;--text-dim:#64748b;--success:#34d399;--warning:#fbbf24;--danger:#f87171;--glow:0 4px 25px rgba(139,92,246,0.3);--gray:#8b95a8;--white:#f1f5f9}
+        ::selection{background:rgba(139,92,246,0.35)}
+        html{scroll-behavior:smooth}
+        body{font-family:'Outfit','Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem;-webkit-font-smoothing:antialiased}
         body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.022;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
         @keyframes aur{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(3%,5%) scale(1.05)}66%{transform:translate(-3%,-3%) scale(0.97)}}
 
@@ -98,7 +99,9 @@
     </style>
 </head>
 <body>
-<div style="position:fixed;inset:0;z-index:-1;overflow:hidden"><div style="position:absolute;width:55vw;height:55vw;top:-15%;left:-10%;border-radius:50%;filter:blur(100px);opacity:0.1;background:conic-gradient(from 0deg,#8b5cf6,#6366f1,#3b82f6,#8b5cf6);animation:aur 22s ease-in-out infinite"></div><div style="position:absolute;width:40vw;height:40vw;bottom:-10%;right:-5%;border-radius:50%;filter:blur(100px);opacity:0.1;background:conic-gradient(from 180deg,#3b82f6,#06b6d4,#8b5cf6);animation:aur 28s ease-in-out infinite;animation-delay:-7s"></div></div>
+
+
+<div style="position:fixed;inset:0;z-index:-1;overflow:hidden"><div style="position:absolute;width:55vw;height:55vw;top:-15%;left:-10%;border-radius:50%;filter:blur(120px);opacity:0.1;background:conic-gradient(from 0deg,#8b5cf6,#6366f1,#3b82f6,#8b5cf6);animation:aur 22s ease-in-out infinite"></div><div style="position:absolute;width:40vw;height:40vw;bottom:-10%;right:-5%;border-radius:50%;filter:blur(120px);opacity:0.1;background:conic-gradient(from 180deg,#3b82f6,#06b6d4,#8b5cf6);animation:aur 28s ease-in-out infinite;animation-delay:-7s"></div><div style="position:absolute;width:45vw;height:45vw;bottom:-15%;left:20%;border-radius:50%;filter:blur(120px);opacity:0.1;background:conic-gradient(from 240deg,#ec4899,#8b5cf6,#6366f1);animation:aur 26s ease-in-out infinite;animation-delay:-15s"></div></div>
 
 <div class="auth-container">
     <!-- Feature Preview Side -->
@@ -305,6 +308,10 @@
         <a href="/">&larr; Back to homepage</a>
         <span style="color:var(--gray);margin:0 0.5rem">|</span>
         <a href="/privacy" style="color:var(--gray);font-size:0.85rem">Privacy Policy</a>
+        <span style="color:var(--gray);margin:0 0.5rem">|</span>
+        <a href="/trust-center" style="color:var(--gray);font-size:0.85rem">Trust Center</a>
+        <span style="color:var(--gray);margin:0 0.5rem">|</span>
+        <a href="/pricing-plans" style="color:var(--gray);font-size:0.85rem">Pricing</a>
     </div>
     </div><!-- end auth-wrapper -->
 </div><!-- end auth-container -->
@@ -833,5 +840,7 @@
 </script>
 
 <script src="/static/support-bot.js"></script>
+
+
 </body>
 </html>

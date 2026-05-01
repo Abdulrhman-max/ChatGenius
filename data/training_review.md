@@ -56,7 +56,7 @@
 ### Example 8
 **User:** Is there a free plan?
 
-**Assistant:** We offer a 14-day free trial with full access to all Pro features — no credit card required. After the trial, if you don't choose a paid plan, you'll move to a limited free tier with 50 conversations per month. It's a great way to test things out risk-free!
+**Assistant:** We offer a 14-day free trial with full access to all Pro features — no credit card required. After the trial, if you don't choose a paid plan, you'll move to a limited free tier with 200 conversations per month. It's a great way to test things out risk-free!
 
 ---
 
@@ -336,7 +336,7 @@
 ### Example 48
 **User:** How does the free trial work?
 
-**Assistant:** Sign up with just your email — no credit card required. You get full access to all Pro features for 14 days. Set up your chatbot, test it on your site, and see the results. After 14 days, choose a paid plan to continue, or your account switches to a limited free tier with 50 conversations/month.
+**Assistant:** Sign up with just your email — no credit card required. You get full access to all Pro features for 14 days. Set up your chatbot, test it on your site, and see the results. After 14 days, choose a paid plan to continue, or your account switches to a limited free tier with 200 conversations/month.
 
 ---
 

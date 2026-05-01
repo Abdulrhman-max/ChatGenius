@@ -20,6 +20,7 @@
             --ease:cubic-bezier(0.22,1,0.36,1);
             --card-bg:rgba(255,255,255,0.022);--card-border:rgba(255,255,255,0.045);
             --card-radius:16px;--section-radius:18px;
+            --purple:#a78bfa;--amber:#f59e0b;
             --sidebar-w:270px
         }
         ::selection{background:rgba(139,92,246,0.35)}
@@ -101,10 +102,17 @@
         .nav-mobile-menu a{display:flex;align-items:center;gap:0.65rem;padding:0.65rem 0.75rem;border-radius:10px;color:var(--gray);text-decoration:none;font-size:0.88rem;font-weight:500;transition:all .15s}
         .nav-mobile-menu a:hover,.nav-mobile-menu a.active{background:rgba(139,92,246,0.08);color:var(--white)}
 
+        @media(max-width:1100px){
+            .nav-menu{gap:0.1rem}
+            .nav-group .nav-label{font-size:0.72rem;padding:0.35rem 0.5rem}
+        }
         @media(max-width:900px){
             .nav-menu{display:none}
             .nav-hamburger{display:flex}
             .nav-right .nav-search-btn{display:none}
+        }
+        @media(max-width:768px){
+            .responsive-grid-2{grid-template-columns:1fr !important}
         }
 
         /* Legacy sidebar references (hidden, keep for JS compat) */
@@ -367,14 +375,14 @@
 
         /* ━━━━━━━ TOAST NOTIFICATIONS ━━━━━━━ */
         .toast-container{position:fixed;top:1.25rem;right:1.25rem;z-index:9999;display:flex;flex-direction:column;gap:0.5rem;pointer-events:none}
-        .toast{pointer-events:auto;display:flex;align-items:center;gap:0.7rem;padding:0.75rem 1.15rem;border-radius:12px;font-size:0.88rem;font-weight:500;min-width:280px;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,0.4);animation:toastIn .35s var(--ease);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);background:rgba(10,14,24,0.85)}
+        .toast{pointer-events:auto;display:flex;align-items:flex-start;gap:0.7rem;padding:0.75rem 1.15rem;border-radius:12px;font-size:0.88rem;font-weight:500;min-width:280px;max-width:480px;box-shadow:0 8px 32px rgba(0,0,0,0.4);animation:toastIn .35s var(--ease);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);background:rgba(10,14,24,0.85)}
         .toast.toast-out{animation:toastOut .3s ease forwards}
         .toast-success{background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);color:#4ade80}
         .toast-error{background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);color:#f87171}
         .toast-warning{background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);color:#fbbf24}
         .toast-info{background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.15);color:var(--cyan)}
         .toast-icon{font-size:1.15rem;flex-shrink:0}
-        .toast-msg{flex:1;line-height:1.4}
+        .toast-msg{flex:1;line-height:1.4;word-break:break-word;overflow-wrap:break-word}
         .toast-close{background:none;border:none;color:inherit;opacity:0.5;cursor:pointer;font-size:1.1rem;padding:0 0 0 0.5rem;flex-shrink:0;transition:opacity .15s}
         .toast-close:hover{opacity:1}
         @keyframes toastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
@@ -1017,6 +1025,40 @@
         .svc-btn-doctors{display:inline-flex;align-items:center;gap:0.25rem;padding:7px 14px;border-radius:10px;font-size:0.78rem;font-weight:500;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.15);color:#6ee7b7;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
         .svc-btn-doctors:hover{background:rgba(52,211,153,0.14);border-color:rgba(52,211,153,0.3);color:#a7f3d0;transform:translateY(-1px);box-shadow:0 3px 12px rgba(52,211,153,0.12)}
         .services-page-add-row{display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;margin-bottom:0.8rem}
+
+        /* ━━━━━━━ FLOW BUILDER ━━━━━━━ */
+        .fb-template-card{display:flex;align-items:center;gap:0.85rem;padding:1rem;border-radius:12px;background:var(--card-bg);border:1px solid var(--card-border);cursor:pointer;transition:all .25s var(--ease)}
+        .fb-template-card:hover{border-color:rgba(139,92,246,0.25);background:rgba(139,92,246,0.04);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.2)}
+        .fb-template-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+        .fb-flow-card{display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem;border-radius:12px;background:var(--card-bg);border:1px solid var(--card-border);margin-bottom:0.5rem;transition:all .2s var(--ease)}
+        .fb-flow-card:hover{border-color:rgba(139,92,246,0.2);background:rgba(255,255,255,0.03)}
+        .fb-flow-card .fb-active-badge{font-size:0.7rem;font-weight:700;padding:0.15rem 0.6rem;border-radius:50px;background:rgba(52,211,153,0.1);color:var(--green);border:1px solid rgba(52,211,153,0.15)}
+        .fb-flow-card .fb-inactive-badge{font-size:0.7rem;font-weight:700;padding:0.15rem 0.6rem;border-radius:50px;background:rgba(255,255,255,0.04);color:var(--gray);border:1px solid rgba(255,255,255,0.06)}
+        .fb-node-type{display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.65rem;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid var(--card-border);margin-bottom:0.35rem;font-size:0.8rem;font-weight:600;cursor:grab;transition:all .15s;color:var(--white)}
+        .fb-node-type:hover{background:rgba(139,92,246,0.06);border-color:rgba(139,92,246,0.2)}
+        .fb-node-type:active{cursor:grabbing}
+        .fb-nt-icon{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.85rem;flex-shrink:0}
+        .fb-node{position:absolute;min-width:180px;max-width:220px;background:rgba(10,14,26,0.95);border:2px solid rgba(255,255,255,0.08);border-radius:12px;padding:0;cursor:move;z-index:10;transition:box-shadow .2s;box-shadow:0 4px 20px rgba(0,0,0,0.3)}
+        .fb-node:hover{box-shadow:0 8px 30px rgba(0,0,0,0.4),0 0 0 1px rgba(139,92,246,0.2)}
+        .fb-node.selected{border-color:rgba(139,92,246,0.5);box-shadow:0 0 0 2px rgba(139,92,246,0.2),0 8px 30px rgba(0,0,0,0.4)}
+        .fb-node-header{display:flex;align-items:center;gap:0.4rem;padding:0.5rem 0.65rem;border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
+        .fb-node-body{padding:0.5rem 0.65rem;font-size:0.78rem;color:var(--gray);line-height:1.5;max-height:80px;overflow:hidden}
+        .fb-node-port{position:absolute;width:12px;height:12px;border-radius:50%;background:#8b5cf6;border:2px solid rgba(10,14,26,0.95);cursor:crosshair;z-index:20;transition:transform .15s}
+        .fb-node-port:hover{transform:scale(1.4)}
+        .fb-node-port.port-out{bottom:-6px;left:50%;margin-left:-6px}
+        .fb-node-port.port-in{top:-6px;left:50%;margin-left:-6px}
+        .fb-node-port.port-true{bottom:-6px;left:30%;margin-left:-6px;background:#34d399}
+        .fb-node-port.port-false{bottom:-6px;left:70%;margin-left:-6px;background:#f87171}
+        .fb-node-port.port-btn{bottom:-6px;background:#ec4899}
+        .fb-node-delete{position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:50%;background:rgba(248,113,113,0.1);border:none;color:var(--red);font-size:0.7rem;cursor:pointer;display:none;align-items:center;justify-content:center;line-height:1}
+        .fb-node:hover .fb-node-delete{display:flex}
+        #fb-canvas{background-image:radial-gradient(circle,rgba(255,255,255,0.04) 1px,transparent 1px);background-size:24px 24px}
+        .fb-test-msg{max-width:85%;padding:0.6rem 0.9rem;border-radius:12px;font-size:0.82rem;line-height:1.6}
+        .fb-test-msg.bot{background:rgba(255,255,255,0.04);align-self:flex-start;border:1px solid rgba(255,255,255,0.04)}
+        .fb-test-msg.user{background:linear-gradient(135deg,#7c3aed,#6d28d9);align-self:flex-end}
+        .fb-test-btns{display:flex;flex-wrap:wrap;gap:0.3rem;margin-top:0.4rem}
+        .fb-test-btn{background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.15);border-radius:50px;padding:0.3rem 0.7rem;font-size:0.75rem;color:#c4b5fd;cursor:pointer;font-family:inherit;transition:all .2s}
+        .fb-test-btn:hover{background:rgba(139,92,246,0.15);color:#fff}
     </style>
 </head>
 <body>
@@ -1132,14 +1174,24 @@
                 <span class="nav-icon"><i data-lucide="bar-chart-3" style="width:16px;height:16px"></i></span> Analytics
             </a>
 
+            <!-- Unified Inbox / Messages -->
+            <a href="javascript:void(0)" class="nav-direct admin-only" onclick="showPage('unified-inbox')" data-page="unified-inbox">
+                <span class="nav-icon"><i data-lucide="mail" style="width:16px;height:16px"></i></span> Messages
+            </a>
+
             <!-- Tools dropdown -->
             <div class="nav-group">
                 <button type="button" class="nav-trigger"><span class="nav-icon"><i data-lucide="wrench" style="width:16px;height:16px"></i></span> Tools <span class="nav-arrow">&#9660;</span></button>
                 <div class="nav-dropdown">
                     <div class="nav-dropdown-label">Engagement</div>
+                    <a href="javascript:void(0)" class="admin-only" onclick="showPage('flow-builder')" data-page="flow-builder"><span class="dd-icon"><i data-lucide="git-branch" style="width:14px;height:14px"></i></span><span class="dd-text">Flow Builder<span class="dd-desc">Visual chatbot flows</span></span></a>
                     <a href="javascript:void(0)" onclick="showPage('demo')" data-page="demo"><span class="dd-icon"><i data-lucide="message-circle" style="width:14px;height:14px"></i></span><span class="dd-text">Try Demo<span class="dd-desc">Test the chatbot</span></span></a>
                     <a href="#" class="admin-only" onclick="showPage('recall')" data-page="recall"><span class="dd-icon"><i data-lucide="rotate-ccw" style="width:14px;height:14px"></i></span><span class="dd-text">Recall & Retention<span class="dd-desc">Re-engage patients</span></span></a>
                     <a href="#" class="admin-only" onclick="showPage('followups')" data-page="followups"><span class="dd-icon"><i data-lucide="bell" style="width:14px;height:14px"></i></span><span class="dd-text">Follow-Ups<span class="dd-desc">Automated reminders</span></span></a>
+                    <a href="javascript:void(0)" class="admin-only" onclick="showPage('handoffs')" data-page="handoffs"><span class="dd-icon"><i data-lucide="headphones" style="width:14px;height:14px"></i></span><span class="dd-text">Live Chat Handoffs<span class="dd-desc">Human takeover queue</span></span></a>
+                    <a href="javascript:void(0)" class="admin-only" onclick="showPage('canned-responses')" data-page="canned-responses"><span class="dd-icon"><i data-lucide="message-square-plus" style="width:14px;height:14px"></i></span><span class="dd-text">Canned Responses<span class="dd-desc">Quick reply templates</span></span></a>
+                    <a href="javascript:void(0)" class="admin-only" onclick="showPage('ai-performance')" data-page="ai-performance"><span class="dd-icon"><i data-lucide="brain" style="width:14px;height:14px"></i></span><span class="dd-text">AI Performance<span class="dd-desc">Resolution metrics</span></span></a>
+                    <a href="javascript:void(0)" class="admin-only" onclick="window.location.href='/voice-agent?admin_id='+(user.admin_id||user.id)"><span class="dd-icon"><i data-lucide="mic" style="width:14px;height:14px"></i></span><span class="dd-text">Voice AI<span class="dd-desc">Voice-powered calls</span></span></a>
                     <span class="dd-divider"></span>
                     <div class="nav-dropdown-label">Requests</div>
                     <a href="#" class="doctor-only" onclick="showPage('requests')" data-page="requests"><span class="dd-icon"><i data-lucide="inbox" style="width:14px;height:14px"></i></span><span class="dd-text">Requests <span class="notif-badge" id="requestBadge" style="display:none">0</span></span></a>
@@ -1159,6 +1211,7 @@
                     <div class="nav-dropdown-label">Configuration</div>
                     <a href="javascript:void(0)" onclick="showPage('config')" data-page="config"><span class="dd-icon"><i data-lucide="sliders" style="width:14px;height:14px"></i></span><span class="dd-text">Configuration<span class="dd-desc">Feature toggles</span></span></a>
                     <a href="javascript:void(0)" onclick="showPage('security')" data-page="security"><span class="dd-icon"><i data-lucide="shield" style="width:14px;height:14px"></i></span><span class="dd-text">Security<span class="dd-desc">2FA & access control</span></span></a>
+                    <a href="#" class="pro-only" onclick="showPage('proactive-config')" data-page="proactive-config"><span class="dd-icon"><i data-lucide="zap" style="width:14px;height:14px"></i></span><span class="dd-text">Proactive Engage<span class="dd-desc">Smart triggers</span></span></a>
                     <span class="dd-divider"></span>
                     <div class="nav-dropdown-label">Customization</div>
                     <a href="#" class="pro-only" onclick="showPage('email-style')" data-page="email-style"><span class="dd-icon"><i data-lucide="palette" style="width:14px;height:14px"></i></span><span class="dd-text">Email Style<span class="dd-desc">Template builder</span></span></a>
@@ -1222,10 +1275,12 @@
         <a href="#" class="admin-only" onclick="showPage('doctors');document.getElementById('mobileMenu').classList.remove('show')" data-page="doctors">Doctors</a>
         <a href="#" class="admin-only" onclick="showPage('manage');document.getElementById('mobileMenu').classList.remove('show')" data-page="manage">Manage Doctors</a>
         <a href="#" class="admin-only" onclick="showPage('analytics');document.getElementById('mobileMenu').classList.remove('show')" data-page="analytics">Analytics</a>
+        <a href="javascript:void(0)" class="admin-only" onclick="showPage('unified-inbox');document.getElementById('mobileMenu').classList.remove('show')" data-page="unified-inbox">Messages</a>
         <div class="nav-mobile-section">Tools</div>
         <a href="javascript:void(0)" onclick="showPage('demo');document.getElementById('mobileMenu').classList.remove('show')" data-page="demo">Try Demo</a>
         <a href="#" class="admin-only" onclick="showPage('recall');document.getElementById('mobileMenu').classList.remove('show')" data-page="recall">Recall & Retention</a>
         <a href="#" class="admin-only" onclick="showPage('followups');document.getElementById('mobileMenu').classList.remove('show')" data-page="followups">Follow-Ups</a>
+        <a href="#" class="admin-only" onclick="showPage('handoffs');document.getElementById('mobileMenu').classList.remove('show')" data-page="handoffs">Live Chat Handoffs</a>
         <div class="nav-mobile-section admin-only">ROI</div>
         <a href="#" class="admin-only" onclick="showPage('roi');document.getElementById('mobileMenu').classList.remove('show')" data-page="roi">ROI Dashboard</a>
         <div class="nav-mobile-section admin-only">Settings</div>
@@ -1756,6 +1811,76 @@
     </div>
 </div>
 
+<!-- ═══ AI PERFORMANCE CARD ═══ -->
+<div class="section admin-only" style="margin-bottom:1.5rem" id="aiPerformanceSection">
+    <div class="deco-section-header" style="margin-bottom:0.75rem">
+        <div class="deco-icon violet" style="background:rgba(139,92,246,0.1);color:#a78bfa">&#129302;</div>
+        <div class="deco-title">AI Performance</div>
+        <div class="deco-badge">Resolution Rate</div>
+        <div class="deco-line"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1.5fr 1fr;gap:1.25rem;align-items:center">
+        <!-- Big resolution rate number -->
+        <div style="text-align:center">
+            <div style="position:relative;width:110px;height:110px;margin:0 auto">
+                <svg viewBox="0 0 110 110" width="110" height="110" style="transform:rotate(-90deg)">
+                    <circle cx="55" cy="55" r="46" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="10"/>
+                    <circle id="aiResRing" cx="55" cy="55" r="46" fill="none" stroke="url(#aiResGrad)" stroke-width="10" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="289" style="transition:stroke-dashoffset 1.5s ease"/>
+                    <defs><linearGradient id="aiResGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#8b5cf6"/><stop offset="100%" style="stop-color:#6366f1"/></linearGradient></defs>
+                </svg>
+                <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                    <div style="font-size:1.8rem;font-weight:900;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent" id="aiResRate">0%</div>
+                    <div style="font-size:0.65rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px">AI Resolved</div>
+                </div>
+            </div>
+            <div style="margin-top:0.5rem;display:flex;align-items:center;justify-content:center;gap:0.25rem">
+                <span id="aiResTrendIcon" style="font-size:0.75rem;color:var(--green)">&#9650;</span>
+                <span id="aiResTrendVal" style="font-size:0.78rem;font-weight:700;color:var(--green)">0%</span>
+                <span style="font-size:0.68rem;color:var(--gray)">vs prev period</span>
+            </div>
+        </div>
+        <!-- AI vs Human bar chart -->
+        <div>
+            <div style="font-size:0.78rem;color:var(--gray);margin-bottom:0.75rem;font-weight:600">Conversation Breakdown</div>
+            <div style="display:flex;flex-direction:column;gap:0.6rem">
+                <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem">
+                        <span style="font-size:0.75rem;color:var(--white);font-weight:600">AI Resolved</span>
+                        <span style="font-size:0.75rem;font-weight:700;color:#a78bfa" id="aiResCount">0</span>
+                    </div>
+                    <div style="height:24px;background:rgba(255,255,255,0.03);border-radius:6px;overflow:hidden">
+                        <div id="aiResBar" style="height:100%;background:linear-gradient(135deg,#8b5cf6,#6366f1);border-radius:6px;width:0%;transition:width 1.2s ease"></div>
+                    </div>
+                </div>
+                <div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:0.25rem">
+                        <span style="font-size:0.75rem;color:var(--white);font-weight:600">Human Handled</span>
+                        <span style="font-size:0.75rem;font-weight:700;color:var(--yellow)" id="aiHumanCount">0</span>
+                    </div>
+                    <div style="height:24px;background:rgba(255,255,255,0.03);border-radius:6px;overflow:hidden">
+                        <div id="aiHumanBar" style="height:100%;background:linear-gradient(135deg,#fbbf24,#f59e0b);border-radius:6px;width:0%;transition:width 1.2s ease"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Stats summary -->
+        <div style="display:flex;flex-direction:column;gap:0.6rem">
+            <div style="padding:0.6rem 0.75rem;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);border-radius:10px">
+                <div style="font-size:0.65rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.15rem">Total Conversations</div>
+                <div style="font-size:1.15rem;font-weight:800;color:var(--white)" id="aiTotalConv">0</div>
+            </div>
+            <div style="padding:0.6rem 0.75rem;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);border-radius:10px">
+                <div style="font-size:0.65rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.15rem">Avg Messages/Session</div>
+                <div style="font-size:1.15rem;font-weight:800;color:var(--white)" id="aiAvgMsgs">0</div>
+            </div>
+            <div style="padding:0.6rem 0.75rem;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);border-radius:10px">
+                <div style="font-size:0.65rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.15rem">Avg Confidence</div>
+                <div style="font-size:1.15rem;font-weight:800;color:var(--white)" id="aiAvgConf">0%</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ═══ TOP DOCTORS + BOOKING CHART ═══ -->
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.5rem" class="admin-only">
     <!-- Top Doctors by Bookings -->
@@ -2022,7 +2147,7 @@
                             <span class="plan-badge plan-free" id="planPageBadge" style="margin-top:0.35rem">Pro</span>
                         </div>
                         <div class="sub-hero-price">
-                            <div class="amount" id="subCostBig">$349</div>
+                            <div class="amount" id="subCostBig">$239</div>
                             <div class="period" id="subCostPeriod">per month</div>
                         </div>
                     </div>
@@ -2079,7 +2204,7 @@
                         </div>
                         <div class="flow-plan flow-next">
                             <div class="fp-label">Switching To</div>
-                            <div class="fp-name" id="subPendingTo">Agency</div>
+                            <div class="fp-name" id="subPendingTo">Enterprise</div>
                         </div>
                     </div>
                     <div style="text-align:center;margin-top:0.75rem">
@@ -2117,7 +2242,7 @@
                             </svg>
                             <div class="sub-usage-info">
                                 <div class="usage-pct" id="subUsagePct">0%</div>
-                                <div class="usage-detail" id="subConvCount">0 / 50 conversations</div>
+                                <div class="usage-detail" id="subConvCount">0 / 200 conversations</div>
                                 <div class="usage-detail" id="subConvNote" style="font-size:0.72rem;margin-top:0.25rem;color:var(--gray)">Resets at next billing cycle</div>
                             </div>
                         </div>
@@ -2173,9 +2298,9 @@
                 <span id="toggleYearly" style="font-size:0.9rem;font-weight:600;cursor:pointer;color:var(--gray)" onclick="setBillingCycle('yearly')">Annual <span style="color:var(--green);font-size:0.75rem">Save 20%</span></span>
             </div>
             <div class="plans-grid head-admin-only" id="plansSection">
-                <div class="plan-card" id="planCard-basic"><h3>Basic</h3><div class="plan-price" id="planPrice-basic">$149<small>/mo</small></div><ul class="plan-features"><li>Up to 700 conversations/month</li><li>1 chatbot (with watermark)</li><li>AI chatbot (website only)</li><li>Smart appointment booking</li><li>Calendar & doctor scheduling</li><li>Email reminders (48h, 24h)</li><li>Basic patient profiles</li><li>Pre-visit forms</li><li>Basic analytics</li></ul><button class="plan-btn plan-btn-outline" onclick="selectPlan('basic', currentBillingCycle)">Choose Basic</button></div>
-                <div class="plan-card" id="planCard-pro"><h3>Pro <span style="color:var(--cyan);font-size:0.75rem">MOST POPULAR</span></h3><div class="plan-price" id="planPrice-pro">$349<small>/mo</small></div><ul class="plan-features"><li>Up to 5,000 conversations/month</li><li>4 chatbots (no watermark)</li><li>Everything in Basic +</li><li>Advanced reminders (48h, 24h, 2h)</li><li>No-show detection & recovery</li><li>ROI dashboard</li><li>Lead capture + auto follow-ups</li><li>Waitlist system</li><li>Promotions & loyalty program</li><li>Multi-language chatbot</li><li>Treatment follow-ups</li><li>Customer integration</li><li>Customizable chatbot</li><li>AI PDF extraction</li><li>Configurable emails</li></ul><button class="plan-btn plan-btn-primary" onclick="selectPlan('pro', currentBillingCycle)">Choose Pro</button></div>
-                <div class="plan-card" id="planCard-agency"><h3>Agency</h3><div class="plan-price" id="planPrice-agency">$799<small>/mo</small></div><ul class="plan-features"><li>Unlimited conversations</li><li>Everything in Pro +</li><li>AI no-show prediction reminders</li><li>Advanced analytics & reports</li><li>Custom workflows</li><li>API access (integrations)</li><li>Appointment database integrations</li><li>PMS/CRM integration</li><li>Full doctor portal access</li><li>Priority support</li><li>Customizable emails</li><li>Use your own email to send</li><li>Chatbot Customization</li></ul><button class="plan-btn plan-btn-outline" onclick="selectPlan('agency', currentBillingCycle)">Choose Agency</button><a href="mailto:sales@chatgeniusx.com" class="plan-btn plan-btn-outline" style="display:block;margin-top:0.5rem;text-align:center;text-decoration:none;background:transparent;border:1px solid rgba(139,92,246,0.3);color:#c4b5fd;font-size:0.82rem;padding:0.55rem 1rem;border-radius:8px">Talk to Sales</a></div>
+                <div class="plan-card" id="planCard-basic"><h3>Basic</h3><div class="plan-price" id="planPrice-basic">$79<small>/mo</small></div><ul class="plan-features"><li>Up to 700 conversations/month</li><li>1 chatbot (with watermark)</li><li>AI chatbot (website only)</li><li>Smart appointment booking</li><li>Calendar & doctor scheduling</li><li>Email reminders (48h, 24h)</li><li>Basic patient profiles</li><li>Pre-visit forms</li><li>Basic analytics</li></ul><button class="plan-btn plan-btn-outline" onclick="selectPlan('basic', currentBillingCycle)">Choose Basic</button></div>
+                <div class="plan-card" id="planCard-pro"><h3>Pro <span style="color:var(--cyan);font-size:0.75rem">MOST POPULAR</span></h3><div class="plan-price" id="planPrice-pro">$239<small>/mo</small></div><ul class="plan-features"><li>Up to 5,000 conversations/month</li><li>4 chatbots (no watermark)</li><li>Everything in Basic +</li><li>Advanced reminders (48h, 24h, 2h)</li><li>No-show detection & recovery</li><li>ROI dashboard</li><li>Lead capture + auto follow-ups</li><li>Waitlist system</li><li>Promotions & loyalty program</li><li>Multi-language chatbot</li><li>Treatment follow-ups</li><li>Customer integration</li><li>Customizable chatbot</li><li>AI PDF extraction</li><li>Configurable emails</li></ul><button class="plan-btn plan-btn-primary" onclick="selectPlan('pro', currentBillingCycle)">Choose Pro</button></div>
+                <div class="plan-card" id="planCard-agency"><h3>Enterprise</h3><div class="plan-price" id="planPrice-agency">$699<small>/mo</small></div><ul class="plan-features"><li>Unlimited conversations</li><li>Everything in Pro +</li><li>AI no-show prediction reminders</li><li>Advanced analytics & reports</li><li>Custom workflows</li><li>API access (integrations)</li><li>Appointment database integrations</li><li>PMS/CRM integration</li><li>Full doctor portal access</li><li>Priority support</li><li>Customizable emails</li><li>Use your own email to send</li><li>Chatbot Customization</li></ul><button class="plan-btn plan-btn-outline" onclick="selectPlan('agency', currentBillingCycle)">Choose Enterprise</button><a href="mailto:sales@chatgeniusx.com" class="plan-btn plan-btn-outline" style="display:block;margin-top:0.5rem;text-align:center;text-decoration:none;background:transparent;border:1px solid rgba(139,92,246,0.3);color:#c4b5fd;font-size:0.82rem;padding:0.55rem 1rem;border-radius:8px">Talk to Sales</a></div>
             </div>
         </div>
 
@@ -2672,9 +2797,11 @@
                         Hi! I'm your dental office assistant. Ask me anything about our services, hours, pricing, or book an appointment!
                     </div>
                 </div>
-                <div style="padding:0.75rem 1rem;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:0.75rem">
+                <div style="padding:0.75rem 1rem;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:0.75rem;position:relative">
                     <input type="text" id="demoInput" placeholder="Type your question..." style="flex:1;padding:0.7rem 1rem;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--white);font-size:0.92rem;outline:none" onkeydown="if(event.key==='Enter')sendDemoMessage()">
+                    <button onclick="toggleDemoMic()" id="demoMicBtn" title="Voice input" style="padding:0.55rem 0.75rem;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--gray);cursor:pointer;font-size:1rem;transition:all .2s;display:none">🎤</button>
                     <button onclick="sendDemoMessage()" id="demoSendBtn" style="padding:0.7rem 1.25rem;border-radius:10px;border:none;background:var(--gradient);color:#fff;font-weight:700;cursor:pointer;font-size:0.92rem">Send</button>
+                    <div id="demoMicStatus" style="display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font-size:0.72rem;color:var(--gray);background:rgba(10,14,26,0.9);padding:2px 10px;border-radius:6px;white-space:nowrap;margin-bottom:4px"></div>
                 </div>
             </div>
         </div>
@@ -3027,11 +3154,94 @@
             </div>
         </div>
 
-        <!-- Feature 10: Live Chat Handoffs -->
+        <!-- Feature 10: Live Chat Handoffs (Enhanced) -->
         <div id="page-handoffs" style="display:none">
             <h2 class="page-title">Live Chat Queue</h2>
             <div class="section">
                 <div id="handoffQueue"><span class="empty-msg">No conversations waiting for human assistance.</span></div>
+            </div>
+            <div id="handoffDetailPanel" style="display:none;margin-top:1rem">
+                <div class="section">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem">
+                        <h3 style="font-size:0.95rem;margin:0" id="handoffDetailTitle">Conversation</h3>
+                        <button class="manage-save-btn" style="font-size:0.75rem;padding:0.3rem 0.7rem;background:rgba(255,255,255,0.06)" onclick="closeHandoffDetail()">Close</button>
+                    </div>
+                    <div id="handoffConversation" style="max-height:350px;overflow-y:auto;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:0.6rem;margin-bottom:0.8rem;background:rgba(0,0,0,0.2)"></div>
+                    <div id="handoffTypingIndicator" style="display:none;font-size:0.78rem;color:var(--cyan);margin-bottom:0.4rem;font-style:italic">Patient is typing...</div>
+                    <div style="display:flex;gap:0.4rem;margin-bottom:0.6rem">
+                        <input type="text" class="form-input" id="handoffReplyInput" placeholder="Type your reply..." style="flex:1;padding:0.5rem 0.8rem;font-size:0.85rem" oninput="onHandoffAgentType()" onkeydown="if(event.key==='Enter')sendHandoffReply()">
+                        <button class="manage-save-btn" style="font-size:0.8rem;padding:0.4rem 0.8rem" onclick="sendHandoffReply()">Send</button>
+                        <button class="manage-save-btn" style="font-size:0.75rem;padding:0.4rem 0.6rem;background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3)" onclick="toggleCannedPanel()">Canned</button>
+                    </div>
+                    <div id="cannedPanel" style="display:none;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0.6rem;margin-bottom:0.6rem;background:rgba(255,255,255,0.02)">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+                            <strong style="font-size:0.82rem">Canned Responses</strong>
+                            <button class="manage-save-btn" style="font-size:0.72rem;padding:0.2rem 0.5rem;background:rgba(139,92,246,0.15)" onclick="toggleCannedManage()">Manage</button>
+                        </div>
+                        <input type="text" class="form-input" id="cannedSearch" placeholder="Search..." style="width:100%;padding:0.35rem 0.6rem;font-size:0.8rem;margin-bottom:0.4rem" oninput="filterCanned()">
+                        <div style="display:flex;gap:0.3rem;margin-bottom:0.4rem;flex-wrap:wrap">
+                            <button class="roi-range-btn active" onclick="filterCannedCategory('all',this)" style="font-size:0.7rem;padding:0.2rem 0.5rem">All</button>
+                            <button class="roi-range-btn" onclick="filterCannedCategory('Greeting',this)" style="font-size:0.7rem;padding:0.2rem 0.5rem">Greeting</button>
+                            <button class="roi-range-btn" onclick="filterCannedCategory('Booking',this)" style="font-size:0.7rem;padding:0.2rem 0.5rem">Booking</button>
+                            <button class="roi-range-btn" onclick="filterCannedCategory('Support',this)" style="font-size:0.7rem;padding:0.2rem 0.5rem">Support</button>
+                            <button class="roi-range-btn" onclick="filterCannedCategory('Custom',this)" style="font-size:0.7rem;padding:0.2rem 0.5rem">Custom</button>
+                        </div>
+                        <div id="cannedList" style="max-height:200px;overflow-y:auto"></div>
+                    </div>
+                    <div id="cannedManagePanel" style="display:none;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0.6rem;margin-bottom:0.6rem;background:rgba(255,255,255,0.02)">
+                        <strong style="font-size:0.82rem;margin-bottom:0.5rem;display:block">Add Canned Response</strong>
+                        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.4rem">
+                            <input type="text" class="form-input" id="cannedNewTitle" placeholder="Title" style="flex:1;min-width:120px;padding:0.35rem 0.6rem;font-size:0.8rem">
+                            <select class="form-input" id="cannedNewCategory" style="width:100px;padding:0.35rem;font-size:0.8rem"><option value="Greeting">Greeting</option><option value="Booking">Booking</option><option value="Support">Support</option><option value="Custom">Custom</option></select>
+                        </div>
+                        <textarea class="form-input" id="cannedNewMessage" placeholder="Message text..." rows="2" style="width:100%;padding:0.35rem 0.6rem;font-size:0.8rem;margin-bottom:0.4rem;resize:vertical"></textarea>
+                        <button class="manage-save-btn" style="font-size:0.75rem;padding:0.3rem 0.7rem" onclick="addCannedResponse()">+ Add</button>
+                    </div>
+                    <div style="display:flex;gap:0.4rem;align-items:center;margin-top:0.4rem">
+                        <select class="form-input" id="handoffTransferTo" style="width:180px;padding:0.35rem;font-size:0.8rem"><option value="">Transfer to...</option></select>
+                        <button class="manage-save-btn" style="font-size:0.75rem;padding:0.3rem 0.6rem;background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.3);color:#fbbf24" onclick="transferHandoff()">Transfer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Unified Inbox (Enhanced with SMS) -->
+        <div id="page-unified-inbox" style="display:none">
+            <h2 class="page-title">Unified Inbox</h2>
+            <!-- Channel Analytics Summary -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.6rem;margin-bottom:1rem" id="inboxAnalyticsSummary">
+                <div class="stat-card" style="text-align:center"><div style="font-size:1.1rem;font-weight:700;color:#a78bfa" id="inboxTotalConvos">0</div><div style="font-size:0.72rem;color:var(--gray)">Total Conversations</div></div>
+                <div class="stat-card" style="text-align:center"><div style="font-size:1.1rem;font-weight:700;color:#ef4444" id="inboxUnread">0</div><div style="font-size:0.72rem;color:var(--gray)">Unread</div></div>
+                <div class="stat-card" style="text-align:center"><div style="font-size:1.1rem;font-weight:700;color:#22c55e" id="inboxAvgResponse">--</div><div style="font-size:0.72rem;color:var(--gray)">Avg Response Time</div></div>
+                <div class="stat-card" style="text-align:center"><div style="font-size:1.1rem;font-weight:700;color:#3b82f6" id="inboxResolutionRate">--</div><div style="font-size:0.72rem;color:var(--gray)">Resolution Rate</div></div>
+                <div class="stat-card" style="text-align:center"><div style="font-size:0.72rem;margin-bottom:0.3rem;color:var(--gray)">By Channel</div><div id="inboxChannelBars" style="font-size:0.7rem"></div></div>
+            </div>
+            <!-- Channel Filters -->
+            <div style="display:flex;gap:0.4rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
+                <button class="roi-range-btn active" onclick="filterInboxChannel('',this)" style="font-size:0.78rem;padding:0.3rem 0.6rem">All</button>
+                <button class="roi-range-btn" onclick="filterInboxChannel('web',this)" style="font-size:0.78rem;padding:0.3rem 0.6rem;color:#a78bfa">&#127760; Web</button>
+                <button class="roi-range-btn" onclick="filterInboxChannel('whatsapp',this)" style="font-size:0.78rem;padding:0.3rem 0.6rem;color:#25d366">&#128241; WhatsApp</button>
+                <button class="roi-range-btn" onclick="filterInboxChannel('facebook',this)" style="font-size:0.78rem;padding:0.3rem 0.6rem;color:#1877f2">&#128101; Facebook</button>
+                <button class="roi-range-btn" onclick="filterInboxChannel('instagram',this)" style="font-size:0.78rem;padding:0.3rem 0.6rem;color:#e1306c">&#128248; Instagram</button>
+                <button class="roi-range-btn" onclick="filterInboxChannel('sms',this)" style="font-size:0.78rem;padding:0.3rem 0.6rem;color:#9ca3af">&#128172; SMS</button>
+                <input type="text" class="form-input" id="inboxSearchInput" placeholder="Search name, phone..." style="margin-left:auto;width:180px;padding:0.35rem 0.6rem;font-size:0.8rem" oninput="loadUnifiedInbox()">
+            </div>
+            <div class="section">
+                <div id="inboxConversationsList"><span class="empty-msg">Loading conversations...</span></div>
+            </div>
+            <!-- Conversation Messages Panel -->
+            <div id="inboxMessagePanel" style="display:none;margin-top:1rem">
+                <div class="section">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
+                        <h3 style="font-size:0.9rem;margin:0" id="inboxMsgTitle">Messages</h3>
+                        <button class="manage-save-btn" style="font-size:0.75rem;padding:0.3rem 0.7rem;background:rgba(255,255,255,0.06)" onclick="document.getElementById('inboxMessagePanel').style.display='none'">Close</button>
+                    </div>
+                    <div id="inboxMessages" style="max-height:350px;overflow-y:auto;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:0.6rem;margin-bottom:0.6rem;background:rgba(0,0,0,0.2)"></div>
+                    <div style="display:flex;gap:0.4rem">
+                        <input type="text" class="form-input" id="inboxReplyInput" placeholder="Type reply..." style="flex:1;padding:0.5rem 0.8rem;font-size:0.85rem" onkeydown="if(event.key==='Enter')sendInboxReply()">
+                        <button class="manage-save-btn" style="font-size:0.8rem;padding:0.4rem 0.8rem" onclick="sendInboxReply()">Send</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -3664,6 +3874,41 @@
                     <label class="config-toggle"><input type="checkbox" id="cfg_auto_reports" onchange="saveFeatureConfig()"><span class="config-slider"></span><div><strong>Auto Monthly Reports</strong><span class="config-desc">Automatically generate and email monthly performance reports</span></div></label>
                 </div>
             </div>
+
+<!-- Proactive Engagement Settings -->
+<div class="section admin-only" style="margin-bottom:1.5rem">
+    <div class="section-header"><div class="section-title">Proactive Engagement</div></div>
+    <p style="color:var(--gray);font-size:0.82rem;margin-bottom:1rem">Configure how your chatbot proactively reaches out to website visitors. Triggers include dwell time, scroll depth, and exit intent.</p>
+    <div style="display:flex;flex-direction:column;gap:0.6rem;padding:0.5rem 0">
+        <label class="config-toggle"><input type="checkbox" id="cfg_proactive_enabled" onchange="saveProactiveConfig()"><span class="config-slider"></span><div><strong>Enable Proactive Engagement</strong><span class="config-desc">Automatically trigger the chatbot for visitors based on behavior</span></div></label>
+    </div>
+    <div id="proactiveSettings" style="margin-top:1rem;padding:1rem;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+            <div>
+                <label style="font-size:0.78rem;color:var(--gray);display:block;margin-bottom:0.3rem;font-weight:600">Dwell Time (seconds)</label>
+                <input type="number" class="form-input" id="cfg_proactive_dwell" value="30" min="5" max="300" style="padding:0.5rem 0.75rem;font-size:0.88rem;width:100%">
+                <div style="font-size:0.68rem;color:var(--gray);margin-top:0.2rem">Trigger after visitor is on page for this many seconds</div>
+            </div>
+            <div>
+                <label style="font-size:0.78rem;color:var(--gray);display:block;margin-bottom:0.3rem;font-weight:600">Scroll Depth (%)</label>
+                <input type="number" class="form-input" id="cfg_proactive_scroll" value="60" min="10" max="100" style="padding:0.5rem 0.75rem;font-size:0.88rem;width:100%">
+                <div style="font-size:0.68rem;color:var(--gray);margin-top:0.2rem">Trigger when visitor scrolls past this percentage</div>
+            </div>
+        </div>
+        <div style="margin-bottom:1rem">
+            <label class="config-toggle"><input type="checkbox" id="cfg_proactive_exit_intent" checked onchange="saveProactiveConfig()"><span class="config-slider"></span><div><strong>Exit Intent Detection</strong><span class="config-desc">Trigger when visitor moves mouse to close the tab (desktop only)</span></div></label>
+        </div>
+        <div>
+            <label style="font-size:0.78rem;color:var(--gray);display:block;margin-bottom:0.3rem;font-weight:600">Trigger Message</label>
+            <input type="text" class="form-input" id="cfg_proactive_message" placeholder="Need help? I can assist with booking appointments!" style="padding:0.5rem 0.75rem;font-size:0.88rem;width:100%">
+            <div style="font-size:0.68rem;color:var(--gray);margin-top:0.2rem">The message shown when the chatbot opens proactively</div>
+        </div>
+        <div style="margin-top:1rem;display:flex;gap:0.5rem;align-items:center">
+            <button class="btn-primary" onclick="saveProactiveConfig()" style="padding:0.5rem 1.25rem;font-size:0.85rem">Save Proactive Settings</button>
+            <span id="proactiveSaveMsg" style="font-size:0.82rem;color:var(--green);display:none">Saved!</span>
+        </div>
+    </div>
+</div>
 
 <!-- Patient Intake Form Configuration -->
 <div class="section admin-only" style="margin-bottom:1.5rem">
@@ -4462,6 +4707,235 @@
             </div>
         </div>
 
+        <!-- ═══ FLOW BUILDER PAGE ═══ -->
+        <div id="page-flow-builder" style="display:none">
+            <div class="page-hero">
+                <div class="hero-orb hero-orb-1"></div>
+                <div class="hero-orb hero-orb-2"></div>
+                <div class="hero-orb hero-orb-3"></div>
+                <div class="hero-dot-grid"></div>
+                <div>
+                    <div class="page-hero-icon" style="background:linear-gradient(135deg,#8b5cf6,#6366f1)">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 01-9 9"/></svg>
+                    </div>
+                    <h1 class="page-hero-title">Flow Builder</h1>
+                    <p class="page-hero-sub">Design visual chatbot conversation flows with drag-and-drop</p>
+                </div>
+            </div>
+
+            <!-- Flow List View -->
+            <div id="fb-list-view">
+                <div class="section" style="margin-bottom:1rem">
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem">
+                        <div>
+                            <h3 style="font-size:1.1rem;font-weight:700">Your Flows</h3>
+                            <p style="color:var(--gray);font-size:0.82rem;margin-top:0.25rem">Create and manage chatbot conversation flows</p>
+                        </div>
+                        <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+                            <button class="btn-primary" onclick="fbCreateNew()" style="font-size:0.82rem;padding:0.5rem 1.2rem;border-radius:10px"><i data-lucide="plus" style="width:14px;height:14px"></i> Create New Flow</button>
+                        </div>
+                    </div>
+
+                    <!-- Template Flows -->
+                    <div style="margin-bottom:2rem">
+                        <h4 style="font-size:0.85rem;font-weight:700;margin-bottom:0.75rem;color:var(--gray);text-transform:uppercase;letter-spacing:1px">Start from a Template</h4>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem">
+                            <div class="fb-template-card" onclick="fbCreateFromTemplate('appointment')">
+                                <div class="fb-template-icon" style="background:linear-gradient(135deg,#8b5cf6,#6366f1)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+                                <div>
+                                    <div style="font-weight:700;font-size:0.92rem">Appointment Booking</div>
+                                    <div style="color:var(--gray);font-size:0.78rem;margin-top:0.2rem">Welcome &rarr; Ask service &rarr; Show doctors &rarr; Pick date &rarr; Confirm</div>
+                                </div>
+                            </div>
+                            <div class="fb-template-card" onclick="fbCreateFromTemplate('lead')">
+                                <div class="fb-template-icon" style="background:linear-gradient(135deg,#3b82f6,#06b6d4)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg></div>
+                                <div>
+                                    <div style="font-weight:700;font-size:0.92rem">Lead Capture</div>
+                                    <div style="color:var(--gray);font-size:0.78rem;margin-top:0.2rem">Welcome &rarr; Ask name &rarr; Ask email &rarr; Ask interest &rarr; Thank you</div>
+                                </div>
+                            </div>
+                            <div class="fb-template-card" onclick="fbCreateFromTemplate('faq')">
+                                <div class="fb-template-icon" style="background:linear-gradient(135deg,#34d399,#059669)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+                                <div>
+                                    <div style="font-weight:700;font-size:0.92rem">FAQ + Handoff</div>
+                                    <div style="color:var(--gray);font-size:0.78rem;margin-top:0.2rem">Welcome &rarr; Show topics &rarr; Answer &rarr; Satisfied? &rarr; Yes/No branch</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Saved Flows List -->
+                    <div id="fb-flows-list">
+                        <div style="text-align:center;padding:2rem;color:var(--gray)">Loading flows...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flow Editor View (Canvas) -->
+            <div id="fb-editor-view" style="display:none">
+                <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
+                    <button class="btn-secondary" onclick="fbBackToList()" style="font-size:0.8rem;padding:0.4rem 1rem;border-radius:8px"><i data-lucide="arrow-left" style="width:14px;height:14px"></i> Back</button>
+                    <input type="text" class="form-input" id="fb-flow-name" placeholder="Flow Name" style="max-width:250px;font-weight:700;font-size:1rem">
+                    <input type="text" class="form-input" id="fb-flow-desc" placeholder="Description (optional)" style="max-width:300px;font-size:0.85rem">
+                    <div style="margin-left:auto;display:flex;gap:0.5rem;flex-wrap:wrap">
+                        <button class="btn-secondary" onclick="fbTestFlow()" style="font-size:0.8rem;padding:0.4rem 1rem;border-radius:8px"><i data-lucide="play" style="width:14px;height:14px"></i> Test</button>
+                        <button class="btn-secondary" onclick="fbActivateFlow()" style="font-size:0.8rem;padding:0.4rem 1rem;border-radius:8px"><i data-lucide="power" style="width:14px;height:14px"></i> Activate</button>
+                        <button class="btn-primary" onclick="fbSaveFlow()" style="font-size:0.8rem;padding:0.4rem 1rem;border-radius:8px"><i data-lucide="save" style="width:14px;height:14px"></i> Save</button>
+                    </div>
+                </div>
+                <div style="display:flex;gap:0;border:1px solid var(--card-border);border-radius:16px;overflow:hidden;height:calc(100vh - 230px);min-height:500px;background:rgba(0,0,0,0.2)">
+                    <!-- Left: Node palette -->
+                    <div id="fb-palette" style="width:200px;min-width:200px;border-right:1px solid var(--card-border);padding:0.75rem;overflow-y:auto;background:rgba(255,255,255,0.01)">
+                        <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--gray);margin-bottom:0.5rem;font-weight:700">Drag Nodes</div>
+                        <div class="fb-node-type" draggable="true" data-node-type="message"><span class="fb-nt-icon" style="background:rgba(139,92,246,0.15);color:#8b5cf6">&#128172;</span> Message</div>
+                        <div class="fb-node-type" draggable="true" data-node-type="question"><span class="fb-nt-icon" style="background:rgba(59,130,246,0.15);color:#3b82f6">&#10067;</span> Question</div>
+                        <div class="fb-node-type" draggable="true" data-node-type="button"><span class="fb-nt-icon" style="background:rgba(236,72,153,0.15);color:#ec4899">&#128290;</span> Buttons</div>
+                        <div class="fb-node-type" draggable="true" data-node-type="condition"><span class="fb-nt-icon" style="background:rgba(251,191,36,0.15);color:#fbbf24">&#9881;</span> Condition</div>
+                        <div class="fb-node-type" draggable="true" data-node-type="action"><span class="fb-nt-icon" style="background:rgba(52,211,153,0.15);color:#34d399">&#9889;</span> Action</div>
+                        <div class="fb-node-type" draggable="true" data-node-type="delay"><span class="fb-nt-icon" style="background:rgba(6,182,212,0.15);color:#06b6d4">&#9202;</span> Delay</div>
+                    </div>
+                    <!-- Center: Canvas -->
+                    <div id="fb-canvas-wrap" style="flex:1;position:relative;overflow:auto">
+                        <svg id="fb-svg-lines" style="position:absolute;top:0;left:0;width:3000px;height:3000px;pointer-events:none;z-index:1"></svg>
+                        <div id="fb-canvas" style="position:relative;width:3000px;height:3000px;z-index:2">
+                            <!-- Nodes will be appended here -->
+                        </div>
+                    </div>
+                    <!-- Right: Properties panel -->
+                    <div id="fb-props-panel" style="width:280px;min-width:280px;border-left:1px solid var(--card-border);padding:1rem;overflow-y:auto;background:rgba(255,255,255,0.01);display:none">
+                        <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--gray);margin-bottom:0.75rem;font-weight:700">Node Properties</div>
+                        <div id="fb-props-content"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flow Test Modal -->
+            <div id="fb-test-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
+                <div style="background:rgba(10,14,26,0.97);border:1px solid rgba(139,92,246,0.2);border-radius:20px;width:380px;max-width:95vw;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,0.6)">
+                    <div style="padding:1rem 1.25rem;background:linear-gradient(135deg,rgba(139,92,246,0.08),rgba(99,102,241,0.04));border-bottom:1px solid var(--card-border);display:flex;align-items:center;gap:0.6rem">
+                        <div style="width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px rgba(52,211,153,0.5)"></div>
+                        <h4 style="font-size:0.85rem;font-weight:700;flex:1">Flow Test</h4>
+                        <span style="background:rgba(251,191,36,0.12);color:#fbbf24;font-size:0.65rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:50px">SIMULATION</span>
+                        <button onclick="document.getElementById('fb-test-modal').style.display='none'" style="background:none;border:none;color:var(--gray);font-size:1.2rem;cursor:pointer">&times;</button>
+                    </div>
+                    <div id="fb-test-chat" style="flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:0.5rem;min-height:300px;max-height:50vh"></div>
+                    <div style="display:flex;gap:0.4rem;padding:0.75rem;border-top:1px solid var(--card-border)">
+                        <input type="text" id="fb-test-input" class="form-input" placeholder="Type a response..." style="flex:1" onkeydown="if(event.key==='Enter')fbTestSend()">
+                        <button class="btn-primary" onclick="fbTestSend()" style="padding:0.4rem 1rem;border-radius:8px;font-size:0.85rem">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ AI PERFORMANCE PAGE ═══ -->
+        <div id="page-ai-performance" style="display:none">
+            <div class="section">
+                <div class="section-header"><div class="section-title">AI Performance Dashboard</div></div>
+                <p style="color:var(--gray);font-size:0.85rem;margin-bottom:1.5rem">Real-time metrics on how your AI chatbot handles patient conversations.</p>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem">
+                    <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:1.25rem;text-align:center">
+                        <div style="position:relative;width:110px;height:110px;margin:0 auto 0.5rem">
+                            <svg viewBox="0 0 110 110" style="width:110px;height:110px;transform:rotate(-90deg)">
+                                <circle cx="55" cy="55" r="46" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="10"/>
+                                <circle id="aiResRing2" cx="55" cy="55" r="46" fill="none" stroke="url(#aiResGrad2)" stroke-width="10" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="289" style="transition:stroke-dashoffset 1.5s ease"/>
+                                <defs><linearGradient id="aiResGrad2" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#8b5cf6"/><stop offset="100%" style="stop-color:#6366f1"/></linearGradient></defs>
+                            </svg>
+                            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                                <div style="font-size:1.8rem;font-weight:900;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent" id="aipResRate">0%</div>
+                                <div style="font-size:0.65rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px">AI Resolved</div>
+                            </div>
+                        </div>
+                        <div style="font-size:0.82rem;font-weight:700;margin-bottom:0.2rem">Resolution Rate</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:1.25rem;text-align:center">
+                        <div style="font-size:2rem;font-weight:900;color:var(--purple)" id="aipTotalConv">0</div>
+                        <div style="font-size:0.82rem;font-weight:700;margin-top:0.3rem">Total Conversations</div>
+                        <div style="font-size:0.72rem;color:var(--gray);margin-top:0.2rem">This period</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:1.25rem;text-align:center">
+                        <div style="font-size:2rem;font-weight:900;color:var(--green)" id="aipResCount">0</div>
+                        <div style="font-size:0.82rem;font-weight:700;margin-top:0.3rem">AI Resolved</div>
+                        <div style="font-size:0.72rem;color:var(--gray);margin-top:0.2rem">Without human help</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:1.25rem;text-align:center">
+                        <div style="font-size:2rem;font-weight:900;color:var(--amber)" id="aipHumanCount">0</div>
+                        <div style="font-size:0.82rem;font-weight:700;margin-top:0.3rem">Human Handoffs</div>
+                        <div style="font-size:0.72rem;color:var(--gray);margin-top:0.2rem">Needed human help</div>
+                    </div>
+                </div>
+                <div class="responsive-grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                    <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:1.25rem">
+                        <div style="font-size:0.82rem;font-weight:700;margin-bottom:0.5rem">Avg Messages per Conversation</div>
+                        <div style="font-size:1.5rem;font-weight:900" id="aipAvgMsgs">0</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:1.25rem">
+                        <div style="font-size:0.82rem;font-weight:700;margin-bottom:0.5rem">Avg Confidence Score</div>
+                        <div style="font-size:1.5rem;font-weight:900" id="aipAvgConf">0%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ CANNED RESPONSES PAGE ═══ -->
+        <div id="page-canned-responses" style="display:none">
+            <div class="section">
+                <div class="section-header"><div class="section-title">Canned Responses</div></div>
+                <p style="color:var(--gray);font-size:0.85rem;margin-bottom:1rem">Create and manage quick reply templates for faster patient communication.</p>
+                <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap">
+                    <input type="text" class="form-input" id="cannedSearchPage" placeholder="Search responses..." style="flex:1;min-width:200px;padding:0.5rem 0.75rem" oninput="filterCannedPage()">
+                    <button class="roi-range-btn active" onclick="filterCannedCategoryPage('all',this)" style="padding:0.35rem 0.75rem">All</button>
+                    <button class="roi-range-btn" onclick="filterCannedCategoryPage('Greeting',this)" style="padding:0.35rem 0.75rem">Greeting</button>
+                    <button class="roi-range-btn" onclick="filterCannedCategoryPage('Booking',this)" style="padding:0.35rem 0.75rem">Booking</button>
+                    <button class="roi-range-btn" onclick="filterCannedCategoryPage('Support',this)" style="padding:0.35rem 0.75rem">Support</button>
+                    <button class="roi-range-btn" onclick="filterCannedCategoryPage('Custom',this)" style="padding:0.35rem 0.75rem">Custom</button>
+                </div>
+                <div id="cannedListPage" style="margin-bottom:1.5rem"></div>
+                <div style="border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:1.25rem;background:rgba(255,255,255,0.02)">
+                    <h4 style="font-size:0.92rem;font-weight:700;margin-bottom:0.75rem">Add New Response</h4>
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.5rem">
+                        <input type="text" class="form-input" id="cannedNewTitlePage" placeholder="Title" style="flex:1;min-width:150px;padding:0.5rem 0.75rem">
+                        <select class="form-input" id="cannedNewCategoryPage" style="width:120px;padding:0.5rem 0.75rem"><option value="Greeting">Greeting</option><option value="Booking">Booking</option><option value="Support">Support</option><option value="Custom">Custom</option></select>
+                    </div>
+                    <textarea class="form-input" id="cannedNewMessagePage" placeholder="Response message text..." rows="3" style="width:100%;padding:0.5rem 0.75rem;margin-bottom:0.5rem;resize:vertical"></textarea>
+                    <button class="btn-primary" onclick="addCannedResponsePage()" style="padding:0.5rem 1.25rem;font-size:0.85rem">Add Response</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ PROACTIVE CONFIG PAGE ═══ -->
+        <div id="page-proactive-config" style="display:none">
+            <div class="section">
+                <div class="section-header"><div class="section-title">Proactive Engagement Settings</div></div>
+                <p style="color:var(--gray);font-size:0.85rem;margin-bottom:1.5rem">Configure how your chatbot proactively reaches out to website visitors based on their behavior.</p>
+                <div style="display:flex;flex-direction:column;gap:0.75rem;padding:0.5rem 0;margin-bottom:1.5rem">
+                    <label class="config-toggle"><input type="checkbox" id="cfg_proactive_enabled_page" onchange="saveProactiveConfigPage()"><span class="config-slider"></span><div><strong>Enable Proactive Engagement</strong><span class="config-desc">Automatically trigger the chatbot for visitors based on behavior</span></div></label>
+                </div>
+                <div style="padding:1.25rem;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:14px">
+                    <div class="responsive-grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem">
+                        <div>
+                            <label style="font-size:0.82rem;color:var(--gray);display:block;margin-bottom:0.4rem;font-weight:600">Dwell Time (seconds)</label>
+                            <input type="number" class="form-input" id="cfg_proactive_dwell_page" value="30" min="5" max="300" style="padding:0.5rem 0.75rem;font-size:0.88rem;width:100%">
+                            <div style="font-size:0.72rem;color:var(--gray);margin-top:0.3rem">Trigger after visitor is on page for this many seconds</div>
+                        </div>
+                        <div>
+                            <label style="font-size:0.82rem;color:var(--gray);display:block;margin-bottom:0.4rem;font-weight:600">Scroll Depth (%)</label>
+                            <input type="number" class="form-input" id="cfg_proactive_scroll_page" value="60" min="10" max="100" style="padding:0.5rem 0.75rem;font-size:0.88rem;width:100%">
+                            <div style="font-size:0.72rem;color:var(--gray);margin-top:0.3rem">Trigger when visitor scrolls past this percentage</div>
+                        </div>
+                    </div>
+                    <div style="margin-bottom:1.25rem">
+                        <label class="config-toggle"><input type="checkbox" id="cfg_proactive_exit_page" checked><span class="config-slider"></span><div><strong>Exit Intent Detection</strong><span class="config-desc">Trigger when visitor moves mouse to close the tab (desktop only)</span></div></label>
+                    </div>
+                    <div style="margin-bottom:1.25rem">
+                        <label style="font-size:0.82rem;color:var(--gray);display:block;margin-bottom:0.4rem;font-weight:600">Trigger Message</label>
+                        <input type="text" class="form-input" id="cfg_proactive_message_page" placeholder="Need help? I can assist with booking appointments!" style="padding:0.5rem 0.75rem;font-size:0.88rem;width:100%">
+                        <div style="font-size:0.72rem;color:var(--gray);margin-top:0.3rem">The message shown when the chatbot opens proactively</div>
+                    </div>
+                    <button class="btn-primary" onclick="saveProactiveConfigPage()" style="padding:0.5rem 1.25rem;font-size:0.85rem">Save Settings</button>
+                </div>
+            </div>
+        </div>
+
     </main>
 </div>
 
@@ -4579,9 +5053,9 @@
         if (_confirmResolve) { _confirmResolve(value); _confirmResolve = null; }
     }
 
-    const PLAN_LABELS = { free_trial: 'Free Trial', basic: 'Basic', pro: 'Pro', agency: 'Enterprise' };
-    const PLAN_CLASSES = { free_trial: 'plan-free', basic: 'plan-basic', pro: 'plan-pro', agency: 'plan-agency' };
-    const PLAN_DAILY_LIMITS = { free_trial: 25, basic: 23, pro: 167, agency: 999999 };
+    const PLAN_LABELS = { free_trial: 'Free Trial', basic: 'Basic', pro: 'Pro', agency: 'Enterprise', enterprise: 'Enterprise' };
+    const PLAN_CLASSES = { free_trial: 'plan-free', basic: 'plan-basic', pro: 'plan-pro', agency: 'plan-agency', enterprise: 'plan-agency' };
+    const PLAN_DAILY_LIMITS = { free_trial: 25, basic: 23, pro: 167, agency: 999999, enterprise: 999999 };
 
     const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -4705,7 +5179,7 @@
     }
 
     // Plan feature gating — which pages require which plan minimum
-    const PLAN_LEVELS = { free_trial: 0, basic: 1, pro: 2, agency: 3 };
+    const PLAN_LEVELS = { free_trial: 0, basic: 1, pro: 2, agency: 3, enterprise: 3 };
     const PAGE_MIN_PLAN = {
         // Basic+ (all paid plans)
         'company': 'basic', 'manage': 'basic', 'doctors': 'basic',
@@ -4764,7 +5238,7 @@
         document.querySelectorAll('.nav-group').forEach(g => g.classList.remove('active'));
         const activeDD = document.querySelector('.nav-dropdown a.active');
         if (activeDD) { const group = activeDD.closest('.nav-group'); if (group) group.classList.add('active'); }
-        const pageNames = {overview:'Overview',plan:'My Plan',bookings:'Bookings','previous-bookings':'Previous Bookings',leads:'Leads',company:'Company Info',services:'Services',doctors:'Doctors',manage:'Manage Doctors',analytics:'Analytics & Reports',admins:'Admins',demo:'Try Demo',waitlist:'Waitlist',customers:'Customers','schedule-blocks':'Doctor Holidays',promotions:'Promotions',recall:'Recall & Retention',followups:'Follow-Ups',config:'Configuration',roi:'ROI','email-style':'Email Style','chatbot-customize':'Chatbot Style',pms:'PMS Integration',changes:'Changes',requests:'Requests','admin-requests':'Invitations',security:'Security',referrals:'Referrals',patients:'Patients','missed-calls':'Missed Calls',gallery:'Gallery',handoffs:'Handoffs','ab-tests':'A/B Tests',loyalty:'Loyalty',gmb:'Google Business',benchmarks:'Benchmarks','realtime':'Real-Time','twilio-sms':'Twilio SMS',mailchimp:'Mailchimp','google-calendar':'Google Calendar',zapier:'Zapier'};
+        const pageNames = {overview:'Overview',plan:'My Plan',bookings:'Bookings','previous-bookings':'Previous Bookings',leads:'Leads',company:'Company Info',services:'Services',doctors:'Doctors',manage:'Manage Doctors',analytics:'Analytics & Reports',admins:'Admins',demo:'Try Demo',waitlist:'Waitlist',customers:'Customers','schedule-blocks':'Doctor Holidays',promotions:'Promotions',recall:'Recall & Retention',followups:'Follow-Ups',config:'Configuration',roi:'ROI','email-style':'Email Style','chatbot-customize':'Chatbot Style',pms:'PMS Integration',changes:'Changes',requests:'Requests','admin-requests':'Invitations',security:'Security',referrals:'Referrals',patients:'Patients','missed-calls':'Missed Calls',gallery:'Gallery',handoffs:'Handoffs','ab-tests':'A/B Tests',loyalty:'Loyalty',gmb:'Google Business',benchmarks:'Benchmarks','realtime':'Real-Time','twilio-sms':'Twilio SMS',mailchimp:'Mailchimp','google-calendar':'Google Calendar',zapier:'Zapier','flow-builder':'Flow Builder',calendly:'Calendly','unified-inbox':'Unified Inbox','ai-performance':'AI Performance','canned-responses':'Canned Responses','proactive-config':'Proactive Engagement'};
         const tbn = document.getElementById('topBarPageName');
         if(tbn) tbn.textContent = pageNames[page] || page;
         // Remember current page
@@ -4784,6 +5258,7 @@
         if (page === 'missed-calls') loadMissedCalls();
         if (page === 'gallery') loadGallery();
         if (page === 'handoffs') loadHandoffs();
+        if (page === 'unified-inbox') loadUnifiedInbox();
         if (page === 'ab-tests') loadAbTests();
         if (page === 'loyalty') loadLoyalty();
         if (page === 'referrals') loadReferrals();
@@ -4794,8 +5269,12 @@
         if (page === 'twilio-sms') loadTwilioStatus();
         if (page === 'mailchimp') loadMailchimpStatus();
         if (page === 'zapier') loadZapierStatus();
+        if (page === 'flow-builder') loadFlowBuilder();
         if (page === 'google-calendar') loadGoogleCalendar();
         if (page === 'security') loadSecurity();
+        if (page === 'ai-performance') { loadAIPerformance(); loadAIPerformancePage(); }
+        if (page === 'proactive-config') { loadProactiveConfig(); loadProactiveConfigPage(); }
+        if (page === 'canned-responses') { loadCannedResponses().then(function(){ renderCannedListPage(); }); }
         if (page === 'config') { loadFeatureConfig(); loadChatbotUsage(); loadFormConfig(); }
         if (page === 'roi') setTimeout(loadROI, 50);
         if (page === 'pms') loadPMS();
@@ -5102,8 +5581,8 @@
 
     // ── Billing Cycle Toggle ──
     let currentBillingCycle = 'monthly';
-    const PLAN_PRICES_MONTHLY = { basic: 79, pro: 239, agency: 699 };
-    const PLAN_PRICES_ANNUAL = { basic: 63, pro: 191, agency: 559 };
+    const PLAN_PRICES_MONTHLY = { basic: 79, pro: 239, agency: 699, enterprise: 699 };
+    const PLAN_PRICES_ANNUAL = { basic: 63, pro: 191, agency: 559, enterprise: 559 };
 
     function setBillingCycle(cycle) {
         currentBillingCycle = cycle;
@@ -7897,6 +8376,93 @@
         }
     }
 
+    // ── Demo chatbot voice input ──
+    let _demoMicRecording = false, _demoMicRecorder = null, _demoMicChunks = [], _demoMicStream = null;
+
+    // Show mic button for agency (enterprise) plan
+    function initDemoMic() {
+        const plan = user?.plan || 'free_trial';
+        if (plan === 'agency' || plan === 'enterprise') {
+            const btn = document.getElementById('demoMicBtn');
+            if (btn) btn.style.display = '';
+        }
+    }
+    initDemoMic();
+
+    function toggleDemoMic() {
+        if (_demoMicRecording) stopDemoMic(); else startDemoMic();
+    }
+
+    function startDemoMic() {
+        if (_demoMicRecording) return;
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined') {
+            showToast('Voice not supported in this browser', 'error'); return;
+        }
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+            _demoMicStream = stream;
+            _demoMicChunks = [];
+            _demoMicRecording = true;
+            const btn = document.getElementById('demoMicBtn');
+            if (btn) { btn.style.background = 'rgba(239,68,68,0.15)'; btn.style.borderColor = 'rgba(239,68,68,0.4)'; btn.textContent = '⏹'; }
+            const status = document.getElementById('demoMicStatus');
+            if (status) { status.style.display = 'block'; status.textContent = 'Recording... tap to stop'; }
+
+            let mimeType = 'audio/webm;codecs=opus';
+            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'audio/webm';
+            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'audio/mp4';
+            _demoMicRecorder = new MediaRecorder(stream, MediaRecorder.isTypeSupported(mimeType) ? { mimeType } : {});
+            _demoMicRecorder.ondataavailable = e => { if (e.data.size > 0) _demoMicChunks.push(e.data); };
+            _demoMicRecorder.onstop = async () => {
+                if (_demoMicStream) { _demoMicStream.getTracks().forEach(t => t.stop()); _demoMicStream = null; }
+                resetDemoMicUI();
+                if (_demoMicChunks.length === 0) return;
+                const blob = new Blob(_demoMicChunks, { type: 'audio/webm' });
+                if (blob.size < 500) return;
+                await transcribeDemoAndSend(blob);
+            };
+            _demoMicRecorder.start(250);
+            setTimeout(() => { if (_demoMicRecording) stopDemoMic(); }, 30000);
+        }).catch(err => {
+            console.warn('Mic denied:', err);
+            showToast('Microphone access denied', 'error');
+        });
+    }
+
+    function stopDemoMic() {
+        _demoMicRecording = false;
+        if (_demoMicRecorder && _demoMicRecorder.state !== 'inactive') _demoMicRecorder.stop();
+        else resetDemoMicUI();
+    }
+
+    function resetDemoMicUI() {
+        _demoMicRecording = false;
+        const btn = document.getElementById('demoMicBtn');
+        if (btn) { btn.style.background = 'rgba(255,255,255,0.04)'; btn.style.borderColor = 'rgba(255,255,255,0.1)'; btn.textContent = '🎤'; }
+        const status = document.getElementById('demoMicStatus');
+        if (status) status.style.display = 'none';
+    }
+
+    async function transcribeDemoAndSend(audioBlob) {
+        const status = document.getElementById('demoMicStatus');
+        if (status) { status.style.display = 'block'; status.textContent = 'Transcribing...'; }
+        try {
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'voice.webm');
+            formData.append('lang', 'en');
+            const resp = await fetch('/api/voice/transcribe', { method: 'POST', body: formData });
+            if (!resp.ok) throw new Error('Transcription failed');
+            const data = await resp.json();
+            if (status) status.style.display = 'none';
+            const text = (data.corrected || data.text || '').trim();
+            if (!text) { showToast('Could not hear you. Try again.', 'warning'); return; }
+            document.getElementById('demoInput').value = text;
+            sendDemoMessage();
+        } catch(e) {
+            if (status) status.style.display = 'none';
+            showToast('Voice transcription failed. Try typing instead.', 'error');
+        }
+    }
+
     // ══════════════════════════════════════════════
     //  Analytics & Reports Module
     // ══════════════════════════════════════════════
@@ -8249,6 +8815,8 @@
     checkTokenExpiry();
     verifySession();
     loadData();
+    loadAIPerformance();
+    loadProactiveConfig();
 
     // ── Handle PayPal checkout redirect ──
     try {
@@ -8337,7 +8905,7 @@
         'auto_lead_capture', 'auto_reminders', 'auto_recall', 'auto_followups',
         'auto_surveys', 'auto_noshow_recovery', 'missed_call_autoreply',
         'loyalty_program', 'auto_invoices', 'auto_reports',
-        'require_login_to_book'
+        'require_login_to_book', 'proactive_engagement'
     ];
     let _configSaveTimer = null;
 
@@ -8469,6 +9037,208 @@
         }, 400);
     }
 
+    // ── AI Performance (Resolution Rate) ──
+    async function loadAIPerformance() {
+        try {
+            const res = await fetch('/api/ai-resolution-rate', { headers });
+            if (!res.ok) return;
+            const d = await res.json();
+            const rate = d.resolution_rate || 0;
+            const total = d.total_conversations || 0;
+            const aiRes = d.ai_resolved || 0;
+            const human = d.human_handled || 0;
+            const trend = (d.trend != null) ? d.trend : 0;
+
+            const aiResRateEl = document.getElementById('aiResRate');
+            const aiTotalConvEl = document.getElementById('aiTotalConv');
+            const aiResCountEl = document.getElementById('aiResCount');
+            const aiHumanCountEl = document.getElementById('aiHumanCount');
+            const aiAvgMsgsEl = document.getElementById('aiAvgMsgs');
+            const aiAvgConfEl = document.getElementById('aiAvgConf');
+            if (aiResRateEl) aiResRateEl.textContent = rate + '%';
+            if (aiTotalConvEl) aiTotalConvEl.textContent = total;
+            if (aiResCountEl) aiResCountEl.textContent = aiRes;
+            if (aiHumanCountEl) aiHumanCountEl.textContent = human;
+            if (aiAvgMsgsEl) aiAvgMsgsEl.textContent = d.avg_messages_per_session || 0;
+            if (aiAvgConfEl) aiAvgConfEl.textContent = (d.avg_confidence || 0) + '%';
+
+            // Ring animation (circumference = 2 * PI * 46 = 289)
+            const ring = document.getElementById('aiResRing');
+            if (ring) {
+                const offset = 289 - (289 * rate / 100);
+                ring.style.strokeDashoffset = offset;
+            }
+
+            // Bars
+            const maxBar = Math.max(aiRes, human, 1);
+            const aiResBarEl = document.getElementById('aiResBar');
+            const aiHumanBarEl = document.getElementById('aiHumanBar');
+            if (aiResBarEl) aiResBarEl.style.width = (aiRes / maxBar * 100) + '%';
+            if (aiHumanBarEl) aiHumanBarEl.style.width = (human / maxBar * 100) + '%';
+
+            // Trend
+            const trendIcon = document.getElementById('aiResTrendIcon');
+            const trendVal = document.getElementById('aiResTrendVal');
+            if (trendIcon && trendVal) {
+                if (trend >= 0) {
+                    trendIcon.textContent = '\u25B2';
+                    trendIcon.style.color = 'var(--green)';
+                    trendVal.style.color = 'var(--green)';
+                    trendVal.textContent = '+' + trend + '%';
+                } else {
+                    trendIcon.textContent = '\u25BC';
+                    trendIcon.style.color = 'var(--red)';
+                    trendVal.style.color = 'var(--red)';
+                    trendVal.textContent = trend + '%';
+                }
+            }
+        } catch(e) { console.error('AI Performance load error:', e); }
+    }
+
+    // ── Proactive Engagement Config ──
+    async function loadProactiveConfig() {
+        try {
+            const res = await fetch('/api/proactive-config', { headers });
+            if (!res.ok) return;
+            const cfg = await res.json();
+            const enableEl = document.getElementById('cfg_proactive_enabled');
+            if (enableEl) enableEl.checked = !!cfg.enabled;
+            const dwellEl = document.getElementById('cfg_proactive_dwell');
+            if (dwellEl) dwellEl.value = cfg.dwell_time_seconds || 30;
+            const scrollEl = document.getElementById('cfg_proactive_scroll');
+            if (scrollEl) scrollEl.value = cfg.scroll_depth_percent || 60;
+            const exitEl = document.getElementById('cfg_proactive_exit_intent');
+            if (exitEl) exitEl.checked = !!cfg.exit_intent_enabled;
+            const msgEl = document.getElementById('cfg_proactive_message');
+            if (msgEl) msgEl.value = cfg.trigger_message || '';
+        } catch(e) { console.error('Proactive config load error:', e); }
+    }
+
+    async function saveProactiveConfig() {
+        try {
+            const elEnabled = document.getElementById('cfg_proactive_enabled');
+            const elDwell = document.getElementById('cfg_proactive_dwell');
+            const elScroll = document.getElementById('cfg_proactive_scroll');
+            const elExitIntent = document.getElementById('cfg_proactive_exit_intent');
+            const elMessage = document.getElementById('cfg_proactive_message');
+            if (!elEnabled || !elDwell || !elScroll || !elExitIntent || !elMessage) return;
+            const payload = {
+                enabled: elEnabled.checked ? 1 : 0,
+                dwell_time_seconds: parseInt(elDwell.value) || 30,
+                scroll_depth_percent: parseInt(elScroll.value) || 60,
+                exit_intent_enabled: elExitIntent.checked ? 1 : 0,
+                trigger_message: elMessage.value || '',
+            };
+            const res = await fetch('/api/proactive-config', { method: 'POST', headers, body: JSON.stringify(payload) });
+            const data = await res.json();
+            if (data.ok) {
+                const msg = document.getElementById('proactiveSaveMsg');
+                if (msg) { msg.style.display = 'inline'; setTimeout(() => msg.style.display = 'none', 2000); }
+            } else { showToast(data.error || 'Failed to save config', 'error'); }
+        } catch(e) { showToast('Failed to save proactive settings', 'error'); }
+    }
+
+    // ── Standalone AI Performance Page ──
+    async function loadAIPerformancePage() {
+        try {
+            const res = await fetch('/api/ai-resolution-rate', { headers });
+            if (!res.ok) return;
+            const d = await res.json();
+            const rate = d.resolution_rate || 0;
+            const el = (id) => document.getElementById(id);
+            if (el('aipResRate')) el('aipResRate').textContent = rate + '%';
+            if (el('aipTotalConv')) el('aipTotalConv').textContent = d.total_conversations || 0;
+            if (el('aipResCount')) el('aipResCount').textContent = d.ai_resolved || 0;
+            if (el('aipHumanCount')) el('aipHumanCount').textContent = d.human_handled || 0;
+            if (el('aipAvgMsgs')) el('aipAvgMsgs').textContent = d.avg_messages_per_session || 0;
+            if (el('aipAvgConf')) el('aipAvgConf').textContent = (d.avg_confidence || 0) + '%';
+            const ring = el('aiResRing2');
+            if (ring) ring.style.strokeDashoffset = 289 - (289 * rate / 100);
+        } catch(e) { showToast('Failed to load AI performance','error'); }
+    }
+
+    // ── Standalone Canned Responses Page ──
+    let _cannedCategoryFilterPage = 'all';
+    function renderCannedListPage() {
+        const c = document.getElementById('cannedListPage');
+        if (!c) return;
+        const search = (document.getElementById('cannedSearchPage')?.value || '').toLowerCase();
+        const filtered = _cannedResponses.filter(r => {
+            if (_cannedCategoryFilterPage !== 'all' && r.category !== _cannedCategoryFilterPage) return false;
+            if (search && !r.title.toLowerCase().includes(search) && !r.message.toLowerCase().includes(search)) return false;
+            return true;
+        });
+        if (!filtered.length) { c.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--gray)">No canned responses found. Add one below.</div>'; return; }
+        c.innerHTML = filtered.map(r => `<div style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1rem;border:1px solid rgba(255,255,255,0.06);border-radius:10px;margin-bottom:0.5rem;background:rgba(255,255,255,0.02)">
+            <div style="flex:1"><div style="font-weight:700;font-size:0.88rem;margin-bottom:0.2rem">${escHTML(r.title)}</div><div style="color:var(--gray);font-size:0.82rem">${escHTML(r.message)}</div></div>
+            <span style="font-size:0.68rem;background:rgba(139,92,246,0.1);color:#c4b5fd;padding:0.2rem 0.5rem;border-radius:6px">${escHTML(r.category)}</span>
+            <span style="font-size:0.72rem;color:var(--gray)">${r.usage_count || 0} uses</span>
+            <button onclick="deleteCannedPage(${r.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.85rem" title="Delete">&times;</button>
+        </div>`).join('');
+    }
+    function filterCannedPage() { renderCannedListPage(); }
+    function filterCannedCategoryPage(cat, btn) {
+        _cannedCategoryFilterPage = cat;
+        if (btn) { btn.closest('div').querySelectorAll('.roi-range-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
+        renderCannedListPage();
+    }
+    async function addCannedResponsePage() {
+        const title = document.getElementById('cannedNewTitlePage')?.value?.trim();
+        const message = document.getElementById('cannedNewMessagePage')?.value?.trim();
+        const category = document.getElementById('cannedNewCategoryPage')?.value || 'Custom';
+        if (!title || !message) { showToast('Title and message are required','warning'); return; }
+        try {
+            const res = await fetch('/api/canned-responses', { method:'POST', headers, body: JSON.stringify({title,message,category}) });
+            if (!res.ok) throw new Error();
+            showToast('Response added','success');
+            document.getElementById('cannedNewTitlePage').value = '';
+            document.getElementById('cannedNewMessagePage').value = '';
+            await loadCannedResponses();
+            renderCannedListPage();
+        } catch(e) { showToast('Failed to add response','error'); }
+    }
+    async function deleteCannedPage(id) {
+        try {
+            const res = await fetch(`/api/canned-responses/${id}`, { method:'DELETE', headers });
+            if (!res.ok) throw new Error();
+            _cannedResponses = _cannedResponses.filter(r => r.id !== id);
+            renderCannedListPage();
+            renderCannedList();
+            showToast('Deleted','success');
+        } catch(e) { showToast('Failed to delete','error'); }
+    }
+
+    // ── Standalone Proactive Config Page ──
+    async function loadProactiveConfigPage() {
+        try {
+            const res = await fetch('/api/proactive-config', { headers });
+            if (!res.ok) return;
+            const cfg = await res.json();
+            const el = (id) => document.getElementById(id);
+            if (el('cfg_proactive_enabled_page')) el('cfg_proactive_enabled_page').checked = !!cfg.enabled;
+            if (el('cfg_proactive_dwell_page')) el('cfg_proactive_dwell_page').value = cfg.dwell_time_seconds || 30;
+            if (el('cfg_proactive_scroll_page')) el('cfg_proactive_scroll_page').value = cfg.scroll_depth_percent || 60;
+            if (el('cfg_proactive_exit_page')) el('cfg_proactive_exit_page').checked = !!cfg.exit_intent_enabled;
+            if (el('cfg_proactive_message_page')) el('cfg_proactive_message_page').value = cfg.trigger_message || '';
+        } catch(e) { console.error('Proactive config page load error:', e); }
+    }
+    async function saveProactiveConfigPage() {
+        try {
+            const el = (id) => document.getElementById(id);
+            const payload = {
+                enabled: el('cfg_proactive_enabled_page')?.checked ? 1 : 0,
+                dwell_time_seconds: parseInt(el('cfg_proactive_dwell_page')?.value) || 30,
+                scroll_depth_percent: parseInt(el('cfg_proactive_scroll_page')?.value) || 60,
+                exit_intent_enabled: el('cfg_proactive_exit_page')?.checked ? 1 : 0,
+                trigger_message: el('cfg_proactive_message_page')?.value || '',
+            };
+            const res = await fetch('/api/proactive-config', { method:'POST', headers, body: JSON.stringify(payload) });
+            const data = await res.json();
+            if (data.ok) showToast('Proactive settings saved!','success');
+            else showToast(data.error || 'Failed to save','error');
+        } catch(e) { showToast('Failed to save proactive settings','error'); }
+    }
+
     // ── Patient Intake Form Configuration ──
     var _formConfigTimer;
     var _formConfigData = null;
@@ -8483,8 +9253,8 @@
             document.getElementById('cfg_form_one_time').checked = !!data.one_time_form;
 
             var plan = data.plan || 'free_trial';
-            var isPro = plan === 'pro' || plan === 'agency';
-            var isAgency = plan === 'agency';
+            var isPro = plan === 'pro' || plan === 'agency' || plan === 'enterprise';
+            var isAgency = plan === 'agency' || plan === 'enterprise';
 
             document.getElementById('formFieldsConfig').style.display = isPro ? '' : 'none';
             document.getElementById('customFieldsSection').style.display = isAgency ? '' : 'none';
@@ -9741,7 +10511,8 @@
                 free_trial: { convos: 50, chatbots: 1, label: 'Free Trial' },
                 basic:      { convos: 700, chatbots: 1, label: 'Basic' },
                 pro:        { convos: '5,000', chatbots: 4, label: 'Pro' },
-                agency:     { convos: 'Unlimited', chatbots: 'Unlimited', label: 'Enterprise' }
+                agency:     { convos: 'Unlimited', chatbots: 'Unlimited', label: 'Enterprise' },
+                enterprise: { convos: 'Unlimited', chatbots: 'Unlimited', label: 'Enterprise' }
             };
             const limits = PLAN_LIMITS[planName] || PLAN_LIMITS.free_trial;
             document.getElementById('pms-plan-title').textContent = limits.label + ' Plan — Your Limits';
@@ -9760,7 +10531,7 @@
                 + '</div>'
                 + '<div style="padding:0.6rem 0.8rem;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)">'
                 + '  <div style="font-size:0.72rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Appointment API</div>'
-                + '  <div style="font-size:1.1rem;font-weight:700;color:' + (planLevel >= 3 ? '#34d399' : '#f87171') + ';margin-top:0.2rem">' + (planLevel >= 3 ? 'Included' : 'Agency') + '</div>'
+                + '  <div style="font-size:1.1rem;font-weight:700;color:' + (planLevel >= 3 ? '#34d399' : '#f87171') + ';margin-top:0.2rem">' + (planLevel >= 3 ? 'Included' : 'Enterprise') + '</div>'
                 + '</div>';
             banner.style.display = 'block';
             if (planLevel < 3 && upgradeHint) upgradeHint.style.display = 'block';
@@ -10162,6 +10933,7 @@ curl -X POST "${server}/api/external/booking" \\
     }
 
     async function addRecallRule() {
+        try {
         const t = document.getElementById('recallTreatment').value;
         if (!t) { showToast('Please select a service','warning'); return; }
         const days = parseInt(document.getElementById('recallDays').value) || 180;
@@ -10170,9 +10942,11 @@ curl -X POST "${server}/api/external/booking" \\
         const d = await res.json();
         if (d.error) { showToast(d.error, 'error'); return; }
         document.getElementById('recallTreatment').value = '';
+        document.getElementById('recallDays').value = '';
         document.getElementById('recallTemplate').value = '';
         showToast('Recall rule added for ' + t, 'success');
         loadRecall();
+        } catch(err) { showToast('Something went wrong', 'error'); }
     }
 
     async function deleteRecallRule(id) {
@@ -10229,6 +11003,7 @@ curl -X POST "${server}/api/external/booking" \\
     }
 
     async function createFollowup() {
+        try {
         const name = document.getElementById('fuPatient').value;
         const treatment = document.getElementById('fuTreatment').value;
         if (!name || !treatment) { showToast('Patient name and treatment required','warning'); return; }
@@ -10239,6 +11014,7 @@ curl -X POST "${server}/api/external/booking" \\
         document.getElementById('fuPhone').value = '';
         showToast('Follow-up sequence created','success');
         loadFollowups();
+        } catch(err) { showToast('Something went wrong', 'error'); }
     }
 
     async function cancelFollowup(id) {
@@ -10257,6 +11033,7 @@ curl -X POST "${server}/api/external/booking" \\
     }
 
     async function uploadGalleryImage() {
+        try {
         const file = document.getElementById('galleryFile').files[0];
         if (!file) { showToast('Select an image','warning'); return; }
         const fd = new FormData();
@@ -10267,21 +11044,389 @@ curl -X POST "${server}/api/external/booking" \\
         const res = await fetch('/api/gallery', {method:'POST',headers:{'Authorization':headers.Authorization},body:fd});
         const r = await res.json();
         if (r.ok) { showToast('Image uploaded','success'); loadGallery(); } else { showToast(r.error||'Failed','error'); }
+        } catch(err) { showToast('Something went wrong', 'error'); }
     }
 
     async function deleteGalleryImage(id) { await fetch(`/api/gallery/${id}`,{method:'DELETE',headers}); loadGallery(); }
 
-    // ═══════ Feature 10: Live Chat Handoffs ═══════
+    // ═══════ Feature 10: Live Chat Handoffs (Enhanced) ═══════
+    let _currentHandoffId = null;
+    let _cannedResponses = [];
+    let _cannedCategory = 'all';
+    let _cannedDefaultsSeeded = false;
+    let _handoffTypingTimer = null;
+
     async function loadHandoffs() {
-        const res = await fetch('/api/handoffs', {headers});
+        try {
+        const res = await fetch('/api/handoffs', {headers}).catch(err => { showToast('Failed to load handoffs', 'error'); throw err; });
         const data = await res.json();
         const c = document.getElementById('handoffQueue');
         if (!data.length) { c.innerHTML = '<span class="empty-msg">No conversations waiting for human assistance.</span>'; return; }
-        c.innerHTML = data.map(h => `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.7rem;border:1px solid rgba(255,255,255,0.08);border-radius:8px;margin-bottom:0.5rem"><div><strong>${escapeHtml(h.patient_name)||'Anonymous'}</strong><div style="font-size:0.78rem;color:var(--gray)">${escapeHtml(h.reason)||'Low AI confidence'} | ${escapeHtml(h.created_at)}</div></div><div style="display:flex;gap:0.4rem">${h.status==='queued'?`<button class="manage-save-btn" style="font-size:0.75rem;padding:0.3rem 0.7rem" onclick="assignHandoff(${h.id})">Take Over</button>`:''}<button class="manage-save-btn" style="font-size:0.75rem;padding:0.3rem 0.7rem;background:var(--green)" onclick="resolveHandoff(${h.id})">Resolve</button></div></div>`).join('');
+        c.innerHTML = data.map(h => {
+            const priorityColor = h.priority === 'urgent' ? '#ef4444' : h.priority === 'normal' ? '#3b82f6' : '#6b7280';
+            const priorityLabel = h.priority === 'urgent' ? 'URGENT' : h.priority === 'normal' ? 'NORMAL' : 'LOW';
+            const waitDisplay = h.wait_time_display || '';
+            const confScore = h.ai_confidence != null ? Math.round(h.ai_confidence * 100) + '%' : '';
+            const preview = (h.conversation_preview || []).slice(-1).map(m => (m.message||'').substring(0,80)).join('') || '';
+            return `<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:0.7rem;border:1px solid rgba(255,255,255,0.08);border-radius:8px;margin-bottom:0.5rem;cursor:pointer" onclick="openHandoffDetail(${h.id})">
+                <div style="flex:1;min-width:0">
+                    <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.2rem">
+                        <strong>${escapeHtml(h.patient_name)||'Anonymous'}</strong>
+                        <span style="font-size:0.65rem;padding:0.1rem 0.4rem;border-radius:4px;background:${priorityColor};color:#fff;font-weight:600">${priorityLabel}</span>
+                        ${h.status==='assigned'?'<span style="font-size:0.65rem;padding:0.1rem 0.4rem;border-radius:4px;background:rgba(34,197,94,0.2);color:#22c55e">Assigned to '+escapeHtml(h.staff_name||'')+'</span>':''}
+                    </div>
+                    <div style="font-size:0.78rem;color:var(--gray)">${escapeHtml(h.reason)||'Low AI confidence'}${confScore?' | AI: '+confScore:''} | Wait: ${escapeHtml(waitDisplay)}</div>
+                    ${preview?'<div style="font-size:0.75rem;color:rgba(255,255,255,0.4);margin-top:0.2rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHtml(preview)+'</div>':''}
+                </div>
+                <div style="display:flex;gap:0.4rem;flex-shrink:0">
+                    ${h.status==='queued'?`<button class="manage-save-btn" style="font-size:0.75rem;padding:0.3rem 0.7rem" onclick="event.stopPropagation();assignHandoff(${h.id})">Take Over</button>`:''}
+                    <button class="manage-save-btn" style="font-size:0.75rem;padding:0.3rem 0.7rem;background:var(--green)" onclick="event.stopPropagation();resolveHandoff(${h.id})">Resolve</button>
+                </div>
+            </div>`;
+        }).join('');
+        } catch(e) { console.error('loadHandoffs error:', e); showToast('Failed to load handoffs', 'error'); }
     }
 
-    async function assignHandoff(id) { await fetch(`/api/handoffs/${id}/assign`,{method:'POST',headers}); loadHandoffs(); showToast('Conversation assigned to you','success'); }
-    async function resolveHandoff(id) { await fetch(`/api/handoffs/${id}/resolve`,{method:'POST',headers,body:JSON.stringify({notes:'Resolved from dashboard'})}); loadHandoffs(); showToast('Handoff resolved','success'); }
+    async function assignHandoff(id) { try { const res = await fetch(`/api/handoffs/${id}/assign`,{method:'POST',headers}); if (!res.ok) { showToast('Failed to assign handoff','error'); return; } loadHandoffs(); showToast('Conversation assigned to you','success'); } catch(e) { showToast('Failed to assign handoff','error'); } }
+    async function resolveHandoff(id) { try { const res = await fetch(`/api/handoffs/${id}/resolve`,{method:'POST',headers,body:JSON.stringify({notes:'Resolved from dashboard'})}); if (!res.ok) { showToast('Failed to resolve handoff','error'); return; } loadHandoffs(); showToast('Handoff resolved','success'); if(_currentHandoffId===id) closeHandoffDetail(); } catch(e) { showToast('Failed to resolve handoff','error'); } }
+
+    async function openHandoffDetail(hid) {
+        _currentHandoffId = hid;
+        document.getElementById('handoffDetailPanel').style.display = 'block';
+        document.getElementById('handoffDetailTitle').textContent = 'Loading...';
+        try {
+            const res = await fetch(`/api/handoffs/${hid}/context`, {headers});
+            const ctx = await res.json();
+            if (ctx.error) { document.getElementById('handoffConversation').innerHTML = '<span class="empty-msg">'+escapeHtml(ctx.error)+'</span>'; return; }
+            const ho = ctx.handoff || {};
+            document.getElementById('handoffDetailTitle').textContent = (ho.patient_name||'Anonymous') + ' - Conversation History';
+            const msgs = ctx.messages || [];
+            document.getElementById('handoffConversation').innerHTML = msgs.length === 0
+                ? '<span class="empty-msg">No conversation history.</span>'
+                : msgs.map(m => {
+                    const isStaff = (m.message||'').startsWith('[STAFF:');
+                    const bg = isStaff ? 'rgba(139,92,246,0.12)' : 'rgba(255,255,255,0.04)';
+                    const align = isStaff ? 'flex-end' : 'flex-start';
+                    return `<div style="display:flex;justify-content:${align};margin-bottom:0.4rem"><div style="background:${bg};border-radius:8px;padding:0.4rem 0.6rem;max-width:80%;font-size:0.82rem"><div>${escapeHtml(m.message||'')}</div><div style="font-size:0.68rem;color:var(--gray);margin-top:0.15rem">${escapeHtml(m.created_at||'')}</div></div></div>`;
+                }).join('');
+            const convoEl = document.getElementById('handoffConversation');
+            convoEl.scrollTop = convoEl.scrollHeight;
+        } catch(e) { console.error(e); showToast('Failed to load conversation','error'); }
+
+        // Load canned responses and staff for transfer
+        await loadCannedResponses();
+        await loadTransferStaff();
+        // Auto-show canned panel so agents can quickly insert responses
+        const cp = document.getElementById('cannedPanel');
+        if (cp) cp.style.display = 'block';
+    }
+
+    function closeHandoffDetail() {
+        _currentHandoffId = null;
+        document.getElementById('handoffDetailPanel').style.display = 'none';
+    }
+
+    let _sendingHandoffReply = false;
+    async function sendHandoffReply() {
+        if (!_currentHandoffId || _sendingHandoffReply) return;
+        const input = document.getElementById('handoffReplyInput');
+        if (!input) return;
+        const msg = input.value.trim();
+        if (!msg) return;
+        _sendingHandoffReply = true;
+        try {
+            const res = await fetch(`/api/handoffs/${_currentHandoffId}/message`, {method:'POST',headers,body:JSON.stringify({message:msg})});
+            if (!res.ok) { showToast('Failed to send message','error'); return; }
+            input.value = '';
+            // Stop typing indicator
+            fetch(`/api/handoffs/${_currentHandoffId}/typing`,{method:'POST',headers,body:JSON.stringify({typing:false})}).catch(()=>{});
+            openHandoffDetail(_currentHandoffId);
+        } catch(e) { showToast('Failed to send message','error'); }
+        finally { _sendingHandoffReply = false; }
+    }
+
+    function onHandoffAgentType() {
+        if (!_currentHandoffId) return;
+        clearTimeout(_handoffTypingTimer);
+        fetch(`/api/handoffs/${_currentHandoffId}/typing`,{method:'POST',headers,body:JSON.stringify({typing:true})});
+        _handoffTypingTimer = setTimeout(() => {
+            fetch(`/api/handoffs/${_currentHandoffId}/typing`,{method:'POST',headers,body:JSON.stringify({typing:false})});
+        }, 5000);
+    }
+
+    // ── Canned Responses ──
+    async function loadCannedResponses() {
+        try {
+            const res = await fetch('/api/canned-responses', {headers});
+            _cannedResponses = await res.json();
+            // Seed defaults if empty
+            if (_cannedResponses.length === 0 && !_cannedDefaultsSeeded) {
+                _cannedDefaultsSeeded = true;
+                const defaults = [
+                    {title:'Greeting',message:"Hi! I'm taking over from our AI assistant. How can I help?",category:'Greeting'},
+                    {title:'Looking Into It',message:"Let me look into that for you right away.",category:'Support'},
+                    {title:'Schedule',message:"I'll schedule that appointment for you now.",category:'Booking'},
+                    {title:'Anything Else',message:"Is there anything else I can help you with?",category:'Support'},
+                    {title:'Thank You',message:"Thank you for chatting with us today!",category:'Greeting'},
+                ];
+                for (const d of defaults) {
+                    await fetch('/api/canned-responses',{method:'POST',headers,body:JSON.stringify(d)});
+                }
+                const res2 = await fetch('/api/canned-responses', {headers});
+                _cannedResponses = await res2.json();
+            }
+            renderCannedList();
+        } catch(e) { console.error(e); showToast('Failed to load canned responses','error'); }
+    }
+
+    function renderCannedList() {
+        const search = (document.getElementById('cannedSearch')?.value || '').toLowerCase();
+        const filtered = _cannedResponses.filter(r =>
+            (_cannedCategory === 'all' || r.category === _cannedCategory) &&
+            (!search || r.title.toLowerCase().includes(search) || r.message.toLowerCase().includes(search))
+        );
+        const c = document.getElementById('cannedList');
+        if (!c) return;
+        c.innerHTML = filtered.length === 0 ? '<span class="empty-msg" style="font-size:0.78rem">No canned responses.</span>'
+            : filtered.map(r => `<div style="padding:0.35rem 0.5rem;border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer;font-size:0.8rem;display:flex;justify-content:space-between;align-items:center" onclick="insertCanned(${r.id})">
+                <div><strong style="color:var(--cyan)">${escapeHtml(r.title)}</strong><div style="font-size:0.72rem;color:var(--gray)">${escapeHtml(r.message).substring(0,60)}${r.message.length>60?'...':''}</div></div>
+                <div style="display:flex;align-items:center;gap:0.4rem;flex-shrink:0">
+                    <span style="font-size:0.65rem;color:var(--gray);white-space:nowrap">${r.category} (${r.usage_count||0})</span>
+                    <button onclick="event.stopPropagation();deleteCanned(${r.id})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:0.75rem;padding:0.1rem 0.3rem" title="Delete">&times;</button>
+                </div>
+            </div>`).join('');
+    }
+
+    function insertCanned(id) {
+        const r = _cannedResponses.find(x => x.id === id);
+        if (!r) return;
+        const replyInput = document.getElementById('handoffReplyInput');
+        if (replyInput) replyInput.value = r.message;
+        fetch(`/api/canned-responses/${id}/use`,{method:'POST',headers})
+        .then(res => { if (!res.ok) showToast('Failed to track canned response usage','error'); })
+        .catch(() => { showToast('Failed to track canned response usage','error'); });
+        // Update local count
+        r.usage_count = (r.usage_count||0) + 1;
+        renderCannedList();
+    }
+
+    function filterCanned() { renderCannedList(); }
+    function filterCannedCategory(cat, btn) {
+        _cannedCategory = cat;
+        if (btn) { btn.parentElement.querySelectorAll('.roi-range-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
+        renderCannedList();
+    }
+
+    async function deleteCanned(id) {
+        if (!confirm('Delete this canned response?')) return;
+        try {
+            const res = await fetch(`/api/canned-responses/${id}`,{method:'DELETE',headers});
+            if (!res.ok) { showToast('Failed to delete canned response','error'); return; }
+            _cannedResponses = _cannedResponses.filter(r => r.id !== id);
+            renderCannedList();
+            showToast('Canned response deleted','success');
+        } catch(e) { showToast('Failed to delete canned response','error'); }
+    }
+
+    function toggleCannedPanel() {
+        const p = document.getElementById('cannedPanel');
+        p.style.display = p.style.display === 'none' ? 'block' : 'none';
+    }
+    function toggleCannedManage() {
+        const p = document.getElementById('cannedManagePanel');
+        p.style.display = p.style.display === 'none' ? 'block' : 'none';
+    }
+
+    async function addCannedResponse() {
+        const title = document.getElementById('cannedNewTitle').value.trim();
+        const message = document.getElementById('cannedNewMessage').value.trim();
+        const category = document.getElementById('cannedNewCategory').value;
+        if (!title || !message) { showToast('Title and message required','error'); return; }
+        try {
+            const res = await fetch('/api/canned-responses',{method:'POST',headers,body:JSON.stringify({title,message,category})});
+            if (!res.ok) { showToast('Failed to add canned response','error'); return; }
+            document.getElementById('cannedNewTitle').value = '';
+            document.getElementById('cannedNewMessage').value = '';
+            await loadCannedResponses();
+            showToast('Canned response added','success');
+        } catch(e) { showToast('Failed to add canned response','error'); }
+    }
+
+    async function loadTransferStaff() {
+        try {
+            const res = await fetch('/api/admins', {headers});
+            const admins = await res.json();
+            const sel = document.getElementById('handoffTransferTo');
+            sel.innerHTML = '<option value="">Transfer to...</option>' + (admins||[]).map(a => `<option value="${a.id}" data-name="${escapeHtml(a.name)}">${escapeHtml(a.name)} (${escapeHtml(a.role)})</option>`).join('');
+        } catch(e) {}
+    }
+
+    async function transferHandoff() {
+        if (!_currentHandoffId) return;
+        const sel = document.getElementById('handoffTransferTo');
+        const staffId = sel.value;
+        if (!staffId) { showToast('Select a staff member','error'); return; }
+        const staffName = sel.options[sel.selectedIndex].dataset.name || '';
+        try {
+            const res = await fetch(`/api/handoffs/${_currentHandoffId}/transfer`,{method:'POST',headers,body:JSON.stringify({staff_user_id:parseInt(staffId),staff_name:staffName})});
+            if (!res.ok) { showToast('Failed to transfer handoff','error'); return; }
+            showToast('Handoff transferred','success');
+            loadHandoffs();
+        } catch(e) { showToast('Failed to transfer handoff','error'); }
+    }
+
+    // ═══════ Enhanced Unified Inbox (with SMS) ═══════
+    let _inboxChannelFilter = '';
+    let _currentInboxConvId = null;
+    let _currentInboxChannelType = '';
+    let _currentInboxSenderName = '';
+
+    let _inboxLoading = false;
+
+    function filterInboxChannel(ch, btn) {
+        _inboxChannelFilter = ch;
+        if (btn) { btn.parentElement.querySelectorAll('.roi-range-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
+        loadUnifiedInbox();
+    }
+
+    async function loadUnifiedInbox() {
+        if (_inboxLoading) return;
+        _inboxLoading = true;
+        // Load stats
+        try {
+            const statsRes = await fetch('/api/inbox/stats/enhanced', {headers});
+            const stats = await statsRes.json();
+            document.getElementById('inboxTotalConvos').textContent = stats.total_conversations || 0;
+            document.getElementById('inboxUnread').textContent = stats.unread || 0;
+            // Channel bars
+            const channels = stats.channels || {};
+            const channelColors = {web:'#a78bfa',whatsapp:'#25d366',facebook:'#1877f2',instagram:'#e1306c',sms:'#9ca3af'};
+            const channelLabels = {web:'Web',whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',sms:'SMS'};
+            const maxConvos = Math.max(1, ...Object.values(channels).map(c => c.conversations||0));
+            let barsHtml = '';
+            for (const [ch, data] of Object.entries(channels)) {
+                const pct = Math.round(((data.conversations||0)/maxConvos)*100);
+                barsHtml += `<div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.15rem">
+                    <span style="width:55px;text-align:right;color:${channelColors[ch]||'#9ca3af'}">${channelLabels[ch]||ch}</span>
+                    <div style="flex:1;background:rgba(255,255,255,0.06);border-radius:3px;height:10px;overflow:hidden">
+                        <div style="height:100%;width:${pct}%;background:${channelColors[ch]||'#9ca3af'};border-radius:3px"></div>
+                    </div>
+                    <span style="width:25px;color:var(--gray)">${data.conversations||0}</span>
+                </div>`;
+            }
+            document.getElementById('inboxChannelBars').innerHTML = barsHtml;
+        } catch(e) { console.error('Inbox stats error:', e); }
+
+        // Load analytics (avg response time, resolution rate)
+        try {
+            const analyticsRes = await fetch('/api/inbox/analytics', {headers});
+            const analytics = await analyticsRes.json();
+            // Average response time across all channels
+            const respTimes = analytics.response_times || {};
+            const respVals = Object.values(respTimes).filter(v => v > 0);
+            const avgResp = respVals.length > 0 ? (respVals.reduce((a,b) => a+b, 0) / respVals.length) : 0;
+            document.getElementById('inboxAvgResponse').textContent = avgResp > 0 ? (avgResp < 60 ? Math.round(avgResp) + 'm' : Math.round(avgResp/60) + 'h') : '--';
+            // Resolution rate across all channels
+            const resRates = analytics.resolution_rates || {};
+            let totalConvs = 0, totalResolved = 0;
+            Object.values(resRates).forEach(r => { totalConvs += r.total||0; totalResolved += r.resolved||0; });
+            const resRate = totalConvs > 0 ? Math.round(totalResolved/totalConvs*100) : 0;
+            document.getElementById('inboxResolutionRate').textContent = totalConvs > 0 ? resRate + '%' : '--';
+        } catch(e) { console.error('Inbox analytics error:', e); }
+
+        // Load conversations
+        let url = '/api/inbox/conversations?';
+        if (_inboxChannelFilter) url += 'channel=' + _inboxChannelFilter + '&';
+        const searchVal = (document.getElementById('inboxSearchInput')?.value || '').trim();
+        if (searchVal) url += 'search=' + encodeURIComponent(searchVal) + '&';
+
+        try {
+            const res = await fetch(url, {headers});
+            const convos = await res.json();
+            const c = document.getElementById('inboxConversationsList');
+            if (!convos.length) { c.innerHTML = '<span class="empty-msg">No conversations found.</span>'; return; }
+
+            const channelIcons = {
+                web: '<span style="color:#a78bfa" title="Web">&#127760;</span>',
+                whatsapp: '<span style="color:#25d366" title="WhatsApp">&#128241;</span>',
+                facebook: '<span style="color:#1877f2" title="Facebook">&#128101;</span>',
+                instagram: '<span style="color:#e1306c" title="Instagram">&#128248;</span>',
+                sms: '<span style="color:#9ca3af" title="SMS">&#128172;</span>',
+            };
+
+            c.innerHTML = convos.map(cv => {
+                const icon = channelIcons[cv.channel_type] || channelIcons.web;
+                const unreadBadge = cv.unread_count > 0 ? `<span style="background:var(--red);color:#fff;font-size:0.65rem;padding:0.05rem 0.35rem;border-radius:8px;font-weight:600">${cv.unread_count}</span>` : '';
+                const phoneDisplay = (cv.channel_type === 'sms' && cv.phone) ? `<span style="font-size:0.72rem;color:var(--cyan)">${escapeHtml(cv.phone)}</span>` : '';
+                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0.7rem;border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer;transition:background 0.2s" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background=''" onclick="openInboxConversation(${cv.id},'${escapeHtml(cv.sender_name||'').replace(/'/g,"\\'")}','${cv.channel_type}')">
+                    <div style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:0">
+                        ${icon}
+                        <div style="min-width:0;flex:1">
+                            <div style="display:flex;align-items:center;gap:0.3rem">
+                                <strong style="font-size:0.85rem">${escapeHtml(cv.sender_name||'Unknown')}</strong>
+                                ${unreadBadge}
+                                ${phoneDisplay}
+                            </div>
+                            <div style="font-size:0.72rem;color:var(--gray);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(cv.last_message_at||'')}</div>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        } catch(e) { console.error('Inbox load error:', e); showToast('Failed to load inbox conversations','error'); } finally { _inboxLoading = false; }
+    }
+
+    async function openInboxConversation(convId, senderName, channelType) {
+        _currentInboxConvId = convId;
+        if (channelType) _currentInboxChannelType = channelType;
+        if (senderName) _currentInboxSenderName = senderName;
+        const msgPanel = document.getElementById('inboxMessagePanel');
+        if (msgPanel) msgPanel.style.display = 'block';
+        const channelLabel = {web:'Web',whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',sms:'SMS'}[_currentInboxChannelType] || _currentInboxChannelType || '';
+        const msgTitle = document.getElementById('inboxMsgTitle');
+        if (msgTitle) msgTitle.textContent = (_currentInboxSenderName||'Unknown') + ' (' + channelLabel + ')';
+
+        try {
+            const res = await fetch(`/api/inbox/conversations/${convId}/messages`, {headers});
+            const msgs = await res.json();
+            const container = document.getElementById('inboxMessages');
+            if (!msgs.length) { container.innerHTML = '<span class="empty-msg">No messages.</span>'; return; }
+            container.innerHTML = msgs.map(m => {
+                const isOutbound = m.direction === 'outbound';
+                const bg = isOutbound ? 'rgba(139,92,246,0.12)' : 'rgba(255,255,255,0.04)';
+                const align = isOutbound ? 'flex-end' : 'flex-start';
+                return `<div style="display:flex;justify-content:${align};margin-bottom:0.4rem">
+                    <div style="background:${bg};border-radius:8px;padding:0.4rem 0.6rem;max-width:80%;font-size:0.82rem">
+                        <div style="font-size:0.68rem;color:var(--cyan);font-weight:600;margin-bottom:0.1rem">${escapeHtml(m.sender_name||'')}</div>
+                        <div>${escapeHtml(m.message_text||'')}</div>
+                        <div style="font-size:0.68rem;color:var(--gray);margin-top:0.15rem">${escapeHtml(m.created_at||'')}</div>
+                    </div>
+                </div>`;
+            }).join('');
+            container.scrollTop = container.scrollHeight;
+        } catch(e) { console.error(e); showToast('Failed to load messages','error'); }
+
+        // Refresh inbox list to clear unread badge
+        loadUnifiedInbox();
+    }
+
+    let _sendingInboxReply = false;
+    async function sendInboxReply() {
+        if (!_currentInboxConvId || _sendingInboxReply) return;
+        const input = document.getElementById('inboxReplyInput');
+        if (!input) return;
+        const text = input.value.trim();
+        if (!text) return;
+        _sendingInboxReply = true;
+        try {
+            const res = await fetch(`/api/inbox/conversations/${_currentInboxConvId}/reply`, {method:'POST',headers,body:JSON.stringify({text})});
+            if (!res.ok) { showToast('Failed to send reply','error'); return; }
+            input.value = '';
+            openInboxConversation(_currentInboxConvId,
+                _currentInboxSenderName,
+                _currentInboxChannelType);
+        } catch(e) { showToast('Failed to send reply','error'); }
+        finally { _sendingInboxReply = false; }
+    }
 
     // ═══════ Feature 11: Schedule Blocks ═══════
     async function loadScheduleBlocks() {
@@ -10434,6 +11579,7 @@ curl -X POST "${server}/api/external/booking" \\
 
     // ═══════ Feature 14: Referrals ═══════
     async function loadReferrals() {
+        try {
         const res = await fetch('/api/referral', {headers});
         const data = await res.json();
         document.getElementById('refLink').value = data.referral_link || '';
@@ -10442,6 +11588,7 @@ curl -X POST "${server}/api/external/booking" \\
         document.getElementById('refRewards').textContent = '$' + (data.total_rewards || 0);
         const list = data.referrals || [];
         document.getElementById('referralsList').innerHTML = list.length ? list.map(r => `<div style="font-size:0.82rem;padding:0.3rem 0;border-bottom:1px solid rgba(255,255,255,0.05)">${escapeHtml(r.referred_email)} — <span class="badge ${r.status==='converted'?'badge-green':'badge-yellow'}">${escapeHtml(r.status)}</span>${r.converted_at?' | Converted: '+escapeHtml(r.converted_at):''}</div>`).join('') : '<span class="empty-msg">No referrals yet. Share your link!</span>';
+        } catch(err) { showToast('Something went wrong', 'error'); }
     }
 
     // ═══════ Feature 15: Patients ═══════
@@ -10505,7 +11652,7 @@ curl -X POST "${server}/api/external/booking" \\
     }
 
     async function deleteCustomer(id, name) {
-        if (!(await softConfirm('This will remove <strong>' + name + '</strong> from your customers list. Their appointments will NOT be deleted. They will be treated as a new patient on their next booking.', { title: 'Remove customer?', okText: 'Remove' }))) return;
+        if (!(await softConfirm('This will remove ' + name + ' from your customers list. Their appointments will NOT be deleted. They will be treated as a new patient on their next booking.', { title: 'Remove customer?', okText: 'Remove' }))) return;
         try {
             const res = await fetch('/api/patients/' + id, { method: 'DELETE', headers });
             if (!res.ok) { const d = await res.json(); showToast(d.error || 'Failed to remove', 'error'); return; }
@@ -10593,6 +11740,7 @@ curl -X POST "${server}/api/external/booking" \\
 
     // ═══════ Feature 18: Loyalty ═══════
     async function loadLoyalty() {
+        try {
         const [configRes, statsRes] = await Promise.all([fetch('/api/loyalty/config',{headers}), fetch('/api/loyalty/stats',{headers})]);
         const config = await configRes.json();
         const stats = await statsRes.json();
@@ -10603,10 +11751,11 @@ curl -X POST "${server}/api/external/booking" \\
         document.getElementById('loyPtsForm').value = config.points_per_form || 25;
         document.getElementById('loyRedemption').value = config.redemption_value || 0.01;
         document.getElementById('loyaltyStats').innerHTML = `<div style="display:flex;gap:1.5rem;flex-wrap:wrap;font-size:0.85rem"><div>Members: <strong>${stats.total_members||0}</strong></div><div>Issued this month: <strong>${stats.issued_this_month||0} pts</strong></div><div>Redeemed this month: <strong>${stats.redeemed_this_month||0} pts</strong></div></div>${(stats.top_patients||[]).length?'<div style="margin-top:0.5rem;font-size:0.82rem"><strong>Top Patients:</strong> '+stats.top_patients.map(p=>escapeHtml(p.name)+' ('+p.loyalty_points+' pts)').join(', ')+'</div>':''}`;
+        } catch(err) { showToast('Something went wrong', 'error'); }
     }
 
     async function saveLoyaltyConfig() {
-        await fetch('/api/loyalty/config', {method:'POST',headers,body:JSON.stringify({is_active:document.getElementById('loyaltyToggle').checked?1:0,points_per_appointment:parseInt(document.getElementById('loyPtsAppt').value),points_per_referral:parseInt(document.getElementById('loyPtsRef').value),points_per_review:parseInt(document.getElementById('loyPtsReview').value),points_per_form:parseInt(document.getElementById('loyPtsForm').value),redemption_value:parseFloat(document.getElementById('loyRedemption').value)})});
+        await fetch('/api/loyalty/config', {method:'POST',headers,body:JSON.stringify({is_active:document.getElementById('loyaltyToggle').checked?1:0,points_per_appointment:parseInt(document.getElementById('loyPtsAppt').value)||0,points_per_referral:parseInt(document.getElementById('loyPtsRef').value)||0,points_per_review:parseInt(document.getElementById('loyPtsReview').value)||0,points_per_form:parseInt(document.getElementById('loyPtsForm').value)||0,redemption_value:parseFloat(document.getElementById('loyRedemption').value)||0})});
         showToast('Loyalty config saved','success');
     }
 
@@ -11473,6 +12622,596 @@ function filterAdminCards() {
     }
 }
 </script>
+
+<!-- ═══ FLOW BUILDER ENGINE ═══ -->
+<script>
+(function(){
+    var fbFlows = [];
+    var fbCurrentFlow = null; // {id, name, description, flow_data}
+    var fbNodes = []; // [{id, type, x, y, data}]
+    var fbConnections = []; // [{from, to, label}]
+    var fbSelectedNode = null;
+    var fbDragNode = null;
+    var fbDragOffset = {x:0, y:0};
+    var fbConnecting = null; // {fromId, portType}
+    var fbIdCounter = 1;
+    var fbTestStep = null;
+
+    var TOKEN = function(){ return localStorage.getItem('token') || ''; };
+    var HEADERS = function(){ return {'Authorization':'Bearer '+TOKEN(), 'Content-Type':'application/json'}; };
+
+    // Templates
+    var FB_TEMPLATES = {
+        appointment: {
+            name: 'Appointment Booking Flow',
+            description: 'Books appointments through a guided conversation',
+            flow_data: {
+                nodes: [
+                    {id:'n1',type:'message',x:350,y:40,data:{text:'Welcome! I can help you book an appointment today.',delay:1}},
+                    {id:'n2',type:'question',x:350,y:180,data:{text:'What service are you interested in?',variable:'service'}},
+                    {id:'n3',type:'question',x:350,y:320,data:{text:'Which doctor would you prefer?',variable:'doctor'}},
+                    {id:'n4',type:'question',x:350,y:460,data:{text:'What date and time works for you?',variable:'date_time'}},
+                    {id:'n5',type:'action',x:350,y:600,data:{action:'book_appointment',text:'Booking your appointment...'}},
+                    {id:'n6',type:'message',x:350,y:740,data:{text:'Your appointment has been confirmed! You will receive a confirmation email shortly.',delay:0}}
+                ],
+                connections: [
+                    {from:'n1',to:'n2'},{from:'n2',to:'n3'},{from:'n3',to:'n4'},{from:'n4',to:'n5'},{from:'n5',to:'n6'}
+                ],
+                startNode: 'n1'
+            }
+        },
+        lead: {
+            name: 'Lead Capture Flow',
+            description: 'Captures visitor information for follow-up',
+            flow_data: {
+                nodes: [
+                    {id:'n1',type:'message',x:350,y:40,data:{text:'Hi there! I would love to learn more about you.',delay:1}},
+                    {id:'n2',type:'question',x:350,y:180,data:{text:'What is your name?',variable:'name'}},
+                    {id:'n3',type:'question',x:350,y:320,data:{text:'What is your email address?',variable:'email'}},
+                    {id:'n4',type:'button',x:350,y:460,data:{text:'What are you interested in?',buttons:['General Inquiry','Pricing Info','Book a Demo','Other']}},
+                    {id:'n5',type:'action',x:350,y:620,data:{action:'capture_lead',text:'Saving your information...'}},
+                    {id:'n6',type:'message',x:350,y:760,data:{text:'Thank you! Our team will get back to you within 24 hours.',delay:0}}
+                ],
+                connections: [
+                    {from:'n1',to:'n2'},{from:'n2',to:'n3'},{from:'n3',to:'n4'},{from:'n4',to:'n5'},{from:'n5',to:'n6'}
+                ],
+                startNode: 'n1'
+            }
+        },
+        faq: {
+            name: 'FAQ + Handoff Flow',
+            description: 'Answers common questions with human handoff option',
+            flow_data: {
+                nodes: [
+                    {id:'n1',type:'message',x:350,y:40,data:{text:'Hello! How can I help you today?',delay:1}},
+                    {id:'n2',type:'button',x:350,y:180,data:{text:'Choose a topic:',buttons:['Services & Pricing','Hours & Location','Insurance','Talk to Someone']}},
+                    {id:'n3',type:'message',x:100,y:360,data:{text:'We offer dental cleanings ($99), whitening ($199), and free consultations. Would you like to book?',delay:1}},
+                    {id:'n4',type:'message',x:350,y:360,data:{text:'We are open Mon-Fri 9AM-5PM at 123 Main St.',delay:1}},
+                    {id:'n5',type:'message',x:600,y:360,data:{text:'We accept most major insurance plans. Contact us for specific coverage details.',delay:1}},
+                    {id:'n6',type:'action',x:850,y:360,data:{action:'handoff_human',text:'Connecting you with a team member...'}},
+                    {id:'n7',type:'button',x:350,y:520,data:{text:'Was this helpful?',buttons:['Yes, thanks!','No, talk to someone']}},
+                    {id:'n8',type:'message',x:200,y:680,data:{text:'Glad I could help! Have a great day!',delay:0}},
+                    {id:'n9',type:'action',x:500,y:680,data:{action:'handoff_human',text:'Connecting you with a team member...'}}
+                ],
+                connections: [
+                    {from:'n1',to:'n2'},
+                    {from:'n2',to:'n3',label:'Services & Pricing'},
+                    {from:'n2',to:'n4',label:'Hours & Location'},
+                    {from:'n2',to:'n5',label:'Insurance'},
+                    {from:'n2',to:'n6',label:'Talk to Someone'},
+                    {from:'n3',to:'n7'},{from:'n4',to:'n7'},{from:'n5',to:'n7'},
+                    {from:'n7',to:'n8',label:'Yes, thanks!'},
+                    {from:'n7',to:'n9',label:'No, talk to someone'}
+                ],
+                startNode: 'n1'
+            }
+        }
+    };
+
+    var NODE_COLORS = {
+        message: {bg:'rgba(139,92,246,0.1)', border:'rgba(139,92,246,0.3)', label:'#c4b5fd', icon:'&#128172;'},
+        question: {bg:'rgba(59,130,246,0.1)', border:'rgba(59,130,246,0.3)', label:'#93c5fd', icon:'&#10067;'},
+        button: {bg:'rgba(236,72,153,0.1)', border:'rgba(236,72,153,0.3)', label:'#f9a8d4', icon:'&#128290;'},
+        condition: {bg:'rgba(251,191,36,0.1)', border:'rgba(251,191,36,0.3)', label:'#fde68a', icon:'&#9881;'},
+        action: {bg:'rgba(52,211,153,0.1)', border:'rgba(52,211,153,0.3)', label:'#6ee7b7', icon:'&#9889;'},
+        delay: {bg:'rgba(6,182,212,0.1)', border:'rgba(6,182,212,0.3)', label:'#67e8f9', icon:'&#9202;'}
+    };
+
+    window.loadFlowBuilder = function(){
+        fetch('/api/chatbot-flows', {headers:HEADERS()})
+        .then(r=>r.json())
+        .then(data=>{
+            if(Array.isArray(data)) fbFlows = data;
+            else fbFlows = [];
+            renderFlowList();
+        })
+        .catch(()=>{ fbFlows = []; renderFlowList(); });
+    };
+
+    function renderFlowList(){
+        var el = document.getElementById('fb-flows-list');
+        if(!el) return;
+        if(!fbFlows.length){
+            el.innerHTML = '<div style="text-align:center;padding:2.5rem;color:var(--gray)"><div style="font-size:2.5rem;margin-bottom:0.5rem">&#128270;</div><p style="font-size:0.92rem;font-weight:600">No flows yet</p><p style="font-size:0.82rem;margin-top:0.25rem">Create a new flow or start from a template above</p></div>';
+            return;
+        }
+        var html = '';
+        fbFlows.forEach(function(f){
+            var badge = f.is_active ? '<span class="fb-active-badge">Active</span>' : '<span class="fb-inactive-badge">Inactive</span>';
+            var dt = f.updated_at ? new Date(f.updated_at).toLocaleDateString() : '';
+            html += '<div class="fb-flow-card">' +
+                '<div style="flex:1;min-width:0">' +
+                    '<div style="display:flex;align-items:center;gap:0.5rem"><span style="font-weight:700;font-size:0.95rem">' + escHTML(f.name) + '</span> ' + badge + '</div>' +
+                    '<div style="color:var(--gray);font-size:0.78rem;margin-top:0.2rem">' + escHTML(f.description||'No description') + ' &bull; Updated ' + dt + '</div>' +
+                '</div>' +
+                '<div style="display:flex;gap:0.4rem;flex-shrink:0">' +
+                    '<button class="btn-secondary" onclick="fbEditFlow('+f.id+')" style="font-size:0.75rem;padding:0.3rem 0.8rem;border-radius:8px">Edit</button>' +
+                    (!f.is_active ? '<button class="btn-secondary" onclick="fbActivateFromList('+f.id+')" style="font-size:0.75rem;padding:0.3rem 0.8rem;border-radius:8px;border-color:rgba(52,211,153,0.2);color:var(--green)">Activate</button>' : '') +
+                    '<button class="btn-secondary" onclick="fbDeleteFlow('+f.id+')" style="font-size:0.75rem;padding:0.3rem 0.8rem;border-radius:8px;border-color:rgba(248,113,113,0.2);color:var(--red)">Delete</button>' +
+                '</div>' +
+            '</div>';
+        });
+        el.innerHTML = html;
+    }
+
+    function escHTML(s){ var d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+    window.fbCreateNew = function(){
+        fbCurrentFlow = {id:null, name:'', description:'', flow_data:{nodes:[],connections:[],startNode:null}};
+        fbNodes = []; fbConnections = []; fbSelectedNode = null; fbIdCounter = 1;
+        openEditor();
+    };
+
+    window.fbCreateFromTemplate = function(tpl){
+        var t = FB_TEMPLATES[tpl];
+        if(!t) return;
+        var fd = JSON.parse(JSON.stringify(t.flow_data));
+        fbCurrentFlow = {id:null, name:t.name, description:t.description, flow_data:fd};
+        fbNodes = fd.nodes || [];
+        fbConnections = fd.connections || [];
+        fbSelectedNode = null;
+        fbIdCounter = 100;
+        openEditor();
+    };
+
+    window.fbEditFlow = function(id){
+        fetch('/api/chatbot-flows/'+id, {headers:HEADERS()})
+        .then(r=>r.json())
+        .then(data=>{
+            if(data.error) { showToast(data.error,'error'); return; }
+            fbCurrentFlow = data;
+            var fd = data.flow_data || {};
+            fbNodes = fd.nodes || [];
+            fbConnections = fd.connections || [];
+            fbSelectedNode = null;
+            fbIdCounter = 100 + fbNodes.length;
+            openEditor();
+        })
+        .catch(()=>{ showToast('Failed to load flow','error'); });
+    };
+
+    window.fbDeleteFlow = function(id){
+        if(!confirm('Delete this flow?')) return;
+        fetch('/api/chatbot-flows/'+id, {method:'DELETE', headers:HEADERS()})
+        .then(r=>r.json())
+        .then(data=>{ if(data.error || data.ok === false) { showToast(data.error || 'Failed to delete flow','error'); return; } showToast('Flow deleted','success'); loadFlowBuilder(); })
+        .catch(()=>{ showToast('Failed to delete flow','error'); });
+    };
+
+    window.fbActivateFromList = function(id){
+        fetch('/api/chatbot-flows/'+id+'/activate', {method:'POST', headers:HEADERS()})
+        .then(r=>r.json())
+        .then(data=>{ if(data.error || data.ok === false) { showToast(data.error || 'Failed to activate flow','error'); return; } showToast('Flow activated','success'); loadFlowBuilder(); })
+        .catch(()=>{ showToast('Failed to activate flow','error'); });
+    };
+
+    function openEditor(){
+        document.getElementById('fb-list-view').style.display = 'none';
+        document.getElementById('fb-editor-view').style.display = 'block';
+        document.getElementById('fb-flow-name').value = fbCurrentFlow.name || '';
+        document.getElementById('fb-flow-desc').value = fbCurrentFlow.description || '';
+        renderCanvas();
+        lucide.createIcons();
+    }
+
+    window.fbBackToList = function(){
+        document.getElementById('fb-editor-view').style.display = 'none';
+        document.getElementById('fb-list-view').style.display = 'block';
+        loadFlowBuilder();
+    };
+
+    var _fbSaving = false;
+    window.fbSaveFlow = function(){
+        if(_fbSaving) return;
+        var name = document.getElementById('fb-flow-name').value.trim();
+        if(!name) { showToast('Please enter a flow name','warning'); return; }
+        var desc = document.getElementById('fb-flow-desc').value.trim();
+        var fd = {nodes:fbNodes, connections:fbConnections, startNode: fbNodes.length ? fbNodes[0].id : null};
+        var body = JSON.stringify({name:name, description:desc, flow_data:fd});
+        _fbSaving = true;
+        if(fbCurrentFlow.id){
+            fetch('/api/chatbot-flows/'+fbCurrentFlow.id, {method:'PUT', headers:HEADERS(), body:body})
+            .then(r=>r.json())
+            .then(d=>{ if(d.ok) showToast('Flow saved!','success'); else showToast(d.error||'Error','error'); })
+            .catch(()=>{ showToast('Failed to save flow','error'); })
+            .finally(()=>{ _fbSaving = false; });
+        } else {
+            fetch('/api/chatbot-flows', {method:'POST', headers:HEADERS(), body:body})
+            .then(r=>r.json())
+            .then(d=>{
+                if(d.ok){ fbCurrentFlow.id = d.flow.id; showToast('Flow created!','success'); }
+                else showToast(d.error||'Error','error');
+            })
+            .catch(()=>{ showToast('Failed to create flow','error'); })
+            .finally(()=>{ _fbSaving = false; });
+        }
+    };
+
+    window.fbActivateFlow = function(){
+        if(!fbCurrentFlow.id) { showToast('Save the flow first','warning'); return; }
+        fetch('/api/chatbot-flows/'+fbCurrentFlow.id+'/activate', {method:'POST', headers:HEADERS()})
+        .then(r=>r.json())
+        .then(d=>{ if(d.ok) showToast('Flow activated!','success'); else showToast(d.error||'Error','error'); })
+        .catch(()=>{ showToast('Failed to activate flow','error'); });
+    };
+
+    // ── Canvas Rendering ──
+    var fbCanvasDragInitialized = false;
+    function renderCanvas(){
+        var canvas = document.getElementById('fb-canvas');
+        canvas.innerHTML = '';
+        fbNodes.forEach(function(n){ canvas.appendChild(createNodeEl(n)); });
+        drawConnections();
+        if(!fbCanvasDragInitialized) { setupCanvasDragDrop(); fbCanvasDragInitialized = true; }
+    }
+
+    function createNodeEl(n){
+        var colors = NODE_COLORS[n.type] || NODE_COLORS.message;
+        var el = document.createElement('div');
+        el.className = 'fb-node' + (fbSelectedNode === n.id ? ' selected' : '');
+        el.id = 'fb-n-' + n.id;
+        el.style.left = n.x + 'px';
+        el.style.top = n.y + 'px';
+        el.style.borderColor = colors.border;
+
+        var bodyText = '';
+        if(n.type === 'message') bodyText = escHTML(n.data.text || 'Message text...');
+        else if(n.type === 'question') bodyText = escHTML(n.data.text || 'Question...') + '<br><span style="color:#93c5fd;font-size:0.7rem">$' + escHTML(n.data.variable||'answer') + '</span>';
+        else if(n.type === 'button') bodyText = escHTML(n.data.text||'Choose:') + '<br>' + (n.data.buttons||[]).map(function(b){return '<span style="display:inline-block;background:rgba(236,72,153,0.1);border:1px solid rgba(236,72,153,0.2);border-radius:20px;padding:1px 6px;font-size:0.68rem;margin:1px;color:#f9a8d4">'+escHTML(b)+'</span>';}).join('');
+        else if(n.type === 'condition') bodyText = 'If $' + escHTML(n.data.variable||'var') + ' ' + escHTML(n.data.operator||'contains') + ' "' + escHTML(n.data.value||'') + '"';
+        else if(n.type === 'action') bodyText = '<span style="color:#6ee7b7;font-weight:600">' + escHTML((n.data.action||'action').replace(/_/g,' ')) + '</span>';
+        else if(n.type === 'delay') bodyText = 'Wait ' + (n.data.seconds||3) + ' seconds';
+
+        // Build full innerHTML in one shot to avoid destroying event listeners with innerHTML +=
+        var portsHtml = '<div class="fb-node-port port-in" data-node="'+n.id+'" data-port="in"></div>';
+        if(n.type === 'condition'){
+            portsHtml += '<div class="fb-node-port port-true" data-node="'+n.id+'" data-port="true" title="True"></div>';
+            portsHtml += '<div class="fb-node-port port-false" data-node="'+n.id+'" data-port="false" title="False"></div>';
+        } else if(n.type === 'button' && n.data.buttons && n.data.buttons.length > 0){
+            n.data.buttons.forEach(function(b, i){
+                var pct = ((i+1) / (n.data.buttons.length+1)) * 100;
+                portsHtml += '<div class="fb-node-port port-btn" data-node="'+n.id+'" data-port="btn-'+i+'" data-label="'+escHTML(b)+'" style="left:'+pct+'%;margin-left:-6px" title="'+escHTML(b)+'"></div>';
+            });
+        } else {
+            portsHtml += '<div class="fb-node-port port-out" data-node="'+n.id+'" data-port="out"></div>';
+        }
+        el.innerHTML = '<div class="fb-node-header" style="color:' + colors.label + '">' + colors.icon + ' ' + n.type.toUpperCase() + '</div>' +
+            '<div class="fb-node-body">' + bodyText + '</div>' +
+            '<button class="fb-node-delete" onclick="event.stopPropagation();fbRemoveNode(\''+n.id+'\')">&times;</button>' +
+            portsHtml;
+
+        // Node dragging - store grab point relative to node's screen position
+        el.addEventListener('mousedown', function(e){
+            if(e.target.classList.contains('fb-node-port') || e.target.classList.contains('fb-node-delete')) return;
+            e.preventDefault();
+            fbDragNode = n;
+            var nodeRect = el.getBoundingClientRect();
+            fbDragOffset = {x: e.clientX - nodeRect.left, y: e.clientY - nodeRect.top};
+            selectNode(n.id);
+        });
+
+        // Click to select
+        el.addEventListener('click', function(e){
+            if(!e.target.classList.contains('fb-node-port')) selectNode(n.id);
+        });
+
+        // Port connection handling
+        el.querySelectorAll('.fb-node-port').forEach(function(port){
+            port.addEventListener('mousedown', function(e){
+                e.stopPropagation();
+                var portType = port.dataset.port;
+                if(portType === 'in') return; // Can't start connection from input
+                fbConnecting = {fromId: n.id, portType: portType, label: port.dataset.label || ''};
+            });
+            port.addEventListener('mouseup', function(e){
+                e.stopPropagation();
+                var portType = port.dataset.port;
+                if(portType !== 'in') return;
+                if(fbConnecting && fbConnecting.fromId !== n.id){
+                    var label = fbConnecting.label || '';
+                    // Remove existing connection from same port
+                    fbConnections = fbConnections.filter(function(c){
+                        if(c.from === fbConnecting.fromId && c.label === label) return false;
+                        return true;
+                    });
+                    fbConnections.push({from: fbConnecting.fromId, to: n.id, label: label});
+                    drawConnections();
+                }
+                fbConnecting = null;
+            });
+        });
+
+        return el;
+    }
+
+    function selectNode(id){
+        fbSelectedNode = id;
+        document.querySelectorAll('.fb-node').forEach(function(el){ el.classList.remove('selected'); });
+        var el = document.getElementById('fb-n-' + id);
+        if(el) el.classList.add('selected');
+        showProps(id);
+    }
+
+    function showProps(id){
+        var panel = document.getElementById('fb-props-panel');
+        var content = document.getElementById('fb-props-content');
+        var n = fbNodes.find(function(nd){ return nd.id === id; });
+        if(!n) { panel.style.display = 'none'; return; }
+        panel.style.display = 'block';
+        var html = '';
+        if(n.type === 'message'){
+            html += '<div class="form-group"><label class="form-label">Message Text</label><textarea class="form-input" id="fp-text" rows="3" oninput="fbUpdateProp(\''+id+'\',\'text\',this.value)">'+escHTML(n.data.text||'')+'</textarea></div>';
+            html += '<div class="form-group"><label class="form-label">Typing Delay (sec)</label><input type="number" class="form-input" id="fp-delay" value="'+(n.data.delay||1)+'" min="0" max="10" oninput="fbUpdateProp(\''+id+'\',\'delay\',parseInt(this.value))"></div>';
+        } else if(n.type === 'question'){
+            html += '<div class="form-group"><label class="form-label">Question Text</label><textarea class="form-input" id="fp-text" rows="3" oninput="fbUpdateProp(\''+id+'\',\'text\',this.value)">'+escHTML(n.data.text||'')+'</textarea></div>';
+            html += '<div class="form-group"><label class="form-label">Variable Name</label><input type="text" class="form-input" value="'+escHTML(n.data.variable||'')+'" oninput="fbUpdateProp(\''+id+'\',\'variable\',this.value)"></div>';
+        } else if(n.type === 'button'){
+            html += '<div class="form-group"><label class="form-label">Prompt Text</label><textarea class="form-input" rows="2" oninput="fbUpdateProp(\''+id+'\',\'text\',this.value)">'+escHTML(n.data.text||'')+'</textarea></div>';
+            html += '<div class="form-group"><label class="form-label">Button Labels (one per line)</label><textarea class="form-input" rows="4" id="fp-btns" oninput="fbUpdateButtons(\''+id+'\',this.value)">'+(n.data.buttons||[]).join('\n')+'</textarea></div>';
+        } else if(n.type === 'condition'){
+            html += '<div class="form-group"><label class="form-label">Variable</label><input type="text" class="form-input" value="'+escHTML(n.data.variable||'')+'" oninput="fbUpdateProp(\''+id+'\',\'variable\',this.value)"></div>';
+            html += '<div class="form-group"><label class="form-label">Operator</label><select class="form-input" onchange="fbUpdateProp(\''+id+'\',\'operator\',this.value)"><option'+(n.data.operator==='contains'?' selected':'')+'>contains</option><option'+(n.data.operator==='equals'?' selected':'')+'>equals</option><option'+(n.data.operator==='regex'?' selected':'')+'>regex</option></select></div>';
+            html += '<div class="form-group"><label class="form-label">Value</label><input type="text" class="form-input" value="'+escHTML(n.data.value||'')+'" oninput="fbUpdateProp(\''+id+'\',\'value\',this.value)"></div>';
+        } else if(n.type === 'action'){
+            html += '<div class="form-group"><label class="form-label">Action Type</label><select class="form-input" onchange="fbUpdateProp(\''+id+'\',\'action\',this.value)">';
+            ['book_appointment','capture_lead','handoff_human','send_email'].forEach(function(a){
+                html += '<option value="'+a+'"'+(n.data.action===a?' selected':'')+'>'+a.replace(/_/g,' ')+'</option>';
+            });
+            html += '</select></div>';
+        } else if(n.type === 'delay'){
+            html += '<div class="form-group"><label class="form-label">Delay (seconds)</label><input type="number" class="form-input" value="'+(n.data.seconds||3)+'" min="1" max="60" oninput="fbUpdateProp(\''+id+'\',\'seconds\',parseInt(this.value))"></div>';
+        }
+        html += '<div style="margin-top:1rem;padding-top:0.75rem;border-top:1px solid var(--card-border)"><button class="btn-secondary" onclick="fbRemoveNode(\''+id+'\')" style="font-size:0.78rem;padding:0.35rem 0.8rem;border-radius:8px;border-color:rgba(248,113,113,0.2);color:var(--red);width:100%">Delete Node</button></div>';
+        content.innerHTML = html;
+    }
+
+    window.fbUpdateProp = function(id, key, val){
+        var n = fbNodes.find(function(nd){ return nd.id === id; });
+        if(n) { n.data[key] = val; renderCanvas(); selectNode(id); }
+    };
+
+    window.fbUpdateButtons = function(id, val){
+        var n = fbNodes.find(function(nd){ return nd.id === id; });
+        if(n) {
+            n.data.buttons = val.split('\n').map(function(s){return s.trim();}).filter(Boolean).slice(0,4);
+            // Remove connections for deleted buttons
+            var validLabels = n.data.buttons.slice();
+            fbConnections = fbConnections.filter(function(c){ return c.from !== id || !c.label || validLabels.includes(c.label); });
+            renderCanvas(); selectNode(id);
+        }
+    };
+
+    window.fbRemoveNode = function(id){
+        fbNodes = fbNodes.filter(function(nd){ return nd.id !== id; });
+        fbConnections = fbConnections.filter(function(c){ return c.from !== id && c.to !== id; });
+        if(fbSelectedNode === id) { fbSelectedNode = null; document.getElementById('fb-props-panel').style.display = 'none'; }
+        renderCanvas();
+    };
+
+    // ── Connection Drawing ──
+    function drawConnections(){
+        var svg = document.getElementById('fb-svg-lines');
+        svg.innerHTML = '';
+        fbConnections.forEach(function(c){
+            var fromEl = document.getElementById('fb-n-' + c.from);
+            var toEl = document.getElementById('fb-n-' + c.to);
+            if(!fromEl || !toEl) return;
+            // Find output port by iterating (safe for labels with special chars)
+            var fromPort = null;
+            if(c.label){
+                var allPorts = fromEl.querySelectorAll('.fb-node-port');
+                for(var pi=0;pi<allPorts.length;pi++){ if(allPorts[pi].dataset.label===c.label){fromPort=allPorts[pi];break;} }
+            }
+            if(!fromPort) fromPort = fromEl.querySelector('.port-out') || fromEl.querySelector('.port-true');
+            if(!fromPort) return;
+            var toPort = toEl.querySelector('.port-in');
+            if(!toPort) return;
+            var x1 = fromEl.offsetLeft + fromPort.offsetLeft + 6;
+            var y1 = fromEl.offsetTop + fromEl.offsetHeight;
+            var x2 = toEl.offsetLeft + toPort.offsetLeft + 6;
+            var y2 = toEl.offsetTop;
+            var midY = (y1 + y2) / 2;
+            var path = document.createElementNS('http://www.w3.org/2000/svg','path');
+            path.setAttribute('d', 'M'+x1+','+y1+' C'+x1+','+midY+' '+x2+','+midY+' '+x2+','+y2);
+            path.setAttribute('fill','none');
+            path.setAttribute('stroke','rgba(139,92,246,0.4)');
+            path.setAttribute('stroke-width','2');
+            svg.appendChild(path);
+            // Label
+            if(c.label){
+                var text = document.createElementNS('http://www.w3.org/2000/svg','text');
+                text.setAttribute('x', (x1+x2)/2);
+                text.setAttribute('y', midY - 5);
+                text.setAttribute('fill','rgba(196,181,253,0.7)');
+                text.setAttribute('font-size','10');
+                text.setAttribute('text-anchor','middle');
+                text.textContent = c.label;
+                svg.appendChild(text);
+            }
+        });
+    }
+
+    // ── Drag & Drop from palette ──
+    function setupCanvasDragDrop(){
+        var canvasWrap = document.getElementById('fb-canvas-wrap');
+        document.querySelectorAll('.fb-node-type').forEach(function(nt){
+            nt.addEventListener('dragstart', function(e){
+                e.dataTransfer.setData('node-type', nt.dataset.nodeType);
+            });
+        });
+        canvasWrap.addEventListener('dragover', function(e){ e.preventDefault(); });
+        canvasWrap.addEventListener('drop', function(e){
+            e.preventDefault();
+            var type = e.dataTransfer.getData('node-type');
+            if(!type) return;
+            var rect = canvasWrap.getBoundingClientRect();
+            var x = e.clientX - rect.left + canvasWrap.scrollLeft - 90;
+            var y = e.clientY - rect.top + canvasWrap.scrollTop - 30;
+            var id = 'node_' + (fbIdCounter++);
+            var data = {};
+            if(type==='message') data = {text:'Hello!',delay:1};
+            else if(type==='question') data = {text:'What is your name?',variable:'name'};
+            else if(type==='button') data = {text:'Choose an option:',buttons:['Option A','Option B']};
+            else if(type==='condition') data = {variable:'answer',operator:'contains',value:''};
+            else if(type==='action') data = {action:'book_appointment',text:''};
+            else if(type==='delay') data = {seconds:3};
+            fbNodes.push({id:id, type:type, x:Math.max(0,x), y:Math.max(0,y), data:data});
+            renderCanvas();
+        });
+    }
+
+    // ── Mouse move for node dragging ──
+    document.addEventListener('mousemove', function(e){
+        if(!fbDragNode) return;
+        var wrap = document.getElementById('fb-canvas-wrap');
+        var wrapRect = wrap.getBoundingClientRect();
+        // Convert screen coords to canvas coords: subtract wrap position, add scroll, subtract grab offset
+        var newX = e.clientX - fbDragOffset.x - wrapRect.left + wrap.scrollLeft;
+        var newY = e.clientY - fbDragOffset.y - wrapRect.top + wrap.scrollTop;
+        fbDragNode.x = Math.max(0, newX);
+        fbDragNode.y = Math.max(0, newY);
+        var el = document.getElementById('fb-n-' + fbDragNode.id);
+        if(el) { el.style.left = fbDragNode.x + 'px'; el.style.top = fbDragNode.y + 'px'; }
+        drawConnections();
+    });
+
+    document.addEventListener('mouseup', function(){
+        fbDragNode = null;
+        fbConnecting = null;
+    });
+
+    // ── Flow Test ──
+    window.fbTestFlow = function(){
+        var modal = document.getElementById('fb-test-modal');
+        var chat = document.getElementById('fb-test-chat');
+        modal.style.display = 'flex';
+        chat.innerHTML = '';
+        var startId = (fbNodes.length > 0) ? fbNodes[0].id : null;
+        if(!startId || !fbNodes.length) {
+            chat.innerHTML = '<div class="fb-test-msg bot">No nodes in this flow. Add some nodes first!</div>';
+            return;
+        }
+        fbTestStep = {currentNodeId: startId, variables: {}};
+        fbTestProcessNode();
+    };
+
+    function fbTestProcessNode(){
+        var chat = document.getElementById('fb-test-chat');
+        if(!fbTestStep || !fbTestStep.currentNodeId) {
+            chat.innerHTML += '<div class="fb-test-msg bot" style="color:var(--green);font-weight:600">--- End of Flow ---</div>';
+            return;
+        }
+        var n = fbNodes.find(function(nd){ return nd.id === fbTestStep.currentNodeId; });
+        if(!n) { chat.innerHTML += '<div class="fb-test-msg bot" style="color:var(--red)">Error: node not found</div>'; return; }
+
+        if(n.type === 'message'){
+            var delay = (n.data.delay || 0) * 200; // Simulate faster for test
+            setTimeout(function(){
+                chat.innerHTML += '<div class="fb-test-msg bot">' + escHTML(n.data.text||'') + '</div>';
+                chat.scrollTop = chat.scrollHeight;
+                fbTestAdvance(n.id);
+            }, Math.min(delay, 500));
+        } else if(n.type === 'question'){
+            chat.innerHTML += '<div class="fb-test-msg bot">' + escHTML(n.data.text||'') + '</div>';
+            chat.scrollTop = chat.scrollHeight;
+            fbTestStep.waitingFor = 'question';
+            fbTestStep.variableName = n.data.variable || 'answer';
+        } else if(n.type === 'button'){
+            var btnsHtml = '<div class="fb-test-btns">';
+            (n.data.buttons||[]).forEach(function(b){
+                btnsHtml += '<button class="fb-test-btn" onclick="fbTestClickBtn(\''+escHTML(b)+'\',\''+n.id+'\')">' + escHTML(b) + '</button>';
+            });
+            btnsHtml += '</div>';
+            chat.innerHTML += '<div class="fb-test-msg bot">' + escHTML(n.data.text||'') + btnsHtml + '</div>';
+            chat.scrollTop = chat.scrollHeight;
+            fbTestStep.waitingFor = 'button';
+        } else if(n.type === 'condition'){
+            var varVal = fbTestStep.variables[n.data.variable||''] || '';
+            var match = false;
+            if(n.data.operator === 'contains') match = varVal.toLowerCase().includes((n.data.value||'').toLowerCase());
+            else if(n.data.operator === 'equals') match = varVal.toLowerCase() === (n.data.value||'').toLowerCase();
+            else if(n.data.operator === 'regex') { try { match = new RegExp(n.data.value||'','i').test(varVal); } catch(e){} }
+            var next = fbConnections.find(function(c){ return c.from === n.id; });
+            // Find true/false connections - for condition nodes, we use label or just first/second
+            var trueConn = fbConnections.filter(function(c){ return c.from === n.id; });
+            if(match && trueConn.length > 0) fbTestStep.currentNodeId = trueConn[0].to;
+            else if(!match && trueConn.length > 1) fbTestStep.currentNodeId = trueConn[1].to;
+            else fbTestStep.currentNodeId = null;
+            fbTestProcessNode();
+        } else if(n.type === 'action'){
+            chat.innerHTML += '<div class="fb-test-msg bot" style="color:var(--green)">&#9889; Action: ' + escHTML((n.data.action||'').replace(/_/g,' ')) + '</div>';
+            chat.scrollTop = chat.scrollHeight;
+            setTimeout(function(){ fbTestAdvance(n.id); }, 300);
+        } else if(n.type === 'delay'){
+            chat.innerHTML += '<div class="fb-test-msg bot" style="color:var(--gray);font-style:italic">Waiting ' + (n.data.seconds||3) + ' seconds...</div>';
+            chat.scrollTop = chat.scrollHeight;
+            setTimeout(function(){ fbTestAdvance(n.id); }, 500);
+        }
+    }
+
+    function fbTestAdvance(fromId, label){
+        var conn;
+        if(label){
+            conn = fbConnections.find(function(c){ return c.from === fromId && c.label === label; });
+        }
+        if(!conn){
+            conn = fbConnections.find(function(c){ return c.from === fromId && !c.label; });
+        }
+        if(!conn){
+            conn = fbConnections.find(function(c){ return c.from === fromId; });
+        }
+        fbTestStep.currentNodeId = conn ? conn.to : null;
+        fbTestProcessNode();
+    }
+
+    window.fbTestSend = function(){
+        var input = document.getElementById('fb-test-input');
+        var msg = input.value.trim();
+        if(!msg || !fbTestStep) return;
+        input.value = '';
+        var chat = document.getElementById('fb-test-chat');
+        chat.innerHTML += '<div class="fb-test-msg user">' + escHTML(msg) + '</div>';
+        chat.scrollTop = chat.scrollHeight;
+        if(fbTestStep.waitingFor === 'question'){
+            fbTestStep.variables[fbTestStep.variableName] = msg;
+            fbTestStep.waitingFor = null;
+            fbTestAdvance(fbTestStep.currentNodeId);
+        } else if(fbTestStep.waitingFor === 'button'){
+            // Treat typed response as button click
+            fbTestClickBtn(msg, fbTestStep.currentNodeId);
+        }
+    };
+
+    window.fbTestClickBtn = function(label, nodeId){
+        var chat = document.getElementById('fb-test-chat');
+        chat.innerHTML += '<div class="fb-test-msg user">' + escHTML(label) + '</div>';
+        chat.scrollTop = chat.scrollHeight;
+        fbTestStep.waitingFor = null;
+        fbTestAdvance(nodeId, label);
+    };
+})();
+</script>
+
 <script>lucide.createIcons();</script>
 
 <script src="/static/support-bot.js"></script>

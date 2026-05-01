@@ -4,6 +4,7 @@ Creates, manages, and renders invoices for dental clinic bookings.
 Generates HTML invoices styled for printing (no reportlab dependency required).
 Includes ZATCA QR code placeholder for Saudi compliance.
 """
+import html
 import json
 import logging
 from datetime import datetime
@@ -22,6 +23,10 @@ def generate_invoice(booking_id, admin_id):
     booking = db.get_booking_by_id(booking_id)
     if not booking:
         logger.warning(f"Invoice: booking {booking_id} not found")
+        return None
+
+    if booking.get("admin_id") != admin_id:
+        logger.warning(f"Invoice: booking {booking_id} does not belong to admin {admin_id}")
         return None
 
     patient_id = booking.get("patient_id", 0)
@@ -77,6 +82,8 @@ def generate_invoice(booking_id, admin_id):
     tax_amount = round(subtotal * tax_rate / 100, 2)
     total = round(subtotal + tax_amount, 2)
 
+    currency = db.get_company_currency(admin_id)
+
     invoice_id = db.create_invoice(
         admin_id=admin_id,
         booking_id=booking_id,
@@ -87,6 +94,7 @@ def generate_invoice(booking_id, admin_id):
         tax_rate=tax_rate,
         tax_amount=tax_amount,
         total=total,
+        currency=currency,
     )
 
     logger.info(f"Invoice: generated {invoice_number} (id={invoice_id}) for booking {booking_id}, total={total}")
@@ -204,17 +212,18 @@ def generate_invoice_html(invoice_id):
     conn.close()
 
     items = json.loads(invoice.get("items_json", "[]"))
-    business_name = config.get("business_name", "Dental Clinic")
-    business_name_ar = config.get("business_name_ar", "")
-    vat_number = config.get("vat_number", "")
-    address = config.get("address", "")
-    address_ar = config.get("address_ar", "")
-    logo_url = config.get("logo_url", "")
+    business_name = html.escape(config.get("business_name", "Dental Clinic"))
+    business_name_ar = html.escape(config.get("business_name_ar", ""))
+    vat_number = html.escape(config.get("vat_number", ""))
+    address = html.escape(config.get("address", ""))
+    address_ar = html.escape(config.get("address_ar", ""))
+    raw_logo_url = config.get("logo_url", "")
+    logo_url = html.escape(raw_logo_url) if raw_logo_url.startswith("http") else ""
 
-    patient_name = booking.get("customer_name", "")
-    patient_email = booking.get("customer_email", "")
-    patient_phone = booking.get("customer_phone", "")
-    service_date = booking.get("date", "")
+    patient_name = html.escape(booking.get("customer_name", ""))
+    patient_email = html.escape(booking.get("customer_email", ""))
+    patient_phone = html.escape(booking.get("customer_phone", ""))
+    service_date = html.escape(booking.get("date", ""))
 
     # Build items rows
     items_html = ""
@@ -222,7 +231,7 @@ def generate_invoice_html(invoice_id):
         items_html += f"""
         <tr>
             <td style="padding:10px 12px;border-bottom:1px solid #eee;color:#333;">{i}</td>
-            <td style="padding:10px 12px;border-bottom:1px solid #eee;color:#333;">{item.get('description','')}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid #eee;color:#333;">{html.escape(item.get('description',''))}</td>
             <td style="padding:10px 12px;border-bottom:1px solid #eee;color:#333;text-align:center;">{item.get('quantity',1)}</td>
             <td style="padding:10px 12px;border-bottom:1px solid #eee;color:#333;text-align:right;">{item.get('unit_price',0):.2f}</td>
             <td style="padding:10px 12px;border-bottom:1px solid #eee;color:#333;text-align:right;">{item.get('total',0):.2f}</td>

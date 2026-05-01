@@ -55,6 +55,19 @@
         .nav-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(139,92,246,0.35)}
         .nav-btn-outline{background:transparent;border:1px solid var(--border);color:var(--text);padding:.55rem 1.4rem;border-radius:50px;font-weight:500;cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .3s var(--ease);text-decoration:none}
         .nav-btn-outline:hover{border-color:var(--border-hover);background:rgba(139,92,246,0.05)}
+        .nav-links>li{position:relative}
+        .nav-dropdown-trigger{cursor:pointer;display:flex;align-items:center;gap:4px}
+        .nav-dropdown-trigger::after{content:'';display:none}
+        .nav-dropdown-trigger svg{width:12px;height:12px;opacity:.5;transition:transform .3s}
+        .nav-dropdown{position:absolute;top:calc(100% + 12px);left:50%;transform:translateX(-50%) translateY(8px);min-width:220px;background:rgba(10,14,26,0.98);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:.5rem;opacity:0;visibility:hidden;transition:all .25s var(--ease);z-index:1001;box-shadow:0 20px 50px rgba(0,0,0,0.5)}
+        .nav-links>li:hover .nav-dropdown{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+        .nav-links>li:hover .nav-dropdown-trigger svg{transform:rotate(180deg)}
+        .nav-dropdown a{display:flex;align-items:center;gap:.6rem;padding:.55rem .85rem;border-radius:8px;font-size:.82rem;color:var(--text-muted);transition:all .2s}
+        .nav-dropdown a::after{display:none}
+        .nav-dropdown a:hover{background:rgba(139,92,246,0.08);color:#fff}
+        .nav-dropdown a small{font-size:.7rem;color:var(--text-dim);display:block;margin-top:1px}
+        .nav-dd-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0}
+
         .hamburger{display:none;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;padding:.5rem}
         .mobile-menu{display:none;position:fixed;top:72px;left:0;right:0;background:rgba(5,7,16,0.95);backdrop-filter:blur(20px);padding:1.5rem 2rem;border-bottom:1px solid var(--border);flex-direction:column;gap:1rem}
         .mobile-menu.open{display:flex}
@@ -166,27 +179,62 @@
 <!-- NAV -->
 <nav id="mainNav">
     <div class="nav-inner">
-        <a href="/" class="logo">Chat<span>GeniusX</span></a>
+        <a href="/" class="logo">Chat<span>Genius</span></a>
         <ul class="nav-links">
-            <li><a href="/">Home</a></li>
-            <li><a href="/#features">Features</a></li>
+            <li>
+                <a href="#" class="nav-dropdown-trigger" onclick="return false">Product <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
+                <div class="nav-dropdown">
+                    <a href="/#features"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6">&#9889;</span><div>Features<small>All platform capabilities</small></div></a>
+                    <a href="/ai-technology"><span class="nav-dd-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6">&#129302;</span><div>AI Technology<small>Model transparency</small></div></a>
+                    <a href="/integrations"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#128268;</span><div>Integrations<small>Connect your stack</small></div></a>
+                    <a href="/trust-center"><span class="nav-dd-icon" style="background:rgba(6,182,212,0.1);color:#06b6d4">&#128274;</span><div>Trust Center<small>Security &amp; compliance</small></div></a>
+                    <a href="/agent-marketplace"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#129302;</span><div>Agent Marketplace<small>Pre-built AI agents</small></div></a>
+                    <a href="/voice-agent"><span class="nav-dd-icon" style="background:rgba(251,191,36,0.1);color:#fbbf24">&#127908;</span><div>Voice AI<small>Voice-powered calls</small></div></a>
+                    <a href="/mobile-app"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#c4b5fd">&#128241;</span><div>Mobile App<small>iOS &amp; Android</small></div></a>
+                </div>
+            </li>
             <li><a href="/pricing-plans">Pricing</a></li>
-            <li><a href="/demo">Demo</a></li>
-            <li><a href="/case-studies">Case Studies</a></li>
-            <li><a href="/blog">Blog</a></li>
-            <li><a href="/login" class="nav-btn-outline">Login</a></li>
+            <li>
+                <a href="#" class="nav-dropdown-trigger" onclick="return false">Resources <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
+                <div class="nav-dropdown">
+                    <a href="/developers"><span class="nav-dd-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6">&#128187;</span><div>API Docs<small>Developer portal</small></div></a>
+                    <a href="/compare"><span class="nav-dd-icon" style="background:rgba(251,191,36,0.1);color:#fbbf24">&#128200;</span><div>Compare<small>vs Intercom, Tidio</small></div></a>
+                    <a href="/partners"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#129309;</span><div>Partner Program<small>Earn commissions</small></div></a>
+                    <a href="/blog"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#128221;</span><div>Blog &amp; Guides<small>Tips &amp; insights</small></div></a>
+                    <a href="/case-studies"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6">&#128202;</span><div>Case Studies<small>Real results</small></div></a>
+                </div>
+            </li>
+            <li>
+                <a href="#" class="nav-dropdown-trigger" onclick="return false">Use Cases <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
+                <div class="nav-dropdown">
+                    <a href="/for-dental-clinics"><span class="nav-dd-icon" style="background:rgba(6,182,212,0.1);color:#06b6d4">&#129463;</span><div>Dental Clinics<small>Bookings &amp; recalls</small></div></a>
+                    <a href="/for-medical-practices"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#127973;</span><div>Medical Practices<small>Patient engagement</small></div></a>
+                    <a href="/for-salons-spas"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#128135;</span><div>Salons &amp; Spas<small>Beauty appointments</small></div></a>
+                </div>
+            </li>
+            <li><a href="/login" class="nav-btn-outline">Log In</a></li>
             <li><a href="/login?signup=1" class="nav-btn">Start Free</a></li>
         </ul>
         <button class="hamburger" onclick="document.querySelector('.mobile-menu').classList.toggle('open')">&#9776;</button>
     </div>
     <div class="mobile-menu">
-        <a href="/">Home</a>
         <a href="/#features">Features</a>
         <a href="/pricing-plans">Pricing</a>
-        <a href="/demo">Demo</a>
+        <a href="/ai-technology">AI Technology</a>
+        <a href="/integrations">Integrations</a>
+        <a href="/trust-center">Trust Center</a>
+        <a href="/agent-marketplace">Agent Marketplace</a>
+        <a href="/voice-agent">Voice AI</a>
+        <a href="/mobile-app">Mobile App</a>
+        <a href="/developers">API Docs</a>
+        <a href="/compare">Compare</a>
+        <a href="/partners">Partners</a>
+        <a href="/blog">Blog &amp; Guides</a>
         <a href="/case-studies">Case Studies</a>
-        <a href="/blog">Blog</a>
-        <a href="/login">Login</a>
+        <a href="/for-dental-clinics">Dental</a>
+        <a href="/for-medical-practices">Medical</a>
+        <a href="/for-salons-spas">Salons</a>
+        <a href="/login">Log In</a>
         <a href="/login?signup=1" style="color:#c4b5fd;font-weight:700">Start Free</a>
     </div>
 </nav>
@@ -408,16 +456,55 @@
 
 <!-- FOOTER -->
 <footer>
-    <div class="footer-inner">
-        <div class="footer-logo">Chat<span>GeniusX</span></div>
-        <ul class="footer-links">
-            <li><a href="/">Home</a></li>
-            <li><a href="/pricing-plans">Pricing</a></li>
-            <li><a href="/privacy">Privacy</a></li>
-            <li><a href="/terms">Terms</a></li>
-            <li><a href="/refund">Refund Policy</a></li>
-        </ul>
-        <div class="footer-copy">&copy; 2026 ChatGeniusX. All rights reserved.</div>
+    <div class="footer-inner" style="display:block;max-width:1140px;margin:auto">
+        <div class="footer-grid">
+            <div class="footer-col">
+                <div class="footer-logo" style="margin-bottom:1rem">Chat<span>Genius</span></div>
+                <p>AI chatbot platform that converts visitors into bookings. Built for healthcare, dental, and beauty practices.</p>
+                <div class="footer-newsletter" style="margin-top:1rem">
+                    <input type="email" id="footerEmail" placeholder="Your email">
+                    <button onclick="document.getElementById('footerEmail').value='';this.textContent='Subscribed!';setTimeout(()=>this.textContent='Subscribe',2000)">Subscribe</button>
+                </div>
+                <p style="font-size:.72rem;margin-top:.4rem;color:var(--text-dim)">Join 2,000+ practice owners getting AI tips</p>
+            </div>
+            <div class="footer-col">
+                <h4>Product</h4>
+                <a href="/#features">Features</a>
+                <a href="/ai-technology">AI Technology</a>
+                <a href="/integrations">Integrations</a>
+                <a href="/agent-marketplace">Agent Marketplace</a>
+                <a href="/voice-agent">Voice AI</a>
+                <a href="/mobile-app">Mobile App</a>
+            </div>
+            <div class="footer-col">
+                <h4>Resources</h4>
+                <a href="/developers">API Docs</a>
+                <a href="/blog">Blog &amp; Guides</a>
+                <a href="/case-studies">Case Studies</a>
+                <a href="/compare">Compare</a>
+            </div>
+            <div class="footer-col">
+                <h4>Company</h4>
+                <a href="/pricing-plans">Pricing</a>
+                <a href="/partners">Partner Program</a>
+                <a href="/trust-center">Trust Center</a>
+                <a href="/security">Security</a>
+            </div>
+            <div class="footer-col">
+                <h4>Legal</h4>
+                <a href="/privacy">Privacy Policy</a>
+                <a href="/terms">Terms of Service</a>
+                <a href="/refund">Refund Policy</a>
+                <a href="/data-deletion">Data Deletion</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="footer-copy">&copy; 2026 ChatGeniusX. All rights reserved.</div>
+            <div style="display:flex;gap:1.5rem">
+                <a href="/privacy" style="color:var(--text-dim);font-size:.8rem;text-decoration:none">Privacy</a>
+                <a href="/terms" style="color:var(--text-dim);font-size:.8rem;text-decoration:none">Terms</a>
+            </div>
+        </div>
     </div>
 </footer>
 
@@ -465,7 +552,28 @@ document.querySelectorAll('.mobile-menu a').forEach(function(a){
         .chat-widget-window{position:fixed;inset:0;width:100%;height:100%;border-radius:0;bottom:0;right:0}
         .chat-widget-window.open+.chat-widget-btn{display:none}
     }
-</style>
+
+        /* FOOTER */
+        footer{padding:3rem 2rem;border-top:1px solid var(--border);background:rgba(5,7,16,0.5)}
+        .footer-inner{max-width:1140px;margin:auto}
+        .footer-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 1fr;gap:2rem;margin-bottom:2rem}
+        .footer-col{display:flex;flex-direction:column;gap:.5rem}
+        .footer-col h4{font-size:.85rem;font-weight:700;margin-bottom:.5rem;color:var(--text)}
+        .footer-col a{color:var(--text-dim);text-decoration:none;font-size:.82rem;transition:color .3s;padding:.15rem 0}
+        .footer-col a:hover{color:var(--text)}
+        .footer-col p{color:var(--text-dim);font-size:.82rem;line-height:1.7}
+        .footer-logo{font-size:1.2rem;font-weight:800;letter-spacing:-.5px}
+        .footer-logo span{background:var(--gradient2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .footer-newsletter{display:flex;gap:.5rem}
+        .footer-newsletter input{flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-size:.82rem;font-family:inherit}
+        .footer-newsletter input::placeholder{color:var(--text-dim)}
+        .footer-newsletter button{background:var(--gradient);color:#fff;border:none;padding:.5rem 1rem;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .3s}
+        .footer-newsletter button:hover{transform:translateY(-1px)}
+        .footer-bottom{display:flex;justify-content:space-between;align-items:center;padding-top:1.5rem;border-top:1px solid var(--border)}
+        .footer-copy{color:var(--text-dim);font-size:.8rem}
+        @media(max-width:900px){.footer-grid{grid-template-columns:1fr 1fr;gap:1.5rem}.footer-bottom{flex-direction:column;gap:.75rem;text-align:center}}
+        @media(max-width:480px){.footer-grid{grid-template-columns:1fr}}
+    </style>
 <button class="chat-widget-btn" id="chatWidgetBtn" onclick="toggleChatWidget()">
     <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
 </button>

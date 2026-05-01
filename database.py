@@ -41,6 +41,7 @@ _SAFE_COLUMNS = frozenset({
     'confirm_message', 'reminder_message', 'followup_message', 'noshow_message',
     'fee_amount', 'fee_type', 'grace_minutes', 'max_noshows', 'policy_text',
     'recovery_email_enabled', 'recovery_sms_enabled', 'recovery_delay_hours', 'recovery_message',
+    'business_name_ar', 'vat_number', 'address_ar', 'next_invoice_number', 'auto_generate',
     'enabled', 'prefix', 'due_days', 'footer_note', 'auto_send', 'company_name',
     'company_email', 'company_phone', 'company_address', 'logo_url', 'tax_label', 'tax_rate',
     'auto_weekly', 'auto_monthly', 'email_recipients', 'include_revenue', 'include_bookings',
@@ -49,6 +50,14 @@ _SAFE_COLUMNS = frozenset({
     'logo_url', 'primary_color', 'domain', 'business_name', 'support_email',
     'custom_css', 'hide_branding', 'custom_login_title', 'custom_login_subtitle',
     'updated_at',
+    # chatbot customization columns
+    'msg_bot_bg', 'msg_bot_color', 'msg_user_bg', 'msg_user_color',
+    'chatbot_bg_color', 'header_bg', 'input_bg', 'input_text_color',
+    'send_btn_color', 'chatbot_title', 'msg_animation', 'celebration_enabled',
+    'doctor_show_experience', 'doctor_show_languages', 'doctor_show_gender',
+    'doctor_show_qualifications', 'doctor_show_category', 'calendar_style',
+    'calendar_marker_color', 'launcher_bg', 'msg_font_size', 'dropdown_style',
+    'admin_id', 'header_text_color', 'launcher_icon',
 })
 
 
@@ -67,7 +76,7 @@ LOCKOUT_DURATION = timedelta(minutes=15)
 
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST', '127.0.0.1'),
-    'port': os.environ.get('DB_PORT', '5432'),
+    'port': os.environ.get('DB_PORT', '5433'),
     'database': os.environ.get('DB_NAME', 'chatgenius'),
     'user': os.environ.get('DB_USER', 'chatgenius_admin'),
     'password': os.environ.get('DB_PASSWORD', 'ChatGenius2026'),
@@ -1167,6 +1176,8 @@ def init_db():
         ("bookings", "gcal_event_id", "TEXT DEFAULT ''"),
         # PayPal Subscriptions
         ("users", "paypal_subscription_id", "TEXT DEFAULT ''"),
+        # Enhanced Handoff: typing indicator
+        ("live_chat_handoffs", "typing_at", "TIMESTAMP DEFAULT NULL"),
     ]
     for table, col, col_type in migrations:
         try:
@@ -1307,6 +1318,89 @@ def init_db():
     )""")
     conn.commit()
 
+    # EMR/EHR Integration Requests
+    conn.execute("""CREATE TABLE IF NOT EXISTS integration_requests (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER DEFAULT 0,
+        integration_name TEXT NOT NULL,
+        status TEXT DEFAULT 'requested',
+        contact_email TEXT DEFAULT '',
+        practice_size TEXT DEFAULT '',
+        current_system TEXT DEFAULT '',
+        notes TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    # EMR/EHR Integration Configurations
+    conn.execute("""CREATE TABLE IF NOT EXISTS emr_integrations (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        integration_type TEXT NOT NULL,
+        api_endpoint TEXT DEFAULT '',
+        api_key_encrypted TEXT DEFAULT '',
+        status TEXT DEFAULT 'pending',
+        last_sync TIMESTAMP DEFAULT NULL,
+        sync_enabled BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    # Proactive engagement configuration
+    conn.execute("""CREATE TABLE IF NOT EXISTS proactive_config (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER UNIQUE NOT NULL,
+        enabled INTEGER DEFAULT 1,
+        dwell_time_seconds INTEGER DEFAULT 30,
+        scroll_depth_percent INTEGER DEFAULT 60,
+        exit_intent_enabled INTEGER DEFAULT 1,
+        trigger_message TEXT DEFAULT '',
+        trigger_pages TEXT DEFAULT '',
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    # Chatbot Flow Builder
+    conn.execute("""CREATE TABLE IF NOT EXISTS chatbot_flows (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        name TEXT NOT NULL DEFAULT '',
+        description TEXT DEFAULT '',
+        flow_data JSONB DEFAULT '{}',
+        is_active BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    # Canned Responses for Live Chat Handoff
+    conn.execute("""CREATE TABLE IF NOT EXISTS canned_responses (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        title TEXT NOT NULL DEFAULT '',
+        message TEXT NOT NULL DEFAULT '',
+        category TEXT DEFAULT 'Custom',
+        shortcut TEXT DEFAULT '',
+        usage_count INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    # Partner applications table
+    conn.execute("""CREATE TABLE IF NOT EXISTS partner_applications (
+        id SERIAL PRIMARY KEY,
+        agency_name TEXT NOT NULL,
+        contact_name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        phone TEXT DEFAULT '',
+        website TEXT DEFAULT '',
+        client_count INTEGER DEFAULT 0,
+        referral_source TEXT DEFAULT '',
+        status TEXT DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
     # Seed default categories for admin_id=0 (global defaults)
     DEFAULT_CATEGORIES = [
         "General Dentist", "Pediatric Dentist", "Orthodontist", "Endodontist",
@@ -1321,7 +1415,62 @@ def init_db():
             conn.execute("INSERT INTO categories (admin_id, name) VALUES (0, %s)", (cat,))
         conn.commit()
 
+    # Mobile app interest signups
+    conn.execute("""CREATE TABLE IF NOT EXISTS mobile_app_interest (
+        id SERIAL PRIMARY KEY,
+        email TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
     conn.close()
+
+
+def save_mobile_app_interest(email):
+    """Save an email address for mobile app launch notification."""
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT INTO mobile_app_interest (email) VALUES (%s)",
+            (email,)
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return True
+
+
+def create_partner_application(data):
+    """Insert a new partner application."""
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO partner_applications (agency_name, contact_name, email, phone, website, client_count, referral_source)
+               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+            (data.get("agency_name", ""), data.get("contact_name", ""), data.get("email", ""),
+             data.get("phone", ""), data.get("website", ""), data.get("client_count", 0),
+             data.get("referral_source", ""))
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return True
+
+
+def get_partner_applications():
+    """Get all partner applications, newest first."""
+    conn = get_db()
+    try:
+        rows = conn.execute("SELECT * FROM partner_applications ORDER BY created_at DESC").fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
 
 
 def save_lead(name, phone, notes="", admin_id=0):
@@ -2514,7 +2663,7 @@ def set_user_admin_id(user_id, admin_id):
 
 
 PLAN_COSTS = {"free_trial": 0, "basic": 79, "pro": 239, "agency": 699}
-PLAN_MONTHLY_CONVERSATIONS = {"free_trial": 50, "basic": 700, "pro": 5000, "agency": 999999999}
+PLAN_MONTHLY_CONVERSATIONS = {"free_trial": 200, "basic": 700, "pro": 5000, "agency": 999999999}
 PLAN_MAX_CHATBOTS = {"free_trial": 1, "basic": 1, "pro": 4, "agency": 999999999}
 
 
@@ -2550,7 +2699,7 @@ def is_conversation_limit_reached(admin_id):
     if not user:
         return True
     plan = user["plan"] or "free_trial"
-    limit = PLAN_MONTHLY_CONVERSATIONS.get(plan, 50)
+    limit = PLAN_MONTHLY_CONVERSATIONS.get(plan, 200)
     count = get_monthly_conversation_count(admin_id)
     return count >= limit
 
@@ -3999,6 +4148,8 @@ FEATURE_DEFAULTS = {
     "sms_noshow_recovery": 0,
     # Chatbot access control
     "require_login_to_book": 0,
+    # Proactive engagement
+    "proactive_engagement": 1,
 }
 
 
@@ -4142,7 +4293,7 @@ def save_form_config(admin_id, data):
 
 def add_custom_form_field(admin_id, field_name, field_type="text", required=0):
     conn = get_db()
-    max_order = conn.execute("SELECT COALESCE(MAX(sort_order), 0) FROM form_custom_fields WHERE admin_id=%s", (admin_id,)).fetchone()['cnt']
+    max_order = conn.execute("SELECT COALESCE(MAX(sort_order), 0) AS cnt FROM form_custom_fields WHERE admin_id=%s", (admin_id,)).fetchone()['cnt']
     _ins_cur = conn.execute(
         "INSERT INTO form_custom_fields (admin_id, field_name, field_type, required, sort_order) VALUES (%s, %s, %s, %s, %s) RETURNING id",
         (admin_id, field_name, field_type, int(bool(required)), max_order + 1)
@@ -4401,8 +4552,8 @@ def get_recall_stats(admin_id):
     conn = get_db()
     total = conn.execute("SELECT COUNT(*) as c FROM recall_campaigns WHERE admin_id=%s", (admin_id,)).fetchone()["c"]
     sent = conn.execute("SELECT COUNT(*) as c FROM recall_campaigns WHERE admin_id=%s AND status='sent'", (admin_id,)).fetchone()["c"]
-    opened = conn.execute("SELECT COUNT(*) as c FROM recall_campaigns WHERE admin_id=%s AND opened_at IS NOT NULL AND opened_at IS NOT NULL", (admin_id,)).fetchone()["c"]
-    booked = conn.execute("SELECT COUNT(*) as c FROM recall_campaigns WHERE admin_id=%s AND booked_at IS NOT NULL AND booked_at IS NOT NULL", (admin_id,)).fetchone()["c"]
+    opened = conn.execute("SELECT COUNT(*) as c FROM recall_campaigns WHERE admin_id=%s AND opened_at IS NOT NULL", (admin_id,)).fetchone()["c"]
+    booked = conn.execute("SELECT COUNT(*) as c FROM recall_campaigns WHERE admin_id=%s AND booked_at IS NOT NULL", (admin_id,)).fetchone()["c"]
     conn.close()
     return {"total": total, "sent": sent, "opened": opened, "booked": booked}
 
@@ -4536,40 +4687,328 @@ def delete_gallery_image(image_id, admin_id):
 
 def create_handoff(admin_id, session_id, patient_name="", reason="", ai_confidence=0):
     conn = get_db()
-    _ins_cur = conn.execute("INSERT INTO live_chat_handoffs (admin_id,session_id,patient_name,reason,ai_confidence) VALUES (%s,%s,%s,%s,%s) RETURNING id",
-                 (admin_id, session_id, patient_name, reason, ai_confidence))
-    hid = _ins_cur.fetchone()['id']
-    conn.commit()
-    conn.close()
+    try:
+        _ins_cur = conn.execute("INSERT INTO live_chat_handoffs (admin_id,session_id,patient_name,reason,ai_confidence) VALUES (%s,%s,%s,%s,%s) RETURNING id",
+                     (admin_id, session_id, patient_name, reason, ai_confidence))
+        hid = _ins_cur.fetchone()['id']
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
     return hid
 
 def get_handoff_queue(admin_id):
     conn = get_db()
-    rows = conn.execute("SELECT * FROM live_chat_handoffs WHERE admin_id=%s AND status IN ('queued','assigned') ORDER BY created_at", (admin_id,)).fetchall()
-    conn.close()
+    try:
+        rows = conn.execute("SELECT * FROM live_chat_handoffs WHERE admin_id=%s AND status IN ('queued','assigned') ORDER BY created_at", (admin_id,)).fetchall()
+    finally:
+        conn.close()
     return [dict(r) for r in rows]
 
-def assign_handoff(handoff_id, staff_user_id, staff_name):
+def assign_handoff(handoff_id, staff_user_id, staff_name, admin_id):
     conn = get_db()
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    conn.execute("UPDATE live_chat_handoffs SET status='assigned', staff_user_id=%s, staff_name=%s, assigned_at=%s WHERE id=%s",
-                 (staff_user_id, staff_name, now, handoff_id))
-    conn.commit()
-    conn.close()
+    try:
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        conn.execute("UPDATE live_chat_handoffs SET status='assigned', staff_user_id=%s, staff_name=%s, assigned_at=%s WHERE id=%s AND admin_id=%s",
+                     (staff_user_id, staff_name, now, handoff_id, admin_id))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return True
 
-def resolve_handoff(handoff_id, notes=""):
+def resolve_handoff(handoff_id, notes="", admin_id=None):
     conn = get_db()
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    conn.execute("UPDATE live_chat_handoffs SET status='resolved', resolved_at=%s, resolution_notes=%s WHERE id=%s",
-                 (now, notes, handoff_id))
-    conn.commit()
-    conn.close()
+    try:
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        conn.execute("UPDATE live_chat_handoffs SET status='resolved', resolved_at=%s, resolution_notes=%s WHERE id=%s AND admin_id=%s",
+                     (now, notes, handoff_id, admin_id))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return True
 
-def get_handoff_by_session(session_id):
+def get_handoff_by_session(session_id, admin_id):
     conn = get_db()
-    row = conn.execute("SELECT * FROM live_chat_handoffs WHERE session_id=%s AND status IN ('queued','assigned') ORDER BY created_at DESC LIMIT 1", (session_id,)).fetchone()
-    conn.close()
+    try:
+        row = conn.execute("SELECT * FROM live_chat_handoffs WHERE session_id=%s AND admin_id=%s AND status IN ('queued','assigned') ORDER BY created_at DESC LIMIT 1", (session_id, admin_id)).fetchone()
+    finally:
+        conn.close()
     return dict(row) if row else None
+
+
+# ── Enhanced Handoff: Canned Responses ──
+
+def get_canned_responses(admin_id):
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM canned_responses WHERE admin_id=%s ORDER BY usage_count DESC, created_at DESC",
+            (admin_id,)
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+def create_canned_response(admin_id, title, message, category="Custom", shortcut=""):
+    conn = get_db()
+    try:
+        _ins_cur = conn.execute(
+            """INSERT INTO canned_responses (admin_id, title, message, category, shortcut)
+               VALUES (%s,%s,%s,%s,%s) RETURNING id""",
+            (admin_id, title, message, category, shortcut)
+        )
+        rid = _ins_cur.fetchone()['id']
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return rid
+
+
+def delete_canned_response(admin_id, response_id):
+    conn = get_db()
+    try:
+        cur = conn.execute("DELETE FROM canned_responses WHERE id=%s AND admin_id=%s", (response_id, admin_id))
+        conn.commit()
+        affected = cur.rowcount
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return affected > 0
+
+
+def increment_canned_usage(response_id, admin_id):
+    conn = get_db()
+    try:
+        conn.execute("UPDATE canned_responses SET usage_count = usage_count + 1 WHERE id=%s AND admin_id=%s", (response_id, admin_id))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def set_agent_typing(handoff_id, is_typing, admin_id):
+    is_typing = bool(is_typing)
+    conn = get_db()
+    try:
+        if is_typing:
+            conn.execute("UPDATE live_chat_handoffs SET typing_at=%s WHERE id=%s AND admin_id=%s",
+                         (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), handoff_id, admin_id))
+        else:
+            conn.execute("UPDATE live_chat_handoffs SET typing_at=NULL WHERE id=%s AND admin_id=%s", (handoff_id, admin_id))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def get_handoff_context(handoff_id, admin_id):
+    conn = get_db()
+    try:
+        handoff = conn.execute("SELECT * FROM live_chat_handoffs WHERE id=%s AND admin_id=%s", (handoff_id, admin_id)).fetchone()
+        if not handoff:
+            return None
+        session_id = handoff["session_id"]
+        rows = conn.execute(
+            "SELECT message, intent, created_at, is_human_handled, handler_user_id FROM chat_logs WHERE session_id=%s ORDER BY created_at ASC",
+            (session_id,)
+        ).fetchall()
+        return {
+            "handoff": dict(handoff),
+            "messages": [dict(r) for r in rows],
+        }
+    finally:
+        conn.close()
+
+
+# ── Enhanced Inbox: SMS + Analytics ──
+
+def save_sms_to_inbox(admin_id, phone, message, direction, session_id=None):
+    """Save an SMS message to channel_messages with channel='sms'."""
+    conn = get_db()
+    try:
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        external_id = session_id or phone
+
+        # Find or create conversation
+        row = conn.execute(
+            "SELECT * FROM channel_conversations WHERE admin_id=%s AND channel_type='sms' AND external_id=%s",
+            (admin_id, external_id)
+        ).fetchone()
+
+        if row:
+            if direction == 'inbound':
+                conn.execute(
+                    "UPDATE channel_conversations SET last_message_at=%s, unread_count=unread_count+1 WHERE id=%s",
+                    (now, row["id"])
+                )
+            else:
+                conn.execute(
+                    "UPDATE channel_conversations SET last_message_at=%s WHERE id=%s",
+                    (now, row["id"])
+                )
+            conv_id = row["id"]
+        else:
+            _ins_cur = conn.execute(
+                """INSERT INTO channel_conversations
+                   (admin_id, channel_type, external_id, sender_name, phone, last_message_at, unread_count)
+                   VALUES (%s, 'sms', %s, %s, %s, %s, %s) RETURNING id""",
+                (admin_id, external_id, phone, phone, now, 1 if direction == 'inbound' else 0)
+            )
+            conv_id = _ins_cur.fetchone()['id']
+
+        # Save message
+        sender_name = phone if direction == 'inbound' else 'Staff'
+        _ins_cur = conn.execute(
+            """INSERT INTO channel_messages
+               (admin_id, conversation_id, direction, sender_name, message_text, message_type, created_at)
+               VALUES (%s,%s,%s,%s,%s,'text',%s) RETURNING id""",
+            (admin_id, conv_id, direction, sender_name, message, now)
+        )
+        msg_id = _ins_cur.fetchone()['id']
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return {"conversation_id": conv_id, "message_id": msg_id}
+
+
+def get_inbox_stats_enhanced(admin_id):
+    """Return per-channel conversation counts including SMS."""
+    conn = get_db()
+    try:
+        total = conn.execute(
+            "SELECT COUNT(*) as c FROM channel_conversations WHERE admin_id=%s", (admin_id,)
+        ).fetchone()["c"]
+
+        unread = conn.execute(
+            "SELECT COUNT(*) as c FROM channel_conversations WHERE admin_id=%s AND unread_count > 0", (admin_id,)
+        ).fetchone()["c"]
+
+        by_channel = conn.execute(
+            "SELECT channel_type, COUNT(*) as c FROM channel_conversations WHERE admin_id=%s GROUP BY channel_type",
+            (admin_id,)
+        ).fetchall()
+
+        # Per-channel message counts
+        msg_by_channel = conn.execute(
+            """SELECT cc.channel_type, COUNT(cm.id) as msg_count
+               FROM channel_conversations cc
+               LEFT JOIN channel_messages cm ON cm.conversation_id = cc.id
+               WHERE cc.admin_id=%s
+               GROUP BY cc.channel_type""",
+            (admin_id,)
+        ).fetchall()
+    finally:
+        conn.close()
+
+    channels = {}
+    for ch in ['web', 'whatsapp', 'facebook', 'instagram', 'sms']:
+        channels[ch] = {"conversations": 0, "messages": 0}
+    for r in by_channel:
+        if r["channel_type"] in channels:
+            channels[r["channel_type"]]["conversations"] = r["c"]
+    for r in msg_by_channel:
+        if r["channel_type"] in channels:
+            channels[r["channel_type"]]["messages"] = r["msg_count"]
+
+    return {
+        "total_conversations": total,
+        "unread": unread,
+        "channels": channels,
+    }
+
+
+def get_channel_analytics(admin_id, date_from, date_to):
+    """Return per-channel analytics: messages/day, response time, resolution rate."""
+    conn = get_db()
+    try:
+        # Note: created_at is TEXT in channel_messages/channel_conversations tables.
+        # Use SUBSTR for date comparison and TO_TIMESTAMP for safe casting,
+        # with a regex guard to skip rows with non-date strings.
+        _date_guard = r"^\d{4}-\d{2}-\d{2}"
+
+        # Messages per channel per day
+        messages_per_day = conn.execute(
+            """SELECT cc.channel_type, SUBSTR(cm.created_at, 1, 10) as day, COUNT(*) as count
+               FROM channel_messages cm
+               JOIN channel_conversations cc ON cc.id = cm.conversation_id
+               WHERE cc.admin_id=%s
+                 AND cm.created_at ~ %s
+                 AND SUBSTR(cm.created_at, 1, 10) BETWEEN %s AND %s
+               GROUP BY cc.channel_type, SUBSTR(cm.created_at, 1, 10)
+               ORDER BY day""",
+            (admin_id, _date_guard, date_from, date_to)
+        ).fetchall()
+
+        # Average response time per channel (time between inbound and next outbound in same conversation)
+        response_times = conn.execute(
+            """SELECT cc.channel_type,
+                      AVG(EXTRACT(EPOCH FROM (TO_TIMESTAMP(reply.created_at, 'YYYY-MM-DD HH24:MI:SS')
+                          - TO_TIMESTAMP(inb.created_at, 'YYYY-MM-DD HH24:MI:SS'))) / 60) as avg_response_min
+               FROM channel_messages inb
+               JOIN channel_conversations cc ON cc.id = inb.conversation_id
+               JOIN LATERAL (
+                   SELECT created_at FROM channel_messages
+                   WHERE conversation_id = inb.conversation_id
+                     AND direction = 'outbound'
+                     AND created_at ~ %s
+                     AND created_at > inb.created_at
+                   ORDER BY created_at ASC LIMIT 1
+               ) reply ON TRUE
+               WHERE cc.admin_id=%s AND inb.direction='inbound'
+                 AND inb.created_at ~ %s
+                 AND SUBSTR(inb.created_at, 1, 10) BETWEEN %s AND %s
+               GROUP BY cc.channel_type""",
+            (_date_guard, admin_id, _date_guard, date_from, date_to)
+        ).fetchall()
+
+        # Resolution rate per channel
+        resolution_rates = conn.execute(
+            """SELECT channel_type,
+                      COUNT(*) as total,
+                      COUNT(CASE WHEN status='resolved' THEN 1 END) as resolved
+               FROM channel_conversations
+               WHERE admin_id=%s
+                 AND created_at ~ %s
+                 AND SUBSTR(created_at, 1, 10) BETWEEN %s AND %s
+               GROUP BY channel_type""",
+            (admin_id, _date_guard, date_from, date_to)
+        ).fetchall()
+    finally:
+        conn.close()
+
+    return {
+        "messages_per_day": [dict(r) for r in messages_per_day],
+        "response_times": {r["channel_type"]: round(r["avg_response_min"] or 0, 1) for r in response_times},
+        "resolution_rates": {
+            r["channel_type"]: {
+                "total": r["total"],
+                "resolved": r["resolved"],
+                "rate": round(r["resolved"] / r["total"] * 100, 1) if r["total"] > 0 else 0
+            }
+            for r in resolution_rates
+        },
+    }
 
 
 # ═══════════════ Feature 11: Schedule Blocks (rebuilt) ═══════════════
@@ -5770,15 +6209,20 @@ def get_package_by_id(package_id):
 def redeem_package_db(package_id, patient_id, booking_id, treatment_name):
     """Record a package redemption."""
     conn = get_db()
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    conn.execute(
-        "INSERT INTO package_redemptions (package_id, patient_id, booking_id, treatment_name, redeemed_at) VALUES (%s,%s,%s,%s,%s) RETURNING id",
-        (package_id, patient_id, booking_id, treatment_name, now)
-    )
-    _ins_cur = conn.execute("UPDATE treatment_packages SET current_redemptions = current_redemptions + 1 WHERE id = %s", (package_id,))
-    redemption_id = _ins_cur.fetchone()['id']
-    conn.commit()
-    conn.close()
+    try:
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        _ins_cur = conn.execute(
+            "INSERT INTO package_redemptions (package_id, patient_id, booking_id, treatment_name, redeemed_at) VALUES (%s,%s,%s,%s,%s) RETURNING id",
+            (package_id, patient_id, booking_id, treatment_name, now)
+        )
+        redemption_id = _ins_cur.fetchone()['id']
+        conn.execute("UPDATE treatment_packages SET current_redemptions = current_redemptions + 1 WHERE id = %s", (package_id,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
     return redemption_id
 
 
@@ -6026,16 +6470,16 @@ def get_recovery_stats(admin_id):
 # ─── Invoice DB Helpers ─────────────────────────────────────────────
 
 def create_invoice(admin_id, booking_id, patient_id, invoice_number, items_json,
-                   subtotal, tax_rate, tax_amount, total):
+                   subtotal, tax_rate, tax_amount, total, currency="SAR"):
     """Create an invoice record and return its id."""
     conn = get_db()
     _ins_cur = conn.execute(
         """INSERT INTO invoices
            (admin_id, booking_id, patient_id, invoice_number, items_json,
-            subtotal, tax_rate, tax_amount, total)
-           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+            subtotal, tax_rate, tax_amount, total, currency)
+           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
         (admin_id, booking_id, patient_id, invoice_number, items_json,
-         subtotal, tax_rate, tax_amount, total)
+         subtotal, tax_rate, tax_amount, total, currency)
     )
     invoice_id = _ins_cur.fetchone()['id']
     conn.commit()
@@ -6054,16 +6498,19 @@ def get_invoice_by_id(invoice_id):
 def get_invoices_list(admin_id, date_from=None, date_to=None):
     """List invoices for an admin, optionally filtered by date range."""
     conn = get_db()
-    if date_from and date_to:
-        rows = conn.execute(
-            "SELECT * FROM invoices WHERE admin_id=%s AND created_at::date BETWEEN %s AND %s ORDER BY created_at DESC",
-            (admin_id, date_from, date_to)
-        ).fetchall()
-    else:
-        rows = conn.execute(
-            "SELECT * FROM invoices WHERE admin_id=%s ORDER BY created_at DESC", (admin_id,)
-        ).fetchall()
-    conn.close()
+    try:
+        if date_from and date_to:
+            # created_at is TEXT in invoices table; use SUBSTR for safe date comparison
+            rows = conn.execute(
+                "SELECT * FROM invoices WHERE admin_id=%s AND created_at ~ %s AND SUBSTR(created_at, 1, 10) BETWEEN %s AND %s ORDER BY created_at DESC",
+                (admin_id, r'^\d{4}-\d{2}-\d{2}', date_from, date_to)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM invoices WHERE admin_id=%s ORDER BY created_at DESC", (admin_id,)
+            ).fetchall()
+    finally:
+        conn.close()
     return [dict(r) for r in rows]
 
 
@@ -6331,8 +6778,10 @@ def get_chatbot_customization(admin_id):
         "launcher_bg": "", "launcher_icon": "chat",
     }
     conn = get_db()
-    row = conn.execute("SELECT * FROM chatbot_customization WHERE admin_id=%s", (admin_id,)).fetchone()
-    conn.close()
+    try:
+        row = conn.execute("SELECT * FROM chatbot_customization WHERE admin_id=%s", (admin_id,)).fetchone()
+    finally:
+        conn.close()
     if not row:
         return defaults
     row = dict(row)
@@ -6379,20 +6828,25 @@ def save_chatbot_customization(admin_id, data):
     if not filtered:
         return
     conn = get_db()
-    existing = conn.execute("SELECT id FROM chatbot_customization WHERE admin_id=%s", (admin_id,)).fetchone()
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    if existing:
-        set_clause = ", ".join(f"{_safe_column(k)}=%s" for k in filtered)
-        values = list(filtered.values()) + [now, admin_id]
-        conn.execute(f"UPDATE chatbot_customization SET {set_clause}, updated_at=%s WHERE admin_id=%s", values)
-    else:
-        filtered["admin_id"] = admin_id
-        filtered["updated_at"] = now
-        cols = ", ".join(_safe_column(c) for c in filtered.keys())
-        placeholders = ", ".join(["%s"] * len(filtered))
-        conn.execute(f"INSERT INTO chatbot_customization ({cols}) VALUES ({placeholders})", list(filtered.values()))
-    conn.commit()
-    conn.close()
+    try:
+        existing = conn.execute("SELECT id FROM chatbot_customization WHERE admin_id=%s", (admin_id,)).fetchone()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if existing:
+            set_clause = ", ".join(f"{_safe_column(k)}=%s" for k in filtered)
+            values = list(filtered.values()) + [now, admin_id]
+            conn.execute(f"UPDATE chatbot_customization SET {set_clause}, updated_at=%s WHERE admin_id=%s", values)
+        else:
+            filtered["admin_id"] = admin_id
+            filtered["updated_at"] = now
+            cols = ", ".join(_safe_column(c) for c in filtered.keys())
+            placeholders = ", ".join(["%s"] * len(filtered))
+            conn.execute(f"INSERT INTO chatbot_customization ({cols}) VALUES ({placeholders})", list(filtered.values()))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 # ═══════════════ Google Calendar Integration ═══════════════
@@ -6455,6 +6909,370 @@ def get_doctors_with_gcal(admin_id):
         d.pop("gcal_refresh_token", None)  # Don't expose token
         d.pop("gcal_calendar_id", None)  # Don't expose calendar ID (may reveal Google email)
         result.append(d)
+    return result
+
+
+# ── EMR/EHR Integration Functions ──────────────────────────────
+
+def create_integration_request(admin_id, data):
+    """Create a new integration request (for EMR/EHR systems)."""
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            """INSERT INTO integration_requests
+               (admin_id, integration_name, contact_email, practice_size, current_system, notes)
+               VALUES (%s, %s, %s, %s, %s, %s) RETURNING id""",
+            (admin_id or 0,
+             data.get("integration_name", ""),
+             data.get("contact_email", ""),
+             data.get("practice_size", ""),
+             data.get("current_system", ""),
+             data.get("notes", ""))
+        )
+        row = cur.fetchone()
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return {"ok": True, "id": row["id"]}
+
+
+def get_integration_requests(admin_id):
+    """Get all integration requests for an admin."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM integration_requests WHERE admin_id = %s ORDER BY created_at DESC",
+        (admin_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_emr_integration(admin_id, integration_type):
+    """Get EMR integration config for a given type."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM emr_integrations WHERE admin_id = %s AND integration_type = %s",
+            (admin_id, integration_type)
+        ).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return None
+    result = dict(row)
+    result.pop("api_key_encrypted", None)  # Never expose encrypted key
+    return result
+
+
+def save_emr_integration(admin_id, data):
+    """Save or update an EMR integration configuration.
+
+    WARNING: The api_key is stored as plaintext in the `api_key_encrypted` column.
+    This needs proper encryption (e.g., Fernet/AES with a managed key) before
+    production use.  Requires key management infrastructure to implement safely.
+    """
+    conn = get_db()
+    try:
+        integration_type = data.get("integration_type", "")
+        # TODO: Encrypt api_key_plaintext before storing in api_key_encrypted column.
+        # Currently stored as plaintext — see docstring above.
+        api_key_plaintext = data.get("api_key", "")
+        existing = conn.execute(
+            "SELECT id FROM emr_integrations WHERE admin_id = %s AND integration_type = %s",
+            (admin_id, integration_type)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                """UPDATE emr_integrations
+                   SET api_endpoint = %s, api_key_encrypted = %s, status = %s, sync_enabled = %s
+                   WHERE admin_id = %s AND integration_type = %s""",
+                (data.get("api_endpoint", ""),
+                 api_key_plaintext,
+                 data.get("status", "pending"),
+                 data.get("sync_enabled", False),
+                 admin_id, integration_type)
+            )
+        else:
+            conn.execute(
+                """INSERT INTO emr_integrations
+                   (admin_id, integration_type, api_endpoint, api_key_encrypted, status, sync_enabled)
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (admin_id, integration_type,
+                 data.get("api_endpoint", ""),
+                 api_key_plaintext,
+                 data.get("status", "pending"),
+                 data.get("sync_enabled", False))
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+def update_emr_sync_timestamp(admin_id, integration_type):
+    """Update the last_sync timestamp for an EMR integration."""
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE emr_integrations SET last_sync = CURRENT_TIMESTAMP WHERE admin_id = %s AND integration_type = %s",
+            (admin_id, integration_type)
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return True
+
+
+# ── AI Resolution Rate ──
+
+def get_ai_resolution_rate(admin_id, date_from=None, date_to=None):
+    """Calculate AI resolution rate metrics for a given admin and date range."""
+    conn = get_db()
+    try:
+        date_filter = ""
+        params = [admin_id]
+        if date_from and date_to:
+            date_filter = " AND created_at ~ %s AND SUBSTR(created_at,1,10) BETWEEN %s AND %s"
+            params.extend([r"^\d{4}-\d{2}-\d{2}", date_from, date_to])
+
+        # Total conversations (distinct session_ids)
+        total_row = conn.execute(
+            "SELECT COUNT(DISTINCT session_id) as total FROM chat_logs WHERE admin_id=%s" + date_filter,
+            tuple(params)
+        ).fetchone()
+        total = total_row["total"] if total_row else 0
+
+        # AI-resolved = sessions where is_human_handled=0 AND session has 3+ messages
+        ai_resolved_row = conn.execute(
+            "SELECT COUNT(*) as c FROM ("
+            "  SELECT session_id FROM chat_logs WHERE admin_id=%s AND is_human_handled=0" + date_filter +
+            "  GROUP BY session_id HAVING COUNT(*) >= 3"
+            ") sub",
+            tuple(params)
+        ).fetchone()
+        ai_resolved = ai_resolved_row["c"] if ai_resolved_row else 0
+
+        # Human-handled sessions
+        human_row = conn.execute(
+            "SELECT COUNT(DISTINCT session_id) as c FROM chat_logs WHERE admin_id=%s AND is_human_handled=1" + date_filter,
+            tuple(params)
+        ).fetchone()
+        human_handled = human_row["c"] if human_row else 0
+
+        # Resolution rate
+        resolution_rate = round((ai_resolved / total * 100), 1) if total > 0 else 0
+
+        # Avg messages per session
+        avg_msg_row = conn.execute(
+            "SELECT AVG(msg_count) as avg_msgs FROM ("
+            "  SELECT session_id, COUNT(*) as msg_count FROM chat_logs WHERE admin_id=%s" + date_filter +
+            "  GROUP BY session_id"
+            ") sub",
+            tuple(params)
+        ).fetchone()
+        avg_messages = round(float(avg_msg_row["avg_msgs"]), 1) if avg_msg_row and avg_msg_row["avg_msgs"] else 0
+
+        # Avg response confidence
+        conf_row = conn.execute(
+            "SELECT AVG(intent_confidence) as avg_conf FROM chat_logs WHERE admin_id=%s AND intent_confidence > 0" + date_filter,
+            tuple(params)
+        ).fetchone()
+        avg_confidence = round(float(conf_row["avg_conf"]) * 100, 1) if conf_row and conf_row["avg_conf"] else 0
+    finally:
+        conn.close()
+
+    return {
+        "total_conversations": total,
+        "ai_resolved": ai_resolved,
+        "human_handled": human_handled,
+        "resolution_rate": resolution_rate,
+        "avg_messages_per_session": avg_messages,
+        "avg_confidence": avg_confidence,
+    }
+
+
+# ── Proactive Engagement Config ──
+
+def get_proactive_config(admin_id):
+    """Get proactive engagement config for an admin."""
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT * FROM proactive_config WHERE admin_id=%s", (admin_id,)).fetchone()
+    finally:
+        conn.close()
+    if row:
+        return dict(row)
+    # Return defaults
+    return {
+        "admin_id": admin_id,
+        "enabled": 1,
+        "dwell_time_seconds": 30,
+        "scroll_depth_percent": 60,
+        "exit_intent_enabled": 1,
+        "trigger_message": "",
+        "trigger_pages": "",
+    }
+
+
+def save_proactive_config(admin_id, config):
+    """Save proactive engagement config for an admin."""
+    conn = get_db()
+    try:
+        enabled = int(config.get("enabled", 1))
+        dwell = int(config.get("dwell_time_seconds", 30))
+        scroll = int(config.get("scroll_depth_percent", 60))
+        exit_intent = int(config.get("exit_intent_enabled", 1))
+        trigger_msg = str(config.get("trigger_message", ""))
+        trigger_pages = str(config.get("trigger_pages", ""))
+
+        conn.execute(
+            """INSERT INTO proactive_config (admin_id, enabled, dwell_time_seconds, scroll_depth_percent,
+               exit_intent_enabled, trigger_message, trigger_pages)
+               VALUES (%s,%s,%s,%s,%s,%s,%s)
+               ON CONFLICT (admin_id) DO UPDATE SET
+               enabled=EXCLUDED.enabled, dwell_time_seconds=EXCLUDED.dwell_time_seconds,
+               scroll_depth_percent=EXCLUDED.scroll_depth_percent,
+               exit_intent_enabled=EXCLUDED.exit_intent_enabled,
+               trigger_message=EXCLUDED.trigger_message, trigger_pages=EXCLUDED.trigger_pages,
+               updated_at=CURRENT_TIMESTAMP""",
+            (admin_id, enabled, dwell, scroll, exit_intent, trigger_msg, trigger_pages)
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return True
+
+
+# ═══════════════ Chatbot Flow Builder ═══════════════
+
+def save_chatbot_flow(admin_id, name, description, flow_data):
+    """Save a new chatbot flow."""
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            """INSERT INTO chatbot_flows (admin_id, name, description, flow_data)
+               VALUES (%s, %s, %s, %s) RETURNING id, name, description, is_active, created_at, updated_at""",
+            (admin_id, name, description, json.dumps(flow_data))
+        )
+        row = cur.fetchone()
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return dict(row)
+
+
+def get_chatbot_flows(admin_id):
+    """List all flows for an admin."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT id, name, description, is_active, created_at, updated_at FROM chatbot_flows WHERE admin_id=%s ORDER BY updated_at DESC",
+            (admin_id,)
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_chatbot_flow(admin_id, flow_id):
+    """Get a single flow with full flow_data."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM chatbot_flows WHERE id=%s AND admin_id=%s",
+            (flow_id, admin_id)
+        ).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return None
+    result = dict(row)
+    if isinstance(result.get("flow_data"), str):
+        result["flow_data"] = json.loads(result["flow_data"])
+    return result
+
+
+def update_chatbot_flow(flow_id, admin_id, name, description, flow_data):
+    """Update an existing flow."""
+    conn = get_db()
+    try:
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cur = conn.execute(
+            """UPDATE chatbot_flows SET name=%s, description=%s, flow_data=%s, updated_at=%s
+               WHERE id=%s AND admin_id=%s""",
+            (name, description, json.dumps(flow_data), now, flow_id, admin_id)
+        )
+        conn.commit()
+        affected = cur.rowcount
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return affected > 0
+
+
+def delete_chatbot_flow(flow_id, admin_id):
+    """Delete a flow."""
+    conn = get_db()
+    try:
+        cur = conn.execute("DELETE FROM chatbot_flows WHERE id=%s AND admin_id=%s", (flow_id, admin_id))
+        conn.commit()
+        affected = cur.rowcount
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return affected > 0
+
+
+def activate_chatbot_flow(flow_id, admin_id):
+    """Set a flow as active and deactivate all others for this admin."""
+    conn = get_db()
+    try:
+        conn.execute("UPDATE chatbot_flows SET is_active=FALSE WHERE admin_id=%s", (admin_id,))
+        conn.execute("UPDATE chatbot_flows SET is_active=TRUE, updated_at=%s WHERE id=%s AND admin_id=%s",
+                     (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), flow_id, admin_id))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return True
+
+
+def get_active_flow(admin_id):
+    """Get the currently active flow for an admin."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM chatbot_flows WHERE admin_id=%s AND is_active=TRUE",
+            (admin_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return None
+    result = dict(row)
+    if isinstance(result.get("flow_data"), str):
+        result["flow_data"] = json.loads(result["flow_data"])
     return result
 
 

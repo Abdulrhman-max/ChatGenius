@@ -93,6 +93,35 @@
         .comp-table .dash{color:#3a3f4d}
         .comp-table .cat-row td{background:rgba(255,255,255,0.02);font-weight:700;color:#a78bfa;font-size:0.8rem;letter-spacing:0.5px;text-transform:uppercase;padding-top:1.1rem}
 
+        /* ── ROI Calculator ── */
+        .roi-section{max-width:1100px;margin:0 auto 5rem;padding:0 1.5rem;position:relative;z-index:1}
+        .roi-section h2{text-align:center;font-size:2rem;font-weight:800;letter-spacing:-0.5px;margin-bottom:0.5rem}
+        .roi-section .subtitle{text-align:center;color:#8b95a8;font-size:1rem;margin-bottom:2.5rem}
+        .roi-card{background:rgba(255,255,255,0.025);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:24px;padding:2.5rem;border:1px solid rgba(255,255,255,0.06);display:grid;grid-template-columns:1fr 1fr;gap:3rem}
+        .roi-inputs{display:flex;flex-direction:column;gap:1.75rem}
+        .roi-input-group label{display:flex;justify-content:space-between;align-items:center;font-size:0.88rem;font-weight:600;color:#cbd5e1;margin-bottom:0.5rem}
+        .roi-input-group .roi-val{color:#a78bfa;font-weight:700;font-size:0.95rem;min-width:60px;text-align:right}
+        .roi-input-group input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;background:rgba(255,255,255,0.08);outline:none;cursor:pointer}
+        .roi-input-group input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#6366f1);cursor:pointer;box-shadow:0 2px 10px rgba(139,92,246,0.4)}
+        .roi-input-group input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#6366f1);cursor:pointer;border:none;box-shadow:0 2px 10px rgba(139,92,246,0.4)}
+        .roi-results{display:flex;flex-direction:column;gap:1rem;justify-content:center}
+        .roi-result-item{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:14px;padding:1rem 1.25rem;display:flex;justify-content:space-between;align-items:center}
+        .roi-result-item .roi-label{font-size:0.85rem;color:#8b95a8;max-width:55%}
+        .roi-result-item .roi-number{font-size:1.3rem;font-weight:800;background:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:right}
+        .roi-total{background:linear-gradient(135deg,rgba(139,92,246,0.08),rgba(99,102,241,0.04));border:1px solid rgba(139,92,246,0.15)}
+        .roi-total .roi-number{font-size:1.6rem}
+        .roi-total .roi-label{font-weight:700;color:#f1f5f9}
+        .roi-annual{background:linear-gradient(135deg,rgba(52,211,153,0.06),rgba(59,130,246,0.04));border:1px solid rgba(52,211,153,0.12)}
+        .roi-annual .roi-number{background:linear-gradient(135deg,#34d399,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-size:1.8rem}
+        .roi-annual .roi-label{font-weight:700;color:#f1f5f9}
+        .roi-multiplier{text-align:center;margin-top:0.5rem;padding:0.75rem;border-radius:12px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.1)}
+        .roi-multiplier span{font-weight:900;font-size:1.5rem;background:linear-gradient(135deg,#8b5cf6,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .roi-multiplier .roi-mult-label{font-size:0.82rem;color:#8b95a8;display:block;margin-top:0.15rem}
+        .roi-cta{text-align:center;margin-top:1.5rem}
+        .roi-cta a{display:inline-block;background:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);color:#fff;padding:0.85rem 2rem;border-radius:12px;font-weight:700;font-size:0.95rem;text-decoration:none;transition:opacity .2s,transform .2s;box-shadow:0 4px 20px rgba(139,92,246,0.3)}
+        .roi-cta a:hover{opacity:0.9;transform:translateY(-2px);text-decoration:none}
+        @media(max-width:768px){.roi-card{grid-template-columns:1fr;gap:2rem}}
+
         /* ── FAQ ── */
         .faq{max-width:800px;margin:0 auto 5rem;padding:0 1.5rem;position:relative;z-index:1}
         .faq h2{text-align:center;font-size:2rem;font-weight:800;letter-spacing:-0.5px;margin-bottom:0.5rem}
@@ -143,20 +172,65 @@
 <body>
 
 <!-- Nav -->
-<nav class="nav">
+<nav id="mainNav">
     <div class="nav-inner">
-        <a href="/" class="nav-logo" style="text-decoration:none">Chat<span>GeniusX</span></a>
-        <button class="nav-mobile-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Menu">&#9776;</button>
-        <div class="nav-links">
-            <a href="/">Home</a>
-            <a href="/#features">Features</a>
-            <a href="/pricing-plans" class="active">Pricing</a>
-            <a href="/demo">Demo</a>
-            <a href="/case-studies">Case Studies</a>
-            <a href="/blog">Blog</a>
-            <a href="/login">Login</a>
-            <a href="/login?signup=1" class="btn-nav">Start Free</a>
-        </div>
+        <a href="/" class="logo">Chat<span>Genius</span></a>
+        <ul class="nav-links">
+            <li>
+                <a href="#" class="nav-dropdown-trigger" onclick="return false">Product <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
+                <div class="nav-dropdown">
+                    <a href="/#features"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6">&#9889;</span><div>Features<small>All platform capabilities</small></div></a>
+                    <a href="/ai-technology"><span class="nav-dd-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6">&#129302;</span><div>AI Technology<small>Model transparency</small></div></a>
+                    <a href="/integrations"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#128268;</span><div>Integrations<small>Connect your stack</small></div></a>
+                    <a href="/trust-center"><span class="nav-dd-icon" style="background:rgba(6,182,212,0.1);color:#06b6d4">&#128274;</span><div>Trust Center<small>Security &amp; compliance</small></div></a>
+                    <a href="/agent-marketplace"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#129302;</span><div>Agent Marketplace<small>Pre-built AI agents</small></div></a>
+                    <a href="/voice-agent"><span class="nav-dd-icon" style="background:rgba(251,191,36,0.1);color:#fbbf24">&#127908;</span><div>Voice AI<small>Voice-powered calls</small></div></a>
+                    <a href="/mobile-app"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#c4b5fd">&#128241;</span><div>Mobile App<small>iOS &amp; Android</small></div></a>
+                </div>
+            </li>
+            <li><a href="/pricing-plans">Pricing</a></li>
+            <li>
+                <a href="#" class="nav-dropdown-trigger" onclick="return false">Resources <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
+                <div class="nav-dropdown">
+                    <a href="/developers"><span class="nav-dd-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6">&#128187;</span><div>API Docs<small>Developer portal</small></div></a>
+                    <a href="/compare"><span class="nav-dd-icon" style="background:rgba(251,191,36,0.1);color:#fbbf24">&#128200;</span><div>Compare<small>vs Intercom, Tidio</small></div></a>
+                    <a href="/partners"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#129309;</span><div>Partner Program<small>Earn commissions</small></div></a>
+                    <a href="/blog"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#128221;</span><div>Blog &amp; Guides<small>Tips &amp; insights</small></div></a>
+                    <a href="/case-studies"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6">&#128202;</span><div>Case Studies<small>Real results</small></div></a>
+                </div>
+            </li>
+            <li>
+                <a href="#" class="nav-dropdown-trigger" onclick="return false">Use Cases <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
+                <div class="nav-dropdown">
+                    <a href="/for-dental-clinics"><span class="nav-dd-icon" style="background:rgba(6,182,212,0.1);color:#06b6d4">&#129463;</span><div>Dental Clinics<small>Bookings &amp; recalls</small></div></a>
+                    <a href="/for-medical-practices"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#127973;</span><div>Medical Practices<small>Patient engagement</small></div></a>
+                    <a href="/for-salons-spas"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#128135;</span><div>Salons &amp; Spas<small>Beauty appointments</small></div></a>
+                </div>
+            </li>
+            <li><a href="/login" class="nav-btn-outline">Log In</a></li>
+            <li><a href="/login?signup=1" class="nav-btn">Start Free</a></li>
+        </ul>
+        <button class="hamburger" onclick="document.querySelector('.mobile-menu').classList.toggle('open')">&#9776;</button>
+    </div>
+    <div class="mobile-menu">
+        <a href="/#features">Features</a>
+        <a href="/pricing-plans">Pricing</a>
+        <a href="/ai-technology">AI Technology</a>
+        <a href="/integrations">Integrations</a>
+        <a href="/trust-center">Trust Center</a>
+        <a href="/agent-marketplace">Agent Marketplace</a>
+        <a href="/voice-agent">Voice AI</a>
+        <a href="/mobile-app">Mobile App</a>
+        <a href="/developers">API Docs</a>
+        <a href="/compare">Compare</a>
+        <a href="/partners">Partners</a>
+        <a href="/blog">Blog &amp; Guides</a>
+        <a href="/case-studies">Case Studies</a>
+        <a href="/for-dental-clinics">Dental</a>
+        <a href="/for-medical-practices">Medical</a>
+        <a href="/for-salons-spas">Salons</a>
+        <a href="/login">Log In</a>
+        <a href="/login?signup=1" style="color:#c4b5fd;font-weight:700">Start Free</a>
     </div>
 </nav>
 
@@ -185,7 +259,7 @@
         <div class="plan-billed">Free for 14 days</div>
         <hr class="plan-divider">
         <ul class="plan-features">
-            <li>50 conversations/month</li>
+            <li>200 conversations/month</li>
             <li>1 chatbot (with watermark)</li>
             <li>Basic AI responses</li>
             <li>14-day full access</li>
@@ -337,6 +411,66 @@
     </div>
 </section>
 
+<!-- ROI Calculator -->
+<section class="roi-section">
+    <h2>Calculate Your ROI with ChatGenius</h2>
+    <p class="subtitle">See how much time and revenue you could gain with AI-powered patient engagement</p>
+
+    <div class="roi-card">
+        <div class="roi-inputs">
+            <div class="roi-input-group">
+                <label>Monthly patient inquiries <span class="roi-val" id="val-inquiries">500</span></label>
+                <input type="range" id="roi-inquiries" min="50" max="2000" value="500" step="10" oninput="calcROI()">
+            </div>
+            <div class="roi-input-group">
+                <label>Average appointment value <span class="roi-val" id="val-appt">$150</span></label>
+                <input type="range" id="roi-appt" min="50" max="500" value="150" step="5" oninput="calcROI()">
+            </div>
+            <div class="roi-input-group">
+                <label>Current no-show rate <span class="roi-val" id="val-noshow">20%</span></label>
+                <input type="range" id="roi-noshow" min="5" max="40" value="20" step="1" oninput="calcROI()">
+            </div>
+            <div class="roi-input-group">
+                <label>Hours front desk on calls/day <span class="roi-val" id="val-hours">4</span></label>
+                <input type="range" id="roi-hours" min="1" max="8" value="4" step="0.5" oninput="calcROI()">
+            </div>
+            <div class="roi-input-group">
+                <label>Front desk hourly rate <span class="roi-val" id="val-rate">$18</span></label>
+                <input type="range" id="roi-rate" min="12" max="30" value="18" step="1" oninput="calcROI()">
+            </div>
+        </div>
+        <div class="roi-results">
+            <div class="roi-result-item">
+                <span class="roi-label">Additional monthly revenue from AI bookings</span>
+                <span class="roi-number" id="roi-revenue">$0</span>
+            </div>
+            <div class="roi-result-item">
+                <span class="roi-label">Monthly savings from no-show reduction</span>
+                <span class="roi-number" id="roi-noshow-save">$0</span>
+            </div>
+            <div class="roi-result-item">
+                <span class="roi-label">Front desk time savings</span>
+                <span class="roi-number" id="roi-desk-save">$0</span>
+            </div>
+            <div class="roi-result-item roi-total">
+                <span class="roi-label">Total Monthly Value</span>
+                <span class="roi-number" id="roi-monthly-total">$0</span>
+            </div>
+            <div class="roi-result-item roi-annual">
+                <span class="roi-label">Annual Value</span>
+                <span class="roi-number" id="roi-annual-total">$0</span>
+            </div>
+            <div class="roi-multiplier">
+                <span id="roi-mult">0x</span>
+                <span class="roi-mult-label">ROI multiple vs. Pro plan ($239/mo)</span>
+            </div>
+            <div class="roi-cta">
+                <a href="/login?signup=1">Start Free Trial &rarr;</a>
+            </div>
+        </div>
+    </div>
+</section>
+
 <!-- FAQ -->
 <section class="faq">
     <h2>Frequently Asked Questions</h2>
@@ -378,14 +512,57 @@
 </section>
 
 <!-- Footer -->
-<footer class="footer">
-    <div class="footer-links">
-        <a href="/terms">Terms of Service</a>
-        <a href="/privacy">Privacy Policy</a>
-        <a href="/refund">Refund Policy</a>
-        <a href="/data-deletion">Data Deletion</a>
+<footer>
+    <div class="footer-inner" style="display:block;max-width:1140px;margin:auto">
+        <div class="footer-grid">
+            <div class="footer-col">
+                <div class="footer-logo" style="margin-bottom:1rem">Chat<span>Genius</span></div>
+                <p>AI chatbot platform that converts visitors into bookings. Built for healthcare, dental, and beauty practices.</p>
+                <div class="footer-newsletter" style="margin-top:1rem">
+                    <input type="email" id="footerEmail" placeholder="Your email">
+                    <button onclick="document.getElementById('footerEmail').value='';this.textContent='Subscribed!';setTimeout(()=>this.textContent='Subscribe',2000)">Subscribe</button>
+                </div>
+                <p style="font-size:.72rem;margin-top:.4rem;color:var(--text-dim)">Join 2,000+ practice owners getting AI tips</p>
+            </div>
+            <div class="footer-col">
+                <h4>Product</h4>
+                <a href="/#features">Features</a>
+                <a href="/ai-technology">AI Technology</a>
+                <a href="/integrations">Integrations</a>
+                <a href="/agent-marketplace">Agent Marketplace</a>
+                <a href="/voice-agent">Voice AI</a>
+                <a href="/mobile-app">Mobile App</a>
+            </div>
+            <div class="footer-col">
+                <h4>Resources</h4>
+                <a href="/developers">API Docs</a>
+                <a href="/blog">Blog &amp; Guides</a>
+                <a href="/case-studies">Case Studies</a>
+                <a href="/compare">Compare</a>
+            </div>
+            <div class="footer-col">
+                <h4>Company</h4>
+                <a href="/pricing-plans">Pricing</a>
+                <a href="/partners">Partner Program</a>
+                <a href="/trust-center">Trust Center</a>
+                <a href="/security">Security</a>
+            </div>
+            <div class="footer-col">
+                <h4>Legal</h4>
+                <a href="/privacy">Privacy Policy</a>
+                <a href="/terms">Terms of Service</a>
+                <a href="/refund">Refund Policy</a>
+                <a href="/data-deletion">Data Deletion</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="footer-copy">&copy; 2026 ChatGeniusX. All rights reserved.</div>
+            <div style="display:flex;gap:1.5rem">
+                <a href="/privacy" style="color:var(--text-dim);font-size:.8rem;text-decoration:none">Privacy</a>
+                <a href="/terms" style="color:var(--text-dim);font-size:.8rem;text-decoration:none">Terms</a>
+            </div>
+        </div>
     </div>
-    <p class="footer-copy">&copy; 2026 ChatGeniusX. All rights reserved.</p>
 </footer>
 
 <script>
@@ -445,6 +622,64 @@
         const item = el.closest('.faq-item');
         item.classList.toggle('open');
     }
+
+    /* ── ROI Calculator ── */
+    var _roiAnimFrames = {};
+    function animateNumber(el, target, prefix, suffix) {
+        var id = el.id;
+        if (_roiAnimFrames[id]) cancelAnimationFrame(_roiAnimFrames[id]);
+        var current = parseFloat(el.dataset.current || '0');
+        var start = performance.now();
+        var duration = 400;
+        function step(now) {
+            var t = Math.min((now - start) / duration, 1);
+            t = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; // easeInOutCubic
+            var val = current + (target - current) * t;
+            el.textContent = (prefix||'') + Math.round(val).toLocaleString() + (suffix||'');
+            if (t < 1) {
+                _roiAnimFrames[id] = requestAnimationFrame(step);
+            } else {
+                el.dataset.current = target;
+            }
+        }
+        _roiAnimFrames[id] = requestAnimationFrame(step);
+    }
+
+    function calcROI() {
+        var inquiries = parseInt(document.getElementById('roi-inquiries').value);
+        var apptValue = parseInt(document.getElementById('roi-appt').value);
+        var noshowRate = parseInt(document.getElementById('roi-noshow').value);
+        var hours = parseFloat(document.getElementById('roi-hours').value);
+        var rate = parseInt(document.getElementById('roi-rate').value);
+
+        // Update display values
+        document.getElementById('val-inquiries').textContent = inquiries;
+        document.getElementById('val-appt').textContent = '$' + apptValue;
+        document.getElementById('val-noshow').textContent = noshowRate + '%';
+        document.getElementById('val-hours').textContent = hours;
+        document.getElementById('val-rate').textContent = '$' + rate;
+
+        // Calculations
+        var aiRevenue = Math.round(inquiries * 0.30 * apptValue);
+        var noshowSavings = Math.round((inquiries * (noshowRate/100)) * 0.50 * apptValue);
+        var deskSavings = Math.round(hours * rate * 22 * 0.40);
+        var monthlyTotal = aiRevenue + noshowSavings + deskSavings;
+        var annualTotal = monthlyTotal * 12;
+        var planCost = 239; // Pro plan
+        var roiMult = planCost > 0 ? (monthlyTotal / planCost) : 0;
+
+        animateNumber(document.getElementById('roi-revenue'), aiRevenue, '$');
+        animateNumber(document.getElementById('roi-noshow-save'), noshowSavings, '$');
+        animateNumber(document.getElementById('roi-desk-save'), deskSavings, '$');
+        animateNumber(document.getElementById('roi-monthly-total'), monthlyTotal, '$');
+        animateNumber(document.getElementById('roi-annual-total'), annualTotal, '$');
+
+        var multEl = document.getElementById('roi-mult');
+        multEl.textContent = roiMult.toFixed(1) + 'x';
+    }
+
+    // Initialize on load
+    calcROI();
 </script>
 
 
@@ -478,7 +713,48 @@
         .chat-widget-window{position:fixed;inset:0;width:100%;height:100%;border-radius:0;bottom:0;right:0}
         .chat-widget-window.open+.chat-widget-btn{display:none}
     }
-</style>
+
+        .nav-links>li{position:relative}
+        .nav-dropdown-trigger{cursor:pointer;display:flex;align-items:center;gap:4px}
+        .nav-dropdown-trigger::after{content:'';display:none}
+        .nav-dropdown-trigger svg{width:12px;height:12px;opacity:.5;transition:transform .3s}
+        .nav-dropdown{position:absolute;top:calc(100% + 12px);left:50%;transform:translateX(-50%) translateY(8px);min-width:220px;background:rgba(10,14,26,0.98);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:.5rem;opacity:0;visibility:hidden;transition:all .25s var(--ease);z-index:1001;box-shadow:0 20px 50px rgba(0,0,0,0.5)}
+        .nav-links>li:hover .nav-dropdown{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+        .nav-links>li:hover .nav-dropdown-trigger svg{transform:rotate(180deg)}
+        .nav-dropdown a{display:flex;align-items:center;gap:.6rem;padding:.55rem .85rem;border-radius:8px;font-size:.82rem;color:var(--text-muted);transition:all .2s}
+        .nav-dropdown a::after{display:none}
+        .nav-dropdown a:hover{background:rgba(139,92,246,0.08);color:#fff}
+        .nav-dropdown a small{font-size:.7rem;color:var(--text-dim);display:block;margin-top:1px}
+        .nav-dd-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0}
+    
+        /* FOOTER */
+        footer{padding:3rem 2rem;border-top:1px solid var(--border);background:rgba(5,7,16,0.5)}
+        .footer-inner{max-width:1140px;margin:auto}
+        .footer-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 1fr;gap:2rem;margin-bottom:2rem}
+        .footer-col{display:flex;flex-direction:column;gap:.5rem}
+        .footer-col h4{font-size:.85rem;font-weight:700;margin-bottom:.5rem;color:var(--text)}
+        .footer-col a{color:var(--text-dim);text-decoration:none;font-size:.82rem;transition:color .3s;padding:.15rem 0}
+        .footer-col a:hover{color:var(--text)}
+        .footer-col p{color:var(--text-dim);font-size:.82rem;line-height:1.7}
+        .footer-logo{font-size:1.2rem;font-weight:800;letter-spacing:-.5px}
+        .footer-logo span{background:var(--gradient2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .footer-newsletter{display:flex;gap:.5rem}
+        .footer-newsletter input{flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-size:.82rem;font-family:inherit}
+        .footer-newsletter input::placeholder{color:var(--text-dim)}
+        .footer-newsletter button{background:var(--gradient);color:#fff;border:none;padding:.5rem 1rem;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .3s}
+        .footer-newsletter button:hover{transform:translateY(-1px)}
+        .footer-bottom{display:flex;justify-content:space-between;align-items:center;padding-top:1.5rem;border-top:1px solid var(--border)}
+        .footer-copy{color:var(--text-dim);font-size:.8rem}
+        @media(max-width:900px){.footer-grid{grid-template-columns:1fr 1fr;gap:1.5rem}.footer-bottom{flex-direction:column;gap:.75rem;text-align:center}}
+        @media(max-width:480px){.footer-grid{grid-template-columns:1fr}}
+    
+        .hamburger{display:none;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;padding:.5rem}
+        .mobile-menu{display:none;position:fixed;top:72px;left:0;right:0;background:rgba(5,7,16,0.95);backdrop-filter:blur(20px);padding:1.5rem 2rem;border-bottom:1px solid var(--border);flex-direction:column;gap:1rem;z-index:999}
+        .mobile-menu.open{display:flex}
+        .mobile-menu a{color:var(--text-muted);text-decoration:none;font-size:1rem;padding:.75rem 0;border-bottom:1px solid var(--border);font-weight:500}
+        .mobile-menu a:last-child{border:none}
+        @media(max-width:900px){.nav-links{display:none!important}.hamburger{display:block}}
+    </style>
 <button class="chat-widget-btn" id="chatWidgetBtn" onclick="toggleChatWidget()">
     <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
 </button>

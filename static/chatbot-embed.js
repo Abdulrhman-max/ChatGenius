@@ -95,7 +95,7 @@
 
         // Input area
         '#cg-input-area{padding:12px 14px;border-top:1px solid rgba(139,92,246,0.08);display:flex;gap:8px;background:rgba(12,12,24,0.95);flex-shrink:0;backdrop-filter:blur(20px)}',
-        '#cg-input{flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(139,92,246,0.12);border-radius:12px;padding:10px 14px;color:#e2e8f0;font-size:13px;outline:none;resize:none;min-height:20px;max-height:80px;transition:all .2s ease}',
+        '#cg-input{flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(139,92,246,0.12);border-radius:12px;padding:10px 14px;color:#e2e8f0;font-size:13px;outline:none;resize:none;min-height:38px;max-height:80px;transition:all .2s ease;overflow-y:auto;line-height:1.4}',
         '#cg-input::placeholder{color:#475569}',
         '#cg-input:focus{border-color:rgba(139,92,246,0.4);background:rgba(255,255,255,0.06);box-shadow:0 0 0 3px rgba(139,92,246,0.08)}',
         '#cg-send{background:linear-gradient(135deg,' + COLOR + ',#6366f1);border:none;border-radius:12px;width:38px;height:38px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s cubic-bezier(.4,0,.2,1);flex-shrink:0;box-shadow:0 2px 8px rgba(139,92,246,0.25)}',
@@ -103,6 +103,17 @@
         '#cg-send:active{transform:scale(0.95)}',
         '#cg-send:disabled{opacity:.35;cursor:default;transform:none;box-shadow:none}',
         '#cg-send svg{width:16px;height:16px;fill:#fff;transition:transform .15s}',
+
+        // Mic button (voice input for enterprise)
+        '#cg-mic{display:none;background:rgba(255,255,255,0.04);border:1px solid rgba(139,92,246,0.12);border-radius:12px;width:38px;height:38px;cursor:pointer;align-items:center;justify-content:center;transition:all .2s cubic-bezier(.4,0,.2,1);flex-shrink:0}',
+        '#cg-mic:hover{background:rgba(139,92,246,0.1);border-color:rgba(139,92,246,0.3)}',
+        '#cg-mic:active{transform:scale(0.95)}',
+        '#cg-mic.recording{background:rgba(239,68,68,0.15);border-color:rgba(239,68,68,0.4);animation:cgMicPulse 1s ease infinite}',
+        '#cg-mic svg{width:16px;height:16px;fill:#94a3b8;transition:fill .2s}',
+        '#cg-mic:hover svg{fill:#e2e8f0}',
+        '#cg-mic.recording svg{fill:#f87171}',
+        '@keyframes cgMicPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.3)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}',
+        '#cg-mic-status{display:none;font-size:10px;color:#94a3b8;text-align:center;padding:2px 14px;background:rgba(12,12,24,0.95);flex-shrink:0}',
 
         // Powered by
         '#cg-powered{text-align:center;padding:6px;font-size:9px;color:#334155;background:#0c0c18;letter-spacing:0.02em}',
@@ -201,9 +212,11 @@
         '  </div>',
         '  <div id="cg-messages"></div>',
         '  <div id="cg-input-area">',
-        '    <input type="text" id="cg-input" placeholder="Type a message..." autocomplete="off">',
+        '    <textarea id="cg-input" placeholder="Type a message..." autocomplete="off" rows="1"></textarea>',
+        '    <button id="cg-mic" title="Voice input"><svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg></button>',
         '    <button id="cg-send"><svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>',
         '  </div>',
+        '  <div id="cg-mic-status"></div>',
         '  <div id="cg-powered">Powered by <a href="https://chatgenius.ai" target="_blank">ChatGenius</a></div>',
         '</div>'
     ].join('');
@@ -217,8 +230,18 @@
     var sendBtn = shadow.getElementById('cg-send');
     var badge = shadow.getElementById('cg-badge');
     var resetBtn = shadow.getElementById('cg-reset');
+    var micBtn = shadow.getElementById('cg-mic');
+    var micStatus = shadow.getElementById('cg-mic-status');
     var isOpen = false;
     var sending = false;
+    var _micRecording = false;
+    var _micRecorder = null;
+    var _micChunks = [];
+    var _micStream = null;
+    var _micMimeType = 'audio/webm';
+    var _lastInputWasVoice = false;
+    var _voiceSession = false; // stays true while booking flow continues from voice
+    var _typewriterTimer = null;
 
     // ── Fetch customization settings ──
     try {
@@ -290,6 +313,10 @@
         if (cbCustom.title) {
             var titleEl = shadow.getElementById('cg-header-title');
             if (titleEl) titleEl.textContent = cbCustom.title;
+        }
+        // Voice input button (enterprise/agency only)
+        if (cbCustom.voice_enabled && micBtn) {
+            micBtn.style.display = 'flex';
         }
         // Create/update style element
         var existingStyle = shadow.querySelector('#cg-custom-style');
@@ -364,11 +391,18 @@
     }
 
     // ── Reset chat (new session) ──
-    resetBtn.addEventListener('click', function() {
-        sessionId = 'web_' + ADMIN_ID + '_' + Math.random().toString(36).substr(2, 12);
-        messages.innerHTML = '';
-        addMessage(WELCOME, false);
-    });
+    // Bug fix #4: Null check before adding event listener
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function() {
+            sessionId = 'web_' + ADMIN_ID + '_' + Math.random().toString(36).substr(2, 12);
+            if (messages) messages.innerHTML = '';
+            _voiceSession = false; _lastInputWasVoice = false;
+            if (_micRecording) stopMicRecording();
+            if (window.speechSynthesis) try { window.speechSynthesis.cancel(); } catch(e) {}
+            if (_typewriterTimer) { clearInterval(_typewriterTimer); _typewriterTimer = null; }
+            addMessage(WELCOME, false);
+        });
+    }
 
     // ── Show welcome message with delay for natural feel ──
     setTimeout(function() {
@@ -376,6 +410,8 @@
     }, 400);
 
     // ── Toggle with animation ──
+    // Bug fix #4: Null check before adding event listener
+    if (!bubble) return;
     bubble.addEventListener('click', function() {
         if (!isOpen) {
             isOpen = true;
@@ -399,15 +435,27 @@
     });
 
     // ── Send ──
-    sendBtn.addEventListener('click', send);
-    input.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
-    });
+    // Bug fix #4: Null checks before adding event listeners
+    if (sendBtn) sendBtn.addEventListener('click', function() { _voiceSession = false; send(); });
+    if (input) {
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _voiceSession = false; send(); }
+        });
+        // Auto-resize textarea as user types
+        input.addEventListener('input', function() {
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 80) + 'px';
+        });
+    }
 
-    function send() {
+    function send(fromVoice) {
         var text = input.value.trim();
         if (!text || sending) return;
         input.value = '';
+        input.style.height = 'auto';
+        var wasVoice = fromVoice || _lastInputWasVoice || _voiceSession;
+        if (fromVoice || _lastInputWasVoice) _voiceSession = true;
+        _lastInputWasVoice = false;
         addMessage(text, true);
         sending = true;
         sendBtn.disabled = true;
@@ -424,29 +472,176 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: text, session_id: sessionId, admin_id: ADMIN_ID, customer_id: (window.ChatGeniusConfig || {}).customerId || CUSTOMER_ID, customer_api_url: (window.ChatGeniusConfig || {}).customerApiUrl || CUSTOMER_API_URL })
         })
-        .then(function(r) { return r.json(); })
+        .then(function(r) {
+            // Bug fix #6: Handle non-OK responses gracefully
+            if (!r.ok) throw new Error('Server error: ' + r.status);
+            return r.json();
+        })
         .then(function(data) {
-            if (typing.parentNode) typing.remove();
-            addMessage(data.reply || 'Sorry, something went wrong.', false);
-            if (data.options) renderOptions(data.options);
+            if (typing && typing.parentNode) typing.remove();
+            var reply = data.reply || 'Sorry, something went wrong.';
+            addMessage(reply, false);
+            if (data.options) {
+                renderOptions(data.options);
+                // If input was voice and there are dropdown options, speak response + tell user to select
+                if (wasVoice && cbCustom.voice_enabled) {
+                    var speakMsg = reply.replace(/\*\*/g, '');
+                    if (data.options.type !== 'calendar') speakMsg += '. Please select an option on screen.';
+                    else speakMsg += '. Please pick a date on the calendar.';
+                    cgSpeak(speakMsg);
+                }
+            } else if (wasVoice && cbCustom.voice_enabled) {
+                // Speak the AI response
+                cgSpeak(reply.replace(/\*\*/g, ''));
+            }
             if (data.booking_confirmed) {
+                _voiceSession = false;
                 setTimeout(function() { showCelebration(); }, 500);
             }
-            if (!isOpen) {
+            if (!isOpen && badge) {
                 badge.style.display = 'flex';
             }
         })
-        .catch(function() {
-            if (typing.parentNode) typing.remove();
+        .catch(function(err) {
+            if (typing && typing.parentNode) typing.remove();
+            // Bug fix #6: User-visible error message on fetch failure
             addMessage('Could not connect. Please try again.', false);
+            console.warn('ChatGenius: chat request failed:', err);
         })
         .finally(function() {
             sending = false;
-            sendBtn.disabled = false;
+            if (sendBtn) sendBtn.disabled = false;
+        });
+    }
+
+    // ── TTS for voice responses ──
+    var _cgVoice = null;
+    function _pickVoice() {
+        if (_cgVoice) return _cgVoice;
+        var voices = window.speechSynthesis.getVoices();
+        // Prefer natural-sounding voices
+        var preferred = ['Samantha', 'Google US English', 'Karen', 'Moira', 'Tessa', 'Alex'];
+        for (var p = 0; p < preferred.length; p++) {
+            for (var v = 0; v < voices.length; v++) {
+                if (voices[v].name.indexOf(preferred[p]) >= 0 && voices[v].lang.indexOf('en') === 0) { _cgVoice = voices[v]; return _cgVoice; }
+            }
+        }
+        // Fallback: first English voice
+        for (var v = 0; v < voices.length; v++) {
+            if (voices[v].lang.indexOf('en') === 0) { _cgVoice = voices[v]; return _cgVoice; }
+        }
+        return null;
+    }
+    if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = function() { _cgVoice = null; _pickVoice(); };
+
+    function cgSpeak(text) {
+        if (!window.speechSynthesis) return;
+        window.speechSynthesis.cancel();
+        var utt = new SpeechSynthesisUtterance(text);
+        utt.rate = 1.05; utt.pitch = 1.0; utt.volume = 1.0; utt.lang = 'en-US';
+        var voice = _pickVoice();
+        if (voice) utt.voice = voice;
+        try { window.speechSynthesis.speak(utt); } catch(e) {}
+    }
+
+    // ── Voice recording (enterprise only) ──
+    if (micBtn) {
+        micBtn.addEventListener('click', function() {
+            if (_micRecording) {
+                stopMicRecording();
+            } else {
+                startMicRecording();
+            }
+        });
+    }
+
+    function startMicRecording() {
+        if (_micRecording || sending) return;
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined') {
+            if (micStatus) { micStatus.style.display = 'block'; micStatus.textContent = 'Voice not supported in this browser.'; setTimeout(function() { micStatus.style.display = 'none'; }, 3000); }
+            return;
+        }
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+            _micStream = stream;
+            _micChunks = [];
+            _micRecording = true;
+            if (micBtn) micBtn.classList.add('recording');
+            if (micStatus) { micStatus.style.display = 'block'; micStatus.textContent = 'Recording... tap mic to stop'; }
+
+            var mimeType = 'audio/webm;codecs=opus';
+            if (typeof MediaRecorder !== 'undefined' && !MediaRecorder.isTypeSupported(mimeType)) mimeType = 'audio/webm';
+            if (typeof MediaRecorder !== 'undefined' && !MediaRecorder.isTypeSupported(mimeType)) mimeType = 'audio/mp4';
+            _micMimeType = mimeType;
+            _micRecorder = new MediaRecorder(stream, MediaRecorder.isTypeSupported(mimeType) ? { mimeType: mimeType } : {});
+            _micRecorder.ondataavailable = function(e) { if (e.data.size > 0) _micChunks.push(e.data); };
+            _micRecorder.onstop = function() {
+                if (_micStream) { _micStream.getTracks().forEach(function(t) { t.stop(); }); _micStream = null; }
+                if (_micChunks.length === 0) { resetMicUI(); return; }
+                var blob = new Blob(_micChunks, { type: _micMimeType });
+                if (blob.size < 500) { resetMicUI(); return; }
+                transcribeAndSend(blob);
+            };
+            _micRecorder.start(250);
+
+            // Auto-stop after 30 seconds
+            setTimeout(function() { if (_micRecording) stopMicRecording(); }, 30000);
+        }).catch(function(err) {
+            console.warn('ChatGenius: mic access denied:', err);
+            _micRecording = false;
+            resetMicUI();
+            if (micStatus) { micStatus.style.display = 'block'; micStatus.textContent = 'Mic access denied'; setTimeout(function() { micStatus.style.display = 'none'; }, 3000); }
+        });
+    }
+
+    function stopMicRecording() {
+        _micRecording = false;
+        if (micBtn) micBtn.classList.remove('recording');
+        if (_micRecorder && _micRecorder.state !== 'inactive') _micRecorder.stop();
+    }
+
+    function resetMicUI() {
+        _micRecording = false;
+        if (micBtn) micBtn.classList.remove('recording');
+        if (micStatus) { micStatus.style.display = 'none'; micStatus.textContent = ''; }
+    }
+
+    function transcribeAndSend(audioBlob) {
+        if (micStatus) { micStatus.style.display = 'block'; micStatus.textContent = 'Transcribing...'; }
+
+        var formData = new FormData();
+        formData.append('audio', audioBlob, 'voice.webm');
+        formData.append('lang', 'en');
+
+        fetch(SERVER + '/api/voice/transcribe', {
+            method: 'POST',
+            body: formData
+        })
+        .then(function(r) {
+            if (!r.ok) throw new Error('Transcription failed: ' + r.status);
+            return r.json();
+        })
+        .then(function(data) {
+            resetMicUI();
+            var text = (data.corrected || data.text || '').trim();
+            if (!text) {
+                if (micStatus) { micStatus.style.display = 'block'; micStatus.textContent = 'Could not hear you. Try again.'; setTimeout(function() { micStatus.style.display = 'none'; }, 3000); }
+                return;
+            }
+            // Put text in input and send it through the normal chat flow
+            input.value = text;
+            _lastInputWasVoice = true;
+            send(true);
+        })
+        .catch(function(err) {
+            resetMicUI();
+            console.warn('ChatGenius: transcription failed:', err);
+            if (micStatus) { micStatus.style.display = 'block'; micStatus.textContent = 'Voice failed. Try typing instead.'; setTimeout(function() { micStatus.style.display = 'none'; }, 3000); }
         });
     }
 
     function addMessage(text, isUser) {
+        // Bug fix #4: Null check on messages container
+        if (!messages) return;
         var div = document.createElement('div');
         div.className = 'cg-msg ' + (isUser ? 'cg-msg-user' : 'cg-msg-bot');
         var anim = cbCustom.message_animation || 'slide_up';
@@ -473,21 +668,25 @@
                 // Re-apply markdown once fully revealed
                 if (idx >= len) {
                     clearInterval(timer);
+                    _typewriterTimer = null;
                     div.innerHTML = html;
                 }
-                messages.scrollTop = messages.scrollHeight;
+                // Bug fix #5: Reliable scroll-to-bottom using requestAnimationFrame
+                requestAnimationFrame(function() { messages.scrollTop = messages.scrollHeight; });
             }, perChar);
+            _typewriterTimer = timer;
         } else {
             div.style.animation = getMsgAnimation();
             div.innerHTML = isUser ? escapeHtml(text) : formatMarkdown(text);
             messages.appendChild(div);
         }
-        messages.scrollTop = messages.scrollHeight;
+        // Bug fix #5: Reliable scroll-to-bottom using requestAnimationFrame
+        requestAnimationFrame(function() { messages.scrollTop = messages.scrollHeight; });
     }
 
     // ── Render UI options (dropdowns, calendar) ──
     function renderOptions(options) {
-        if (!options || !options.type) return;
+        if (!options || !options.type || !messages) return;
 
         if (options.type === 'calendar') {
             renderCalendar(options);
@@ -690,10 +889,100 @@
         if (!text) return '';
         return text
             .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.+?)\*/g, '<em>$1</em>')
-            .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(m, text, url) { var safeUrl = /^https?:\/\//i.test(url) ? url : '#'; return '<a href="' + safeUrl + '" target="_blank" rel="noopener">' + text + '</a>'; })
             .replace(/\n/g, '<br>');
     }
+
+    // ── Proactive Engagement Engine ──
+    // Bug fix #2: Track cleanup functions for memory leak prevention
+    var _proactiveCleanups = [];
+
+    (function initProactive() {
+        var PROACTIVE_KEY = 'cg_proactive_triggered_' + ADMIN_ID;
+        // Only trigger once per session
+        // Bug fix #3: Wrap sessionStorage in try/catch for private browsing
+        try { if (sessionStorage.getItem(PROACTIVE_KEY)) return; } catch(e) { /* private browsing - proceed anyway */ }
+
+        fetch(SERVER + '/api/proactive-config/public/' + ADMIN_ID)
+            .then(function(resp) { if (resp.ok) return resp.json(); return null; })
+            .then(function(cfg) {
+                if (!cfg || !cfg.enabled) return;
+
+                var triggered = false;
+                var dwellMs = (cfg.dwell_time_seconds || 30) * 1000;
+                var scrollPct = cfg.scroll_depth_percent || 60;
+                var exitEnabled = cfg.exit_intent_enabled !== false;
+                var triggerMsg = cfg.trigger_message || 'Need help? I can assist with booking appointments!';
+
+                function doTrigger() {
+                    // Bug fix #1: Check isOpen to avoid race condition with already-open widget
+                    if (triggered || isOpen) return;
+                    triggered = true;
+                    // Bug fix #3: Wrap sessionStorage in try/catch for private browsing
+                    try { sessionStorage.setItem(PROACTIVE_KEY, '1'); } catch(e) {}
+                    // Bug fix #1: Clean up remaining timers/listeners once triggered
+                    cleanupProactive();
+                    // Bug fix #4: Null checks on DOM queries within shadow DOM
+                    if (!bubble || !win || !badge) return;
+                    // Bug fix #3 (race): Re-check isOpen after a short delay before showing message
+                    setTimeout(function() {
+                        if (isOpen) return;
+                        // Open widget
+                        isOpen = true;
+                        bubble.classList.add('open');
+                        win.style.display = 'flex';
+                        void win.offsetWidth;
+                        win.classList.add('open');
+                        win.classList.remove('closing');
+                        badge.style.display = 'none';
+                        // Show proactive message
+                        addMessage(triggerMsg, false);
+                    }, 50);
+                }
+
+                // Dwell time trigger
+                var dwellTimer = setTimeout(function() {
+                    doTrigger();
+                }, dwellMs);
+
+                // Scroll depth trigger
+                function onScroll() {
+                    if (triggered) return;
+                    var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                    var docHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight) - window.innerHeight;
+                    if (docHeight <= 0) return;
+                    var pct = (scrollTop / docHeight) * 100;
+                    if (pct >= scrollPct) {
+                        doTrigger();
+                    }
+                }
+                window.addEventListener('scroll', onScroll);
+
+                // Exit intent trigger (desktop only - mouse leaves viewport top)
+                var onMouseLeave = null;
+                if (exitEnabled) {
+                    onMouseLeave = function(e) {
+                        if (e.clientY <= 0 && !triggered) {
+                            doTrigger();
+                        }
+                    };
+                    document.addEventListener('mouseleave', onMouseLeave);
+                }
+
+                // Bug fix #2: Centralized cleanup to prevent memory leaks
+                function cleanupProactive() {
+                    clearTimeout(dwellTimer);
+                    window.removeEventListener('scroll', onScroll);
+                    if (onMouseLeave) document.removeEventListener('mouseleave', onMouseLeave);
+                }
+                _proactiveCleanups.push(cleanupProactive);
+            })
+            .catch(function() {});
+    })();
+
+    // Bug fix #2: Expose proactive cleanup on the widget element for external teardown
+    if(shadowHost) shadowHost._cleanupProactive = function() { _proactiveCleanups.forEach(function(fn) { fn(); }); };
 
 })();

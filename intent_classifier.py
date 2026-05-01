@@ -44,6 +44,18 @@ _INTENT_EXAMPLES = {
             "کیا میں کل آ سکتا ہوں",
             "Gusto ko mag-book ng appointment",
             "Kailangan ko ng dentista",
+            # Spanish
+            "Quiero reservar una cita",
+            "Necesito una cita con el dentista",
+            "Reservar una cita por favor",
+            # French
+            "Je voudrais prendre un rendez-vous",
+            "J'ai besoin d'un rendez-vous dentaire",
+            "Réserver un créneau s'il vous plaît",
+            # Chinese
+            "我想预约",
+            "我需要看牙医",
+            "帮我预约一下",
         ],
     },
     "availability": {
@@ -147,6 +159,18 @@ _INTENT_EXAMPLES = {
             "Severe na sakit sa ngipin ko",
             "Nabali ang aking ngipin",
             "میرا دانت ٹوٹ گیا",
+            # Spanish
+            "Tengo un dolor de muelas muy fuerte",
+            "Se me rompió un diente",
+            "Es una emergencia dental",
+            # French
+            "J'ai une douleur dentaire très forte",
+            "Ma dent s'est cassée",
+            "C'est une urgence dentaire",
+            # Chinese
+            "我牙疼得厉害",
+            "我的牙齿断了",
+            "牙齿紧急情况",
         ],
     },
     "greeting": {
@@ -160,6 +184,12 @@ _INTENT_EXAMPLES = {
             "مرحبا", "السلام عليكم", "اهلا",
             "السلام علیکم", "ہیلو",
             "Kamusta", "Hello po",
+            # Spanish
+            "Hola", "Buenos días", "Buenas tardes",
+            # French
+            "Bonjour", "Salut", "Bonsoir",
+            # Chinese
+            "你好", "您好", "早上好",
         ],
     },
     "farewell": {
@@ -172,6 +202,12 @@ _INTENT_EXAMPLES = {
             "See you later", "Bye bye", "Thanks bye",
             "شكراً", "مع السلامة", "الله حافظ",
             "شکریہ", "Salamat", "Paalam",
+            # Spanish
+            "Adiós", "Gracias", "Hasta luego",
+            # French
+            "Au revoir", "Merci", "Bonne journée",
+            # Chinese
+            "再见", "谢谢", "拜拜",
         ],
     },
     "cancellation": {
@@ -194,6 +230,15 @@ _INTENT_EXAMPLES = {
             "میں اپنی اپوائنٹمنٹ منسوخ کرنا چاہتا ہوں",
             "Kailangan ko i-cancel ang appointment",
             "Hindi ako makakadating bukas",
+            # Spanish
+            "Quiero cancelar mi cita",
+            "Necesito reprogramar mi cita",
+            # French
+            "Je veux annuler mon rendez-vous",
+            "Je dois reporter mon rendez-vous",
+            # Chinese
+            "我想取消预约",
+            "我需要改期",
         ],
     },
     "pricing_insurance": {
@@ -391,6 +436,18 @@ _INTENT_EXAMPLES = {
             "تحدث مع الموظف",
             "میں انسان سے بات کرنا چاہتا ہوں",
             "Gusto ko makausap ang isang tao",
+            # Spanish
+            "Quiero hablar con una persona real",
+            "Necesito hablar con alguien",
+            "Conéctame con un agente",
+            # French
+            "Je veux parler à une vraie personne",
+            "Connectez-moi à un agent",
+            "J'ai besoin de parler à quelqu'un",
+            # Chinese
+            "我想和真人说话",
+            "请转接人工客服",
+            "我需要和人工交谈",
         ],
     },
     "complaint": {
@@ -616,6 +673,22 @@ _STOP_WORDS = {
     "really", "much", "going", "get", "got", "go", "please", "tell",
     "know", "need", "want", "like", "help", "actually", "wondering",
     "quick", "question", "hey", "hi", "hello", "confirm",
+    "yeah", "yes", "okay", "ok", "sure", "right", "well", "thing",
+    "some", "any", "all", "each", "every", "both", "few", "more",
+    "other", "same", "such", "than", "too", "when", "where", "while",
+    # Spanish stop words
+    "yo", "tu", "el", "ella", "nosotros", "ellos", "un", "una", "es", "son",
+    "los", "las", "del", "al", "por", "para", "con", "sin", "sobre",
+    "como", "pero", "más", "muy", "también", "ya", "que", "este", "esta",
+    # French stop words
+    "je", "tu", "il", "elle", "nous", "vous", "ils", "elles", "le", "la",
+    "les", "un", "une", "des", "du", "de", "en", "dans", "sur", "pour",
+    "avec", "est", "sont", "ce", "cette", "ces", "qui", "que", "ne", "pas",
+    "plus", "aussi", "très", "bien", "oui", "non",
+    # Chinese stop words (common particles)
+    "的", "了", "在", "是", "我", "有", "和", "就", "不", "人", "都", "一",
+    "这", "中", "大", "来", "上", "个", "到", "说", "们", "为", "子", "你",
+    "会", "着", "没有", "看", "好", "自己", "么",
 }
 
 # ── Build index at import time ──
@@ -625,9 +698,32 @@ _ready = False
 
 
 def _tokenize(text):
-    """Tokenize text into meaningful words, keeping Arabic/Urdu/Tagalog chars."""
-    text = re.sub(r'[^\w\s\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]', ' ', text.lower())
-    return [w for w in text.split() if w not in _STOP_WORDS and len(w) > 1]
+    """Tokenize text into meaningful words, keeping Arabic/Urdu/Tagalog/Chinese/Spanish/French chars."""
+    if not text or not text.strip():
+        return []
+    text = re.sub(r'[^\w\s\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u4E00-\u9FFF\u00C0-\u024F]', ' ', text.lower())
+    # For Chinese: use bigram/trigram approach for better word segmentation
+    tokens = []
+    for w in text.split():
+        if any('\u4e00' <= c <= '\u9fff' for c in w):
+            # Extract CJK characters
+            cjk_chars = [c for c in w if '\u4e00' <= c <= '\u9fff']
+            # Add individual characters (excluding stop words)
+            for c in cjk_chars:
+                if c not in _STOP_WORDS:
+                    tokens.append(c)
+            # Add bigrams for better semantic matching
+            for i in range(len(cjk_chars) - 1):
+                bigram = cjk_chars[i] + cjk_chars[i + 1]
+                if bigram not in _STOP_WORDS:
+                    tokens.append(bigram)
+            # Add trigrams for common multi-char words
+            for i in range(len(cjk_chars) - 2):
+                trigram = cjk_chars[i] + cjk_chars[i + 1] + cjk_chars[i + 2]
+                tokens.append(trigram)
+        elif w not in _STOP_WORDS and len(w) > 1:
+            tokens.append(w)
+    return tokens
 
 
 def _build_index():
@@ -768,12 +864,12 @@ def _structural_signals(text):
     is_what_is = bool(re.match(r'^(what|how|when|where|who|which)\s+(is|are|does|do|was|were|can|could|will|would)\b', lower))
 
     if is_question_form and not is_action_request:
-        signals["booking"] = -0.2
+        signals["booking"] = -0.05
         signals["availability"] = 0.1
         signals["treatment_question"] = 0.1
 
     if is_what_is:
-        signals["booking"] = signals.get("booking", 0) - 0.15
+        signals["booking"] = signals.get("booking", 0) - 0.05
         signals["treatment_question"] = signals.get("treatment_question", 0) + 0.1
 
     if is_action_request:
@@ -787,7 +883,7 @@ def _structural_signals(text):
     return signals
 
 
-def classify(text, min_confidence=0.1):
+def classify(text, min_confidence=0.15):
     """
     Classify user message into one of 19 dental chatbot intents.
 
@@ -797,7 +893,17 @@ def classify(text, min_confidence=0.1):
     if not _ready:
         _build_index()
 
+    # Handle empty/whitespace-only input gracefully
+    if not text or not text.strip():
+        return "greeting", 0.0
+
     tokens = _tokenize(text)
+
+    # Handle very short messages (1-2 chars) — likely greetings or noise
+    stripped = text.strip()
+    if not tokens and len(stripped) <= 2:
+        return "greeting", 0.3
+
     if not tokens:
         return "greeting", 0.0
 
@@ -808,10 +914,15 @@ def classify(text, min_confidence=0.1):
     for word, count in tf.items():
         query_vec[word] = (0.5 + 0.5 * count / max_tf) * _idf.get(word, 1)
 
-    # Score each intent: best matching example * intent weight
+    # Normalize weights so they sum to len(intents) — keeps relative ratios
+    # but ensures no single weight dominates unfairly
+    all_weights = [_INTENT_EXAMPLES[name]["weight"] for name in _intent_vectors]
+    avg_weight = sum(all_weights) / len(all_weights) if all_weights else 1.0
+
+    # Score each intent: best matching example * normalized intent weight
     intent_scores = {}
     for intent_name, examples in _intent_vectors.items():
-        weight = _INTENT_EXAMPLES[intent_name]["weight"]
+        weight = _INTENT_EXAMPLES[intent_name]["weight"] / avg_weight
         best_sim = 0
         for doc_vec in examples:
             sim = _cosine_similarity(query_vec, doc_vec)
@@ -835,8 +946,16 @@ def classify(text, min_confidence=0.1):
     best_intent = max(intent_scores, key=intent_scores.get)
     best_score = intent_scores[best_intent]
 
+    # Check confidence gap — if top two are too close, lower confidence
+    sorted_scores = sorted(intent_scores.values(), reverse=True)
+    if len(sorted_scores) >= 2:
+        gap = sorted_scores[0] - sorted_scores[1]
+        if gap < 0.05 and best_score < 0.4:
+            # Ambiguous classification — reduce confidence
+            best_score *= 0.8
+
     if best_score < min_confidence:
-        return "treatment_question", best_score
+        return "greeting", best_score
 
     return best_intent, best_score
 

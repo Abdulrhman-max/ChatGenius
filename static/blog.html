@@ -49,6 +49,19 @@
         .nav-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(139,92,246,0.35)}
         .nav-btn-outline{background:transparent;border:1px solid var(--border);color:var(--text);padding:.55rem 1.4rem;border-radius:50px;font-weight:500;cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .3s var(--ease);text-decoration:none}
         .nav-btn-outline:hover{border-color:var(--border-hover);background:rgba(139,92,246,0.05)}
+        .nav-links>li{position:relative}
+        .nav-dropdown-trigger{cursor:pointer;display:flex;align-items:center;gap:4px}
+        .nav-dropdown-trigger::after{content:'';display:none}
+        .nav-dropdown-trigger svg{width:12px;height:12px;opacity:.5;transition:transform .3s}
+        .nav-dropdown{position:absolute;top:calc(100% + 12px);left:50%;transform:translateX(-50%) translateY(8px);min-width:220px;background:rgba(10,14,26,0.98);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:.5rem;opacity:0;visibility:hidden;transition:all .25s var(--ease);z-index:1001;box-shadow:0 20px 50px rgba(0,0,0,0.5)}
+        .nav-links>li:hover .nav-dropdown{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+        .nav-links>li:hover .nav-dropdown-trigger svg{transform:rotate(180deg)}
+        .nav-dropdown a{display:flex;align-items:center;gap:.6rem;padding:.55rem .85rem;border-radius:8px;font-size:.82rem;color:var(--text-muted);transition:all .2s}
+        .nav-dropdown a::after{display:none}
+        .nav-dropdown a:hover{background:rgba(139,92,246,0.08);color:#fff}
+        .nav-dropdown a small{font-size:.7rem;color:var(--text-dim);display:block;margin-top:1px}
+        .nav-dd-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0}
+
         .hamburger{display:none;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;padding:.5rem}
         .mobile-menu{display:none;position:fixed;top:72px;left:0;right:0;background:rgba(5,7,16,0.95);backdrop-filter:blur(20px);padding:1.5rem 2rem;border-bottom:1px solid var(--border);flex-direction:column;gap:1rem}
         .mobile-menu.open{display:flex}
@@ -81,6 +94,36 @@
         .blog-category.marketing{background:rgba(59,130,246,0.1);color:#93c5fd;border:1px solid rgba(59,130,246,0.15)}
         .blog-category.industry{background:rgba(251,191,36,0.1);color:var(--amber);border:1px solid rgba(251,191,36,0.15)}
         .blog-category.technology{background:rgba(6,182,212,0.1);color:var(--cyan);border:1px solid rgba(6,182,212,0.15)}
+        .blog-category.compliance{background:rgba(248,113,113,0.1);color:var(--red);border:1px solid rgba(248,113,113,0.15)}
+
+        /* Search Bar */
+        .search-bar{max-width:1140px;margin:0 auto 2rem;padding:0 2rem}
+        .search-input{width:100%;padding:.85rem 1.5rem .85rem 3rem;border-radius:50px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:.92rem;font-family:inherit;outline:none;transition:border-color .3s;backdrop-filter:blur(10px)}
+        .search-input::placeholder{color:var(--text-dim)}
+        .search-input:focus{border-color:var(--border-hover)}
+        .search-wrap{position:relative}
+        .search-icon{position:absolute;left:1.25rem;top:50%;transform:translateY(-50%);color:var(--text-dim);font-size:1rem;pointer-events:none}
+
+        /* Resources Section */
+        .resources-section{padding:0 2rem 3rem}
+        .resources-grid{max-width:1140px;margin:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem}
+        .resource-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:2rem 1.75rem;backdrop-filter:blur(10px);transition:all .45s var(--ease);cursor:pointer;text-align:center}
+        .resource-card:hover{transform:translateY(-6px);border-color:var(--border-hover);box-shadow:0 20px 40px rgba(0,0,0,0.2),var(--glow)}
+        .resource-icon{font-size:2.5rem;margin-bottom:1rem}
+        .resource-card h3{font-size:1rem;font-weight:700;margin-bottom:.4rem}
+        .resource-card p{color:var(--text-muted);font-size:.82rem;line-height:1.7}
+        .resource-badge{display:inline-block;margin-top:.75rem;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;padding:.25rem .75rem;border-radius:50px;background:rgba(139,92,246,0.08);color:#c4b5fd;border:1px solid rgba(139,92,246,0.12)}
+
+        /* Related Articles */
+        .related-articles{margin-top:3rem;padding-top:2rem;border-top:1px solid var(--border)}
+        .related-articles h3{font-size:1.15rem;font-weight:700;margin-bottom:1.25rem}
+        .related-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}
+        .related-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;cursor:pointer;transition:all .35s var(--ease)}
+        .related-card:hover{border-color:var(--border-hover);transform:translateY(-2px)}
+        .related-card h4{font-size:.9rem;font-weight:700;margin-bottom:.3rem}
+        .related-card p{color:var(--text-muted);font-size:.78rem;line-height:1.6}
+
+        @media(max-width:580px){.resources-grid{grid-template-columns:1fr}.related-grid{grid-template-columns:1fr}}
         .blog-card h3{font-size:1.1rem;font-weight:700;margin-bottom:.6rem;line-height:1.35;color:var(--text)}
         .blog-card .excerpt{color:var(--text-muted);font-size:.88rem;line-height:1.75;margin-bottom:1.25rem;flex:1}
         .blog-card-footer{display:flex;justify-content:space-between;align-items:center;padding-top:1rem;border-top:1px solid var(--border)}
@@ -137,6 +180,27 @@
             .newsletter-form{flex-direction:column}
             .newsletter-inner{padding:2.5rem 1.5rem}
         }
+    
+        /* FOOTER */
+        footer{padding:3rem 2rem;border-top:1px solid var(--border);background:rgba(5,7,16,0.5)}
+        .footer-inner{max-width:1140px;margin:auto}
+        .footer-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 1fr;gap:2rem;margin-bottom:2rem}
+        .footer-col{display:flex;flex-direction:column;gap:.5rem}
+        .footer-col h4{font-size:.85rem;font-weight:700;margin-bottom:.5rem;color:var(--text)}
+        .footer-col a{color:var(--text-dim);text-decoration:none;font-size:.82rem;transition:color .3s;padding:.15rem 0}
+        .footer-col a:hover{color:var(--text)}
+        .footer-col p{color:var(--text-dim);font-size:.82rem;line-height:1.7}
+        .footer-logo{font-size:1.2rem;font-weight:800;letter-spacing:-.5px}
+        .footer-logo span{background:var(--gradient2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .footer-newsletter{display:flex;gap:.5rem}
+        .footer-newsletter input{flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-size:.82rem;font-family:inherit}
+        .footer-newsletter input::placeholder{color:var(--text-dim)}
+        .footer-newsletter button{background:var(--gradient);color:#fff;border:none;padding:.5rem 1rem;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .3s}
+        .footer-newsletter button:hover{transform:translateY(-1px)}
+        .footer-bottom{display:flex;justify-content:space-between;align-items:center;padding-top:1.5rem;border-top:1px solid var(--border)}
+        .footer-copy{color:var(--text-dim);font-size:.8rem}
+        @media(max-width:900px){.footer-grid{grid-template-columns:1fr 1fr;gap:1.5rem}.footer-bottom{flex-direction:column;gap:.75rem;text-align:center}}
+        @media(max-width:480px){.footer-grid{grid-template-columns:1fr}}
     </style>
 </head>
 <body>
@@ -145,23 +209,71 @@
 
 <nav id="mainNav">
     <div class="nav-inner">
-        <a href="/" class="logo">Chat<span>GeniusX</span></a>
+        <a href="/" class="logo">Chat<span>Genius</span></a>
         <ul class="nav-links">
-            <li><a href="/">Home</a></li>
-            <li><a href="/#features">Features</a></li>
+            <li>
+                <a href="#" class="nav-dropdown-trigger" onclick="return false">Product <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
+                <div class="nav-dropdown">
+                    <a href="/#features"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6">&#9889;</span><div>Features<small>All platform capabilities</small></div></a>
+                    <a href="/ai-technology"><span class="nav-dd-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6">&#129302;</span><div>AI Technology<small>Model transparency</small></div></a>
+                    <a href="/integrations"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#128268;</span><div>Integrations<small>Connect your stack</small></div></a>
+                    <a href="/trust-center"><span class="nav-dd-icon" style="background:rgba(6,182,212,0.1);color:#06b6d4">&#128274;</span><div>Trust Center<small>Security &amp; compliance</small></div></a>
+                    <a href="/agent-marketplace"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#129302;</span><div>Agent Marketplace<small>Pre-built AI agents</small></div></a>
+                    <a href="/voice-agent"><span class="nav-dd-icon" style="background:rgba(251,191,36,0.1);color:#fbbf24">&#127908;</span><div>Voice AI<small>Voice-powered calls</small></div></a>
+                    <a href="/mobile-app"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#c4b5fd">&#128241;</span><div>Mobile App<small>iOS &amp; Android</small></div></a>
+                </div>
+            </li>
             <li><a href="/pricing-plans">Pricing</a></li>
-            <li><a href="/demo">Demo</a></li>
-            <li><a href="/case-studies">Case Studies</a></li>
-            <li><a href="/blog">Blog</a></li>
-            <li><a href="/login" class="nav-btn-outline">Login</a></li>
+            <li>
+                <a href="#" class="nav-dropdown-trigger" onclick="return false">Resources <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
+                <div class="nav-dropdown">
+                    <a href="/developers"><span class="nav-dd-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6">&#128187;</span><div>API Docs<small>Developer portal</small></div></a>
+                    <a href="/compare"><span class="nav-dd-icon" style="background:rgba(251,191,36,0.1);color:#fbbf24">&#128200;</span><div>Compare<small>vs Intercom, Tidio</small></div></a>
+                    <a href="/partners"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#129309;</span><div>Partner Program<small>Earn commissions</small></div></a>
+                    <a href="/blog"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#128221;</span><div>Blog &amp; Guides<small>Tips &amp; insights</small></div></a>
+                    <a href="/case-studies"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6">&#128202;</span><div>Case Studies<small>Real results</small></div></a>
+                </div>
+            </li>
+            <li>
+                <a href="#" class="nav-dropdown-trigger" onclick="return false">Use Cases <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
+                <div class="nav-dropdown">
+                    <a href="/for-dental-clinics"><span class="nav-dd-icon" style="background:rgba(6,182,212,0.1);color:#06b6d4">&#129463;</span><div>Dental Clinics<small>Bookings &amp; recalls</small></div></a>
+                    <a href="/for-medical-practices"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#127973;</span><div>Medical Practices<small>Patient engagement</small></div></a>
+                    <a href="/for-salons-spas"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#128135;</span><div>Salons &amp; Spas<small>Beauty appointments</small></div></a>
+                </div>
+            </li>
+            <li><a href="/login" class="nav-btn-outline">Log In</a></li>
             <li><a href="/login?signup=1" class="nav-btn">Start Free</a></li>
         </ul>
-        <button class="hamburger" onclick="document.getElementById('mobileMenu').classList.toggle('open')">&#9776;</button>
+        <button class="hamburger" onclick="document.querySelector('.mobile-menu').classList.toggle('open')">&#9776;</button>
+    </div>
+    <div class="mobile-menu">
+        <a href="/#features">Features</a>
+        <a href="/pricing-plans">Pricing</a>
+        <a href="/ai-technology">AI Technology</a>
+        <a href="/integrations">Integrations</a>
+        <a href="/trust-center">Trust Center</a>
+        <a href="/agent-marketplace">Agent Marketplace</a>
+        <a href="/voice-agent">Voice AI</a>
+        <a href="/mobile-app">Mobile App</a>
+        <a href="/developers">API Docs</a>
+        <a href="/compare">Compare</a>
+        <a href="/partners">Partners</a>
+        <a href="/blog">Blog &amp; Guides</a>
+        <a href="/case-studies">Case Studies</a>
+        <a href="/for-dental-clinics">Dental</a>
+        <a href="/for-medical-practices">Medical</a>
+        <a href="/for-salons-spas">Salons</a>
+        <a href="/login">Log In</a>
+        <a href="/login?signup=1" style="color:#c4b5fd;font-weight:700">Start Free</a>
     </div>
 </nav>
 <div class="mobile-menu" id="mobileMenu">
     <a href="/">Home</a><a href="/#features">Features</a><a href="/pricing-plans">Pricing</a>
     <a href="/demo">Demo</a><a href="/case-studies">Case Studies</a><a href="/blog">Blog</a>
+    <a href="/ai-technology">AI Technology</a><a href="/trust-center">Trust Center</a><a href="/integrations">Integrations</a>
+    <a href="/developers">API Docs</a><a href="/compare">Compare</a><a href="/partners">Partners</a>
+    <a href="/agent-marketplace">AI Agents</a><a href="/mobile-app">Mobile App</a>
     <a href="/login">Login</a><a href="/login?signup=1">Start Free</a>
 </div>
 
@@ -171,6 +283,42 @@
     <h1>ChatGeniusX <span class="gradient-text">Blog</span></h1>
     <p>AI Automation Tips for Growing Practices</p>
 </section>
+
+<!-- ═══ RESOURCES ═══ -->
+<section class="resources-section" id="resourcesSection">
+    <div style="text-align:center;margin-bottom:2rem;max-width:1140px;margin-left:auto;margin-right:auto">
+        <h2 style="font-size:1.4rem;font-weight:800;margin-bottom:.5rem">Free <span class="gradient-text">Resources</span></h2>
+        <p style="color:var(--text-muted);font-size:.92rem">Downloadable guides and playbooks for healthcare practices</p>
+    </div>
+    <div class="resources-grid">
+        <div class="resource-card anim" onclick="showArticle('buyers-guide')">
+            <div class="resource-icon">&#128218;</div>
+            <h3>Healthcare Chatbot Buyer's Guide 2026</h3>
+            <p>Everything you need to evaluate and choose the right AI chatbot for your healthcare practice.</p>
+            <span class="resource-badge">Free Guide</span>
+        </div>
+        <div class="resource-card anim" onclick="showArticle('noshow-playbook')">
+            <div class="resource-icon">&#128214;</div>
+            <h3>No-Show Recovery Playbook</h3>
+            <p>Step-by-step strategies to reduce no-shows by up to 50% and recover lost revenue automatically.</p>
+            <span class="resource-badge">Free Playbook</span>
+        </div>
+        <div class="resource-card anim" onclick="showArticle('hipaa-checklist')">
+            <div class="resource-icon">&#128221;</div>
+            <h3>HIPAA Compliance Checklist</h3>
+            <p>15 essential requirements your chatbot must meet for HIPAA compliance in healthcare.</p>
+            <span class="resource-badge">Free Checklist</span>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ SEARCH ═══ -->
+<div class="search-bar" id="searchBarWrap">
+    <div class="search-wrap">
+        <span class="search-icon">&#128269;</span>
+        <input type="text" class="search-input" id="blogSearch" placeholder="Search articles by title or keyword..." oninput="filterArticles(this.value)">
+    </div>
+</div>
 
 <!-- ═══ BLOG GRID ═══ -->
 <section class="blog-section" id="blogGrid">
@@ -254,6 +402,84 @@
             </div>
         </article>
 
+        <article class="blog-card anim" onclick="showArticle('reduce-noshows-50')">
+            <div class="blog-card-img" style="background:linear-gradient(135deg,rgba(52,211,153,0.18),rgba(59,130,246,0.1))"><span>&#128200;</span></div>
+            <div class="blog-card-body">
+                <span class="blog-category revenue">Revenue</span>
+                <h3>How to Reduce No-Shows by 50% with AI</h3>
+                <p class="excerpt">Advanced AI strategies that cut no-show rates in half. From predictive scoring to multi-channel recovery sequences.</p>
+                <div class="blog-card-footer">
+                    <span class="blog-date">Apr 25, 2026</span>
+                    <span class="read-more">Read More &rarr;</span>
+                </div>
+            </div>
+        </article>
+
+        <article class="blog-card anim" onclick="showArticle('hipaa-checklist')">
+            <div class="blog-card-img" style="background:linear-gradient(135deg,rgba(248,113,113,0.15),rgba(139,92,246,0.1))"><span>&#128274;</span></div>
+            <div class="blog-card-body">
+                <span class="blog-category compliance">Compliance</span>
+                <h3>HIPAA-Compliant Chatbot Checklist: 15 Requirements</h3>
+                <p class="excerpt">The definitive checklist for ensuring your healthcare chatbot meets all HIPAA requirements. Avoid costly violations.</p>
+                <div class="blog-card-footer">
+                    <span class="blog-date">Apr 22, 2026</span>
+                    <span class="read-more">Read More &rarr;</span>
+                </div>
+            </div>
+        </article>
+
+        <article class="blog-card anim" onclick="showArticle('roi-dental-chatbots')">
+            <div class="blog-card-img" style="background:linear-gradient(135deg,rgba(52,211,153,0.12),rgba(251,191,36,0.1))"><span>&#128176;</span></div>
+            <div class="blog-card-body">
+                <span class="blog-category revenue">Revenue</span>
+                <h3>The ROI of AI Chatbots for Dental Practices</h3>
+                <p class="excerpt">Real numbers from real dental practices. How AI chatbots deliver 10-30x return on investment through booking automation and no-show recovery.</p>
+                <div class="blog-card-footer">
+                    <span class="blog-date">Apr 20, 2026</span>
+                    <span class="read-more">Read More &rarr;</span>
+                </div>
+            </div>
+        </article>
+
+        <article class="blog-card anim" onclick="showArticle('patient-engagement')">
+            <div class="blog-card-img" style="background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(236,72,153,0.1))"><span>&#129309;</span></div>
+            <div class="blog-card-body">
+                <span class="blog-category automation">Automation</span>
+                <h3>Patient Engagement Automation: A Complete Guide</h3>
+                <p class="excerpt">Automate every patient touchpoint from first inquiry to post-visit follow-up. The complete playbook for modern healthcare practices.</p>
+                <div class="blog-card-footer">
+                    <span class="blog-date">Apr 17, 2026</span>
+                    <span class="read-more">Read More &rarr;</span>
+                </div>
+            </div>
+        </article>
+
+        <article class="blog-card anim" onclick="showArticle('voice-ai-future')">
+            <div class="blog-card-img" style="background:linear-gradient(135deg,rgba(6,182,212,0.18),rgba(99,102,241,0.1))"><span>&#127908;</span></div>
+            <div class="blog-card-body">
+                <span class="blog-category technology">Technology</span>
+                <h3>Why Voice AI is the Future of Patient Communication</h3>
+                <p class="excerpt">Voice AI is transforming how patients interact with healthcare practices. From phone screening to voice-activated booking.</p>
+                <div class="blog-card-footer">
+                    <span class="blog-date">Apr 14, 2026</span>
+                    <span class="read-more">Read More &rarr;</span>
+                </div>
+            </div>
+        </article>
+
+        <article class="blog-card anim" onclick="showArticle('multi-lang-setup')">
+            <div class="blog-card-img" style="background:linear-gradient(135deg,rgba(99,102,241,0.15),rgba(6,182,212,0.1))"><span>&#127759;</span></div>
+            <div class="blog-card-body">
+                <span class="blog-category technology">Technology</span>
+                <h3>Setting Up Multi-Language Chatbots for Diverse Practices</h3>
+                <p class="excerpt">A practical guide to configuring multi-language chatbots. Serve patients in their preferred language and expand your reach.</p>
+                <div class="blog-card-footer">
+                    <span class="blog-date">Apr 10, 2026</span>
+                    <span class="read-more">Read More &rarr;</span>
+                </div>
+            </div>
+        </article>
+
     </div>
 </section>
 
@@ -299,6 +525,10 @@
             <p>ChatGeniusX automates after-hours booking, missed call recovery, lead follow-ups, no-show prevention, and patient recall — all from one dashboard.</p>
             <a href="/login?signup=1" class="btn-primary">Start Free Trial &rarr;</a>
         </div>
+        <div class="related-articles"><h3>Related Articles</h3><div class="related-grid">
+            <div class="related-card" onclick="hideArticle();setTimeout(function(){showArticle('roi-calculator')},100)"><h4>ROI Calculator: How Much Revenue Are You Leaving on the Table?</h4><p>Estimate your practice's revenue leaks.</p></div>
+            <div class="related-card" onclick="hideArticle();setTimeout(function(){showArticle('reduce-noshows')},100)"><h4>How AI Chatbots Reduce No-Shows by 40%</h4><p>Automated reminders and smart rescheduling.</p></div>
+        </div></div>
     </div>
 </div>
 
@@ -509,7 +739,7 @@
             <li>After-hours booking: $2,600</li>
             <li><strong>Total: $13,000/month</strong></li>
         </ul>
-        <p>Against a ChatGeniusX Pro plan at $349/month, that's a <strong>37x return on investment</strong>. Even if you capture just a quarter of the total opportunity, you're looking at a 9x ROI.</p>
+        <p>Against a ChatGeniusX Pro plan at $239/month, that's a <strong>54x return on investment</strong>. Even if you capture just a quarter of the total opportunity, you're looking at a 9x ROI.</p>
 
         <h2>Apply This to Your Practice</h2>
         <p>Pull your numbers: How many calls do you miss? What's your no-show rate? How many patients are overdue for a visit? The math is straightforward and the results are usually eye-opening. Most practice owners are surprised to discover they're leaving five figures on the table every single month.</p>
@@ -570,6 +800,267 @@
     </div>
 </div>
 
+<!-- Article: Reduce No-Shows by 50% -->
+<div class="article-view" id="article-reduce-noshows-50">
+    <button class="article-back" onclick="hideArticle()">&larr; Back to Blog</button>
+    <div class="article-meta"><span class="blog-category revenue">Revenue</span><span class="blog-date">Apr 25, 2026</span></div>
+    <h1>How to Reduce No-Shows by 50% with AI</h1>
+    <div class="article-body">
+        <p>No-shows cost healthcare practices an estimated <strong>$150 billion annually</strong> in the United States alone. For an individual practice, that translates to thousands of dollars in lost revenue every month. But AI-powered automation is proving that no-show rates can be cut in half with the right approach.</p>
+        <h2>The AI Advantage Over Manual Reminders</h2>
+        <p>Manual reminder calls reach about 60% of patients and take significant staff time. AI-powered systems achieve <strong>95%+ delivery rates</strong> across email, SMS, and chat, with zero staff involvement. They also adapt based on patient behavior.</p>
+        <h2>Predictive No-Show Scoring</h2>
+        <p>AI analyzes patterns from your practice data to predict which patients are most likely to no-show. Factors include: previous no-show history, booking lead time, appointment type, day of week, and weather conditions. High-risk patients receive extra touchpoints.</p>
+        <h2>Multi-Channel Recovery Sequences</h2>
+        <p>When a no-show occurs, AI triggers an immediate recovery flow across multiple channels:</p>
+        <ul>
+            <li><strong>Minute 1:</strong> SMS "We noticed you missed your appointment. Tap to rebook"</li>
+            <li><strong>Hour 1:</strong> Email with one-click rebooking link and available slots</li>
+            <li><strong>Day 1:</strong> Follow-up with incentive if applicable</li>
+            <li><strong>Day 3:</strong> Final outreach with alternative time suggestions</li>
+        </ul>
+        <h2>Smart Waitlist Filling</h2>
+        <p>When a patient cancels or no-shows, AI immediately notifies waitlisted patients that a slot has opened. This fills <strong>40-60% of cancelled slots</strong> that would otherwise go empty.</p>
+        <h2>Results from Real Practices</h2>
+        <p>Practices using comprehensive AI no-show management consistently report reductions from 20% no-show rates down to <strong>8-10%</strong>, a 50%+ improvement.</p>
+        <div class="article-cta"><h3>Cut Your No-Shows in Half</h3><p>ChatGeniusX includes predictive scoring, multi-channel reminders, and instant recovery. Start your free trial.</p><a href="/login?signup=1" class="btn-primary">Start Free Trial &rarr;</a></div>
+        <div class="related-articles"><h3>Related Articles</h3><div class="related-grid">
+            <div class="related-card" onclick="hideArticle();setTimeout(function(){showArticle('reduce-noshows')},100)"><h4>How AI Chatbots Reduce No-Shows by 40%</h4><p>Automated reminders, smart rescheduling, and personalized follow-ups.</p></div>
+            <div class="related-card" onclick="hideArticle();setTimeout(function(){showArticle('roi-dental-chatbots')},100)"><h4>The ROI of AI Chatbots for Dental Practices</h4><p>Real numbers from real dental practices.</p></div>
+        </div></div>
+    </div>
+</div>
+
+<!-- Article: HIPAA Checklist -->
+<div class="article-view" id="article-hipaa-checklist">
+    <button class="article-back" onclick="hideArticle()">&larr; Back to Blog</button>
+    <div class="article-meta"><span class="blog-category compliance">Compliance</span><span class="blog-date">Apr 22, 2026</span></div>
+    <h1>HIPAA-Compliant Chatbot Checklist: 15 Requirements</h1>
+    <div class="article-body">
+        <p>If your healthcare practice uses a chatbot that handles patient information, HIPAA compliance is not optional. Violations can result in fines of <strong>$100 to $50,000 per violation</strong>, with annual maximums of $1.5 million. Here are the 15 requirements your chatbot must meet.</p>
+        <h2>Data Security Requirements</h2>
+        <ol>
+            <li><strong>End-to-End Encryption:</strong> All patient data must be encrypted in transit (TLS 1.2+) and at rest (AES-256)</li>
+            <li><strong>Access Controls:</strong> Role-based access ensuring only authorized personnel can view patient data</li>
+            <li><strong>Audit Logging:</strong> Complete audit trail of who accessed what data and when</li>
+            <li><strong>Data Backup:</strong> Regular encrypted backups with tested recovery procedures</li>
+            <li><strong>Secure Data Storage:</strong> Patient data stored in HIPAA-compliant infrastructure (SOC 2 Type II)</li>
+        </ol>
+        <h2>Administrative Requirements</h2>
+        <ol start="6">
+            <li><strong>Business Associate Agreement:</strong> Signed BAA with your chatbot vendor</li>
+            <li><strong>Risk Assessment:</strong> Documented risk analysis of the chatbot system</li>
+            <li><strong>Employee Training:</strong> Staff trained on HIPAA policies related to chatbot use</li>
+            <li><strong>Incident Response Plan:</strong> Documented procedures for data breaches</li>
+            <li><strong>Data Retention Policy:</strong> Clear policies on how long patient data is kept</li>
+        </ol>
+        <h2>Technical Safeguards</h2>
+        <ol start="11">
+            <li><strong>Automatic Session Timeout:</strong> Chat sessions expire after inactivity</li>
+            <li><strong>Minimum Necessary Rule:</strong> Chatbot only collects data essential for the interaction</li>
+            <li><strong>De-identification:</strong> Analytics and AI training use de-identified data</li>
+            <li><strong>Patient Rights:</strong> Patients can request access to and deletion of their data</li>
+            <li><strong>Third-Party Compliance:</strong> All integrations and sub-processors are also HIPAA-compliant</li>
+        </ol>
+        <h2>How to Verify Your Chatbot</h2>
+        <p>Ask your chatbot vendor for: their BAA template, SOC 2 Type II report, encryption specifications, and data processing locations. If they cannot provide these, they are not HIPAA-compliant.</p>
+        <div class="article-cta"><h3>HIPAA Compliance Built In</h3><p>ChatGeniusX meets all 15 requirements out of the box. BAA included with every plan.</p><a href="/login?signup=1" class="btn-primary">Start Free Trial &rarr;</a></div>
+        <div class="related-articles"><h3>Related Articles</h3><div class="related-grid">
+            <div class="related-card" onclick="hideArticle();setTimeout(function(){showArticle('dental-chatbot')},100)"><h4>Why Your Dental Website Needs a Chatbot in 2026</h4><p>Patients expect instant answers and online booking.</p></div>
+            <div class="related-card" onclick="hideArticle();setTimeout(function(){showArticle('patient-engagement')},100)"><h4>Patient Engagement Automation: A Complete Guide</h4><p>Automate every patient touchpoint.</p></div>
+        </div></div>
+    </div>
+</div>
+
+<!-- Article: ROI of Dental Chatbots -->
+<div class="article-view" id="article-roi-dental-chatbots">
+    <button class="article-back" onclick="hideArticle()">&larr; Back to Blog</button>
+    <div class="article-meta"><span class="blog-category revenue">Revenue</span><span class="blog-date">Apr 20, 2026</span></div>
+    <h1>The ROI of AI Chatbots for Dental Practices</h1>
+    <div class="article-body">
+        <p>Dental practices are uniquely positioned to benefit from AI chatbots. High appointment volumes, routine procedures, and the importance of recall visits create an environment where automation delivers <strong>10-30x return on investment</strong>.</p>
+        <h2>Revenue Source 1: After-Hours Booking</h2>
+        <p>63% of dental searches happen outside business hours. An AI chatbot that books 24/7 captures an average of <strong>18-25 additional appointments per month</strong> from after-hours traffic. At $200 average appointment value, that is $3,600-5,000/month in new revenue.</p>
+        <h2>Revenue Source 2: No-Show Recovery</h2>
+        <p>With a 20% no-show rate on 30 daily appointments, you lose 6 appointments per day. AI recovery sequences rebook 30-40% of no-shows, recovering <strong>$2,400-3,200/month</strong>.</p>
+        <h2>Revenue Source 3: Patient Recall</h2>
+        <p>Automated recall campaigns reactivate 15-25% of lapsed patients. For a practice with 500 overdue patients, that is 75-125 reactivations per quarter worth <strong>$15,000-25,000</strong>.</p>
+        <h2>Revenue Source 4: Treatment Upselling</h2>
+        <p>When booking a cleaning, the chatbot naturally suggests whitening or other complementary treatments. This increases average booking value by <strong>15-20%</strong>.</p>
+        <h2>Total ROI Calculation</h2>
+        <p>For a typical dental practice on a $79/month plan:</p>
+        <ul>
+            <li>After-hours bookings: $4,000/month</li>
+            <li>No-show recovery: $2,800/month</li>
+            <li>Patient recall: $2,000/month</li>
+            <li>Upsell revenue: $800/month</li>
+            <li><strong>Total: $9,600/month on a $79 investment = 121x ROI</strong></li>
+        </ul>
+        <div class="article-cta"><h3>See Your ROI in Real Time</h3><p>ChatGeniusX tracks every dollar recovered through its built-in ROI dashboard.</p><a href="/login?signup=1" class="btn-primary">Start Free Trial &rarr;</a></div>
+        <div class="related-articles"><h3>Related Articles</h3><div class="related-grid">
+            <div class="related-card" onclick="hideArticle();setTimeout(function(){showArticle('roi-calculator')},100)"><h4>ROI Calculator: How Much Revenue Are You Leaving on the Table?</h4><p>Framework to estimate your practice's revenue leaks.</p></div>
+            <div class="related-card" onclick="hideArticle();setTimeout(function(){showArticle('missed-bookings')},100)"><h4>5 Ways Clinics Lose $10K/Month to Missed Bookings</h4><p>The five most common booking leaks.</p></div>
+        </div></div>
+    </div>
+</div>
+
+<!-- Article: Patient Engagement -->
+<div class="article-view" id="article-patient-engagement">
+    <button class="article-back" onclick="hideArticle()">&larr; Back to Blog</button>
+    <div class="article-meta"><span class="blog-category automation">Automation</span><span class="blog-date">Apr 17, 2026</span></div>
+    <h1>Patient Engagement Automation: A Complete Guide</h1>
+    <div class="article-body">
+        <p>Patient engagement is not a single interaction; it is the entire journey from first website visit to loyal, returning patient. Automation allows you to deliver <strong>consistent, personalized touchpoints at every stage</strong> without adding staff.</p>
+        <h2>Stage 1: First Contact</h2>
+        <p>When a potential patient visits your website, an AI chatbot greets them, answers questions about services and pricing, and guides them to book. This happens 24/7, capturing leads that would otherwise bounce.</p>
+        <h2>Stage 2: Pre-Visit</h2>
+        <p>After booking, automated workflows send: appointment confirmation, pre-visit forms, insurance verification requests, directions and parking info, and what-to-expect guides for their procedure.</p>
+        <h2>Stage 3: Appointment Reminders</h2>
+        <p>A three-stage reminder sequence (48 hours, 24 hours, 2 hours) with one-click confirm or reschedule reduces no-shows by 35-45%.</p>
+        <h2>Stage 4: Post-Visit Follow-Up</h2>
+        <p>After the visit, automation sends: thank you messages, satisfaction surveys, review requests (routing happy patients to Google), post-treatment care instructions, and follow-up appointment booking links.</p>
+        <h2>Stage 5: Ongoing Retention</h2>
+        <p>Long-term engagement includes: treatment-based recall campaigns, birthday greetings, educational content about dental health, and periodic check-in messages for patients who have not visited recently.</p>
+        <h2>The Compounding Effect</h2>
+        <p>Each automated touchpoint increases the probability that a patient returns. Practices with full engagement automation see <strong>40% higher patient retention rates</strong> and 25% higher lifetime patient value.</p>
+        <div class="article-cta"><h3>Automate Your Entire Patient Journey</h3><p>ChatGeniusX handles every stage of patient engagement automatically.</p><a href="/login?signup=1" class="btn-primary">Start Free Trial &rarr;</a></div>
+        <div class="related-articles"><h3>Related Articles</h3><div class="related-grid">
+            <div class="related-card" onclick="hideArticle();setTimeout(function(){showArticle('recall-campaigns')},100)"><h4>The Complete Guide to Patient Recall Campaigns</h4><p>Re-engage inactive patients with targeted recall campaigns.</p></div>
+            <div class="related-card" onclick="hideArticle();setTimeout(function(){showArticle('reduce-noshows')},100)"><h4>How AI Chatbots Reduce No-Shows by 40%</h4><p>Automated reminders and smart rescheduling.</p></div>
+        </div></div>
+    </div>
+</div>
+
+<!-- Article: Voice AI Future -->
+<div class="article-view" id="article-voice-ai-future">
+    <button class="article-back" onclick="hideArticle()">&larr; Back to Blog</button>
+    <div class="article-meta"><span class="blog-category technology">Technology</span><span class="blog-date">Apr 14, 2026</span></div>
+    <h1>Why Voice AI is the Future of Patient Communication</h1>
+    <div class="article-body">
+        <p>While chatbots have revolutionized text-based patient communication, the next frontier is voice. <strong>Voice AI is transforming how patients interact with healthcare practices</strong>, making communication more natural and accessible than ever.</p>
+        <h2>The Rise of Voice in Healthcare</h2>
+        <p>Over 4.2 billion voice assistants are in use worldwide. Patients are increasingly comfortable speaking to AI. For healthcare, this means automated phone screening, voice-activated appointment booking, and conversational intake processes that feel natural.</p>
+        <h2>Voice AI for Phone Screening</h2>
+        <p>When patients call your practice, Voice AI can handle common inquiries: hours, location, services, pricing, and insurance questions. It can also book appointments and add patients to the schedule, all through natural conversation. This reduces phone hold times and frees reception staff.</p>
+        <h2>Accessibility Benefits</h2>
+        <p>Voice AI is particularly valuable for elderly patients who struggle with typing, patients with disabilities, and non-native speakers who find spoken communication easier. It makes your practice more accessible to populations that text chatbots underserve.</p>
+        <h2>Integration with Existing Systems</h2>
+        <p>Modern Voice AI integrates with your scheduling software, patient database, and chatbot platform. A patient can start a conversation via voice on the phone and receive a text confirmation, creating a seamless multi-channel experience.</p>
+        <h2>The Future Roadmap</h2>
+        <p>Voice AI capabilities are advancing rapidly: real-time translation for multilingual calls, emotion detection for patient anxiety management, and proactive outbound calls for appointment reminders and recall campaigns.</p>
+        <div class="article-cta"><h3>Stay Ahead of the Curve</h3><p>ChatGeniusX is building voice AI capabilities. Start with our text-based AI today and be ready for voice.</p><a href="/login?signup=1" class="btn-primary">Start Free Trial &rarr;</a></div>
+        <div class="related-articles"><h3>Related Articles</h3><div class="related-grid">
+            <div class="related-card" onclick="hideArticle();setTimeout(function(){showArticle('multilingual')},100)"><h4>Multi-Language Chatbots: Serving Diverse Patient Populations</h4><p>Break language barriers with AI.</p></div>
+            <div class="related-card" onclick="hideArticle();setTimeout(function(){showArticle('multi-lang-setup')},100)"><h4>Setting Up Multi-Language Chatbots for Diverse Practices</h4><p>A practical configuration guide.</p></div>
+        </div></div>
+    </div>
+</div>
+
+<!-- Article: Multi-Language Setup -->
+<div class="article-view" id="article-multi-lang-setup">
+    <button class="article-back" onclick="hideArticle()">&larr; Back to Blog</button>
+    <div class="article-meta"><span class="blog-category technology">Technology</span><span class="blog-date">Apr 10, 2026</span></div>
+    <h1>Setting Up Multi-Language Chatbots for Diverse Practices</h1>
+    <div class="article-body">
+        <p>If your practice serves a diverse community, multi-language chatbot support is not a luxury. It is a competitive advantage. This guide walks you through the practical steps to set up and optimize a multilingual chatbot.</p>
+        <h2>Step 1: Identify Your Patient Languages</h2>
+        <p>Analyze your patient demographics. Check which languages are most common in your area. In the US, the top non-English languages for healthcare are Spanish, Chinese, Vietnamese, Korean, and Arabic. Focus on the top 2-3 languages your patients speak.</p>
+        <h2>Step 2: Choose the Right Platform</h2>
+        <p>Not all chatbot platforms handle multilingual well. Look for: automatic language detection (no dropdown menus), native-quality translation, cultural context awareness, and multilingual appointment confirmations and reminders.</p>
+        <h2>Step 3: Configure Your Knowledge Base</h2>
+        <p>Your chatbot's medical knowledge base needs to work in all supported languages. This means: treatment descriptions, pricing information, insurance FAQs, and post-care instructions should all be accurately translated with medical terminology.</p>
+        <h2>Step 4: Test with Native Speakers</h2>
+        <p>Before going live, have native speakers test the chatbot in each language. Check for: natural phrasing, correct medical terminology, appropriate formality levels, and cultural sensitivity in appointment-related communications.</p>
+        <h2>Step 5: Monitor and Optimize</h2>
+        <p>Track metrics by language: conversation completion rates, booking conversion rates, and patient satisfaction scores. If one language underperforms, investigate the conversation logs for translation issues or cultural gaps.</p>
+        <h2>The Business Case</h2>
+        <p>Practices that add multilingual support typically see <strong>20-35% increases in bookings from non-English-speaking patients</strong> within the first quarter.</p>
+        <div class="article-cta"><h3>Go Multilingual Today</h3><p>ChatGeniusX supports automatic language detection and responds naturally in multiple languages.</p><a href="/login?signup=1" class="btn-primary">Start Free Trial &rarr;</a></div>
+        <div class="related-articles"><h3>Related Articles</h3><div class="related-grid">
+            <div class="related-card" onclick="hideArticle();setTimeout(function(){showArticle('multilingual')},100)"><h4>Multi-Language Chatbots: Serving Diverse Patient Populations</h4><p>The impact of multilingual chatbots on patient access.</p></div>
+            <div class="related-card" onclick="hideArticle();setTimeout(function(){showArticle('voice-ai-future')},100)"><h4>Why Voice AI is the Future of Patient Communication</h4><p>Voice AI and multilingual convergence.</p></div>
+        </div></div>
+    </div>
+</div>
+
+<!-- Resource Article: Buyer's Guide -->
+<div class="article-view" id="article-buyers-guide">
+    <button class="article-back" onclick="hideArticle()">&larr; Back to Blog</button>
+    <div class="article-meta"><span class="blog-category technology">Technology</span><span class="blog-date">Apr 26, 2026</span></div>
+    <h1>Healthcare Chatbot Buyer's Guide 2026</h1>
+    <div class="article-body">
+        <p>Choosing the right chatbot for your healthcare practice is a critical decision. The wrong choice means wasted money, compliance risks, and frustrated patients. This guide covers everything you need to evaluate.</p>
+        <h2>Must-Have Features</h2>
+        <ul>
+            <li><strong>HIPAA Compliance:</strong> Non-negotiable for healthcare. Ensure the vendor offers a BAA.</li>
+            <li><strong>Appointment Booking:</strong> The chatbot should book appointments directly, not just capture leads.</li>
+            <li><strong>Multi-Language Support:</strong> Essential if you serve diverse patient populations.</li>
+            <li><strong>Integration Capability:</strong> Must connect with your existing scheduling and EHR systems.</li>
+            <li><strong>Analytics Dashboard:</strong> Track conversations, bookings, and ROI.</li>
+        </ul>
+        <h2>Questions to Ask Vendors</h2>
+        <ol>
+            <li>Do you provide a signed Business Associate Agreement?</li>
+            <li>Where is patient data stored and how is it encrypted?</li>
+            <li>Can the chatbot book appointments directly into our calendar?</li>
+            <li>What is your AI resolution rate for healthcare queries?</li>
+            <li>How do you handle after-hours conversations?</li>
+            <li>What does onboarding and setup look like?</li>
+            <li>How are you different from general-purpose chatbot tools?</li>
+        </ol>
+        <h2>Red Flags to Watch For</h2>
+        <ul>
+            <li>No HIPAA compliance or BAA available</li>
+            <li>Per-seat pricing that scales unpredictably</li>
+            <li>Requires custom development for basic healthcare workflows</li>
+            <li>No healthcare-specific knowledge base</li>
+            <li>Long implementation timelines (should be hours, not weeks)</li>
+        </ul>
+        <div class="article-cta"><h3>ChatGeniusX Checks Every Box</h3><p>Purpose-built for healthcare with HIPAA compliance, appointment booking, and instant setup.</p><a href="/login?signup=1" class="btn-primary">Start Free Trial &rarr;</a></div>
+        <div class="related-articles"><h3>Related Articles</h3><div class="related-grid">
+            <div class="related-card" onclick="hideArticle();setTimeout(function(){showArticle('hipaa-checklist')},100)"><h4>HIPAA-Compliant Chatbot Checklist: 15 Requirements</h4><p>The definitive compliance checklist.</p></div>
+            <div class="related-card" onclick="hideArticle();setTimeout(function(){showArticle('roi-dental-chatbots')},100)"><h4>The ROI of AI Chatbots for Dental Practices</h4><p>Real ROI numbers from real practices.</p></div>
+        </div></div>
+    </div>
+</div>
+
+<!-- Resource Article: No-Show Playbook -->
+<div class="article-view" id="article-noshow-playbook">
+    <button class="article-back" onclick="hideArticle()">&larr; Back to Blog</button>
+    <div class="article-meta"><span class="blog-category revenue">Revenue</span><span class="blog-date">Apr 26, 2026</span></div>
+    <h1>No-Show Recovery Playbook</h1>
+    <div class="article-body">
+        <p>This playbook gives you a step-by-step system to reduce no-shows by up to 50% and recover lost revenue from the ones that still happen.</p>
+        <h2>Phase 1: Prevention (Before the Appointment)</h2>
+        <p><strong>Confirmation Sequence:</strong></p>
+        <ul>
+            <li>Immediate: Booking confirmation with calendar invite</li>
+            <li>48 hours: Reminder with what-to-bring checklist</li>
+            <li>24 hours: Quick confirmation request (one-click)</li>
+            <li>2 hours: Final reminder with directions</li>
+        </ul>
+        <p><strong>Risk Scoring:</strong> Flag patients with previous no-shows or late bookings for extra outreach (personal call from staff).</p>
+        <h2>Phase 2: Detection (During the Appointment Window)</h2>
+        <p>Mark patients as no-show 15 minutes after their scheduled time. Immediately trigger the recovery sequence and notify waitlisted patients.</p>
+        <h2>Phase 3: Recovery (After the No-Show)</h2>
+        <ul>
+            <li><strong>Minute 15:</strong> "We missed you" SMS with rebooking link</li>
+            <li><strong>Hour 2:</strong> Email with alternative available times</li>
+            <li><strong>Day 1:</strong> Follow-up with empathy and easy rebooking</li>
+            <li><strong>Day 7:</strong> Final outreach for cold leads</li>
+        </ul>
+        <h2>Phase 4: Analysis (Ongoing)</h2>
+        <p>Track no-show patterns by: day of week, time of day, provider, procedure type, and patient demographics. Use these insights to optimize scheduling and outreach.</p>
+        <h2>Expected Results</h2>
+        <p>Practices implementing this full playbook typically see no-show rates drop from 18-22% down to <strong>8-12%</strong> within 60 days.</p>
+        <div class="article-cta"><h3>Automate This Entire Playbook</h3><p>ChatGeniusX handles every phase automatically with its No-Show Recovery Agent.</p><a href="/login?signup=1" class="btn-primary">Start Free Trial &rarr;</a></div>
+        <div class="related-articles"><h3>Related Articles</h3><div class="related-grid">
+            <div class="related-card" onclick="hideArticle();setTimeout(function(){showArticle('reduce-noshows-50')},100)"><h4>How to Reduce No-Shows by 50% with AI</h4><p>Advanced AI strategies for no-show reduction.</p></div>
+            <div class="related-card" onclick="hideArticle();setTimeout(function(){showArticle('reduce-noshows')},100)"><h4>How AI Chatbots Reduce No-Shows by 40%</h4><p>The psychology and technology behind no-show reduction.</p></div>
+        </div></div>
+    </div>
+</div>
+
 <!-- ═══ NEWSLETTER ═══ -->
 <section class="newsletter" id="blogNewsletter">
     <div class="newsletter-inner anim">
@@ -583,17 +1074,55 @@
 </section>
 
 <footer>
-    <div class="footer-inner">
-        <div class="footer-logo">Chat<span>GeniusX</span></div>
-        <ul class="footer-links">
-            <li><a href="/">Home</a></li>
-            <li><a href="/pricing-plans">Pricing</a></li>
-            <li><a href="/blog">Blog</a></li>
-            <li><a href="/case-studies">Case Studies</a></li>
-            <li><a href="/privacy">Privacy</a></li>
-            <li><a href="/terms">Terms</a></li>
-        </ul>
-        <div class="footer-copy">&copy; 2026 ChatGeniusX. All rights reserved.</div>
+    <div class="footer-inner" style="display:block;max-width:1140px;margin:auto">
+        <div class="footer-grid">
+            <div class="footer-col">
+                <div class="footer-logo" style="margin-bottom:1rem">Chat<span>Genius</span></div>
+                <p>AI chatbot platform that converts visitors into bookings. Built for healthcare, dental, and beauty practices.</p>
+                <div class="footer-newsletter" style="margin-top:1rem">
+                    <input type="email" id="footerEmail" placeholder="Your email">
+                    <button onclick="document.getElementById('footerEmail').value='';this.textContent='Subscribed!';setTimeout(()=>this.textContent='Subscribe',2000)">Subscribe</button>
+                </div>
+                <p style="font-size:.72rem;margin-top:.4rem;color:var(--text-dim)">Join 2,000+ practice owners getting AI tips</p>
+            </div>
+            <div class="footer-col">
+                <h4>Product</h4>
+                <a href="/#features">Features</a>
+                <a href="/ai-technology">AI Technology</a>
+                <a href="/integrations">Integrations</a>
+                <a href="/agent-marketplace">Agent Marketplace</a>
+                <a href="/voice-agent">Voice AI</a>
+                <a href="/mobile-app">Mobile App</a>
+            </div>
+            <div class="footer-col">
+                <h4>Resources</h4>
+                <a href="/developers">API Docs</a>
+                <a href="/blog">Blog &amp; Guides</a>
+                <a href="/case-studies">Case Studies</a>
+                <a href="/compare">Compare</a>
+            </div>
+            <div class="footer-col">
+                <h4>Company</h4>
+                <a href="/pricing-plans">Pricing</a>
+                <a href="/partners">Partner Program</a>
+                <a href="/trust-center">Trust Center</a>
+                <a href="/security">Security</a>
+            </div>
+            <div class="footer-col">
+                <h4>Legal</h4>
+                <a href="/privacy">Privacy Policy</a>
+                <a href="/terms">Terms of Service</a>
+                <a href="/refund">Refund Policy</a>
+                <a href="/data-deletion">Data Deletion</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="footer-copy">&copy; 2026 ChatGeniusX. All rights reserved.</div>
+            <div style="display:flex;gap:1.5rem">
+                <a href="/privacy" style="color:var(--text-dim);font-size:.8rem;text-decoration:none">Privacy</a>
+                <a href="/terms" style="color:var(--text-dim);font-size:.8rem;text-decoration:none">Terms</a>
+            </div>
+        </div>
     </div>
 </footer>
 
@@ -608,7 +1137,10 @@ function showArticle(id){
     document.getElementById('blogHero').style.display='none';
     document.getElementById('blogGrid').style.display='none';
     document.getElementById('blogNewsletter').style.display='none';
-    document.getElementById('article-'+id).classList.add('active');
+    document.getElementById('resourcesSection').style.display='none';
+    document.getElementById('searchBarWrap').style.display='none';
+    var el=document.getElementById('article-'+id);
+    if(el){el.classList.add('active')}
     window.scrollTo({top:0,behavior:'smooth'});
 }
 function hideArticle(){
@@ -616,7 +1148,18 @@ function hideArticle(){
     document.getElementById('blogHero').style.display='';
     document.getElementById('blogGrid').style.display='';
     document.getElementById('blogNewsletter').style.display='';
+    document.getElementById('resourcesSection').style.display='';
+    document.getElementById('searchBarWrap').style.display='';
     window.scrollTo({top:0,behavior:'smooth'});
+}
+function filterArticles(query){
+    var q=query.toLowerCase().trim();
+    document.querySelectorAll('.blog-card').forEach(function(card){
+        var title=card.querySelector('h3').textContent.toLowerCase();
+        var excerpt=card.querySelector('.excerpt').textContent.toLowerCase();
+        var category=card.querySelector('.blog-category').textContent.toLowerCase();
+        card.style.display=(q===''||title.includes(q)||excerpt.includes(q)||category.includes(q))?'':'none';
+    });
 }
 </script>
 
