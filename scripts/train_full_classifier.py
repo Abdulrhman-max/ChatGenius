@@ -52,7 +52,7 @@ intent_map = {
     "Contact Leaving & Callbacks":        "contact_callback",
     "Treatment Upselling & Education":    "treatment_education",
     "Patient Recall & Reactivation":      "patient_recall",
-    "Payment Plans & Financing":          "payment_financing",
+    "Payment Plans & Installments":       "payment_financing",
     "Promotions & Campaigns":             "promotions",
     "No-Show Reduction & Reminders":      "noshow_reminders",
     "Multilingual Support":               "multilingual",

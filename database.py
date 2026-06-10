@@ -13,7 +13,7 @@ import secrets
 import bcrypt
 from datetime import datetime, timedelta
 
-TOKEN_LIFETIME = timedelta(hours=8)  # 8 hours (reduced from 27)
+TOKEN_LIFETIME = timedelta(hours=16)  # 16 hours
 
 # ── SQL column whitelist for dynamic queries ──
 _SAFE_COLUMNS = frozenset({
@@ -58,6 +58,25 @@ _SAFE_COLUMNS = frozenset({
     'doctor_show_qualifications', 'doctor_show_category', 'calendar_style',
     'calendar_marker_color', 'launcher_bg', 'msg_font_size', 'dropdown_style',
     'admin_id', 'header_text_color', 'launcher_icon',
+    'company_type',
+    # email template extended fields
+    'content_width', 'card_radius', 'card_shadow', 'top_bar_height',
+    'line_height', 'letter_spacing', 'preheader',
+    'header_html', 'body_html', 'footer_html', 'button_size',
+    'header_image_url', 'footer_image_url', 'body_image_url',
+    'source_type', 'compiled_html',
+    # email system / reminder config extended
+    'reminder_48h_enabled', 'reminder_24h_enabled', 'reminder_2h_enabled',
+    'recall_interval_days', 'recall_message', 'recall_enabled',
+    'followup_day1', 'followup_day3', 'followup_day7', 'followup_day14', 'followup_day30',
+    'survey_delay_hours', 'survey_enabled',
+    'noshow_recovery_delay_hours', 'noshow_recovery_message', 'noshow_recovery_enabled',
+    'birthday_enabled', 'birthday_days_before',
+    'reactivation_enabled', 'reactivation_days',
+    'welcome_enabled', 'welcome_delay_minutes',
+    'previsit_enabled', 'previsit_hours_before',
+    # per-admin SMTP
+    'smtp_host', 'smtp_port', 'smtp_user', 'smtp_password', 'smtp_from_email', 'smtp_verified',
 })
 
 
@@ -174,7 +193,8 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             is_verified INTEGER DEFAULT 1,
             verification_code TEXT DEFAULT '',
-            verification_code_expires TIMESTAMP DEFAULT NULL
+            verification_code_expires TIMESTAMP DEFAULT NULL,
+            company_type TEXT DEFAULT ''
         );
 
         CREATE TABLE IF NOT EXISTS company_info (
@@ -250,6 +270,16 @@ def init_db():
             admin_user_id INTEGER DEFAULT 0,
             status TEXT DEFAULT 'pending',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS staff_permissions (
+            id SERIAL PRIMARY KEY,
+            admin_id INTEGER NOT NULL,
+            staff_user_id INTEGER NOT NULL,
+            permission_key TEXT NOT NULL,
+            enabled INTEGER DEFAULT 0,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(admin_id, staff_user_id, permission_key)
         );
 
         CREATE TABLE IF NOT EXISTS chat_logs (
@@ -683,6 +713,27 @@ def init_db():
             quiet_hours_end INTEGER DEFAULT 8,
             high_risk_enabled INTEGER DEFAULT 1,
             high_risk_threshold INTEGER DEFAULT 4,
+            recall_interval_days INTEGER DEFAULT 180,
+            recall_message TEXT DEFAULT '',
+            recall_enabled INTEGER DEFAULT 1,
+            followup_day1 INTEGER DEFAULT 1,
+            followup_day3 INTEGER DEFAULT 1,
+            followup_day7 INTEGER DEFAULT 1,
+            followup_day14 INTEGER DEFAULT 0,
+            followup_day30 INTEGER DEFAULT 0,
+            survey_delay_hours INTEGER DEFAULT 24,
+            survey_enabled INTEGER DEFAULT 1,
+            noshow_recovery_delay_hours INTEGER DEFAULT 2,
+            noshow_recovery_message TEXT DEFAULT '',
+            noshow_recovery_enabled INTEGER DEFAULT 1,
+            birthday_enabled INTEGER DEFAULT 0,
+            birthday_days_before INTEGER DEFAULT 1,
+            reactivation_enabled INTEGER DEFAULT 0,
+            reactivation_days INTEGER DEFAULT 90,
+            welcome_enabled INTEGER DEFAULT 1,
+            welcome_delay_minutes INTEGER DEFAULT 0,
+            previsit_enabled INTEGER DEFAULT 1,
+            previsit_hours_before INTEGER DEFAULT 24,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -969,6 +1020,32 @@ def init_db():
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
 
+        -- WhatsApp Business API Configuration
+        CREATE TABLE IF NOT EXISTS whatsapp_config (
+            id SERIAL PRIMARY KEY,
+            admin_id INTEGER UNIQUE,
+            access_token TEXT DEFAULT '',
+            phone_number_id TEXT DEFAULT '',
+            verify_token TEXT DEFAULT '',
+            business_account_id TEXT DEFAULT '',
+            connected INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Instagram Integration Configuration
+        CREATE TABLE IF NOT EXISTS instagram_config (
+            id SERIAL PRIMARY KEY,
+            admin_id INTEGER UNIQUE NOT NULL,
+            page_access_token TEXT NOT NULL,
+            instagram_account_id TEXT NOT NULL DEFAULT '',
+            page_id TEXT NOT NULL DEFAULT '',
+            verify_token TEXT NOT NULL DEFAULT '',
+            connected INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
         -- SMS Log
         CREATE TABLE IF NOT EXISTS sms_log (
             id SERIAL PRIMARY KEY,
@@ -1049,6 +1126,7 @@ def init_db():
         # Feature 10: Live Chat
         ("chat_logs", "is_human_handled", "INTEGER DEFAULT 0"),
         ("chat_logs", "handler_user_id", "INTEGER DEFAULT 0"),
+        ("chat_logs", "sender", "TEXT DEFAULT 'user'"),
         # Feature 13: 2FA
         ("users", "totp_secret", "TEXT DEFAULT ''"),
         ("users", "two_fa_enabled", "INTEGER DEFAULT 0"),
@@ -1109,6 +1187,9 @@ def init_db():
         ("company_info", "customers_api_url", "TEXT DEFAULT ''"),
         ("company_info", "customers_api_key", "TEXT DEFAULT ''"),
         ("company_info", "currency", "TEXT DEFAULT 'USD'"),
+        ("company_info", "logo_url", "TEXT DEFAULT ''"),
+        ("company_info", "store_image", "TEXT DEFAULT ''"),
+        ("company_info", "domain", "TEXT DEFAULT ''"),
         # Public GUID for embed code (never expose numeric IDs)
         ("users", "public_id", "TEXT DEFAULT ''"),
         # Service-doctor mapping + description
@@ -1134,9 +1215,18 @@ def init_db():
         ("leads", "preferred_time", "TEXT DEFAULT ''"),
         ("leads", "capture_trigger", "TEXT DEFAULT 'manual'"),
         ("leads", "session_id", "TEXT DEFAULT ''"),
+        ("leads", "temperature", "TEXT DEFAULT 'cold'"),
         ("leads", "last_activity_at", "TIMESTAMP DEFAULT NULL"),
         ("leads", "converted_at", "TIMESTAMP DEFAULT NULL"),
         ("leads", "converted_booking_id", "INTEGER DEFAULT 0"),
+        ("leads", "last_action", "TEXT DEFAULT ''"),
+        ("leads", "last_action_at", "TIMESTAMP DEFAULT NULL"),
+        ("leads", "budget", "TEXT DEFAULT ''"),
+        ("leads", "score_breakdown", "TEXT DEFAULT ''"),
+        ("leads", "cart_data", "TEXT DEFAULT ''"),
+        ("leads", "multipliers", "TEXT DEFAULT ''"),
+        ("leads", "revenue_at_risk", "NUMERIC DEFAULT 0"),
+        ("lead_email_queue", "retry_count", "INTEGER DEFAULT 0"),
         ("doctor_breaks", "day_of_week", "TEXT DEFAULT ''"),
         # ROI: average appointment price per doctor
         ("doctors", "avg_appointment_price", "REAL DEFAULT 20.0"),
@@ -1168,6 +1258,27 @@ def init_db():
         ("users", "verification_code_expires", "TIMESTAMP DEFAULT NULL"),
         ("reminder_config", "high_risk_enabled", "INTEGER DEFAULT 1"),
         ("reminder_config", "high_risk_threshold", "INTEGER DEFAULT 4"),
+        ("reminder_config", "recall_interval_days", "INTEGER DEFAULT 180"),
+        ("reminder_config", "recall_message", "TEXT DEFAULT ''"),
+        ("reminder_config", "recall_enabled", "INTEGER DEFAULT 1"),
+        ("reminder_config", "followup_day1", "INTEGER DEFAULT 1"),
+        ("reminder_config", "followup_day3", "INTEGER DEFAULT 1"),
+        ("reminder_config", "followup_day7", "INTEGER DEFAULT 1"),
+        ("reminder_config", "followup_day14", "INTEGER DEFAULT 0"),
+        ("reminder_config", "followup_day30", "INTEGER DEFAULT 0"),
+        ("reminder_config", "survey_delay_hours", "INTEGER DEFAULT 24"),
+        ("reminder_config", "survey_enabled", "INTEGER DEFAULT 1"),
+        ("reminder_config", "noshow_recovery_delay_hours", "INTEGER DEFAULT 2"),
+        ("reminder_config", "noshow_recovery_message", "TEXT DEFAULT ''"),
+        ("reminder_config", "noshow_recovery_enabled", "INTEGER DEFAULT 1"),
+        ("reminder_config", "birthday_enabled", "INTEGER DEFAULT 0"),
+        ("reminder_config", "birthday_days_before", "INTEGER DEFAULT 1"),
+        ("reminder_config", "reactivation_enabled", "INTEGER DEFAULT 0"),
+        ("reminder_config", "reactivation_days", "INTEGER DEFAULT 90"),
+        ("reminder_config", "welcome_enabled", "INTEGER DEFAULT 1"),
+        ("reminder_config", "welcome_delay_minutes", "INTEGER DEFAULT 0"),
+        ("reminder_config", "previsit_enabled", "INTEGER DEFAULT 1"),
+        ("reminder_config", "previsit_hours_before", "INTEGER DEFAULT 24"),
         # Legacy column (kept for backward compatibility)
         ("users", "paypal_plan_status", "TEXT DEFAULT ''"),
         # Google Calendar integration (per-doctor OAuth)
@@ -1178,6 +1289,15 @@ def init_db():
         ("users", "paypal_subscription_id", "TEXT DEFAULT ''"),
         # Enhanced Handoff: typing indicator
         ("live_chat_handoffs", "typing_at", "TIMESTAMP DEFAULT NULL"),
+        # Multi-industry support
+        ("users", "company_type", "TEXT DEFAULT ''"),
+        # Per-admin SMTP configuration (send emails from their own domain)
+        ("company_info", "smtp_host", "TEXT DEFAULT ''"),
+        ("company_info", "smtp_port", "INTEGER DEFAULT 587"),
+        ("company_info", "smtp_user", "TEXT DEFAULT ''"),
+        ("company_info", "smtp_password", "TEXT DEFAULT ''"),
+        ("company_info", "smtp_from_email", "TEXT DEFAULT ''"),
+        ("company_info", "smtp_verified", "INTEGER DEFAULT 0"),
     ]
     for table, col, col_type in migrations:
         try:
@@ -1185,6 +1305,13 @@ def init_db():
             conn.commit()
         except Exception:
             conn.rollback()
+
+    # Migrate leads.score from INTEGER to REAL for advanced lead scoring
+    try:
+        conn.execute("ALTER TABLE leads ALTER COLUMN score TYPE REAL")
+        conn.commit()
+    except Exception:
+        conn.rollback()
 
     # Backfill external_api_key for existing companies that don't have one
     companies_without_key = conn.execute("SELECT id FROM company_info WHERE external_api_key IS NULL OR external_api_key = ''").fetchall()
@@ -1248,6 +1375,28 @@ def init_db():
         scheduled_at TIMESTAMP NOT NULL,
         sent_at TIMESTAMP DEFAULT NULL,
         cancelled_at TIMESTAMP DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS hot_lead_alerts (
+        id SERIAL PRIMARY KEY,
+        lead_id INTEGER NOT NULL,
+        admin_id INTEGER NOT NULL,
+        lead_name TEXT DEFAULT '',
+        score REAL DEFAULT 0,
+        temperature TEXT DEFAULT '',
+        product_interest TEXT DEFAULT '',
+        seen INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS lead_email_queue (
+        id SERIAL PRIMARY KEY,
+        lead_id INTEGER NOT NULL,
+        admin_id INTEGER NOT NULL,
+        send_at TIMESTAMP NOT NULL,
+        status TEXT DEFAULT 'pending',
+        sent_at TIMESTAMP DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""")
     conn.commit()
@@ -1344,6 +1493,15 @@ def init_db():
         sync_enabled BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS pms_sync_log (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        pms_type TEXT NOT NULL,
+        booking_id INTEGER NOT NULL,
+        status TEXT DEFAULT 'pending',
+        error_message TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
     conn.commit()
 
     # Proactive engagement configuration
@@ -1423,6 +1581,1200 @@ def init_db():
     )""")
     conn.commit()
 
+    # ── E-commerce Tables ──
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS store_settings (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER UNIQUE NOT NULL,
+        store_name TEXT DEFAULT '',
+        store_logo TEXT DEFAULT '',
+        brand_primary_color TEXT DEFAULT '#000000',
+        brand_secondary_color TEXT DEFAULT '',
+        store_timezone TEXT DEFAULT 'UTC',
+        store_currency TEXT DEFAULT 'USD',
+        currency_format TEXT DEFAULT 'symbol_before',
+        default_language TEXT DEFAULT 'en',
+        supported_languages TEXT DEFAULT '',
+        store_contact_email TEXT DEFAULT '',
+        store_contact_phone TEXT DEFAULT '',
+        store_address TEXT DEFAULT '',
+        business_hours TEXT DEFAULT '',
+        chatbot_name TEXT DEFAULT '',
+        chatbot_avatar TEXT DEFAULT '',
+        chatbot_tone TEXT DEFAULT 'friendly',
+        welcome_message TEXT DEFAULT '',
+        offline_message TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    # Migration: add missing store_settings columns
+    for col, default in [
+        ("store_url", "TEXT DEFAULT ''"),
+        ("default_shipping_rate", "DECIMAL(10,2) DEFAULT 0"),
+        ("return_policy", "TEXT DEFAULT ''"),
+        ("shipping_zones", "TEXT DEFAULT ''"),
+        ("payment_methods", "TEXT DEFAULT ''"),
+        ("tax_rate", "DECIMAL(5,2) DEFAULT 0"),
+        ("free_shipping_threshold", "DECIMAL(10,2) DEFAULT 0"),
+        ("ecommerce_type", "TEXT DEFAULT ''"),
+        ("brand_voice", "TEXT DEFAULT 'casual'"),
+        ("bot_name", "TEXT DEFAULT 'Sales Assistant'"),
+        ("target_audience", "TEXT DEFAULT ''"),
+        ("cart_add_url", "TEXT DEFAULT ''"),
+        ("bundle_enabled", "BOOLEAN DEFAULT FALSE"),
+        ("bundle_min_items", "INTEGER DEFAULT 3"),
+        ("bundle_discount_pct", "DECIMAL(5,2) DEFAULT 10"),
+        ("cart_integration_mode", "TEXT DEFAULT 'product_link'"),
+        ("cart_integration_done", "BOOLEAN DEFAULT FALSE"),
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS {col} {default}")
+            conn.commit()
+        except Exception:
+            pass
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS products (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        product_id TEXT DEFAULT '',
+        product_name TEXT NOT NULL,
+        product_description TEXT DEFAULT '',
+        product_short_description TEXT DEFAULT '',
+        product_images TEXT DEFAULT '[]',
+        product_price DECIMAL(10,2) DEFAULT 0,
+        compare_at_price DECIMAL(10,2) DEFAULT 0,
+        cost_price DECIMAL(10,2) DEFAULT 0,
+        product_status TEXT DEFAULT 'active',
+        inventory_quantity INTEGER DEFAULT 0,
+        inventory_policy TEXT DEFAULT 'deny',
+        low_stock_threshold INTEGER DEFAULT 5,
+        backorder_status TEXT DEFAULT 'no',
+        product_category TEXT DEFAULT '',
+        product_subcategory TEXT DEFAULT '',
+        product_tags TEXT DEFAULT '',
+        product_weight DECIMAL(10,2) DEFAULT 0,
+        product_dimensions TEXT DEFAULT '',
+        product_material TEXT DEFAULT '',
+        product_brand TEXT DEFAULT '',
+        product_rating DECIMAL(3,2) DEFAULT 0,
+        product_review_count INTEGER DEFAULT 0,
+        product_barcode TEXT DEFAULT '',
+        product_url TEXT DEFAULT '',
+        product_highlights TEXT DEFAULT '',
+        product_benefits TEXT DEFAULT '',
+        target_customer TEXT DEFAULT '',
+        product_specs TEXT DEFAULT '[]',
+        use_cases TEXT DEFAULT '',
+        sale_start_date TEXT DEFAULT '',
+        sale_end_date TEXT DEFAULT '',
+        related_complementary TEXT DEFAULT '[]',
+        related_similar TEXT DEFAULT '[]',
+        search_keywords TEXT DEFAULT '',
+        ships_free BOOLEAN DEFAULT FALSE,
+        shipping_class TEXT DEFAULT 'standard',
+        return_eligibility TEXT DEFAULT 'standard',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    # Migrate existing products tables
+    for col, default in [
+        ("product_url", "TEXT DEFAULT ''"),
+        ("product_highlights", "TEXT DEFAULT ''"),
+        ("product_benefits", "TEXT DEFAULT ''"),
+        ("target_customer", "TEXT DEFAULT ''"),
+        ("product_specs", "TEXT DEFAULT '[]'"),
+        ("use_cases", "TEXT DEFAULT ''"),
+        ("sale_start_date", "TEXT DEFAULT ''"),
+        ("sale_end_date", "TEXT DEFAULT ''"),
+        ("related_complementary", "TEXT DEFAULT '[]'"),
+        ("related_similar", "TEXT DEFAULT '[]'"),
+        ("search_keywords", "TEXT DEFAULT ''"),
+        ("ships_free", "BOOLEAN DEFAULT FALSE"),
+        ("shipping_class", "TEXT DEFAULT 'standard'"),
+        ("return_eligibility", "TEXT DEFAULT 'standard'"),
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE products ADD COLUMN IF NOT EXISTS {col} {default}")
+        except Exception:
+            pass
+    conn.commit()
+
+    # Backfill auto product_id for products missing one
+    try:
+        conn.execute("UPDATE products SET product_id = 'PROD-' || id WHERE product_id IS NULL OR product_id = ''")
+        conn.commit()
+    except Exception:
+        pass
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS product_variants (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        product_id INTEGER NOT NULL,
+        variant_name TEXT DEFAULT '',
+        option_1_name TEXT DEFAULT '',
+        option_1_value TEXT DEFAULT '',
+        option_2_name TEXT DEFAULT '',
+        option_2_value TEXT DEFAULT '',
+        option_3_name TEXT DEFAULT '',
+        option_3_value TEXT DEFAULT '',
+        variant_price DECIMAL(10,2) DEFAULT 0,
+        variant_sku TEXT DEFAULT '',
+        variant_inventory_qty INTEGER DEFAULT 0,
+        variant_barcode TEXT DEFAULT '',
+        variant_image TEXT DEFAULT '',
+        variant_weight DECIMAL(10,2) DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS cart_recovery_settings (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER UNIQUE NOT NULL,
+        cart_recovery_enabled INTEGER DEFAULT 0,
+        exit_intent_trigger INTEGER DEFAULT 1,
+        exit_intent_delay INTEGER DEFAULT 0,
+        scroll_up_trigger INTEGER DEFAULT 0,
+        time_on_page_trigger INTEGER DEFAULT 0,
+        cart_value_minimum DECIMAL(10,2) DEFAULT 0,
+        cart_value_maximum DECIMAL(10,2) DEFAULT 0,
+        mobile_swipe_up_trigger INTEGER DEFAULT 0,
+        tab_switch_trigger INTEGER DEFAULT 0,
+        recovery_message_1 TEXT DEFAULT '',
+        recovery_message_1_delay INTEGER DEFAULT 0,
+        recovery_message_2 TEXT DEFAULT '',
+        recovery_message_2_delay INTEGER DEFAULT 60,
+        recovery_message_3 TEXT DEFAULT '',
+        recovery_message_3_delay INTEGER DEFAULT 180,
+        discount_enabled INTEGER DEFAULT 0,
+        discount_type TEXT DEFAULT 'percentage',
+        discount_value DECIMAL(10,2) DEFAULT 0,
+        discount_minimum_cart_value DECIMAL(10,2) DEFAULT 0,
+        discount_maximum_cap DECIMAL(10,2) DEFAULT 0,
+        discount_code_prefix TEXT DEFAULT 'CHAT',
+        single_use_codes INTEGER DEFAULT 1,
+        urgency_timer_enabled INTEGER DEFAULT 0,
+        urgency_timer_duration INTEGER DEFAULT 30,
+        email_followup_enabled INTEGER DEFAULT 0,
+        email_1_timing INTEGER DEFAULT 1,
+        email_1_template TEXT DEFAULT '',
+        email_2_timing INTEGER DEFAULT 24,
+        email_2_template TEXT DEFAULT '',
+        email_3_timing INTEGER DEFAULT 72,
+        email_3_template TEXT DEFAULT '',
+        sms_followup_enabled INTEGER DEFAULT 0,
+        sms_timing INTEGER DEFAULT 4,
+        sms_template TEXT DEFAULT '',
+        whatsapp_enabled INTEGER DEFAULT 0,
+        whatsapp_timing INTEGER DEFAULT 6,
+        whatsapp_template TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS recommendation_settings (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER UNIQUE NOT NULL,
+        recommendations_enabled INTEGER DEFAULT 1,
+        recommendation_engine TEXT DEFAULT 'hybrid',
+        cross_sell_enabled INTEGER DEFAULT 0,
+        cross_sell_rules TEXT DEFAULT '{}',
+        upsell_enabled INTEGER DEFAULT 0,
+        upsell_rules TEXT DEFAULT '{}',
+        bundle_recommendations INTEGER DEFAULT 0,
+        bundle_rules TEXT DEFAULT '{}',
+        trending_products_enabled INTEGER DEFAULT 0,
+        recently_viewed_enabled INTEGER DEFAULT 0,
+        purchase_based_enabled INTEGER DEFAULT 0,
+        max_recommendations_in_chat INTEGER DEFAULT 4,
+        recommendation_card_style TEXT DEFAULT 'detailed',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS order_shipping_settings (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER UNIQUE NOT NULL,
+        order_status_integration INTEGER DEFAULT 0,
+        supported_carriers TEXT DEFAULT '[]',
+        tracking_url_format TEXT DEFAULT '',
+        shipping_zones TEXT DEFAULT '{}',
+        free_shipping_threshold DECIMAL(10,2) DEFAULT 0,
+        free_shipping_message TEXT DEFAULT '',
+        express_shipping_option INTEGER DEFAULT 0,
+        express_shipping_cost DECIMAL(10,2) DEFAULT 0,
+        local_delivery_enabled INTEGER DEFAULT 0,
+        local_delivery_radius INTEGER DEFAULT 0,
+        bopis_enabled INTEGER DEFAULT 0,
+        bopis_locations TEXT DEFAULT '[]',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS return_settings (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER UNIQUE NOT NULL,
+        return_policy_enabled INTEGER DEFAULT 1,
+        return_window_days INTEGER DEFAULT 30,
+        return_eligibility_rules TEXT DEFAULT '',
+        exchange_enabled INTEGER DEFAULT 1,
+        exchange_window_days INTEGER DEFAULT 45,
+        return_label_auto_generate INTEGER DEFAULT 0,
+        return_label_provider TEXT DEFAULT '',
+        refund_method TEXT DEFAULT 'original_payment',
+        refund_timeline TEXT DEFAULT '3-5 business days',
+        restocking_fee_percentage DECIMAL(5,2) DEFAULT 0,
+        final_sale_items TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS shipping_zones (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        zone_name TEXT NOT NULL DEFAULT '',
+        countries TEXT NOT NULL DEFAULT '[]',
+        shipping_fee DECIMAL(10,2) DEFAULT 0,
+        free_shipping_threshold DECIMAL(10,2) DEFAULT 0,
+        estimated_days TEXT DEFAULT '',
+        is_active INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS store_discounts (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        discount_name TEXT NOT NULL DEFAULT '',
+        discount_code TEXT NOT NULL DEFAULT '',
+        discount_type TEXT DEFAULT 'percentage',
+        discount_value DECIMAL(10,2) DEFAULT 0,
+        applies_to TEXT DEFAULT 'all',
+        product_ids TEXT DEFAULT '[]',
+        category_names TEXT DEFAULT '[]',
+        min_order_amount DECIMAL(10,2) DEFAULT 0,
+        min_quantity INTEGER DEFAULT 0,
+        start_date TEXT DEFAULT '',
+        end_date TEXT DEFAULT '',
+        max_uses INTEGER DEFAULT 0,
+        current_uses INTEGER DEFAULT 0,
+        is_active INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS ecom_orders (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        order_number TEXT NOT NULL,
+        customer_name TEXT DEFAULT '',
+        customer_email TEXT DEFAULT '',
+        customer_phone TEXT DEFAULT '',
+        order_status TEXT DEFAULT 'pending',
+        order_total DECIMAL(10,2) DEFAULT 0,
+        subtotal DECIMAL(10,2) DEFAULT 0,
+        tax_amount DECIMAL(10,2) DEFAULT 0,
+        shipping_cost DECIMAL(10,2) DEFAULT 0,
+        discount_amount DECIMAL(10,2) DEFAULT 0,
+        discount_code TEXT DEFAULT '',
+        items_json TEXT DEFAULT '[]',
+        shipping_address TEXT DEFAULT '',
+        shipping_method TEXT DEFAULT '',
+        tracking_number TEXT DEFAULT '',
+        carrier TEXT DEFAULT '',
+        estimated_delivery TEXT DEFAULT '',
+        payment_method TEXT DEFAULT '',
+        payment_status TEXT DEFAULT 'pending',
+        notes TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    # Add estimated_delivery column if missing (migration)
+    try:
+        conn.execute("ALTER TABLE ecom_orders ADD COLUMN IF NOT EXISTS estimated_delivery TEXT DEFAULT ''")
+        conn.commit()
+    except Exception:
+        pass
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS abandoned_carts (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        session_id TEXT DEFAULT '',
+        customer_name TEXT DEFAULT '',
+        customer_email TEXT DEFAULT '',
+        customer_phone TEXT DEFAULT '',
+        cart_items TEXT DEFAULT '[]',
+        cart_total DECIMAL(10,2) DEFAULT 0,
+        recovery_status TEXT DEFAULT 'abandoned',
+        recovery_messages_sent INTEGER DEFAULT 0,
+        discount_code_sent TEXT DEFAULT '',
+        recovered_at TIMESTAMP DEFAULT NULL,
+        recovered_order_id INTEGER DEFAULT 0,
+        abandoned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_followup_at TIMESTAMP DEFAULT NULL
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS ecom_customers (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        customer_email TEXT NOT NULL,
+        customer_name TEXT DEFAULT '',
+        customer_phone TEXT DEFAULT '',
+        total_orders INTEGER DEFAULT 0,
+        total_spent DECIMAL(10,2) DEFAULT 0,
+        avg_order_value DECIMAL(10,2) DEFAULT 0,
+        loyalty_points INTEGER DEFAULT 0,
+        loyalty_tier TEXT DEFAULT 'bronze',
+        tags TEXT DEFAULT '',
+        first_purchase_at TIMESTAMP DEFAULT NULL,
+        last_purchase_at TIMESTAMP DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS ecom_integrations (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER UNIQUE NOT NULL,
+        ecommerce_platform TEXT DEFAULT '',
+        platform_store_url TEXT DEFAULT '',
+        platform_api_key TEXT DEFAULT '',
+        platform_api_secret TEXT DEFAULT '',
+        webhook_url TEXT DEFAULT '',
+        product_sync_frequency TEXT DEFAULT 'hourly',
+        inventory_sync_frequency TEXT DEFAULT 'hourly',
+        order_sync_frequency TEXT DEFAULT 'hourly',
+        payment_gateway TEXT DEFAULT '',
+        payment_api_key TEXT DEFAULT '',
+        email_service TEXT DEFAULT '',
+        email_api_key TEXT DEFAULT '',
+        sms_service TEXT DEFAULT '',
+        sms_api_key TEXT DEFAULT '',
+        crm_integration TEXT DEFAULT '',
+        crm_api_key TEXT DEFAULT '',
+        analytics_integration TEXT DEFAULT '',
+        analytics_tracking_id TEXT DEFAULT '',
+        support_desk_integration TEXT DEFAULT '',
+        support_api_key TEXT DEFAULT '',
+        storefront_url TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    try:
+        conn.execute("ALTER TABLE ecom_integrations ADD COLUMN IF NOT EXISTS storefront_url TEXT DEFAULT ''")
+        conn.execute("ALTER TABLE ecom_integrations ADD COLUMN IF NOT EXISTS payment_publishable_key TEXT DEFAULT ''")
+        conn.execute("ALTER TABLE ecom_integrations ADD COLUMN IF NOT EXISTS payment_webhook_secret TEXT DEFAULT ''")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS ecom_analytics_settings (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER UNIQUE NOT NULL,
+        revenue_attribution_enabled INTEGER DEFAULT 1,
+        conversion_tracking INTEGER DEFAULT 1,
+        aov_tracking INTEGER DEFAULT 1,
+        cart_recovery_tracking INTEGER DEFAULT 1,
+        product_recommendation_tracking INTEGER DEFAULT 0,
+        support_deflection_tracking INTEGER DEFAULT 0,
+        popular_questions_report INTEGER DEFAULT 0,
+        sentiment_analysis INTEGER DEFAULT 0,
+        peak_hours_report INTEGER DEFAULT 0,
+        export_format TEXT DEFAULT 'csv',
+        report_frequency TEXT DEFAULT 'weekly',
+        report_recipients TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS conversation_quality (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        session_id TEXT NOT NULL,
+        quality_score INTEGER DEFAULT 0,
+        engagement_score REAL DEFAULT 0,
+        avg_frustration REAL DEFAULT 0,
+        frustration_trend TEXT DEFAULT 'stable',
+        resolution_score INTEGER DEFAULT 0,
+        max_buying_intent INTEGER DEFAULT 0,
+        total_messages INTEGER DEFAULT 0,
+        escalated BOOLEAN DEFAULT FALSE,
+        converted BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    # ── Predictive Replenishment & Zero-Party Data Tables ──
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS purchase_history (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        customer_key TEXT NOT NULL,
+        product_id INTEGER NOT NULL,
+        product_name TEXT,
+        product_category TEXT,
+        quantity INTEGER DEFAULT 1,
+        purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS replenishment_predictions (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        customer_key TEXT NOT NULL,
+        product_id INTEGER NOT NULL,
+        product_name TEXT,
+        predicted_reorder_date TIMESTAMP,
+        avg_days_between_orders REAL,
+        confidence REAL DEFAULT 0.5,
+        notified BOOLEAN DEFAULT FALSE,
+        notified_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS customer_preferences (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        customer_key TEXT NOT NULL,
+        preference_type TEXT NOT NULL,
+        preference_key TEXT NOT NULL,
+        preference_value TEXT,
+        source TEXT DEFAULT 'chat',
+        collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(admin_id, customer_key, preference_type, preference_key)
+    )""")
+    conn.commit()
+
+    # ── Chat Analytics Events ──
+    conn.execute("""CREATE TABLE IF NOT EXISTS chat_analytics_events (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        session_id TEXT NOT NULL DEFAULT '',
+        event_type TEXT NOT NULL DEFAULT 'unknown',
+        message_count INTEGER DEFAULT 0,
+        duration_seconds INTEGER DEFAULT 0,
+        scroll_depth INTEGER DEFAULT 0,
+        page_time_seconds INTEGER DEFAULT 0,
+        visit_count INTEGER DEFAULT 1,
+        language TEXT DEFAULT 'en',
+        cart_items_count INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+
+    # ── AI Knowledge Base ──
+    conn.execute("""CREATE TABLE IF NOT EXISTS ai_knowledge_base (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        entry_type TEXT DEFAULT 'qa',
+        question TEXT DEFAULT '',
+        answer TEXT DEFAULT '',
+        category TEXT DEFAULT 'general',
+        keywords TEXT DEFAULT '',
+        source TEXT DEFAULT 'manual',
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    # ── AI Guardrails ──
+    conn.execute("""CREATE TABLE IF NOT EXISTS ai_guardrails (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        rule_type TEXT DEFAULT 'block_topic',
+        rule_value TEXT DEFAULT '',
+        replacement_response TEXT DEFAULT '',
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    # ── Browse History (for abandoned browse recovery) ──
+    conn.execute("""CREATE TABLE IF NOT EXISTS browse_history (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        session_id TEXT DEFAULT '',
+        customer_email TEXT DEFAULT '',
+        product_id INTEGER,
+        product_name TEXT DEFAULT '',
+        product_price DECIMAL(10,2) DEFAULT 0,
+        product_image TEXT DEFAULT '',
+        viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        recovery_sent BOOLEAN DEFAULT FALSE,
+        recovery_sent_at TIMESTAMP
+    )""")
+    conn.commit()
+
+    # ── Conversation Topics / Insights ──
+    conn.execute("""CREATE TABLE IF NOT EXISTS conversation_topics (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        session_id TEXT DEFAULT '',
+        topic TEXT NOT NULL,
+        subtopic TEXT DEFAULT '',
+        sentiment TEXT DEFAULT 'neutral',
+        intent TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    # ── Wishlist / Save-for-Later ──
+    conn.execute("""CREATE TABLE IF NOT EXISTS wishlists (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        customer_email TEXT NOT NULL,
+        session_id TEXT DEFAULT '',
+        product_id INTEGER NOT NULL,
+        product_name TEXT DEFAULT '',
+        product_price REAL DEFAULT 0,
+        product_image TEXT DEFAULT '',
+        notes TEXT DEFAULT '',
+        notified_price_drop BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    # ── Revenue Attribution ──
+    conn.execute("""CREATE TABLE IF NOT EXISTS revenue_events (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        session_id TEXT DEFAULT '',
+        customer_email TEXT DEFAULT '',
+        event_type TEXT NOT NULL,
+        event_value REAL DEFAULT 0,
+        product_id INTEGER DEFAULT 0,
+        product_name TEXT DEFAULT '',
+        order_id INTEGER DEFAULT 0,
+        order_number TEXT DEFAULT '',
+        attribution_source TEXT DEFAULT 'chatbot',
+        touchpoints_json TEXT DEFAULT '[]',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    # ── Customer Interest Scores (behavioral personalization) ──
+    conn.execute("""CREATE TABLE IF NOT EXISTS customer_interests (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        customer_key TEXT NOT NULL,
+        category TEXT DEFAULT '',
+        interest_score REAL DEFAULT 0,
+        view_count INTEGER DEFAULT 0,
+        cart_count INTEGER DEFAULT 0,
+        purchase_count INTEGER DEFAULT 0,
+        last_interaction TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    # ── Real Estate Tables ──
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS agency_settings (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER UNIQUE NOT NULL,
+        agency_name TEXT DEFAULT '',
+        agency_logo TEXT DEFAULT '',
+        brand_primary_color TEXT DEFAULT '#000000',
+        brand_secondary_color TEXT DEFAULT '',
+        brand_font_family TEXT DEFAULT 'Roboto',
+        agency_timezone TEXT DEFAULT 'UTC',
+        default_language TEXT DEFAULT 'en',
+        supported_languages TEXT DEFAULT '',
+        agency_phone TEXT DEFAULT '',
+        agency_email TEXT DEFAULT '',
+        agency_address TEXT DEFAULT '',
+        business_hours TEXT DEFAULT '',
+        after_hours_auto_reply TEXT DEFAULT '',
+        chatbot_name TEXT DEFAULT '',
+        chatbot_avatar TEXT DEFAULT '',
+        ai_disclosure_message TEXT DEFAULT '',
+        welcome_message TEXT DEFAULT '',
+        offline_message TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS re_agents (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        user_id INTEGER DEFAULT 0,
+        first_name TEXT NOT NULL,
+        last_name TEXT NOT NULL,
+        email TEXT DEFAULT '',
+        phone TEXT DEFAULT '',
+        photo TEXT DEFAULT '',
+        license_number TEXT DEFAULT '',
+        title TEXT DEFAULT 'Agent',
+        bio TEXT DEFAULT '',
+        specializations TEXT DEFAULT '',
+        languages TEXT DEFAULT '',
+        territories TEXT DEFAULT '',
+        agent_status TEXT DEFAULT 'active',
+        performance_goal INTEGER DEFAULT 0,
+        calendar_url TEXT DEFAULT '',
+        showing_availability TEXT DEFAULT '{}',
+        max_leads_per_day INTEGER DEFAULT 0,
+        max_showings_per_day INTEGER DEFAULT 0,
+        notification_preference TEXT DEFAULT 'all',
+        quiet_hours TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS lead_routing_settings (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER UNIQUE NOT NULL,
+        routing_enabled INTEGER DEFAULT 1,
+        primary_routing_method TEXT DEFAULT 'round_robin',
+        round_robin_priority TEXT DEFAULT 'random',
+        round_robin_reset_period TEXT DEFAULT 'weekly',
+        round_robin_skip_offline INTEGER DEFAULT 1,
+        round_robin_skip_maxed INTEGER DEFAULT 1,
+        territory_rules TEXT DEFAULT '{}',
+        territory_fallback TEXT DEFAULT 'round_robin',
+        specialty_rules TEXT DEFAULT '{}',
+        specialty_fallback TEXT DEFAULT 'round_robin',
+        claim_system_enabled INTEGER DEFAULT 0,
+        claim_time_limit INTEGER DEFAULT 30,
+        claim_auto_assign_if_unclaimed INTEGER DEFAULT 1,
+        vip_threshold_price DECIMAL(12,2) DEFAULT 1000000,
+        vip_routing TEXT DEFAULT 'senior_agent',
+        vip_instant_alert INTEGER DEFAULT 1,
+        duplicate_check_enabled INTEGER DEFAULT 1,
+        duplicate_check_fields TEXT DEFAULT 'email,phone',
+        duplicate_action TEXT DEFAULT 'update_existing',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS qualification_flows (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        flow_name TEXT DEFAULT 'Default Qualification',
+        is_active INTEGER DEFAULT 1,
+        hot_lead_minimum INTEGER DEFAULT 80,
+        warm_lead_minimum INTEGER DEFAULT 60,
+        cold_lead_maximum INTEGER DEFAULT 39,
+        hot_lead_action TEXT DEFAULT 'instant_alert',
+        warm_lead_action TEXT DEFAULT 'send_shortlist',
+        cold_lead_action TEXT DEFAULT 'add_to_nurture',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS qualification_questions (
+        id SERIAL PRIMARY KEY,
+        flow_id INTEGER NOT NULL,
+        admin_id INTEGER NOT NULL,
+        question_order INTEGER DEFAULT 0,
+        question_text TEXT NOT NULL,
+        question_type TEXT DEFAULT 'single_choice',
+        question_options TEXT DEFAULT '[]',
+        question_required INTEGER DEFAULT 1,
+        question_skip_logic TEXT DEFAULT '{}',
+        question_help_text TEXT DEFAULT '',
+        question_placeholder TEXT DEFAULT '',
+        score_enabled INTEGER DEFAULT 1,
+        score_values TEXT DEFAULT '{}',
+        score_weight DECIMAL(3,1) DEFAULT 1.0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS property_listings (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        listing_id TEXT DEFAULT '',
+        listing_address TEXT NOT NULL,
+        listing_city TEXT DEFAULT '',
+        listing_state TEXT DEFAULT '',
+        listing_zip TEXT DEFAULT '',
+        listing_price DECIMAL(12,2) DEFAULT 0,
+        listing_status TEXT DEFAULT 'active',
+        listing_type TEXT DEFAULT 'single_family',
+        property_subtype TEXT DEFAULT '',
+        bedrooms INTEGER DEFAULT 0,
+        bathrooms DECIMAL(3,1) DEFAULT 0,
+        full_baths INTEGER DEFAULT 0,
+        half_baths INTEGER DEFAULT 0,
+        square_footage INTEGER DEFAULT 0,
+        lot_size TEXT DEFAULT '',
+        year_built INTEGER DEFAULT 0,
+        stories INTEGER DEFAULT 1,
+        garage_spaces INTEGER DEFAULT 0,
+        parking_total INTEGER DEFAULT 0,
+        has_pool INTEGER DEFAULT 0,
+        has_fireplace INTEGER DEFAULT 0,
+        has_garage INTEGER DEFAULT 0,
+        has_basement INTEGER DEFAULT 0,
+        has_yard INTEGER DEFAULT 0,
+        has_balcony_deck INTEGER DEFAULT 0,
+        has_waterfront INTEGER DEFAULT 0,
+        has_mountain_view INTEGER DEFAULT 0,
+        pet_friendly INTEGER DEFAULT 0,
+        fenced_yard INTEGER DEFAULT 0,
+        updated_kitchen INTEGER DEFAULT 0,
+        updated_bathrooms INTEGER DEFAULT 0,
+        energy_efficient INTEGER DEFAULT 0,
+        smart_home_features INTEGER DEFAULT 0,
+        accessibility_features INTEGER DEFAULT 0,
+        hoa_fee DECIMAL(10,2) DEFAULT 0,
+        hoa_includes TEXT DEFAULT '',
+        property_tax_annual DECIMAL(10,2) DEFAULT 0,
+        tax_rate DECIMAL(5,3) DEFAULT 0,
+        school_district TEXT DEFAULT '',
+        elementary_school TEXT DEFAULT '',
+        middle_school TEXT DEFAULT '',
+        high_school TEXT DEFAULT '',
+        walk_score INTEGER DEFAULT 0,
+        transit_score INTEGER DEFAULT 0,
+        bike_score INTEGER DEFAULT 0,
+        nearby_amenities TEXT DEFAULT '',
+        listing_photos TEXT DEFAULT '[]',
+        virtual_tour_url TEXT DEFAULT '',
+        floor_plan_image TEXT DEFAULT '',
+        video_tour_url TEXT DEFAULT '',
+        drone_video_url TEXT DEFAULT '',
+        property_description TEXT DEFAULT '',
+        short_description TEXT DEFAULT '',
+        listing_agent_id INTEGER DEFAULT 0,
+        listing_date DATE DEFAULT CURRENT_DATE,
+        days_on_market INTEGER DEFAULT 0,
+        price_changes TEXT DEFAULT '[]',
+        previous_sale_price DECIMAL(12,2) DEFAULT 0,
+        previous_sale_date DATE DEFAULT NULL,
+        open_house_enabled INTEGER DEFAULT 0,
+        open_house_dates TEXT DEFAULT '[]',
+        open_house_times TEXT DEFAULT '',
+        open_house_agent INTEGER DEFAULT 0,
+        open_house_notes TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS mls_settings (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER UNIQUE NOT NULL,
+        mls_integration_enabled INTEGER DEFAULT 0,
+        mls_provider TEXT DEFAULT 'reso_web_api',
+        mls_market_area TEXT DEFAULT '',
+        mls_agent_id TEXT DEFAULT '',
+        mls_office_id TEXT DEFAULT '',
+        mls_username TEXT DEFAULT '',
+        mls_password TEXT DEFAULT '',
+        mls_data_feed_url TEXT DEFAULT '',
+        sync_frequency TEXT DEFAULT 'hourly',
+        sync_direction TEXT DEFAULT 'pull_only',
+        property_types_to_sync TEXT DEFAULT '[]',
+        status_types_to_sync TEXT DEFAULT '[]',
+        price_range_filter_min DECIMAL(12,2) DEFAULT 0,
+        price_range_filter_max DECIMAL(12,2) DEFAULT 0,
+        area_zip_filter TEXT DEFAULT '',
+        photo_sync_enabled INTEGER DEFAULT 1,
+        max_photo_count INTEGER DEFAULT 25,
+        virtual_tour_sync_enabled INTEGER DEFAULT 0,
+        last_sync_timestamp TIMESTAMP DEFAULT NULL,
+        sync_error_log TEXT DEFAULT '',
+        idx_enabled INTEGER DEFAULT 0,
+        idx_provider TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS re_nurture_sequences (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        sequence_name TEXT NOT NULL,
+        is_active INTEGER DEFAULT 1,
+        target_score_min INTEGER DEFAULT 0,
+        target_score_max INTEGER DEFAULT 100,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS re_nurture_messages (
+        id SERIAL PRIMARY KEY,
+        sequence_id INTEGER NOT NULL,
+        admin_id INTEGER NOT NULL,
+        message_order INTEGER DEFAULT 0,
+        message_delay_days INTEGER DEFAULT 0,
+        message_channel TEXT DEFAULT 'email',
+        message_subject TEXT DEFAULT '',
+        message_body TEXT DEFAULT '',
+        message_template TEXT DEFAULT '',
+        is_active INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS re_calendar_settings (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER UNIQUE NOT NULL,
+        calendar_integration TEXT DEFAULT 'google',
+        calendar_api_key TEXT DEFAULT '',
+        calendar_sync_direction TEXT DEFAULT 'push_pull',
+        default_showing_duration INTEGER DEFAULT 30,
+        buffer_between_showings INTEGER DEFAULT 15,
+        max_showings_per_day INTEGER DEFAULT 8,
+        max_showings_per_week INTEGER DEFAULT 30,
+        advance_booking_required INTEGER DEFAULT 24,
+        same_day_booking_allowed INTEGER DEFAULT 0,
+        weekend_showings_allowed INTEGER DEFAULT 1,
+        evening_showings_allowed INTEGER DEFAULT 1,
+        auto_confirm_enabled INTEGER DEFAULT 0,
+        confirmation_window_hours INTEGER DEFAULT 4,
+        reminder_24hr_enabled INTEGER DEFAULT 1,
+        reminder_1hr_enabled INTEGER DEFAULT 0,
+        reschedule_allowed INTEGER DEFAULT 1,
+        cancellation_allowed INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS re_showings (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        listing_id INTEGER NOT NULL,
+        agent_id INTEGER NOT NULL,
+        lead_name TEXT DEFAULT '',
+        lead_email TEXT DEFAULT '',
+        lead_phone TEXT DEFAULT '',
+        showing_date DATE NOT NULL,
+        showing_time TEXT NOT NULL,
+        duration_minutes INTEGER DEFAULT 30,
+        showing_status TEXT DEFAULT 'pending',
+        notes TEXT DEFAULT '',
+        confirmation_token TEXT DEFAULT '',
+        cancel_token TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS re_leads (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        assigned_agent_id INTEGER DEFAULT 0,
+        first_name TEXT DEFAULT '',
+        last_name TEXT DEFAULT '',
+        email TEXT DEFAULT '',
+        phone TEXT DEFAULT '',
+        lead_type TEXT DEFAULT 'buyer',
+        lead_score INTEGER DEFAULT 0,
+        lead_status TEXT DEFAULT 'new',
+        source TEXT DEFAULT 'chatbot',
+        budget_min DECIMAL(12,2) DEFAULT 0,
+        budget_max DECIMAL(12,2) DEFAULT 0,
+        preferred_areas TEXT DEFAULT '',
+        property_type_pref TEXT DEFAULT '',
+        bedrooms_pref INTEGER DEFAULT 0,
+        bathrooms_pref DECIMAL(3,1) DEFAULT 0,
+        must_have_features TEXT DEFAULT '',
+        timeline TEXT DEFAULT '',
+        pre_approved INTEGER DEFAULT 0,
+        financing_type TEXT DEFAULT '',
+        current_situation TEXT DEFAULT '',
+        household_size INTEGER DEFAULT 0,
+        has_pets INTEGER DEFAULT 0,
+        qualification_answers TEXT DEFAULT '{}',
+        notes TEXT DEFAULT '',
+        tags TEXT DEFAULT '',
+        chat_transcript TEXT DEFAULT '',
+        utm_source TEXT DEFAULT '',
+        utm_medium TEXT DEFAULT '',
+        utm_campaign TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS re_crm_settings (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER UNIQUE NOT NULL,
+        crm_platform TEXT DEFAULT '',
+        crm_api_key TEXT DEFAULT '',
+        crm_api_secret TEXT DEFAULT '',
+        crm_instance_url TEXT DEFAULT '',
+        mapping_first_name TEXT DEFAULT '',
+        mapping_last_name TEXT DEFAULT '',
+        mapping_email TEXT DEFAULT '',
+        mapping_phone TEXT DEFAULT '',
+        mapping_lead_score TEXT DEFAULT '',
+        mapping_lead_source TEXT DEFAULT '',
+        mapping_chat_transcript TEXT DEFAULT '',
+        mapping_property_interests TEXT DEFAULT '',
+        mapping_appointment_date TEXT DEFAULT '',
+        sync_frequency TEXT DEFAULT 'realtime',
+        sync_direction TEXT DEFAULT 'push_pull',
+        duplicate_handling TEXT DEFAULT 'update_existing',
+        lead_source_tagging TEXT DEFAULT 'ChatGenius',
+        utm_tracking_enabled INTEGER DEFAULT 0,
+        stage_new_lead TEXT DEFAULT 'New Lead',
+        stage_qualified TEXT DEFAULT 'Qualified',
+        stage_appointment_set TEXT DEFAULT 'Appointment Set',
+        stage_showing_completed TEXT DEFAULT 'Showing Done',
+        stage_offer_made TEXT DEFAULT 'Offer Made',
+        stage_under_contract TEXT DEFAULT 'Under Contract',
+        stage_closed TEXT DEFAULT 'Closed',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS re_compliance_settings (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER UNIQUE NOT NULL,
+        fair_housing_compliance_enabled INTEGER DEFAULT 1,
+        fair_housing_warning_message TEXT DEFAULT '',
+        ai_disclosure_enabled INTEGER DEFAULT 1,
+        ai_disclosure_message TEXT DEFAULT '',
+        licensing_disclosure TEXT DEFAULT '',
+        sms_opt_in_required INTEGER DEFAULT 1,
+        sms_opt_in_message TEXT DEFAULT '',
+        email_opt_in_required INTEGER DEFAULT 0,
+        do_not_call_compliance INTEGER DEFAULT 1,
+        lead_data_retention_days INTEGER DEFAULT 365,
+        chat_log_retention_days INTEGER DEFAULT 365,
+        auto_delete_inactive_leads INTEGER DEFAULT 0,
+        gdpr_mode INTEGER DEFAULT 0,
+        ccpa_mode INTEGER DEFAULT 0,
+        data_export_on_request INTEGER DEFAULT 1,
+        data_deletion_on_request INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    # ── Chat memory: cross-session memory for returning customers ──
+    conn.execute("""CREATE TABLE IF NOT EXISTS chat_memory (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        customer_key TEXT NOT NULL,
+        summary TEXT DEFAULT '',
+        preferences TEXT DEFAULT '',
+        last_products_viewed TEXT DEFAULT '',
+        message_count INTEGER DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(admin_id, customer_key)
+    )""")
+    conn.commit()
+
+    # ── Stripe Checkout Sessions ──
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS stripe_checkout_sessions (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        session_id TEXT NOT NULL,
+        stripe_session_id TEXT,
+        stripe_payment_intent TEXT,
+        customer_email TEXT,
+        cart_items TEXT,
+        cart_total DECIMAL(10,2),
+        currency TEXT DEFAULT 'usd',
+        status TEXT DEFAULT 'pending',
+        checkout_url TEXT,
+        failure_reason TEXT,
+        failure_code TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        completed_at TIMESTAMP
+    )""")
+    conn.commit()
+
+    # ── Product Reviews (ecommerce) ──
+    conn.execute("""CREATE TABLE IF NOT EXISTS product_reviews (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        order_id INTEGER,
+        order_number TEXT DEFAULT '',
+        product_id INTEGER,
+        product_name TEXT DEFAULT '',
+        customer_email TEXT DEFAULT '',
+        customer_name TEXT DEFAULT '',
+        rating INTEGER DEFAULT 0,
+        review_text TEXT DEFAULT '',
+        status TEXT DEFAULT 'pending',
+        review_source TEXT DEFAULT 'chatbot',
+        incentive_code TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    # ── Review prompts tracking (to avoid re-asking) ──
+    conn.execute("""CREATE TABLE IF NOT EXISTS review_prompts (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        order_id INTEGER NOT NULL,
+        customer_email TEXT DEFAULT '',
+        prompted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        review_submitted BOOLEAN DEFAULT FALSE
+    )""")
+    conn.commit()
+
+    # ── Size & Fit Predictions ──
+    conn.execute("""CREATE TABLE IF NOT EXISTS size_fit_profiles (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        customer_key TEXT NOT NULL,
+        body_type TEXT DEFAULT '',
+        preferred_fit TEXT DEFAULT '',
+        height TEXT DEFAULT '',
+        weight TEXT DEFAULT '',
+        shoe_size TEXT DEFAULT '',
+        typical_size TEXT DEFAULT '',
+        fit_notes TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(admin_id, customer_key)
+    )""")
+    conn.commit()
+
+    conn.execute("""CREATE TABLE IF NOT EXISTS size_fit_feedback (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        customer_key TEXT NOT NULL,
+        product_id INTEGER NOT NULL,
+        product_name TEXT DEFAULT '',
+        brand TEXT DEFAULT '',
+        category TEXT DEFAULT '',
+        recommended_size TEXT DEFAULT '',
+        actual_fit TEXT DEFAULT '',
+        returned BOOLEAN DEFAULT FALSE,
+        return_reason TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    # ── Price Watch / Drop Alerts ──
+    conn.execute("""CREATE TABLE IF NOT EXISTS price_watches (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        customer_email TEXT NOT NULL,
+        session_id TEXT DEFAULT '',
+        product_id INTEGER NOT NULL,
+        product_name TEXT DEFAULT '',
+        watched_price REAL DEFAULT 0,
+        target_price REAL DEFAULT 0,
+        notified BOOLEAN DEFAULT FALSE,
+        notified_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(admin_id, customer_email, product_id)
+    )""")
+    conn.commit()
+
+    # ── Competitor Prices ──
+    conn.execute("""CREATE TABLE IF NOT EXISTS competitor_prices (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        product_id INTEGER NOT NULL,
+        competitor_name TEXT DEFAULT '',
+        competitor_price REAL DEFAULT 0,
+        competitor_url TEXT DEFAULT '',
+        our_advantages TEXT DEFAULT '',
+        last_checked TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(admin_id, product_id, competitor_name)
+    )""")
+    conn.commit()
+
+    # ── Fraud Signals ──
+    conn.execute("""CREATE TABLE IF NOT EXISTS fraud_signals (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL,
+        session_id TEXT DEFAULT '',
+        customer_email TEXT DEFAULT '',
+        signal_type TEXT NOT NULL,
+        signal_detail TEXT DEFAULT '',
+        risk_score REAL DEFAULT 0,
+        resolved BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+
+    # ── Add missing columns (safe migration for existing tables) ──
+    for alter_sql in [
+        "ALTER TABLE stripe_checkout_sessions ADD COLUMN IF NOT EXISTS failure_reason TEXT",
+        "ALTER TABLE stripe_checkout_sessions ADD COLUMN IF NOT EXISTS failure_code TEXT",
+    ]:
+        try:
+            conn.execute(alter_sql)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+    # ── Indexes for ecommerce tables ──
+    conn = get_db()
+    for idx_sql in [
+        "CREATE INDEX IF NOT EXISTS idx_products_admin_id ON products(admin_id)",
+        "CREATE INDEX IF NOT EXISTS idx_product_variants_product_id ON product_variants(product_id)",
+        "CREATE INDEX IF NOT EXISTS idx_abandoned_carts_admin_id ON abandoned_carts(admin_id)",
+        "CREATE INDEX IF NOT EXISTS idx_ecom_orders_admin_id ON ecom_orders(admin_id)",
+        "CREATE INDEX IF NOT EXISTS idx_ecom_orders_order_number ON ecom_orders(admin_id, order_number)",
+        "CREATE INDEX IF NOT EXISTS idx_store_discounts_admin_id ON store_discounts(admin_id)",
+    ]:
+        try:
+            conn.execute(idx_sql)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+    conn.close()
+
+    # ── Website Visitor Tracking ──
+    conn = get_db()
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS page_visits (
+            id SERIAL PRIMARY KEY,
+            admin_id INTEGER NOT NULL,
+            visitor_id TEXT NOT NULL DEFAULT '',
+            page_url TEXT DEFAULT '',
+            page_path TEXT DEFAULT '',
+            referrer TEXT DEFAULT '',
+            user_agent TEXT DEFAULT '',
+            ip_hash TEXT DEFAULT '',
+            country TEXT DEFAULT '',
+            device_type TEXT DEFAULT 'desktop',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_page_visits_admin_id ON page_visits(admin_id);
+        CREATE INDEX IF NOT EXISTS idx_page_visits_created_at ON page_visits(created_at);
+    """)
+    conn.close()
+
+
+def get_chat_memory(admin_id, customer_key):
+    """Get cross-session memory for a customer."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM chat_memory WHERE admin_id=%s AND customer_key=%s",
+        (admin_id, customer_key)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def upsert_chat_memory(admin_id, customer_key, summary="", preferences="", last_products_viewed="", message_count=0):
+    """Create or update cross-session memory for a customer."""
+    conn = get_db()
+    existing = conn.execute(
+        "SELECT id FROM chat_memory WHERE admin_id=%s AND customer_key=%s",
+        (admin_id, customer_key)
+    ).fetchone()
+    if existing:
+        conn.execute(
+            "UPDATE chat_memory SET summary=%s, preferences=%s, last_products_viewed=%s, message_count=%s, updated_at=CURRENT_TIMESTAMP WHERE id=%s",
+            (summary, preferences, last_products_viewed, message_count, existing["id"])
+        )
+    else:
+        conn.execute(
+            "INSERT INTO chat_memory (admin_id, customer_key, summary, preferences, last_products_viewed, message_count) VALUES (%s,%s,%s,%s,%s,%s)",
+            (admin_id, customer_key, summary, preferences, last_products_viewed, message_count)
+        )
+    conn.commit()
     conn.close()
 
 
@@ -1483,19 +2835,86 @@ def save_lead(name, phone, notes="", admin_id=0):
     conn.close()
 
 
+def get_lead_by_email_or_phone(email, phone, admin_id):
+    """Find existing lead by email (primary) or phone (secondary) for deduplication."""
+    conn = get_db()
+    row = None
+    if email:
+        row = conn.execute("SELECT * FROM leads WHERE email=%s AND admin_id=%s LIMIT 1",
+                           (email, admin_id)).fetchone()
+    if not row and phone:
+        row = conn.execute("SELECT * FROM leads WHERE phone=%s AND admin_id=%s LIMIT 1",
+                           (phone, admin_id)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
 def save_lead_enriched(name, phone, email="", notes="", admin_id=0, source="chatbot",
                        capture_trigger="manual", treatment_interest="", is_returning=0,
-                       preferred_time="", session_id=""):
-    """Save a lead with full enrichment data. Returns the new lead ID."""
+                       preferred_time="", session_id="", budget=""):
+    """Save or update a lead with deduplication by email/phone. Returns lead ID."""
+    from datetime import datetime
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Deduplicate: check for existing lead by email or phone
+    existing = None
+    if email:
+        existing = conn.execute("SELECT * FROM leads WHERE email=%s AND admin_id=%s LIMIT 1",
+                                (email, admin_id)).fetchone()
+    if not existing and phone:
+        existing = conn.execute("SELECT * FROM leads WHERE phone=%s AND admin_id=%s LIMIT 1",
+                                (phone, admin_id)).fetchone()
+
+    if existing:
+        existing = dict(existing)
+        lead_id = existing["id"]
+        # Merge: update fields that are richer than existing
+        upd_name = name if (name and name != "Unknown" and (not existing.get("name") or existing["name"] == "Unknown")) else existing.get("name", name)
+        upd_phone = phone or existing.get("phone", "")
+        upd_email = email or existing.get("email", "")
+        upd_treatment = treatment_interest or existing.get("treatment_interest", "")
+        upd_session = session_id or existing.get("session_id", "")
+        upd_budget = budget or existing.get("budget", "")
+        conn.execute(
+            """UPDATE leads SET name=%s, phone=%s, email=%s, treatment_interest=%s,
+               session_id=%s, last_activity_at=%s, is_returning=%s, budget=%s
+               WHERE id=%s""",
+            (upd_name, upd_phone, upd_email, upd_treatment,
+             upd_session, now, max(is_returning, existing.get("is_returning", 0)),
+             upd_budget, lead_id)
+        )
+        conn.commit()
+        conn.close()
+        return lead_id
+
+    # No existing lead — insert new
+    _ins_cur = conn.execute(
+        """INSERT INTO leads (name, phone, email, notes, admin_id, source, capture_trigger,
+           treatment_interest, is_returning, preferred_time, session_id, stage, last_activity_at, budget)
+           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'new',%s,%s) RETURNING id""",
+        (name, phone, email, notes, admin_id, source, capture_trigger,
+         treatment_interest, is_returning, preferred_time, session_id, now, budget)
+    )
+    lead_id = _ins_cur.fetchone()['id']
+    conn.commit()
+    conn.close()
+    return lead_id
+
+
+def create_lead_for_session(name, phone, email="", admin_id=0, source="chatbot",
+                            capture_trigger="auto_interest", treatment_interest="",
+                            is_returning=0, preferred_time="", session_id="", budget=""):
+    """Create a new lead for a chat session. No email dedup — each session = new lead."""
     from datetime import datetime
     conn = get_db()
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     _ins_cur = conn.execute(
         """INSERT INTO leads (name, phone, email, notes, admin_id, source, capture_trigger,
-           treatment_interest, is_returning, preferred_time, session_id, stage, last_activity_at)
-           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'new',%s) RETURNING id""",
-        (name, phone, email, notes, admin_id, source, capture_trigger,
-         treatment_interest, is_returning, preferred_time, session_id, now)
+           treatment_interest, is_returning, preferred_time, session_id, stage, last_activity_at, budget)
+           VALUES (%s,%s,%s,'',%s,%s,%s,%s,%s,%s,%s,'new',%s,%s) RETURNING id""",
+        (name, phone, email, admin_id, source, capture_trigger,
+         treatment_interest, is_returning, preferred_time, session_id, now, budget)
     )
     lead_id = _ins_cur.fetchone()['id']
     conn.commit()
@@ -1512,9 +2931,20 @@ def update_lead_stage(lead_id, stage):
     conn.close()
 
 
-def update_lead_score(lead_id, score):
+def update_lead_score(lead_id, score, temperature=None):
     conn = get_db()
-    conn.execute("UPDATE leads SET score=%s WHERE id=%s", (min(10, max(0, score)), lead_id))
+    score_val = max(0, round(float(score), 2))
+    if temperature:
+        conn.execute("UPDATE leads SET score=%s, temperature=%s WHERE id=%s", (score_val, temperature, lead_id))
+    else:
+        # Derive temperature from score
+        if score_val < 0: temp = "frozen"
+        elif score_val <= 2: temp = "cold"
+        elif score_val <= 4: temp = "warm_emerging"
+        elif score_val <= 7: temp = "warm"
+        elif score_val <= 11: temp = "hot"
+        else: temp = "vip"
+        conn.execute("UPDATE leads SET score=%s, temperature=%s WHERE id=%s", (score_val, temp, lead_id))
     conn.commit()
     conn.close()
 
@@ -1545,6 +2975,33 @@ def get_lead_by_session(session_id):
     return dict(row) if row else None
 
 
+def update_lead_fields(lead_id, updates):
+    """Update specific fields on a lead (e.g. name, email, phone)."""
+    if not updates:
+        return
+    allowed = {"name", "email", "phone", "treatment_interest", "preferred_time", "budget"}
+    safe = {k: v for k, v in updates.items() if k in allowed}
+    if not safe:
+        return
+    conn = get_db()
+    sets = ", ".join(f"{k}=%s" for k in safe)
+    vals = list(safe.values()) + [lead_id]
+    conn.execute(f"UPDATE leads SET {sets} WHERE id=%s", vals)
+    conn.commit()
+    conn.close()
+
+
+def get_chat_history_by_session(session_id):
+    """Get full chat history for a session (user + bot messages)."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT message, sender, created_at FROM chat_logs WHERE session_id=%s ORDER BY created_at ASC",
+        (session_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def convert_lead(lead_id, booking_id):
     """Delete a lead when converted to booking — remove from leads entirely."""
     from datetime import datetime
@@ -1563,11 +3020,17 @@ def convert_lead(lead_id, booking_id):
 
 def create_lead_followup(lead_id, admin_id, day_number, scheduled_at):
     conn = get_db()
-    conn.execute(
-        "INSERT INTO lead_followups (lead_id, admin_id, day_number, scheduled_at) VALUES (%s,%s,%s,%s)",
-        (lead_id, admin_id, day_number, scheduled_at)
-    )
-    conn.commit()
+    # Prevent duplicate followups for same lead+day
+    existing = conn.execute(
+        "SELECT id FROM lead_followups WHERE lead_id=%s AND day_number=%s",
+        (lead_id, day_number)
+    ).fetchone()
+    if not existing:
+        conn.execute(
+            "INSERT INTO lead_followups (lead_id, admin_id, day_number, scheduled_at) VALUES (%s,%s,%s,%s)",
+            (lead_id, admin_id, day_number, scheduled_at)
+        )
+        conn.commit()
     conn.close()
 
 
@@ -1606,6 +3069,28 @@ def cancel_lead_followups(lead_id):
     conn.close()
 
 
+def log_lead_action(lead_id, admin_id, action_type):
+    """Log an admin action on a lead (called, emailed, contacted, converted) and auto-progress stage."""
+    from datetime import datetime
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # Store last action on the lead itself
+    try:
+        conn.execute("UPDATE leads SET last_action=%s, last_action_at=%s, last_activity_at=%s WHERE id=%s",
+                     (action_type, now, now, lead_id))
+    except Exception:
+        conn.rollback()
+        # Columns may not exist yet — just update last_activity_at
+        conn.execute("UPDATE leads SET last_activity_at=%s WHERE id=%s", (now, lead_id))
+    # Auto-progress stage based on action
+    stage_map = {"called": "contacted", "emailed": "contacted", "contacted": "contacted", "converted": "converted"}
+    new_stage = stage_map.get(action_type)
+    if new_stage:
+        conn.execute("UPDATE leads SET stage=%s WHERE id=%s AND stage IN ('new','engaged','warm','contacted')", (new_stage, lead_id))
+    conn.commit()
+    conn.close()
+
+
 def get_lead_followup_summary(lead_id):
     """Returns dict with total, sent, pending counts."""
     conn = get_db()
@@ -1628,6 +3113,100 @@ def get_stale_leads(admin_id, hours=48):
         (admin_id, cutoff)).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def create_hot_lead_alert(lead_id, admin_id, lead_name, score, temperature, product_interest=""):
+    """Create an in-app alert for a hot lead (score 12+)."""
+    from datetime import datetime
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute(
+        """INSERT INTO hot_lead_alerts (lead_id, admin_id, lead_name, score, temperature, product_interest, created_at, seen)
+           VALUES (%s,%s,%s,%s,%s,%s,%s,0)""",
+        (lead_id, admin_id, lead_name, score, temperature, product_interest, now)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_unseen_hot_lead_alerts(admin_id):
+    """Get unseen hot lead alerts for the admin."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM hot_lead_alerts WHERE admin_id=%s AND seen=0 ORDER BY created_at DESC LIMIT 10",
+        (admin_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def mark_hot_lead_alerts_seen(admin_id):
+    """Mark all hot lead alerts as seen."""
+    conn = get_db()
+    conn.execute("UPDATE hot_lead_alerts SET seen=1 WHERE admin_id=%s AND seen=0", (admin_id,))
+    conn.commit()
+    conn.close()
+
+
+def queue_lead_email(lead_id, admin_id, send_at):
+    """Queue a lead outreach email to be sent at a specific time."""
+    from datetime import datetime
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # Don't double-queue for same lead
+    existing = conn.execute("SELECT id FROM lead_email_queue WHERE lead_id=%s AND status='pending'", (lead_id,)).fetchone()
+    if not existing:
+        conn.execute(
+            "INSERT INTO lead_email_queue (lead_id, admin_id, send_at, status, created_at) VALUES (%s,%s,%s,'pending',%s)",
+            (lead_id, admin_id, send_at, now)
+        )
+        conn.commit()
+    conn.close()
+
+
+def get_pending_lead_emails():
+    """Get all queued lead emails that are due to be sent."""
+    from datetime import datetime
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    rows = conn.execute(
+        """SELECT leq.*, l.name, l.email, l.phone, l.treatment_interest, l.score, l.temperature
+           FROM lead_email_queue leq
+           JOIN leads l ON l.id = leq.lead_id
+           WHERE leq.status='pending' AND leq.send_at <= %s
+           ORDER BY leq.send_at""", (now,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def mark_lead_email_sent(queue_id):
+    """Mark a queued lead email as sent."""
+    from datetime import datetime
+    conn = get_db()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("UPDATE lead_email_queue SET status='sent', sent_at=%s WHERE id=%s", (now, queue_id))
+    conn.commit()
+    conn.close()
+
+
+def mark_lead_email_failed(queue_id):
+    """Mark a queued lead email as permanently failed."""
+    conn = get_db()
+    conn.execute("UPDATE lead_email_queue SET status='failed' WHERE id=%s", (queue_id,))
+    conn.commit()
+    conn.close()
+
+
+def increment_lead_email_retry(queue_id):
+    """Increment retry count for a queued email."""
+    conn = get_db()
+    try:
+        conn.execute("UPDATE lead_email_queue SET retry_count = COALESCE(retry_count, 0) + 1 WHERE id=%s", (queue_id,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+    conn.close()
 
 
 def save_booking(customer_name, customer_email, date, time, service="General Consultation",
@@ -1792,6 +3371,137 @@ def get_stats(admin_id=0, doctor_id=0):
     }
 
 
+def get_stats_extended(admin_id):
+    """Extended stats for overview: conversion rate, weekly/monthly comparisons, status breakdown."""
+    conn = get_db()
+    today = datetime.now()
+    today_str = today.strftime("%Y-%m-%d")
+
+    # This week (Mon-Sun)
+    week_start = (today - timedelta(days=today.weekday())).strftime("%Y-%m-%d")
+    # Last week
+    last_week_start = (today - timedelta(days=today.weekday() + 7)).strftime("%Y-%m-%d")
+    last_week_end = (today - timedelta(days=today.weekday() + 1)).strftime("%Y-%m-%d")
+    # This month
+    month_start = today.replace(day=1).strftime("%Y-%m-%d")
+    # Last month
+    if today.month == 1:
+        last_month_start = today.replace(year=today.year - 1, month=12, day=1).strftime("%Y-%m-%d")
+    else:
+        last_month_start = today.replace(month=today.month - 1, day=1).strftime("%Y-%m-%d")
+    last_month_end = (today.replace(day=1) - timedelta(days=1)).strftime("%Y-%m-%d")
+
+    try:
+        # Conversion rate (all time)
+        total_sessions = conn.execute(
+            "SELECT COUNT(DISTINCT session_id) as c FROM chat_logs WHERE admin_id = %s", (admin_id,)
+        ).fetchone()["c"]
+        booked_sessions = conn.execute(
+            "SELECT COUNT(DISTINCT session_id) as c FROM chat_logs WHERE admin_id = %s AND resulted_in_booking = 1", (admin_id,)
+        ).fetchone()["c"]
+        conversion_rate = round(booked_sessions / total_sessions * 100, 1) if total_sessions > 0 else 0
+
+        # This week bookings & leads
+        week_bookings = conn.execute(
+            "SELECT COUNT(*) as c FROM bookings WHERE admin_id = %s AND status != 'cancelled' AND date >= %s AND date <= %s",
+            (admin_id, week_start, today_str)
+        ).fetchone()["c"]
+        week_leads = conn.execute(
+            "SELECT COUNT(*) as c FROM leads WHERE admin_id = %s AND created_at::date >= %s AND created_at::date <= %s",
+            (admin_id, week_start, today_str)
+        ).fetchone()["c"]
+
+        # Last week bookings & leads (for comparison)
+        last_week_bookings = conn.execute(
+            "SELECT COUNT(*) as c FROM bookings WHERE admin_id = %s AND status != 'cancelled' AND date >= %s AND date <= %s",
+            (admin_id, last_week_start, last_week_end)
+        ).fetchone()["c"]
+        last_week_leads = conn.execute(
+            "SELECT COUNT(*) as c FROM leads WHERE admin_id = %s AND created_at::date >= %s AND created_at::date <= %s",
+            (admin_id, last_week_start, last_week_end)
+        ).fetchone()["c"]
+
+        # This month bookings & leads
+        month_bookings = conn.execute(
+            "SELECT COUNT(*) as c FROM bookings WHERE admin_id = %s AND status != 'cancelled' AND date >= %s AND date <= %s",
+            (admin_id, month_start, today_str)
+        ).fetchone()["c"]
+        month_leads = conn.execute(
+            "SELECT COUNT(*) as c FROM leads WHERE admin_id = %s AND created_at::date >= %s AND created_at::date <= %s",
+            (admin_id, month_start, today_str)
+        ).fetchone()["c"]
+
+        # Last month bookings & leads
+        last_month_bookings = conn.execute(
+            "SELECT COUNT(*) as c FROM bookings WHERE admin_id = %s AND status != 'cancelled' AND date >= %s AND date <= %s",
+            (admin_id, last_month_start, last_month_end)
+        ).fetchone()["c"]
+        last_month_leads = conn.execute(
+            "SELECT COUNT(*) as c FROM leads WHERE admin_id = %s AND created_at::date >= %s AND created_at::date <= %s",
+            (admin_id, last_month_start, last_month_end)
+        ).fetchone()["c"]
+
+        # Status breakdown
+        status_rows = conn.execute(
+            "SELECT status, COUNT(*) as c FROM bookings WHERE admin_id = %s GROUP BY status",
+            (admin_id,)
+        ).fetchall()
+        status_breakdown = {r["status"]: r["c"] for r in status_rows}
+
+        # Day-of-week distribution (all time)
+        dow_rows = conn.execute(
+            "SELECT EXTRACT(DOW FROM created_at) as dow, COUNT(*) as c FROM bookings WHERE admin_id = %s AND status != 'cancelled' GROUP BY dow ORDER BY dow",
+            (admin_id,)
+        ).fetchall()
+        dow_names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        dow_distribution = [{"day": dow_names[int(r["dow"])], "count": r["c"]} for r in dow_rows]
+
+        # Avg bookings per doctor
+        doc_rows = conn.execute(
+            "SELECT d.name, COUNT(b.id) as c FROM doctors d LEFT JOIN bookings b ON b.doctor_id = d.id AND b.status != 'cancelled' WHERE d.admin_id = %s GROUP BY d.id, d.name ORDER BY c DESC",
+            (admin_id,)
+        ).fetchall()
+        bookings_per_doctor = [{"name": r["name"], "count": r["c"]} for r in doc_rows]
+
+        # Monthly trend (last 6 months)
+        monthly_rows = conn.execute(
+            "SELECT TO_CHAR(created_at, 'YYYY-MM') as month, COUNT(*) as bookings, "
+            "SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled, "
+            "SUM(CASE WHEN status = 'no_show' THEN 1 ELSE 0 END) as no_shows, "
+            "SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed "
+            "FROM bookings WHERE admin_id = %s AND created_at >= NOW() - INTERVAL '6 months' "
+            "GROUP BY month ORDER BY month",
+            (admin_id,)
+        ).fetchall()
+        monthly_trend = [{"month": r["month"], "bookings": r["bookings"], "cancelled": r["cancelled"], "no_shows": r["no_shows"], "completed": r["completed"]} for r in monthly_rows]
+
+    finally:
+        conn.close()
+
+    def _pct_change(current, previous):
+        if previous == 0:
+            return 100.0 if current > 0 else 0.0
+        return round((current - previous) / previous * 100, 1)
+
+    return {
+        "conversion_rate": conversion_rate,
+        "total_sessions": total_sessions,
+        "booked_sessions": booked_sessions,
+        "week_bookings": week_bookings,
+        "week_leads": week_leads,
+        "week_bookings_change": _pct_change(week_bookings, last_week_bookings),
+        "week_leads_change": _pct_change(week_leads, last_week_leads),
+        "month_bookings": month_bookings,
+        "month_leads": month_leads,
+        "month_bookings_change": _pct_change(month_bookings, last_month_bookings),
+        "month_leads_change": _pct_change(month_leads, last_month_leads),
+        "status_breakdown": status_breakdown,
+        "dow_distribution": dow_distribution,
+        "bookings_per_doctor": bookings_per_doctor,
+        "monthly_trend": monthly_trend,
+    }
+
+
 # ══════════════════════════════════════════════
 #  ROI Tracking
 # ══════════════════════════════════════════════
@@ -1807,13 +3517,23 @@ def add_booking_revenue(booking_id, amount):
 def get_roi_data(admin_id):
     """Get ROI metrics for a company."""
     conn = get_db()
-    # Total money generated from confirmed/completed bookings only
-    row = conn.execute(
-        "SELECT COALESCE(SUM(revenue_amount), 0) as total_revenue, COUNT(*) as total_bookings "
-        "FROM bookings WHERE admin_id=%s AND status IN ('confirmed', 'completed')",
-        (admin_id,)
-    ).fetchone()
-    total_revenue = row["total_revenue"]
+    company_type = get_company_type(admin_id)
+
+    if company_type == "ecommerce":
+        # E-commerce: revenue from orders (exclude cancelled/refunded)
+        row = conn.execute(
+            "SELECT COALESCE(SUM(order_total), 0) as total_revenue, COUNT(*) as total_bookings "
+            "FROM ecom_orders WHERE admin_id=%s AND order_status NOT IN ('cancelled', 'refunded')",
+            (admin_id,)
+        ).fetchone()
+    else:
+        # Dental/other: revenue from confirmed/completed bookings
+        row = conn.execute(
+            "SELECT COALESCE(SUM(revenue_amount), 0) as total_revenue, COUNT(*) as total_bookings "
+            "FROM bookings WHERE admin_id=%s AND status IN ('confirmed', 'completed')",
+            (admin_id,)
+        ).fetchone()
+    total_revenue = float(row["total_revenue"] or 0)
     total_bookings = row["total_bookings"]
 
     # Chat sessions
@@ -1840,19 +3560,18 @@ def get_roi_data(admin_id):
     total_cost = 0
     if history_rows:
         from datetime import datetime as _dt
+        from math import ceil
         for i, h in enumerate(history_rows):
-            start = _dt.strptime(h["started_at"][:19], "%Y-%m-%d %H:%M:%S") if h["started_at"] else _dt.now()
+            start = _parse_dt(h["started_at"]) if h["started_at"] else _dt.now()
             if i + 1 < len(history_rows):
-                end = _dt.strptime(history_rows[i + 1]["started_at"][:19], "%Y-%m-%d %H:%M:%S")
-                # If replaced by another plan in the same billing period, this entry costs nothing
-                months = (end.year - start.year) * 12 + end.month - start.month
+                end = _parse_dt(history_rows[i + 1]["started_at"])
             else:
-                # Current (latest) plan — count at least 1 month
                 end = _dt.now()
-                months = max(1, (end.year - start.year) * 12 + end.month - start.month)
-            total_cost += h["monthly_cost"] * months
+            days_on_plan = max(0, (end - start).days)
+            # Each billing cycle = 1 payment. They pay on day 1, then every 30 days.
+            billing_months = max(1, ceil(days_on_plan / 30))
+            total_cost += float(h["monthly_cost"] or 0) * billing_months
     elif current_plan_cost > 0:
-        # No history yet — assume at least 1 month on current plan
         total_cost = current_plan_cost
 
     conn.close()
@@ -1916,6 +3635,9 @@ def get_roi_stats(admin_id, date_range="month"):
     from datetime import datetime as _dt, timedelta
     from math import log10, floor
 
+    company_type = get_company_type(admin_id)
+    is_ecom = company_type == "ecommerce"
+
     conn = get_db()
     now = _dt.now()
 
@@ -1970,11 +3692,12 @@ def get_roi_stats(admin_id, date_range="month"):
 
     # Build a service price lookup from company_services for this admin
     svc_prices = {}
-    svc_rows = conn.execute(
-        "SELECT LOWER(name) as name, price FROM company_services WHERE admin_id=%s", (admin_id,)
-    ).fetchall()
-    for sr in svc_rows:
-        svc_prices[sr["name"]] = sr["price"]
+    if not is_ecom:
+        svc_rows = conn.execute(
+            "SELECT LOWER(name) as name, price FROM company_services WHERE admin_id=%s", (admin_id,)
+        ).fetchall()
+        for sr in svc_rows:
+            svc_prices[sr["name"]] = sr["price"]
 
     def calc_booking_revenue(rev_amount, service_name):
         """Return revenue: use revenue_amount if set, else lookup service price."""
@@ -1983,21 +3706,36 @@ def get_roi_stats(admin_id, date_range="month"):
         return svc_prices.get((service_name or "").lower(), 0)
 
     # ── 1. Daily revenue chart data ──
-    daily_rows = conn.execute(
-        "SELECT date, service, revenue_amount "
-        "FROM bookings WHERE admin_id=%s AND status IN ('confirmed','completed') "
-        "AND date BETWEEN %s AND %s",
-        (admin_id, date_from, date_to)
-    ).fetchall()
-    # Aggregate daily
-    daily_map = {}
-    for r in daily_rows:
-        d = r["date"]
-        rev = calc_booking_revenue(r["revenue_amount"], r["service"])
-        if d not in daily_map:
-            daily_map[d] = {"revenue": 0, "bookings": 0}
-        daily_map[d]["revenue"] += rev
-        daily_map[d]["bookings"] += 1
+    if is_ecom:
+        daily_rows = conn.execute(
+            "SELECT created_at::date as date, order_total "
+            "FROM ecom_orders WHERE admin_id=%s AND order_status NOT IN ('cancelled','refunded') "
+            "AND created_at::date BETWEEN %s AND %s",
+            (admin_id, date_from, date_to)
+        ).fetchall()
+        daily_map = {}
+        for r in daily_rows:
+            d = str(r["date"])
+            rev = float(r["order_total"] or 0)
+            if d not in daily_map:
+                daily_map[d] = {"revenue": 0, "bookings": 0}
+            daily_map[d]["revenue"] += rev
+            daily_map[d]["bookings"] += 1
+    else:
+        daily_rows = conn.execute(
+            "SELECT date, service, revenue_amount "
+            "FROM bookings WHERE admin_id=%s AND status IN ('confirmed','completed') "
+            "AND date BETWEEN %s AND %s",
+            (admin_id, date_from, date_to)
+        ).fetchall()
+        daily_map = {}
+        for r in daily_rows:
+            d = r["date"]
+            rev = calc_booking_revenue(r["revenue_amount"], r["service"])
+            if d not in daily_map:
+                daily_map[d] = {"revenue": 0, "bookings": 0}
+            daily_map[d]["revenue"] += rev
+            daily_map[d]["bookings"] += 1
     daily_revenue = [{"date": d, "revenue": round(v["revenue"], 2), "bookings": v["bookings"]}
                      for d, v in sorted(daily_map.items())]
 
@@ -2006,14 +3744,24 @@ def get_roi_stats(admin_id, date_range="month"):
     total_bookings = sum(d["bookings"] for d in daily_revenue)
 
     # Previous period for comparison
-    prev_rows = conn.execute(
-        "SELECT service, revenue_amount "
-        "FROM bookings WHERE admin_id=%s AND status IN ('confirmed','completed') "
-        "AND date BETWEEN %s AND %s",
-        (admin_id, prev_from, prev_to)
-    ).fetchall()
-    prev_revenue = sum(calc_booking_revenue(r["revenue_amount"], r["service"]) for r in prev_rows)
-    prev_bookings = len(prev_rows)
+    if is_ecom:
+        prev_rows = conn.execute(
+            "SELECT order_total FROM ecom_orders "
+            "WHERE admin_id=%s AND order_status NOT IN ('cancelled','refunded') "
+            "AND created_at::date BETWEEN %s AND %s",
+            (admin_id, prev_from, prev_to)
+        ).fetchall()
+        prev_revenue = sum(float(r["order_total"] or 0) for r in prev_rows)
+        prev_bookings = len(prev_rows)
+    else:
+        prev_rows = conn.execute(
+            "SELECT service, revenue_amount "
+            "FROM bookings WHERE admin_id=%s AND status IN ('confirmed','completed') "
+            "AND date BETWEEN %s AND %s",
+            (admin_id, prev_from, prev_to)
+        ).fetchall()
+        prev_revenue = sum(calc_booking_revenue(r["revenue_amount"], r["service"]) for r in prev_rows)
+        prev_bookings = len(prev_rows)
     rev_change = ((total_revenue - prev_revenue) / prev_revenue * 100) if prev_revenue > 0 else 0
     bk_change = ((total_bookings - prev_bookings) / prev_bookings * 100) if prev_bookings > 0 else 0
 
@@ -2031,43 +3779,44 @@ def get_roi_stats(admin_id, date_range="month"):
     ).fetchall()
     alltime_cost = 0
     if history_rows:
+        from math import ceil as _ceil
         for i, h in enumerate(history_rows):
-            start = _dt.strptime(h["started_at"][:19], "%Y-%m-%d %H:%M:%S") if h["started_at"] else _dt.now()
+            start = _parse_dt(h["started_at"]) if h["started_at"] else _dt.now()
             if i + 1 < len(history_rows):
-                end = _dt.strptime(history_rows[i + 1]["started_at"][:19], "%Y-%m-%d %H:%M:%S")
-                months = (end.year - start.year) * 12 + end.month - start.month
+                end = _parse_dt(history_rows[i + 1]["started_at"])
             else:
                 end = _dt.now()
-                months = max(1, (end.year - start.year) * 12 + end.month - start.month)
-            alltime_cost += h["monthly_cost"] * months
+            days_on_plan = max(0, (end - start).days)
+            billing_months = max(1, _ceil(days_on_plan / 30))
+            alltime_cost += float(h["monthly_cost"] or 0) * billing_months
     elif current_plan_cost > 0:
         alltime_cost = current_plan_cost
 
-    # Calculate all-time months on platform
+    # Calculate proportional cost for the selected range
     first_started = None
     if history_rows and history_rows[0]["started_at"]:
-        first_started = _dt.strptime(history_rows[0]["started_at"][:19], "%Y-%m-%d %H:%M:%S")
+        first_started = _parse_dt(history_rows[0]["started_at"])
     if not first_started:
         user_row = conn.execute("SELECT created_at FROM users WHERE id=%s", (admin_id,)).fetchone()
         if user_row and user_row["created_at"]:
             try:
-                first_started = _dt.strptime(user_row["created_at"][:19], "%Y-%m-%d %H:%M:%S")
+                first_started = _parse_dt(user_row["created_at"])
             except Exception:
                 first_started = now
         else:
             first_started = now
-    alltime_months = max(1, (now.year - first_started.year) * 12 + now.month - first_started.month)
-    daily_cost_rate = alltime_cost / (alltime_months * 30) if alltime_months > 0 else 0
-
-    # Proportional cost for the selected range
-    dt_from = _dt.strptime(date_from, "%Y-%m-%d")
-    dt_to = _dt.strptime(date_to, "%Y-%m-%d")
-    range_days = max(1, (dt_to - dt_from).days + 1)
+    total_days_on_platform = max(1, (now - first_started).days)
 
     if date_range == "all":
         total_cost = alltime_cost
     else:
-        total_cost = round(daily_cost_rate * range_days, 2)
+        dt_from = _dt.strptime(date_from, "%Y-%m-%d")
+        dt_to = _dt.strptime(date_to, "%Y-%m-%d")
+        range_days = max(1, (dt_to - dt_from).days + 1)
+        # Proportional share: alltime_cost × (range_days / total_days)
+        total_cost = round(alltime_cost * (range_days / total_days_on_platform), 2)
+        # Never exceed alltime_cost
+        total_cost = min(total_cost, alltime_cost)
 
     revenue_in_usd = round(total_revenue / rate, 2) if rate else total_revenue
     if total_cost > 0:
@@ -2104,21 +3853,39 @@ def get_roi_stats(admin_id, date_range="month"):
     ).fetchone()
     leads_captured = leads_row["c"] if leads_row else 0
 
-    # Bookings completed (status = completed)
-    completed_row = conn.execute(
-        "SELECT COUNT(*) as c FROM bookings "
-        "WHERE admin_id=%s AND status='completed' AND date BETWEEN %s AND %s",
-        (admin_id, date_from, date_to)
-    ).fetchone()
-    bookings_completed = completed_row["c"] if completed_row else 0
+    if is_ecom:
+        # E-commerce funnel: visitors → leads → orders (delivered) → all orders placed
+        orders_placed_row = conn.execute(
+            "SELECT COUNT(*) as c FROM ecom_orders "
+            "WHERE admin_id=%s AND order_status NOT IN ('cancelled','refunded') "
+            "AND created_at::date BETWEEN %s AND %s",
+            (admin_id, date_from, date_to)
+        ).fetchone()
+        bookings_made = orders_placed_row["c"] if orders_placed_row else 0
 
-    # Bookings made (confirmed + completed, not cancelled/no_show)
-    bookings_made_row = conn.execute(
-        "SELECT COUNT(*) as c FROM bookings "
-        "WHERE admin_id=%s AND status IN ('confirmed','completed') AND date BETWEEN %s AND %s",
-        (admin_id, date_from, date_to)
-    ).fetchone()
-    bookings_made = bookings_made_row["c"] if bookings_made_row else 0
+        delivered_row = conn.execute(
+            "SELECT COUNT(*) as c FROM ecom_orders "
+            "WHERE admin_id=%s AND order_status='delivered' "
+            "AND created_at::date BETWEEN %s AND %s",
+            (admin_id, date_from, date_to)
+        ).fetchone()
+        bookings_completed = delivered_row["c"] if delivered_row else 0
+    else:
+        # Bookings completed (status = completed)
+        completed_row = conn.execute(
+            "SELECT COUNT(*) as c FROM bookings "
+            "WHERE admin_id=%s AND status='completed' AND date BETWEEN %s AND %s",
+            (admin_id, date_from, date_to)
+        ).fetchone()
+        bookings_completed = completed_row["c"] if completed_row else 0
+
+        # Bookings made (confirmed + completed, not cancelled/no_show)
+        bookings_made_row = conn.execute(
+            "SELECT COUNT(*) as c FROM bookings "
+            "WHERE admin_id=%s AND status IN ('confirmed','completed') AND date BETWEEN %s AND %s",
+            (admin_id, date_from, date_to)
+        ).fetchone()
+        bookings_made = bookings_made_row["c"] if bookings_made_row else 0
 
     # Conversion rates
     visitor_to_chat = 100.0  # every visitor IS a chat (they opened chatbot)
@@ -2126,184 +3893,334 @@ def get_roi_stats(admin_id, date_range="month"):
     lead_to_booking = round((bookings_made / leads_captured * 100), 1) if leads_captured > 0 else 0
     bookings_per_100 = round((bookings_made / chats_started * 100), 1) if chats_started > 0 else 0
 
-    # AI success rate = bookings from chatbot / total visitors (sessions)
-    ai_booking_row = conn.execute(
-        "SELECT COUNT(DISTINCT session_id) as c FROM chat_logs "
-        "WHERE admin_id=%s AND resulted_in_booking=1 AND created_at::date BETWEEN %s AND %s",
-        (admin_id, date_from, date_to)
-    ).fetchone()
-    ai_bookings = ai_booking_row["c"] if ai_booking_row else 0
-    ai_success_rate = round((ai_bookings / visitors * 100), 1) if visitors > 0 else 0
+    # AI success rate
+    if is_ecom:
+        # For ecommerce: orders / visitors
+        ai_bookings = bookings_made
+        ai_success_rate = round((ai_bookings / visitors * 100), 1) if visitors > 0 else 0
+    else:
+        ai_booking_row = conn.execute(
+            "SELECT COUNT(DISTINCT session_id) as c FROM chat_logs "
+            "WHERE admin_id=%s AND resulted_in_booking=1 AND created_at::date BETWEEN %s AND %s",
+            (admin_id, date_from, date_to)
+        ).fetchone()
+        ai_bookings = ai_booking_row["c"] if ai_booking_row else 0
+        ai_success_rate = round((ai_bookings / visitors * 100), 1) if visitors > 0 else 0
 
-    # ── 5. Loss Metrics (no-shows + cancellations) ──
-    # Use cancelled_at date for cancellations (when the action happened),
-    # fall back to booking date if cancelled_at is empty
-    lost_rows = conn.execute(
-        "SELECT date, status, service, revenue_amount, cancelled_at "
-        "FROM bookings WHERE admin_id=%s AND status IN ('no_show','cancelled') "
-        "AND (CASE "
-        "  WHEN status='cancelled' AND cancelled_at IS NOT NULL THEN cancelled_at::date "
-        "  ELSE date "
-        "END) BETWEEN %s AND %s",
-        (admin_id, date_from, date_to)
-    ).fetchall()
-    noshow_count = sum(1 for r in lost_rows if r["status"] == "no_show")
-    cancel_count = sum(1 for r in lost_rows if r["status"] == "cancelled")
-    total_lost_count = len(lost_rows)
+    # ── 5. Loss Metrics ──
+    if is_ecom:
+        # E-commerce: cancelled + refunded orders
+        lost_rows = conn.execute(
+            "SELECT created_at::date as date, order_status, order_total "
+            "FROM ecom_orders WHERE admin_id=%s AND order_status IN ('cancelled','refunded') "
+            "AND created_at::date BETWEEN %s AND %s",
+            (admin_id, date_from, date_to)
+        ).fetchall()
+        cancel_count = sum(1 for r in lost_rows if r["order_status"] == "cancelled")
+        noshow_count = sum(1 for r in lost_rows if r["order_status"] == "refunded")  # refunded mapped to noshow slot
+        total_lost_count = len(lost_rows)
 
-    all_bookings_row = conn.execute(
-        "SELECT COUNT(*) as c FROM bookings WHERE admin_id=%s AND date BETWEEN %s AND %s",
-        (admin_id, date_from, date_to)
-    ).fetchone()
-    all_bookings_count = all_bookings_row["c"] if all_bookings_row else 0
+        all_orders_row = conn.execute(
+            "SELECT COUNT(*) as c FROM ecom_orders WHERE admin_id=%s AND created_at::date BETWEEN %s AND %s",
+            (admin_id, date_from, date_to)
+        ).fetchone()
+        all_bookings_count = all_orders_row["c"] if all_orders_row else 0
+
+        total_revenue_lost = 0
+        daily_loss_map = {}
+        for r in lost_rows:
+            rev = float(r["order_total"] or 0)
+            total_revenue_lost += rev
+            d = str(r["date"])
+            if d not in daily_loss_map:
+                daily_loss_map[d] = {"noshows": 0, "cancellations": 0, "revenue_lost": 0}
+            if r["order_status"] == "refunded":
+                daily_loss_map[d]["noshows"] += 1
+            else:
+                daily_loss_map[d]["cancellations"] += 1
+            daily_loss_map[d]["revenue_lost"] += rev
+        total_revenue_lost = round(total_revenue_lost, 2)
+    else:
+        # Dental: no-shows + cancellations
+        lost_rows = conn.execute(
+            "SELECT date, status, service, revenue_amount, cancelled_at "
+            "FROM bookings WHERE admin_id=%s AND status IN ('no_show','cancelled') "
+            "AND (CASE "
+            "  WHEN status='cancelled' AND cancelled_at IS NOT NULL THEN cancelled_at::date "
+            "  ELSE date "
+            "END) BETWEEN %s AND %s",
+            (admin_id, date_from, date_to)
+        ).fetchall()
+        cancel_count = sum(1 for r in lost_rows if r["status"] == "cancelled")
+        noshow_count = sum(1 for r in lost_rows if r["status"] == "no_show")
+        total_lost_count = len(lost_rows)
+
+        all_bookings_row = conn.execute(
+            "SELECT COUNT(*) as c FROM bookings WHERE admin_id=%s AND date BETWEEN %s AND %s",
+            (admin_id, date_from, date_to)
+        ).fetchone()
+        all_bookings_count = all_bookings_row["c"] if all_bookings_row else 0
+
+        total_revenue_lost = 0
+        daily_loss_map = {}
+        for r in lost_rows:
+            rev = calc_booking_revenue(r["revenue_amount"], r["service"]) or avg_booking_value
+            total_revenue_lost += rev
+            if r["status"] == "cancelled" and r["cancelled_at"]:
+                d = r["cancelled_at"][:10]
+            else:
+                d = r["date"]
+            if d not in daily_loss_map:
+                daily_loss_map[d] = {"noshows": 0, "cancellations": 0, "revenue_lost": 0}
+            if r["status"] == "no_show":
+                daily_loss_map[d]["noshows"] += 1
+            else:
+                daily_loss_map[d]["cancellations"] += 1
+            daily_loss_map[d]["revenue_lost"] += rev
+        total_revenue_lost = round(total_revenue_lost, 2)
+
     noshow_rate = round((noshow_count / all_bookings_count * 100), 1) if all_bookings_count > 0 else 0
     cancel_rate = round((cancel_count / all_bookings_count * 100), 1) if all_bookings_count > 0 else 0
     total_lost_rate = round((total_lost_count / all_bookings_count * 100), 1) if all_bookings_count > 0 else 0
-
-    # Calculate revenue lost per lost booking, grouped by the action date
-    total_revenue_lost = 0
-    daily_loss_map = {}  # date -> {noshows, cancellations, revenue_lost}
-    for r in lost_rows:
-        rev = calc_booking_revenue(r["revenue_amount"], r["service"]) or avg_booking_value
-        total_revenue_lost += rev
-        # Use cancelled_at date for cancellations, booking date for no-shows
-        if r["status"] == "cancelled" and r["cancelled_at"]:
-            d = r["cancelled_at"][:10]
-        else:
-            d = r["date"]
-        if d not in daily_loss_map:
-            daily_loss_map[d] = {"noshows": 0, "cancellations": 0, "revenue_lost": 0}
-        if r["status"] == "no_show":
-            daily_loss_map[d]["noshows"] += 1
-        else:
-            daily_loss_map[d]["cancellations"] += 1
-        daily_loss_map[d]["revenue_lost"] += rev
-    total_revenue_lost = round(total_revenue_lost, 2)
 
     daily_losses = [{"date": d, "noshows": v["noshows"], "cancellations": v["cancellations"],
                      "revenue_lost": round(v["revenue_lost"], 2)}
                     for d, v in sorted(daily_loss_map.items())]
 
     # ── 6. AI Insights (real data) ──
-    # Previous period losses for comparison
-    prev_lost = conn.execute(
-        "SELECT COUNT(*) as c FROM bookings WHERE admin_id=%s AND status IN ('no_show','cancelled') AND date BETWEEN %s AND %s",
-        (admin_id, prev_from, prev_to)
-    ).fetchone()
-    prev_lost_count = prev_lost["c"] if prev_lost else 0
-    prev_noshow = conn.execute(
-        "SELECT COUNT(*) as c FROM bookings WHERE admin_id=%s AND status='no_show' AND date BETWEEN %s AND %s",
-        (admin_id, prev_from, prev_to)
-    ).fetchone()
-    prev_noshow_count = prev_noshow["c"] if prev_noshow else 0
-    noshow_change = round(((noshow_count - prev_noshow_count) / prev_noshow_count * 100), 1) if prev_noshow_count > 0 else 0
+    if is_ecom:
+        # E-commerce: previous period losses
+        prev_lost = conn.execute(
+            "SELECT COUNT(*) as c FROM ecom_orders WHERE admin_id=%s AND order_status IN ('cancelled','refunded') AND created_at::date BETWEEN %s AND %s",
+            (admin_id, prev_from, prev_to)
+        ).fetchone()
+        prev_lost_count = prev_lost["c"] if prev_lost else 0
+        prev_noshow_count = 0  # no no-shows in ecom
+        noshow_change = 0
 
-    # Top revenue service — compute from service prices
-    svc_agg_rows = conn.execute(
-        "SELECT service, revenue_amount FROM bookings "
-        "WHERE admin_id=%s AND status IN ('confirmed','completed') AND date BETWEEN %s AND %s",
-        (admin_id, date_from, date_to)
-    ).fetchall()
-    svc_agg = {}
-    for r in svc_agg_rows:
-        s = r["service"]
-        rev = calc_booking_revenue(r["revenue_amount"], s)
-        if s not in svc_agg:
-            svc_agg[s] = {"rev": 0, "cnt": 0}
-        svc_agg[s]["rev"] += rev
-        svc_agg[s]["cnt"] += 1
-    if svc_agg:
-        top_svc = max(svc_agg.items(), key=lambda x: x[1]["rev"])
-        top_service_name = top_svc[0]
-        top_service_revenue = round(top_svc[1]["rev"], 2)
-        top_service_count = top_svc[1]["cnt"]
+        # Top revenue product — parse items_json
+        import json as _json
+        prod_rows = conn.execute(
+            "SELECT items_json, order_total FROM ecom_orders "
+            "WHERE admin_id=%s AND order_status NOT IN ('cancelled','refunded') "
+            "AND created_at::date BETWEEN %s AND %s",
+            (admin_id, date_from, date_to)
+        ).fetchall()
+        prod_agg = {}
+        for r in prod_rows:
+            try:
+                items = _json.loads(r["items_json"] or "[]") if isinstance(r["items_json"], str) else (r["items_json"] or [])
+            except Exception:
+                items = []
+            for it in items:
+                name = it.get("name") or it.get("title") or "Unknown"
+                qty = int(it.get("qty") or it.get("quantity") or 1)
+                price = float(it.get("price") or 0)
+                if name not in prod_agg:
+                    prod_agg[name] = {"rev": 0, "cnt": 0}
+                prod_agg[name]["rev"] += price * qty
+                prod_agg[name]["cnt"] += qty
+        if prod_agg:
+            top_prod = max(prod_agg.items(), key=lambda x: x[1]["rev"])
+            top_service_name = top_prod[0]
+            top_service_revenue = round(top_prod[1]["rev"], 2)
+            top_service_count = top_prod[1]["cnt"]
+        else:
+            top_service_name = "N/A"
+            top_service_revenue = 0
+            top_service_count = 0
+
+        # Peak order hour
+        peak_hours_rows = conn.execute(
+            "SELECT EXTRACT(HOUR FROM created_at)::int as hour, COUNT(*) as cnt "
+            "FROM ecom_orders WHERE admin_id=%s AND order_status NOT IN ('cancelled','refunded') "
+            "AND created_at::date BETWEEN %s AND %s GROUP BY hour ORDER BY cnt DESC LIMIT 3",
+            (admin_id, date_from, date_to)
+        ).fetchall()
+        peak_hours = []
+        for ph in peak_hours_rows:
+            try:
+                h = int(ph["hour"])
+                if h < 12:
+                    label = f"{h} AM–{h+1} AM"
+                elif h == 12:
+                    label = "12–1 PM"
+                else:
+                    label = f"{h-12} PM–{h-11} PM"
+                peak_hours.append({"hour": label, "count": ph["cnt"]})
+            except (ValueError, TypeError):
+                peak_hours.append({"hour": str(ph["hour"]), "count": ph["cnt"]})
+
+        # Build ecommerce insight sentences
+        insights_sentences = []
+        if top_service_name != "N/A":
+            insights_sentences.append(f"Top selling product: {top_service_name} ({currency_symbol}{top_service_revenue:,.0f}, {top_service_count} sold)")
+        if peak_hours:
+            insights_sentences.append(f"Peak order time: {peak_hours[0]['hour']} ({peak_hours[0]['count']} orders)")
+        if total_bookings > 0 and prev_bookings > 0:
+            if bk_change > 0:
+                insights_sentences.append(f"Orders grew {bk_change:.1f}% compared to last period")
+            elif bk_change < 0:
+                insights_sentences.append(f"Orders declined {abs(bk_change):.1f}% compared to last period")
+        if visitors > 0:
+            insights_sentences.append(f"Chatbot engaged {visitors} visitors, {ai_success_rate}% converted to orders")
+        if cancel_count > 0:
+            insights_sentences.append(f"{cancel_count} cancelled order{'s' if cancel_count != 1 else ''} — {currency_symbol}{total_revenue_lost:,.0f} in lost revenue")
+        if noshow_count > 0:
+            insights_sentences.append(f"{noshow_count} refunded order{'s' if noshow_count != 1 else ''}")
+        if avg_booking_value > 0:
+            insights_sentences.append(f"Average order value: {currency_symbol}{avg_booking_value:,.0f}")
+        if total_lost_rate > 15:
+            insights_sentences.append(f"Loss rate is {total_lost_rate}% — consider improving product descriptions or policies")
     else:
-        top_service_name = "N/A"
-        top_service_revenue = 0
-        top_service_count = 0
+        # Dental insights
+        prev_lost = conn.execute(
+            "SELECT COUNT(*) as c FROM bookings WHERE admin_id=%s AND status IN ('no_show','cancelled') AND date BETWEEN %s AND %s",
+            (admin_id, prev_from, prev_to)
+        ).fetchone()
+        prev_lost_count = prev_lost["c"] if prev_lost else 0
+        prev_noshow = conn.execute(
+            "SELECT COUNT(*) as c FROM bookings WHERE admin_id=%s AND status='no_show' AND date BETWEEN %s AND %s",
+            (admin_id, prev_from, prev_to)
+        ).fetchone()
+        prev_noshow_count = prev_noshow["c"] if prev_noshow else 0
+        noshow_change = round(((noshow_count - prev_noshow_count) / prev_noshow_count * 100), 1) if prev_noshow_count > 0 else 0
 
-    # Peak booking hour
-    peak_hours_rows = conn.execute(
-        "SELECT substr(time, 1, 2) as hour, COUNT(*) as cnt "
-        "FROM bookings WHERE admin_id=%s AND status IN ('confirmed','completed') "
-        "AND date BETWEEN %s AND %s GROUP BY hour ORDER BY cnt DESC LIMIT 3",
-        (admin_id, date_from, date_to)
-    ).fetchall()
-    peak_hours = []
-    for ph in peak_hours_rows:
-        try:
-            h = int(ph["hour"])
-            label = f"{h}:00–{h+1}:00"
-            if h < 12:
-                label = f"{h} AM–{h+1} AM"
-            elif h == 12:
-                label = "12–1 PM"
-            else:
-                label = f"{h-12} PM–{h-11} PM"
-            peak_hours.append({"hour": label, "count": ph["cnt"]})
-        except (ValueError, TypeError):
-            peak_hours.append({"hour": ph["hour"], "count": ph["cnt"]})
+        # Top revenue service
+        svc_agg_rows = conn.execute(
+            "SELECT service, revenue_amount FROM bookings "
+            "WHERE admin_id=%s AND status IN ('confirmed','completed') AND date BETWEEN %s AND %s",
+            (admin_id, date_from, date_to)
+        ).fetchall()
+        svc_agg = {}
+        for r in svc_agg_rows:
+            s = r["service"]
+            rev = calc_booking_revenue(r["revenue_amount"], s)
+            if s not in svc_agg:
+                svc_agg[s] = {"rev": 0, "cnt": 0}
+            svc_agg[s]["rev"] += rev
+            svc_agg[s]["cnt"] += 1
+        if svc_agg:
+            top_svc = max(svc_agg.items(), key=lambda x: x[1]["rev"])
+            top_service_name = top_svc[0]
+            top_service_revenue = round(top_svc[1]["rev"], 2)
+            top_service_count = top_svc[1]["cnt"]
+        else:
+            top_service_name = "N/A"
+            top_service_revenue = 0
+            top_service_count = 0
 
-    # Build insight sentences from real data
-    insights_sentences = []
-    if prev_noshow_count > 0 and noshow_change != 0:
-        direction = "decreased" if noshow_change < 0 else "increased"
-        insights_sentences.append(f"No-shows {direction} by {abs(noshow_change)}% compared to last period")
-    if top_service_name != "N/A":
-        insights_sentences.append(f"Most revenue came from {top_service_name} ({currency_symbol}{top_service_revenue:,.0f})")
-    if peak_hours:
-        insights_sentences.append(f"Peak booking time: {peak_hours[0]['hour']} ({peak_hours[0]['count']} bookings)")
-    if total_bookings > 0 and prev_bookings > 0:
-        if bk_change > 0:
-            insights_sentences.append(f"Bookings grew {bk_change:.1f}% compared to last period")
-        elif bk_change < 0:
-            insights_sentences.append(f"Bookings declined {abs(bk_change):.1f}% compared to last period")
-    if visitors > 0:
-        insights_sentences.append(f"AI successfully booked {ai_success_rate}% of chatbot visitors")
-    if noshow_count == 0 and all_bookings_count > 0:
-        insights_sentences.append("Zero no-shows this period — great patient commitment!")
-    if cancel_count > 0:
-        insights_sentences.append(f"{cancel_count} cancelled appointment{'s' if cancel_count != 1 else ''} — {currency_symbol}{total_revenue_lost:,.0f} in potential revenue lost")
-    if total_lost_rate > 20:
-        insights_sentences.append(f"Loss rate is {total_lost_rate}% — consider sending more reminders to reduce cancellations")
+        # Peak booking hour
+        peak_hours_rows = conn.execute(
+            "SELECT substr(time, 1, 2) as hour, COUNT(*) as cnt "
+            "FROM bookings WHERE admin_id=%s AND status IN ('confirmed','completed') "
+            "AND date BETWEEN %s AND %s GROUP BY hour ORDER BY cnt DESC LIMIT 3",
+            (admin_id, date_from, date_to)
+        ).fetchall()
+        peak_hours = []
+        for ph in peak_hours_rows:
+            try:
+                h = int(ph["hour"])
+                if h < 12:
+                    label = f"{h} AM–{h+1} AM"
+                elif h == 12:
+                    label = "12–1 PM"
+                else:
+                    label = f"{h-12} PM–{h-11} PM"
+                peak_hours.append({"hour": label, "count": ph["cnt"]})
+            except (ValueError, TypeError):
+                peak_hours.append({"hour": ph["hour"], "count": ph["cnt"]})
 
-    # ── 7. Patient Metrics ──
-    # New patients = patients created in date range
-    new_patients_row = conn.execute(
-        "SELECT COUNT(*) as c FROM patients WHERE admin_id=%s AND created_at::date BETWEEN %s AND %s",
-        (admin_id, date_from, date_to)
-    ).fetchone()
-    new_patients = new_patients_row["c"] if new_patients_row else 0
+        # Build dental insight sentences
+        insights_sentences = []
+        if prev_noshow_count > 0 and noshow_change != 0:
+            direction = "decreased" if noshow_change < 0 else "increased"
+            insights_sentences.append(f"No-shows {direction} by {abs(noshow_change)}% compared to last period")
+        if top_service_name != "N/A":
+            insights_sentences.append(f"Most revenue came from {top_service_name} ({currency_symbol}{top_service_revenue:,.0f})")
+        if peak_hours:
+            insights_sentences.append(f"Peak booking time: {peak_hours[0]['hour']} ({peak_hours[0]['count']} bookings)")
+        if total_bookings > 0 and prev_bookings > 0:
+            if bk_change > 0:
+                insights_sentences.append(f"Bookings grew {bk_change:.1f}% compared to last period")
+            elif bk_change < 0:
+                insights_sentences.append(f"Bookings declined {abs(bk_change):.1f}% compared to last period")
+        if visitors > 0:
+            insights_sentences.append(f"AI successfully booked {ai_success_rate}% of chatbot visitors")
+        if noshow_count == 0 and all_bookings_count > 0:
+            insights_sentences.append("Zero no-shows this period — great patient commitment!")
+        if cancel_count > 0:
+            insights_sentences.append(f"{cancel_count} cancelled appointment{'s' if cancel_count != 1 else ''} — {currency_symbol}{total_revenue_lost:,.0f} in potential revenue lost")
+        if total_lost_rate > 20:
+            insights_sentences.append(f"Loss rate is {total_lost_rate}% — consider sending more reminders to reduce cancellations")
 
-    # Returning patients = patients with more than 1 completed booking in range
-    returning_row = conn.execute(
-        "SELECT COUNT(DISTINCT customer_email) as c FROM bookings "
-        "WHERE admin_id=%s AND status='completed' AND date BETWEEN %s AND %s "
-        "AND customer_email IN (SELECT customer_email FROM bookings WHERE admin_id=%s AND status='completed' "
-        "AND date < %s AND customer_email != '')",
-        (admin_id, date_from, date_to, admin_id, date_from)
-    ).fetchone()
-    returning_patients = returning_row["c"] if returning_row else 0
+    # ── 7. Customer/Patient Metrics ──
+    if is_ecom:
+        # E-commerce: unique customers from orders
+        new_cust_row = conn.execute(
+            "SELECT COUNT(DISTINCT customer_email) as c FROM ecom_orders "
+            "WHERE admin_id=%s AND customer_email != '' AND created_at::date BETWEEN %s AND %s",
+            (admin_id, date_from, date_to)
+        ).fetchone()
+        new_patients = new_cust_row["c"] if new_cust_row else 0
 
-    # Average visits per patient
-    avg_visits_row = conn.execute(
-        "SELECT AVG(visit_count) as avg_v FROM ("
-        "SELECT customer_email, COUNT(*) as visit_count FROM bookings "
-        "WHERE admin_id=%s AND status IN ('confirmed','completed') AND customer_email != '' "
-        "AND date BETWEEN %s AND %s GROUP BY customer_email)",
-        (admin_id, date_from, date_to)
-    ).fetchone()
-    avg_visits = round(avg_visits_row["avg_v"], 1) if avg_visits_row and avg_visits_row["avg_v"] else 0
+        # Returning customers
+        returning_row = conn.execute(
+            "SELECT COUNT(DISTINCT customer_email) as c FROM ecom_orders "
+            "WHERE admin_id=%s AND customer_email != '' AND created_at::date BETWEEN %s AND %s "
+            "AND customer_email IN (SELECT customer_email FROM ecom_orders WHERE admin_id=%s "
+            "AND customer_email != '' AND created_at::date < %s)",
+            (admin_id, date_from, date_to, admin_id, date_from)
+        ).fetchone()
+        returning_patients = returning_row["c"] if returning_row else 0
+
+        # Avg orders per customer
+        avg_visits_row = conn.execute(
+            "SELECT AVG(order_count) as avg_v FROM ("
+            "SELECT customer_email, COUNT(*) as order_count FROM ecom_orders "
+            "WHERE admin_id=%s AND customer_email != '' AND order_status NOT IN ('cancelled','refunded') "
+            "AND created_at::date BETWEEN %s AND %s GROUP BY customer_email) sub",
+            (admin_id, date_from, date_to)
+        ).fetchone()
+        avg_visits = round(float(avg_visits_row["avg_v"]), 1) if avg_visits_row and avg_visits_row["avg_v"] else 0
+    else:
+        new_patients_row = conn.execute(
+            "SELECT COUNT(*) as c FROM patients WHERE admin_id=%s AND created_at::date BETWEEN %s AND %s",
+            (admin_id, date_from, date_to)
+        ).fetchone()
+        new_patients = new_patients_row["c"] if new_patients_row else 0
+
+        returning_row = conn.execute(
+            "SELECT COUNT(DISTINCT customer_email) as c FROM bookings "
+            "WHERE admin_id=%s AND status='completed' AND date BETWEEN %s AND %s "
+            "AND customer_email IN (SELECT customer_email FROM bookings WHERE admin_id=%s AND status='completed' "
+            "AND date < %s AND customer_email != '')",
+            (admin_id, date_from, date_to, admin_id, date_from)
+        ).fetchone()
+        returning_patients = returning_row["c"] if returning_row else 0
+
+        avg_visits_row = conn.execute(
+            "SELECT AVG(visit_count) as avg_v FROM ("
+            "SELECT customer_email, COUNT(*) as visit_count FROM bookings "
+            "WHERE admin_id=%s AND status IN ('confirmed','completed') AND customer_email != '' "
+            "AND date BETWEEN %s AND %s GROUP BY customer_email) sub",
+            (admin_id, date_from, date_to)
+        ).fetchone()
+        avg_visits = round(float(avg_visits_row["avg_v"]), 1) if avg_visits_row and avg_visits_row["avg_v"] else 0
 
     # ── 8. Automation stats ──
-    # Automated bookings = bookings that came from chatbot sessions
-    auto_bookings_row = conn.execute(
-        "SELECT COUNT(DISTINCT session_id) as c FROM chat_logs "
-        "WHERE admin_id=%s AND resulted_in_booking=1 AND created_at::date BETWEEN %s AND %s",
-        (admin_id, date_from, date_to)
-    ).fetchone()
-    automated_bookings = auto_bookings_row["c"] if auto_bookings_row else 0
-    automation_rate = round((automated_bookings / total_bookings * 100), 1) if total_bookings > 0 else 0
+    if is_ecom:
+        # For ecommerce, all orders are "automated" (placed via integration)
+        automated_bookings = total_bookings
+        automation_rate = 100.0 if total_bookings > 0 else 0
+    else:
+        auto_bookings_row = conn.execute(
+            "SELECT COUNT(DISTINCT session_id) as c FROM chat_logs "
+            "WHERE admin_id=%s AND resulted_in_booking=1 AND created_at::date BETWEEN %s AND %s",
+            (admin_id, date_from, date_to)
+        ).fetchone()
+        automated_bookings = auto_bookings_row["c"] if auto_bookings_row else 0
+        automation_rate = round((automated_bookings / total_bookings * 100), 1) if total_bookings > 0 else 0
 
     # Staff time saved: estimate 5 min per automated interaction
     staff_time_saved = round(visitors * 5 / 60, 1)
@@ -2311,6 +4228,7 @@ def get_roi_stats(admin_id, date_range="month"):
     conn.close()
 
     return {
+        "is_ecom": is_ecom,
         "currency": company_currency,
         "currency_symbol": currency_symbol,
         "date_from": date_from,
@@ -2422,7 +4340,7 @@ def _token_expiry():
 
 def create_user(name, email, password="", company="", provider="email", provider_id="", role="admin", specialty=""):
     import uuid as _uuid
-    import random
+    import secrets
     conn = get_db()
     token = _generate_token()
     expires = _token_expiry()
@@ -2433,7 +4351,7 @@ def create_user(name, email, password="", company="", provider="email", provider
     verification_code = ""
     verification_code_expires = ""
     if not is_verified:
-        verification_code = str(random.randint(100000, 999999))
+        verification_code = str(secrets.randbelow(900000) + 100000)
         verification_code_expires = (datetime.now() + timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
     # Check if email is already taken and give a specific error message
     existing = conn.execute("SELECT provider FROM users WHERE email = %s", (email,)).fetchone()
@@ -2445,11 +4363,14 @@ def create_user(name, email, password="", company="", provider="email", provider
             return None, f"This email is already linked to a {provider_name} account. Please sign in with {provider_name} instead."
         return None, "An account with this email already exists."
 
+    # 14-day free trial expiry
+    trial_expires = (datetime.now() + timedelta(days=14)).strftime("%Y-%m-%d %H:%M:%S")
+    trial_started = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
         conn.execute(
-            """INSERT INTO users (name, email, password_hash, company, role, plan, provider, provider_id, token, token_expires_at, specialty, public_id, is_verified, verification_code, verification_code_expires)
-               VALUES (%s, %s, %s, %s, %s, 'free_trial', %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-            (name, email, password_hash, company, role, provider, provider_id, token, expires, specialty, public_id, is_verified, verification_code, verification_code_expires)
+            """INSERT INTO users (name, email, password_hash, company, role, plan, plan_started_at, plan_expires_at, provider, provider_id, token, token_expires_at, specialty, public_id, is_verified, verification_code, verification_code_expires)
+               VALUES (%s, %s, %s, %s, %s, 'free_trial', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (name, email, password_hash, company, role, trial_started, trial_expires, provider, provider_id, token, expires, specialty, public_id, is_verified, verification_code, verification_code_expires)
         )
         conn.commit()
         user = conn.execute("SELECT * FROM users WHERE email = %s", (email,)).fetchone()
@@ -2488,7 +4409,7 @@ def verify_user_code(email, code):
 
 def resend_verification_code(email):
     """Generate a new verification code for an unverified user. Returns (user, code, error)."""
-    import random
+    import secrets
     conn = get_db()
     user = conn.execute("SELECT * FROM users WHERE email = %s", (email,)).fetchone()
     if not user:
@@ -2498,7 +4419,7 @@ def resend_verification_code(email):
     if user.get("is_verified", 1) == 1:
         conn.close()
         return user, None, "Account is already verified."
-    new_code = str(random.randint(100000, 999999))
+    new_code = str(secrets.randbelow(900000) + 100000)
     new_expires = (datetime.now() + timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
     conn.execute("UPDATE users SET verification_code = %s, verification_code_expires = %s WHERE id = %s", (new_code, new_expires, user["id"]))
     conn.commit()
@@ -2596,10 +4517,12 @@ def login_or_create_social(name, email, provider, provider_id, avatar_url="", ro
     else:
         import uuid as _uuid
         public_id = str(_uuid.uuid4())
+        trial_started = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        trial_expires = (datetime.now() + timedelta(days=14)).strftime("%Y-%m-%d %H:%M:%S")
         conn.execute(
-            """INSERT INTO users (name, email, company, role, plan, provider, provider_id, avatar_url, token, token_expires_at, specialty, public_id)
-               VALUES (%s, %s, '', %s, 'free_trial', %s, %s, %s, %s, %s, %s, %s)""",
-            (name, email, role, provider, provider_id, avatar_url, token, expires, specialty, public_id)
+            """INSERT INTO users (name, email, company, role, plan, plan_started_at, plan_expires_at, provider, provider_id, avatar_url, token, token_expires_at, specialty, public_id)
+               VALUES (%s, %s, '', %s, 'free_trial', %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (name, email, role, trial_started, trial_expires, provider, provider_id, avatar_url, token, expires, specialty, public_id)
         )
         conn.commit()
         user = conn.execute("SELECT * FROM users WHERE email = %s", (email,)).fetchone()
@@ -2662,9 +4585,165 @@ def set_user_admin_id(user_id, admin_id):
     conn.close()
 
 
-PLAN_COSTS = {"free_trial": 0, "basic": 79, "pro": 239, "agency": 699}
-PLAN_MONTHLY_CONVERSATIONS = {"free_trial": 200, "basic": 700, "pro": 5000, "agency": 999999999}
-PLAN_MAX_CHATBOTS = {"free_trial": 1, "basic": 1, "pro": 4, "agency": 999999999}
+PLAN_COSTS = {"free": 0, "free_trial": 0, "basic": 23, "growth": 79, "pro": 299, "enterprise": 699}
+PLAN_MONTHLY_CONVERSATIONS = {"free": 50, "free_trial": 999999999, "basic": 999999999, "growth": 999999999, "pro": 999999999, "enterprise": 999999999}
+PLAN_MAX_CHATBOTS = {"free": 1, "free_trial": 1, "basic": 1, "growth": 2, "pro": 3, "enterprise": 999999999}
+PLAN_MAX_DOCTORS = {"free": 1, "free_trial": 3, "basic": 1, "growth": 3, "pro": 10, "enterprise": 999999999}
+PLAN_MAX_LOCATIONS = {"free": 1, "free_trial": 1, "basic": 1, "growth": 1, "pro": 3, "enterprise": 999999999}
+PLAN_MAX_STAFF = {"free": 1, "free_trial": 5, "basic": 2, "growth": 5, "pro": 15, "enterprise": 999999999}
+PLAN_MAX_PATIENTS = {"free": 20, "free_trial": 999999999, "basic": 999999999, "growth": 999999999, "pro": 999999999, "enterprise": 999999999}
+PLAN_MAX_PROMO_CODES = {"free": 0, "free_trial": 10, "basic": 0, "growth": 10, "pro": 999999999, "enterprise": 999999999}
+PLAN_MAX_CUSTOM_FIELDS = {"free": 0, "free_trial": 10, "basic": 0, "growth": 10, "pro": 999999999, "enterprise": 999999999}
+PLAN_MAX_EMAIL_TEMPLATES = {"free": 0, "free_trial": 10, "basic": 3, "growth": 10, "pro": 999999999, "enterprise": 999999999}
+PLAN_MAX_LANGUAGES = {"free": 1, "free_trial": 10, "basic": 3, "growth": 10, "pro": 10, "enterprise": 10}
+
+
+# ── Plan feature access map ──
+# Which features are available on which plans (minimum plan required)
+PLAN_FEATURE_ACCESS = {
+    # feature_key: minimum plan level (0=free, 1=basic, 2=growth, 3=pro, 4=enterprise)
+    "smart_booking": 1,          # Basic+ (Free = date+time only, no doctor choice)
+    "doctor_choice": 1,          # Basic+ can choose doctor
+    "lead_capture": 1,           # Basic+
+    "lead_scoring_advanced": 2,  # Growth+ (Basic = hot/cold only)
+    "lead_followups": 2,         # Growth+
+    "lead_routing": 2,           # Growth+
+    "pre_visit_forms": 1,        # Basic+ (standard fields)
+    "custom_form_fields": 2,     # Growth+ (10), Pro+ (unlimited)
+    "digital_signatures": 2,     # Growth+
+    "sms_reminders": 2,          # Growth+
+    "reminder_48h": 2,           # Growth+ (Basic = 24h+2h only)
+    "noshow_detection": 2,       # Growth+
+    "noshow_prediction": 3,      # Pro+
+    "noshow_deposit": 3,         # Pro+
+    "waitlist": 2,               # Growth+
+    "loyalty_program": 2,        # Growth+
+    "referral_program": 2,       # Growth+
+    "promotions": 2,             # Growth+
+    "invoicing": 2,              # Growth+
+    "surveys": 2,                # Growth+
+    "google_reviews": 2,         # Growth+
+    "roi_dashboard": 2,          # Growth+
+    "full_analytics": 2,         # Growth+ (Free = chat count only, Basic = basic)
+    "monthly_reports": 2,        # Growth+
+    "treatment_followups": 2,    # Growth+
+    "treatment_packages": 3,     # Pro+
+    "upsell_engine": 3,          # Pro+
+    "recall_campaigns": 2,       # Growth+
+    "birthday_greetings": 2,     # Growth+
+    "doctor_breaks": 2,          # Growth+ (Basic = weekly schedule only)
+    "doctor_off_days": 2,        # Growth+
+    "schedule_blocks": 2,        # Growth+
+    "flexible_lengths": 2,       # Growth+ (Basic = 1 appointment length)
+    "daily_overrides": 2,        # Growth+
+    "checkin_system": 2,         # Growth+
+    "revenue_tracking": 2,       # Growth+
+    "patient_medical_history": 2, # Growth+ (Basic = name/phone/email only)
+    "patient_insurance": 2,      # Growth+
+    "patient_notes": 2,          # Growth+
+    "multi_language_10": 2,      # Growth+ (Basic = 3 languages)
+    "sentiment_analysis": 2,     # Growth+
+    "upsell_detection": 2,       # Growth+
+    "patient_recognition": 2,    # Growth+
+    "ai_confidence_scoring": 2,  # Growth+
+    "gallery": 2,                # Growth+
+    "celebration_animation": 2,  # Growth+
+    "chatbot_customization": 2,  # Growth+ (Basic = 3 color presets, Free = none)
+    "widget_styles": 2,          # Growth+ (all styles)
+    "custom_avatar": 2,          # Growth+
+    "live_chat_queue": 2,        # Growth+ (Basic = basic handoff only)
+    "unified_inbox": 2,          # Growth+ (Web + WhatsApp)
+    "whatsapp": 2,               # Growth+
+    "google_calendar": 2,        # Growth+
+    "calendly": 2,               # Growth+
+    "twilio_sms": 2,             # Growth+
+    "stripe": 2,                 # Growth+
+    "zapier": 2,                 # Growth+
+    "rest_api": 2,               # Growth+
+    "custom_ai_training": 3,     # Pro+
+    "voice_input": 3,            # Pro+
+    "white_label": 3,            # Pro+
+    "custom_domain": 3,          # Pro+
+    "ab_testing": 3,             # Pro+
+    "missed_call_handling": 3,   # Pro+
+    "own_email_sender": 3,       # Pro+
+    "facebook_instagram": 3,     # Pro+ inbox
+    "copilot_suggestions": 3,    # Pro+
+    "handoff_timeout": 3,        # Pro+
+    "conversation_tagging": 3,   # Pro+
+    "email_templates": 1,        # Basic+ (3 on Basic, 10 on Growth, unlimited on Pro+)
+    "email_template_builder": 3, # Pro+ (drag-and-drop builder)
+    "pms_integration": 4,        # Enterprise only
+    "emr_integration": 4,        # Enterprise only
+    "soc2_hipaa": 4,             # Enterprise only
+    "dedicated_manager": 4,      # Enterprise only
+    "sla_guarantee": 4,          # Enterprise only
+    "custom_development": 4,     # Enterprise only
+}
+
+_PLAN_LEVEL_MAP = {"free": 0, "free_trial": 2, "basic": 1, "growth": 2, "pro": 3, "enterprise": 4}
+
+
+def get_admin_plan(admin_id):
+    """Get the plan string for an admin."""
+    conn = get_db()
+    user = conn.execute("SELECT plan FROM users WHERE id=%s", (admin_id,)).fetchone()
+    conn.close()
+    return (user["plan"] or "free") if user else "free"
+
+
+def get_plan_level(plan):
+    """Convert plan string to numeric level."""
+    p = plan or "free"
+    if p == "agency":
+        p = "enterprise"
+    return _PLAN_LEVEL_MAP.get(p, 0)
+
+
+def can_use_feature(admin_id, feature_key):
+    """Check if admin's plan allows a specific feature. Returns (allowed, plan_required)."""
+    plan = get_admin_plan(admin_id)
+    level = get_plan_level(plan)
+    required_level = PLAN_FEATURE_ACCESS.get(feature_key, 0)
+    if level >= required_level:
+        return True, None
+    # Find the plan name for the required level
+    level_to_plan = {0: "free", 1: "basic", 2: "growth", 3: "pro", 4: "enterprise"}
+    return False, level_to_plan.get(required_level, "enterprise")
+
+
+def check_plan_limit(admin_id, limit_type):
+    """Check if admin has reached a plan limit. Returns (within_limit, current_count, max_allowed)."""
+    plan = get_admin_plan(admin_id)
+    conn = get_db()
+
+    if limit_type == "doctors":
+        count = conn.execute("SELECT COUNT(*) as c FROM doctors WHERE admin_id=%s AND status='active'", (admin_id,)).fetchone()["c"]
+        limit = PLAN_MAX_DOCTORS.get(plan, 1)
+    elif limit_type == "staff":
+        count = conn.execute("SELECT COUNT(*) as c FROM users WHERE admin_id=%s AND id != %s", (admin_id, admin_id)).fetchone()["c"]
+        limit = PLAN_MAX_STAFF.get(plan, 1)
+    elif limit_type == "patients":
+        count = conn.execute("SELECT COUNT(*) as c FROM patients WHERE admin_id=%s", (admin_id,)).fetchone()["c"]
+        limit = PLAN_MAX_PATIENTS.get(plan, 20)
+    elif limit_type == "promo_codes":
+        count = conn.execute("SELECT COUNT(*) as c FROM promotions WHERE admin_id=%s AND is_active=TRUE", (admin_id,)).fetchone()["c"]
+        limit = PLAN_MAX_PROMO_CODES.get(plan, 0)
+    elif limit_type == "custom_fields":
+        count = conn.execute("SELECT COUNT(*) as c FROM form_custom_fields WHERE admin_id=%s", (admin_id,)).fetchone()["c"]
+        limit = PLAN_MAX_CUSTOM_FIELDS.get(plan, 0)
+    elif limit_type == "email_templates":
+        count = conn.execute("SELECT COUNT(*) as c FROM email_templates WHERE admin_id=%s", (admin_id,)).fetchone()["c"]
+        limit = PLAN_MAX_EMAIL_TEMPLATES.get(plan, 0)
+    elif limit_type == "chatbots":
+        count = len(get_active_chatbot_domains(admin_id))
+        limit = PLAN_MAX_CHATBOTS.get(plan, 1)
+    else:
+        conn.close()
+        return True, 0, 999999999
+
+    conn.close()
+    return count < limit, count, limit
 
 
 def get_monthly_conversation_count(admin_id):
@@ -2848,9 +4927,27 @@ def process_plan_expiry(user_id):
     auto_renew = user["auto_renew"]
     billing_cycle = user["billing_cycle"] or "monthly"
 
-    if plan == "free_trial" or not expires:
+    if not expires:
         conn.close()
         return False
+
+    # Free trial expired → downgrade to 'expired_trial'
+    if plan == "free_trial":
+        now = datetime.now()
+        try:
+            exp_dt = _parse_dt(expires)
+        except (ValueError, TypeError):
+            conn.close()
+            return False
+        if now < exp_dt:
+            conn.close()
+            return False
+        conn.execute(
+            "UPDATE users SET plan='expired_trial', plan_started_at='', plan_expires_at='', pending_plan='', auto_renew=0 WHERE id=%s",
+            (user_id,))
+        conn.commit()
+        conn.close()
+        return True
 
     now = datetime.now()
     try:
@@ -2951,7 +5048,7 @@ def user_to_public(user):
         conn.close()
         if head:
             plan = head["plan"]
-    return {
+    result = {
         "id": user["id"],
         "name": user["name"],
         "email": user["email"],
@@ -2971,6 +5068,14 @@ def user_to_public(user):
         "auto_renew": user.get("auto_renew", 1),
         "pending_plan": user.get("pending_plan", ""),
     }
+    # Include permissions for ecommerce staff
+    if user.get("role") == "admin" and admin_id:
+        conn2 = get_db()
+        head = conn2.execute("SELECT company_type FROM users WHERE id=%s", (admin_id,)).fetchone()
+        conn2.close()
+        if head and head.get("company_type") == "ecommerce":
+            result["permissions"] = get_staff_permissions(admin_id, user["id"])
+    return result
 
 
 # ══════════════════════════════════════════════
@@ -2989,17 +5094,67 @@ def save_company_info(user_id, data):
     existing = conn.execute("SELECT id FROM company_info WHERE user_id = %s", (user_id,)).fetchone()
     if existing:
         conn.execute("""UPDATE company_info SET business_name=%s, address=%s, phone=%s, business_hours=%s,
-            services=%s, pricing_insurance=%s, emergency_info=%s, about=%s, currency=%s, updated_at=CURRENT_TIMESTAMP
+            services=%s, pricing_insurance=%s, emergency_info=%s, about=%s, currency=%s,
+            logo_url=%s, store_image=%s, domain=%s, updated_at=CURRENT_TIMESTAMP
             WHERE user_id=%s""",
             (data.get("business_name", ""), data.get("address", ""), data.get("phone", ""),
              data.get("business_hours", ""), data.get("services", ""), data.get("pricing_insurance", ""),
-             data.get("emergency_info", ""), data.get("about", ""), data.get("currency", "USD"), user_id))
+             data.get("emergency_info", ""), data.get("about", ""), data.get("currency", "USD"),
+             data.get("logo_url", ""), data.get("store_image", ""), data.get("domain", ""), user_id))
     else:
         conn.execute("""INSERT INTO company_info (user_id, business_name, address, phone, business_hours,
-            services, pricing_insurance, emergency_info, about, currency, external_api_key) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            services, pricing_insurance, emergency_info, about, currency, logo_url, store_image, domain, external_api_key)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
             (user_id, data.get("business_name", ""), data.get("address", ""), data.get("phone", ""),
              data.get("business_hours", ""), data.get("services", ""), data.get("pricing_insurance", ""),
-             data.get("emergency_info", ""), data.get("about", ""), data.get("currency", "USD"), secrets.token_hex(32)))
+             data.get("emergency_info", ""), data.get("about", ""), data.get("currency", "USD"),
+             data.get("logo_url", ""), data.get("store_image", ""), data.get("domain", ""),
+             secrets.token_hex(32)))
+    conn.commit()
+    conn.close()
+
+
+def get_admin_smtp_config(admin_id):
+    """Get per-admin SMTP config. Returns dict with smtp_host/port/user/password/from_email or None."""
+    if not admin_id:
+        return None
+    conn = get_db()
+    row = conn.execute(
+        "SELECT smtp_host, smtp_port, smtp_user, smtp_password, smtp_from_email, smtp_verified FROM company_info WHERE user_id = %s",
+        (admin_id,)
+    ).fetchone()
+    conn.close()
+    if not row:
+        return None
+    cfg = dict(row)
+    # Only return if at minimum smtp_user and smtp_password are set
+    if cfg.get("smtp_user") and cfg.get("smtp_password"):
+        return cfg
+    return None
+
+
+def save_admin_smtp_config(admin_id, data):
+    """Save per-admin SMTP config to company_info."""
+    conn = get_db()
+    existing = conn.execute("SELECT id FROM company_info WHERE user_id = %s", (admin_id,)).fetchone()
+    if existing:
+        conn.execute(
+            """UPDATE company_info SET smtp_host=%s, smtp_port=%s, smtp_user=%s, smtp_password=%s,
+               smtp_from_email=%s, smtp_verified=%s WHERE user_id=%s""",
+            (data.get("smtp_host", ""), int(data.get("smtp_port", 587)),
+             data.get("smtp_user", ""), data.get("smtp_password", ""),
+             data.get("smtp_from_email", ""), int(data.get("smtp_verified", 0)),
+             admin_id)
+        )
+    else:
+        conn.execute(
+            """INSERT INTO company_info (user_id, smtp_host, smtp_port, smtp_user, smtp_password, smtp_from_email, smtp_verified, external_api_key)
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (admin_id, data.get("smtp_host", ""), int(data.get("smtp_port", 587)),
+             data.get("smtp_user", ""), data.get("smtp_password", ""),
+             data.get("smtp_from_email", ""), int(data.get("smtp_verified", 0)),
+             secrets.token_hex(32))
+        )
     conn.commit()
     conn.close()
 
@@ -3201,8 +5356,17 @@ def get_doctors_for_service(service_id):
 
 
 def get_services_with_doctors(admin_id):
-    """Get all services with their assigned doctor IDs."""
+    """Get all services with their assigned doctor IDs (deduplicated by name)."""
     services = get_company_services(admin_id)
+    # Deduplicate by name (keep first occurrence)
+    seen = set()
+    unique = []
+    for svc in services:
+        name_lower = svc.get("name", "").strip().lower()
+        if name_lower not in seen:
+            seen.add(name_lower)
+            unique.append(svc)
+    services = unique
     conn = get_db()
     for svc in services:
         rows = conn.execute("SELECT doctor_id FROM service_doctors WHERE service_id=%s", (svc["id"],)).fetchall()
@@ -3787,13 +5951,13 @@ def get_audit_log(admin_id, limit=200, offset=0, search=""):
 #  Chat Logging & Analytics
 # ══════════════════════════════════════════════
 
-def log_chat(session_id, admin_id, message, intent="", intent_confidence=0.0, resulted_in_booking=0):
+def log_chat(session_id, admin_id, message, intent="", intent_confidence=0.0, resulted_in_booking=0, sender="user"):
     """Log a chat message for analytics."""
     conn = get_db()
     conn.execute(
-        "INSERT INTO chat_logs (session_id, admin_id, message, intent, intent_confidence, resulted_in_booking) "
-        "VALUES (%s,%s,%s,%s,%s,%s)",
-        (session_id, admin_id, message, intent, intent_confidence, resulted_in_booking))
+        "INSERT INTO chat_logs (session_id, admin_id, message, intent, intent_confidence, resulted_in_booking, sender) "
+        "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+        (session_id, admin_id, message, intent, intent_confidence, resulted_in_booking, sender))
     conn.commit()
     conn.close()
 
@@ -4150,6 +6314,8 @@ FEATURE_DEFAULTS = {
     "require_login_to_book": 0,
     # Proactive engagement
     "proactive_engagement": 1,
+    # Live chat timeout (minutes) — chat shown as active if last msg within this window
+    "live_chat_timeout": 8,
 }
 
 
@@ -4175,16 +6341,22 @@ def is_feature_enabled(admin_id, feature_key):
     return bool(FEATURE_DEFAULTS.get(feature_key, 1))
 
 
+NUMERIC_FEATURE_KEYS = {"live_chat_timeout"}
+
 def save_feature_config(admin_id, config_dict):
-    """Save multiple feature toggles at once. config_dict = {feature_key: 0|1}."""
+    """Save multiple feature toggles at once. config_dict = {feature_key: 0|1} or numeric for special keys."""
     conn = get_db()
-    for key, enabled in config_dict.items():
+    for key, val in config_dict.items():
         if key not in FEATURE_DEFAULTS:
             continue
+        if key in NUMERIC_FEATURE_KEYS:
+            save_val = max(1, min(60, int(val)))
+        else:
+            save_val = int(bool(val))
         conn.execute(
             "INSERT INTO feature_config (admin_id, feature_key, enabled, updated_at) VALUES (%s, %s, %s, CURRENT_TIMESTAMP) "
             "ON CONFLICT(admin_id, feature_key) DO UPDATE SET enabled=excluded.enabled, updated_at=CURRENT_TIMESTAMP",
-            (admin_id, key, int(bool(enabled)))
+            (admin_id, key, save_val)
         )
     conn.commit()
     conn.close()
@@ -4838,6 +7010,175 @@ def get_handoff_context(handoff_id, admin_id):
         conn.close()
 
 
+# ═══════════════ Live Chat System ═══════════════
+
+def get_live_chats(admin_id):
+    """Get all chat sessions with activity within the configured timeout."""
+    timeout_min = get_feature_config(admin_id).get("live_chat_timeout", 8)
+    conn = get_db()
+    try:
+        rows = conn.execute("""
+            SELECT
+                cl.session_id,
+                MAX(cl.created_at) as last_activity,
+                COUNT(*) as total_messages,
+                COUNT(CASE WHEN cl.sender = 'user' THEN 1 END) as user_messages
+            FROM chat_logs cl
+            WHERE cl.admin_id = %s
+            GROUP BY cl.session_id
+            HAVING MAX(cl.created_at) > NOW() - (%s || ' minutes')::interval
+            ORDER BY MAX(cl.created_at) DESC
+        """, (admin_id, str(timeout_min))).fetchall()
+
+        result = []
+        for r in rows:
+            sid = r["session_id"]
+            last_user = conn.execute(
+                "SELECT message FROM chat_logs WHERE session_id = %s AND sender = 'user' ORDER BY created_at DESC LIMIT 1",
+                (sid,)
+            ).fetchone()
+            lead = conn.execute(
+                "SELECT name, email, phone FROM leads WHERE session_id = %s LIMIT 1",
+                (sid,)
+            ).fetchone()
+            handoff = conn.execute(
+                "SELECT staff_user_id, staff_name, status, reason FROM live_chat_handoffs "
+                "WHERE session_id = %s AND admin_id = %s AND status IN ('queued','assigned') "
+                "ORDER BY created_at DESC LIMIT 1",
+                (sid, admin_id)
+            ).fetchone()
+
+            result.append({
+                "session_id": sid,
+                "last_activity": str(r["last_activity"]),
+                "total_messages": r["total_messages"],
+                "user_messages": r["user_messages"],
+                "last_user_message": (last_user["message"] if last_user else "")[:120],
+                "customer_name": (lead["name"] if lead else "Visitor"),
+                "customer_email": (lead["email"] if lead else ""),
+                "assigned_staff_id": handoff["staff_user_id"] if handoff else 0,
+                "assigned_staff_name": handoff["staff_name"] if handoff else "",
+                "handoff_status": handoff["status"] if handoff else "",
+                "needs_human": handoff is not None and handoff["status"] == "queued",
+            })
+        return result
+    finally:
+        conn.close()
+
+
+def take_live_chat(admin_id, session_id, staff_user_id, staff_name):
+    """Admin takes a live chat. Only one admin can take at a time."""
+    conn = get_db()
+    try:
+        existing = conn.execute(
+            "SELECT staff_user_id, staff_name FROM live_chat_handoffs "
+            "WHERE session_id = %s AND admin_id = %s AND status = 'assigned'",
+            (session_id, admin_id)
+        ).fetchone()
+        if existing and existing["staff_user_id"] != staff_user_id:
+            return {"error": "Already taken by " + (existing["staff_name"] or "another admin")}
+
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        queued = conn.execute(
+            "SELECT id FROM live_chat_handoffs WHERE session_id = %s AND admin_id = %s "
+            "AND status IN ('queued','assigned') ORDER BY created_at DESC LIMIT 1",
+            (session_id, admin_id)
+        ).fetchone()
+
+        if queued:
+            conn.execute(
+                "UPDATE live_chat_handoffs SET status='assigned', staff_user_id=%s, "
+                "staff_name=%s, assigned_at=%s WHERE id=%s",
+                (staff_user_id, staff_name, now, queued["id"])
+            )
+        else:
+            conn.execute(
+                "INSERT INTO live_chat_handoffs (admin_id, session_id, patient_name, "
+                "reason, status, staff_user_id, staff_name, assigned_at) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+                (admin_id, session_id, '', 'admin_takeover', 'assigned',
+                 staff_user_id, staff_name, now)
+            )
+        conn.commit()
+        return {"success": True, "staff_name": staff_name}
+    finally:
+        conn.close()
+
+
+def release_live_chat(admin_id, session_id, staff_user_id):
+    """Admin releases a live chat back to bot."""
+    conn = get_db()
+    try:
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        conn.execute(
+            "UPDATE live_chat_handoffs SET status='resolved', resolved_at=%s, "
+            "resolution_notes='released' WHERE session_id=%s AND admin_id=%s "
+            "AND staff_user_id=%s AND status='assigned'",
+            (now, session_id, admin_id, staff_user_id)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def send_live_chat_msg(admin_id, session_id, message, staff_name):
+    """Log a staff message in a live chat."""
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT INTO chat_logs (session_id, admin_id, message, intent, "
+            "is_human_handled, sender) VALUES (%s,%s,%s,%s,%s,%s)",
+            (session_id, admin_id, message, 'live_chat', 1, 'staff')
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_live_chat_messages(admin_id, session_id):
+    """Get all messages for a live chat session."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT id, message, sender, created_at FROM chat_logs "
+            "WHERE session_id = %s AND admin_id = %s ORDER BY created_at ASC",
+            (session_id, admin_id)
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_staff_messages_since(session_id, after_id=0):
+    """Get staff messages for widget polling."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT id, message, created_at FROM chat_logs "
+            "WHERE session_id = %s AND sender = 'staff' AND id > %s "
+            "ORDER BY created_at ASC",
+            (session_id, after_id)
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_live_chat_assignment(admin_id, session_id):
+    """Check who is assigned to a live chat."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT staff_user_id, staff_name, status FROM live_chat_handoffs "
+            "WHERE session_id = %s AND admin_id = %s AND status = 'assigned' "
+            "ORDER BY created_at DESC LIMIT 1",
+            (session_id, admin_id)
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
 # ── Enhanced Inbox: SMS + Analytics ──
 
 def save_sms_to_inbox(admin_id, phone, message, direction, session_id=None):
@@ -5374,6 +7715,14 @@ def get_or_create_patient(admin_id, name="", email="", phone="", increment_booki
         row = conn.execute("SELECT * FROM patients WHERE id=%s", (row["id"],)).fetchone()
         conn.close()
         return dict(row)
+    # Plan limit check: patients (Free plan = 20 max)
+    plan = get_admin_plan(admin_id)
+    max_patients = PLAN_MAX_PATIENTS.get(plan, 999999999)
+    if max_patients < 999999999:
+        patient_count = conn.execute("SELECT COUNT(*) as c FROM patients WHERE admin_id=%s", (admin_id,)).fetchone()["c"]
+        if patient_count >= max_patients:
+            conn.close()
+            return None  # Caller should handle upgrade prompt
     # Create new patient
     _ins_cur = conn.execute("INSERT INTO patients (admin_id,name,email,phone,total_bookings) VALUES (%s,%s,%s,%s,%s) RETURNING id",
                  (admin_id, name, email, phone, 1 if increment_booking else 0))
@@ -5908,6 +8257,27 @@ def get_reminder_config(admin_id):
         "quiet_hours_end": 8,
         "high_risk_enabled": 1,
         "high_risk_threshold": 4,
+        "recall_interval_days": 180,
+        "recall_message": "",
+        "recall_enabled": 1,
+        "followup_day1": 1,
+        "followup_day3": 1,
+        "followup_day7": 1,
+        "followup_day14": 0,
+        "followup_day30": 0,
+        "survey_delay_hours": 24,
+        "survey_enabled": 1,
+        "noshow_recovery_delay_hours": 2,
+        "noshow_recovery_message": "",
+        "noshow_recovery_enabled": 1,
+        "birthday_enabled": 0,
+        "birthday_days_before": 1,
+        "reactivation_enabled": 0,
+        "reactivation_days": 90,
+        "welcome_enabled": 1,
+        "welcome_delay_minutes": 0,
+        "previsit_enabled": 1,
+        "previsit_hours_before": 24,
     }
 
 
@@ -6641,6 +9011,13 @@ def _ensure_email_templates_table():
             body_image_url TEXT DEFAULT '',
             logo_url TEXT DEFAULT '',
             font_family TEXT DEFAULT 'Helvetica Neue, Helvetica, Arial, sans-serif',
+            content_width TEXT DEFAULT '600',
+            card_radius TEXT DEFAULT '8',
+            card_shadow TEXT DEFAULT '0 20px 60px rgba(0,0,0,0.1)',
+            top_bar_height TEXT DEFAULT '4',
+            line_height TEXT DEFAULT '1.6',
+            letter_spacing TEXT DEFAULT '0',
+            preheader TEXT DEFAULT '',
             is_active INTEGER DEFAULT 1,
             source_type TEXT DEFAULT 'manual',
             blocks_json TEXT DEFAULT '[]',
@@ -6662,6 +9039,9 @@ try:
         _conn.execute("ALTER TABLE email_templates ADD COLUMN blocks_json TEXT DEFAULT '[]'")
     if "compiled_html" not in _cols:
         _conn.execute("ALTER TABLE email_templates ADD COLUMN compiled_html TEXT DEFAULT ''")
+    for _col, _def in [("content_width","'600'"),("card_radius","'8'"),("card_shadow","'0 20px 60px rgba(0,0,0,0.1)'"),("top_bar_height","'4'"),("line_height","'1.6'"),("letter_spacing","'0'"),("preheader","''")]:
+        if _col not in _cols:
+            _conn.execute(f"ALTER TABLE email_templates ADD COLUMN {_col} TEXT DEFAULT {_def}")
     _conn.commit()
     _conn.close()
 except Exception:
@@ -6700,7 +9080,9 @@ def save_email_template(admin_id, **kwargs):
         "primary_color", "secondary_color", "bg_color",
         "button_color", "button_text_color", "button_radius", "button_size",
         "header_image_url", "footer_image_url", "body_image_url", "logo_url",
-        "font_family", "is_active", "source_type", "blocks_json", "compiled_html"
+        "font_family", "content_width", "card_radius", "card_shadow",
+        "top_bar_height", "line_height", "letter_spacing", "preheader",
+        "is_active", "source_type", "blocks_json", "compiled_html"
     ]
     fields = {k: v for k, v in kwargs.items() if k in allowed}
     fields["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -7032,6 +9414,47 @@ def update_emr_sync_timestamp(admin_id, integration_type):
     return True
 
 
+# ── PMS Sync Logging ──
+
+def log_pms_sync(admin_id, pms_type, booking_id, status, error_message=""):
+    """Log a PMS sync attempt."""
+    try:
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO pms_sync_log (admin_id, pms_type, booking_id, status, error_message) VALUES (%s, %s, %s, %s, %s)",
+            (admin_id, pms_type, booking_id, status, error_message))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+
+def get_pms_sync_logs(admin_id, limit=50):
+    """Get recent PMS sync log entries for an admin."""
+    try:
+        conn = get_db()
+        rows = conn.execute(
+            "SELECT * FROM pms_sync_log WHERE admin_id = %s ORDER BY created_at DESC LIMIT %s",
+            (admin_id, limit)).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception:
+        return []
+
+
+def get_pms_sync_for_booking(admin_id, booking_id):
+    """Get the most recent PMS sync entry for a specific booking."""
+    try:
+        conn = get_db()
+        row = conn.execute(
+            "SELECT * FROM pms_sync_log WHERE admin_id = %s AND booking_id = %s ORDER BY created_at DESC LIMIT 1",
+            (admin_id, booking_id)).fetchone()
+        conn.close()
+        return dict(row) if row else None
+    except Exception:
+        return None
+
+
 # ── AI Resolution Rate ──
 
 def get_ai_resolution_rate(admin_id, date_from=None, date_to=None):
@@ -7041,8 +9464,8 @@ def get_ai_resolution_rate(admin_id, date_from=None, date_to=None):
         date_filter = ""
         params = [admin_id]
         if date_from and date_to:
-            date_filter = " AND created_at ~ %s AND SUBSTR(created_at,1,10) BETWEEN %s AND %s"
-            params.extend([r"^\d{4}-\d{2}-\d{2}", date_from, date_to])
+            date_filter = " AND created_at::date BETWEEN %s AND %s"
+            params.extend([date_from, date_to])
 
         # Total conversations (distinct session_ids)
         total_row = conn.execute(
@@ -7274,6 +9697,2472 @@ def get_active_flow(admin_id):
     if isinstance(result.get("flow_data"), str):
         result["flow_data"] = json.loads(result["flow_data"])
     return result
+
+
+# ── Multi-Industry Helpers ──
+
+def get_company_type(admin_id):
+    conn = get_db()
+    row = conn.execute("SELECT company_type FROM users WHERE id=%s", (admin_id,)).fetchone()
+    conn.close()
+    return row["company_type"] if row else ""
+
+def set_company_type(admin_id, company_type):
+    if company_type not in ('dental', 'ecommerce', 'real_estate'):
+        return False
+    conn = get_db()
+    conn.execute("UPDATE users SET company_type=%s WHERE id=%s", (company_type, admin_id))
+    conn.commit()
+    conn.close()
+    return True
+
+
+# ── Staff Permissions (ecommerce) ──
+
+ECOM_PERMISSION_KEYS = [
+    "products", "orders_view", "analytics", "store_settings",
+    "integrations", "chatbot_customize", "leads", "customers",
+    "promotions", "cart_recovery",
+]
+
+ECOM_DEFAULT_PERMISSIONS = {
+    "products": True,
+    "orders_view": True,
+    "analytics": False,
+    "store_settings": False,
+    "integrations": False,
+    "chatbot_customize": False,
+    "leads": False,
+    "customers": False,
+    "promotions": False,
+    "cart_recovery": False,
+}
+
+
+def seed_default_staff_permissions(admin_id, staff_user_id):
+    conn = get_db()
+    try:
+        for key, default in ECOM_DEFAULT_PERMISSIONS.items():
+            conn.execute(
+                "INSERT INTO staff_permissions (admin_id, staff_user_id, permission_key, enabled) "
+                "VALUES (%s, %s, %s, %s) ON CONFLICT (admin_id, staff_user_id, permission_key) DO NOTHING",
+                (admin_id, staff_user_id, key, 1 if default else 0),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_staff_permissions(admin_id, staff_user_id):
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT permission_key, enabled FROM staff_permissions WHERE admin_id=%s AND staff_user_id=%s",
+            (admin_id, staff_user_id),
+        ).fetchall()
+    finally:
+        conn.close()
+    perms = dict(ECOM_DEFAULT_PERMISSIONS)
+    for r in rows:
+        perms[r["permission_key"]] = bool(r["enabled"])
+    return perms
+
+
+def set_staff_permissions(admin_id, staff_user_id, permissions):
+    conn = get_db()
+    try:
+        for key, enabled in permissions.items():
+            if key not in ECOM_PERMISSION_KEYS:
+                continue
+            conn.execute(
+                "INSERT INTO staff_permissions (admin_id, staff_user_id, permission_key, enabled) "
+                "VALUES (%s, %s, %s, %s) "
+                "ON CONFLICT (admin_id, staff_user_id, permission_key) "
+                "DO UPDATE SET enabled=%s, updated_at=CURRENT_TIMESTAMP",
+                (admin_id, staff_user_id, key, 1 if enabled else 0, 1 if enabled else 0),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_all_staff_with_permissions(admin_id):
+    conn = get_db()
+    try:
+        staff = conn.execute(
+            "SELECT id, name, email, role, created_at FROM users WHERE admin_id=%s AND role='admin'",
+            (admin_id,),
+        ).fetchall()
+        result = []
+        for s in staff:
+            rows = conn.execute(
+                "SELECT permission_key, enabled FROM staff_permissions WHERE admin_id=%s AND staff_user_id=%s",
+                (admin_id, s["id"]),
+            ).fetchall()
+            perms = dict(ECOM_DEFAULT_PERMISSIONS)
+            for r in rows:
+                perms[r["permission_key"]] = bool(r["enabled"])
+            result.append({**dict(s), "permissions": perms})
+    finally:
+        conn.close()
+    return result
+
+
+# ── Store Settings CRUD ──
+
+def get_store_settings(admin_id):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM store_settings WHERE admin_id=%s", (admin_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def save_store_settings(admin_id, **kwargs):
+    conn = get_db()
+    existing = conn.execute("SELECT id FROM store_settings WHERE admin_id=%s", (admin_id,)).fetchone()
+    _allowed_cols = {
+        "store_name", "store_logo", "brand_primary_color", "brand_secondary_color",
+        "store_timezone", "store_currency", "currency_format", "default_language",
+        "supported_languages", "store_contact_email", "store_contact_phone",
+        "store_address", "business_hours", "chatbot_name", "chatbot_avatar",
+        "chatbot_tone", "welcome_message", "offline_message",
+        "store_url", "default_shipping_rate", "return_policy", "shipping_zones",
+        "payment_methods", "tax_rate", "free_shipping_threshold",
+        "ecommerce_type", "brand_voice", "bot_name", "target_audience",
+        "cart_add_url",
+        "bundle_enabled", "bundle_min_items", "bundle_discount_pct",
+        "cart_integration_mode",
+        "cart_integration_done",
+    }
+    fields = {k: v for k, v in kwargs.items() if k in _allowed_cols}
+    if existing:
+        if fields:
+            set_clause = ", ".join(f"{k}=%s" for k in fields)
+            values = list(fields.values()) + [admin_id]
+            conn.execute(f"UPDATE store_settings SET {set_clause}, updated_at=CURRENT_TIMESTAMP WHERE admin_id=%s", values)
+    else:
+        cols = ["admin_id"] + list(fields.keys())
+        placeholders = ",".join(["%s"] * len(cols))
+        values = [admin_id] + list(fields.values())
+        conn.execute(f"INSERT INTO store_settings ({','.join(cols)}) VALUES ({placeholders})", values)
+    conn.commit()
+    conn.close()
+
+
+# ── Shipping Zones CRUD ──
+
+def get_shipping_zones(admin_id):
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM shipping_zones WHERE admin_id=%s ORDER BY zone_name", (admin_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def save_shipping_zone(admin_id, zone_id=None, **kwargs):
+    conn = get_db()
+    _allowed = {"zone_name", "countries", "shipping_fee", "free_shipping_threshold", "estimated_days", "is_active"}
+    fields = {k: v for k, v in kwargs.items() if k in _allowed}
+    if zone_id:
+        if fields:
+            set_clause = ", ".join(f"{k}=%s" for k in fields)
+            values = list(fields.values()) + [zone_id, admin_id]
+            conn.execute(f"UPDATE shipping_zones SET {set_clause} WHERE id=%s AND admin_id=%s", values)
+    else:
+        cols = ["admin_id"] + list(fields.keys())
+        placeholders = ",".join(["%s"] * len(cols))
+        values = [admin_id] + list(fields.values())
+        conn.execute(f"INSERT INTO shipping_zones ({','.join(cols)}) VALUES ({placeholders})", values)
+    conn.commit()
+    conn.close()
+
+def delete_shipping_zone(admin_id, zone_id):
+    conn = get_db()
+    conn.execute("DELETE FROM shipping_zones WHERE id=%s AND admin_id=%s", (zone_id, admin_id))
+    conn.commit()
+    conn.close()
+
+
+# ── Store Discounts CRUD ──
+
+def get_store_discounts(admin_id):
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM store_discounts WHERE admin_id=%s ORDER BY created_at DESC", (admin_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def save_store_discount(admin_id, discount_id=None, **kwargs):
+    conn = get_db()
+    _allowed = {"discount_name", "discount_code", "discount_type", "discount_value",
+                "applies_to", "product_ids", "category_names", "min_order_amount",
+                "min_quantity", "start_date", "end_date", "max_uses", "is_active"}
+    fields = {k: v for k, v in kwargs.items() if k in _allowed}
+    if discount_id:
+        if fields:
+            set_clause = ", ".join(f"{k}=%s" for k in fields)
+            values = list(fields.values()) + [discount_id, admin_id]
+            conn.execute(f"UPDATE store_discounts SET {set_clause} WHERE id=%s AND admin_id=%s", values)
+    else:
+        cols = ["admin_id"] + list(fields.keys())
+        placeholders = ",".join(["%s"] * len(cols))
+        values = [admin_id] + list(fields.values())
+        conn.execute(f"INSERT INTO store_discounts ({','.join(cols)}) VALUES ({placeholders})", values)
+    conn.commit()
+    conn.close()
+
+def delete_store_discount(admin_id, discount_id):
+    conn = get_db()
+    conn.execute("DELETE FROM store_discounts WHERE id=%s AND admin_id=%s", (discount_id, admin_id))
+    conn.commit()
+    conn.close()
+
+def increment_discount_usage(discount_id):
+    conn = get_db()
+    conn.execute("UPDATE store_discounts SET current_uses = current_uses + 1 WHERE id=%s", (discount_id,))
+    conn.commit()
+    conn.close()
+
+
+# ── Agency Settings CRUD ──
+
+def get_agency_settings(admin_id):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM agency_settings WHERE admin_id=%s", (admin_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def save_agency_settings(admin_id, **kwargs):
+    conn = get_db()
+    existing = conn.execute("SELECT id FROM agency_settings WHERE admin_id=%s", (admin_id,)).fetchone()
+    fields = {k: v for k, v in kwargs.items()}
+    if existing:
+        if fields:
+            set_clause = ", ".join(f"{k}=%s" for k in fields)
+            values = list(fields.values()) + [admin_id]
+            conn.execute(f"UPDATE agency_settings SET {set_clause}, updated_at=CURRENT_TIMESTAMP WHERE admin_id=%s", values)
+    else:
+        cols = ["admin_id"] + list(fields.keys())
+        placeholders = ",".join(["%s"] * len(cols))
+        values = [admin_id] + list(fields.values())
+        conn.execute(f"INSERT INTO agency_settings ({','.join(cols)}) VALUES ({placeholders})", values)
+    conn.commit()
+    conn.close()
+
+
+# ── Products CRUD ──
+
+def get_products(admin_id, status=None):
+    conn = get_db()
+    if status:
+        rows = conn.execute("SELECT * FROM products WHERE admin_id=%s AND product_status=%s ORDER BY created_at DESC", (admin_id, status)).fetchall()
+    else:
+        rows = conn.execute("SELECT * FROM products WHERE admin_id=%s ORDER BY created_at DESC", (admin_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def get_product_by_id(product_id):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM products WHERE id=%s", (product_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+_PRODUCT_COLUMNS = {
+    "product_id", "product_name", "product_description", "product_short_description",
+    "product_images", "product_price", "compare_at_price", "cost_price",
+    "product_status", "inventory_quantity", "inventory_policy", "low_stock_threshold",
+    "backorder_status", "product_category", "product_subcategory", "product_tags",
+    "product_weight", "product_dimensions", "product_material", "product_brand",
+    "product_rating", "product_review_count", "product_barcode", "product_url",
+    "product_highlights", "product_benefits", "target_customer",
+    "product_specs", "use_cases", "sale_start_date", "sale_end_date",
+    "related_complementary", "related_similar", "search_keywords",
+    "ships_free", "shipping_class", "return_eligibility",
+}
+
+def create_product(admin_id, **kwargs):
+    conn = get_db()
+    try:
+        fields = {k: v for k, v in kwargs.items() if k in _PRODUCT_COLUMNS}
+        cols = ["admin_id"] + list(fields.keys())
+        placeholders = ",".join(["%s"] * len(cols))
+        values = [admin_id] + list(fields.values())
+        cur = conn.execute(f"INSERT INTO products ({','.join(cols)}) VALUES ({placeholders}) RETURNING id", values)
+        pid = cur.fetchone()["id"]
+        # Auto-generate product_id if not provided
+        if not fields.get("product_id"):
+            auto_id = f"PROD-{pid}"
+            conn.execute("UPDATE products SET product_id=%s WHERE id=%s", (auto_id, pid))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return pid
+
+def update_product(product_id, **kwargs):
+    conn = get_db()
+    fields = {k: v for k, v in kwargs.items() if k in _PRODUCT_COLUMNS}
+    if fields:
+        set_clause = ", ".join(f"{k}=%s" for k in fields)
+        values = list(fields.values()) + [product_id]
+        conn.execute(f"UPDATE products SET {set_clause}, updated_at=CURRENT_TIMESTAMP WHERE id=%s", values)
+    conn.commit()
+    conn.close()
+
+def delete_product(product_id):
+    conn = get_db()
+    conn.execute("DELETE FROM product_variants WHERE product_id=%s", (product_id,))
+    conn.execute("DELETE FROM products WHERE id=%s", (product_id,))
+    conn.commit()
+    conn.close()
+
+
+# ── Product Variants CRUD ──
+
+def get_product_variants(product_id):
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM product_variants WHERE product_id=%s ORDER BY id", (product_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+_VARIANT_COLUMNS = {
+    "variant_name", "option_1_name", "option_1_value", "option_2_name",
+    "option_2_value", "option_3_name", "option_3_value", "variant_price",
+    "variant_sku", "variant_inventory_qty", "variant_barcode", "variant_image",
+    "inventory_quantity",
+}
+
+def create_variant(admin_id, product_id, **kwargs):
+    conn = get_db()
+    try:
+        fields = {k: v for k, v in kwargs.items() if k in _VARIANT_COLUMNS}
+        cols = ["admin_id", "product_id"] + list(fields.keys())
+        placeholders = ",".join(["%s"] * len(cols))
+        values = [admin_id, product_id] + list(fields.values())
+        cur = conn.execute(f"INSERT INTO product_variants ({','.join(cols)}) VALUES ({placeholders}) RETURNING id", values)
+        vid = cur.fetchone()["id"]
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return vid
+
+def delete_variant(variant_id):
+    conn = get_db()
+    conn.execute("DELETE FROM product_variants WHERE id=%s", (variant_id,))
+    conn.commit()
+    conn.close()
+
+
+# ── Property Listings CRUD ──
+
+def get_property_listings(admin_id, status=None):
+    conn = get_db()
+    if status:
+        rows = conn.execute("SELECT * FROM property_listings WHERE admin_id=%s AND listing_status=%s ORDER BY created_at DESC", (admin_id, status)).fetchall()
+    else:
+        rows = conn.execute("SELECT * FROM property_listings WHERE admin_id=%s ORDER BY created_at DESC", (admin_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def get_listing_by_id(listing_id):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM property_listings WHERE id=%s", (listing_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+_LISTING_COLUMNS = {
+    "listing_id", "listing_address", "listing_city", "listing_state", "listing_zip",
+    "listing_price", "listing_status", "listing_type", "property_subtype",
+    "bedrooms", "bathrooms", "full_baths", "half_baths", "square_footage",
+    "lot_size", "year_built", "stories", "garage_spaces", "parking_total",
+    "has_pool", "has_fireplace", "has_garage", "has_basement", "has_yard",
+    "has_balcony_deck", "has_waterfront", "has_mountain_view", "pet_friendly",
+    "fenced_yard", "updated_kitchen", "updated_bathrooms", "energy_efficient",
+    "smart_home_features", "accessibility_features", "hoa_fee", "hoa_includes",
+    "property_tax_annual", "tax_rate", "school_district", "elementary_school",
+    "middle_school", "high_school", "walk_score", "transit_score", "bike_score",
+    "nearby_amenities", "listing_photos", "virtual_tour_url", "floor_plan_image",
+    "video_tour_url", "drone_video_url", "property_description", "short_description",
+    "listing_agent_id", "listing_date", "days_on_market", "price_changes",
+    "previous_sale_price",
+}
+
+def create_listing(admin_id, **kwargs):
+    conn = get_db()
+    try:
+        fields = {k: v for k, v in kwargs.items() if k in _LISTING_COLUMNS}
+        cols = ["admin_id"] + list(fields.keys())
+        placeholders = ",".join(["%s"] * len(cols))
+        values = [admin_id] + list(fields.values())
+        cur = conn.execute(f"INSERT INTO property_listings ({','.join(cols)}) VALUES ({placeholders}) RETURNING id", values)
+        lid = cur.fetchone()["id"]
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return lid
+
+def update_listing(listing_id, **kwargs):
+    conn = get_db()
+    try:
+        fields = {k: v for k, v in kwargs.items() if k in _LISTING_COLUMNS}
+        if fields:
+            set_clause = ", ".join(f"{k}=%s" for k in fields)
+            values = list(fields.values()) + [listing_id]
+            conn.execute(f"UPDATE property_listings SET {set_clause}, updated_at=CURRENT_TIMESTAMP WHERE id=%s", values)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+def delete_listing(listing_id):
+    conn = get_db()
+    conn.execute("DELETE FROM property_listings WHERE id=%s", (listing_id,))
+    conn.commit()
+    conn.close()
+
+
+# ── RE Agents CRUD ──
+
+def get_re_agents(admin_id):
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM re_agents WHERE admin_id=%s ORDER BY first_name", (admin_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def get_re_agent_by_id(agent_id):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM re_agents WHERE id=%s", (agent_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def create_re_agent(admin_id, **kwargs):
+    conn = get_db()
+    fields = {k: v for k, v in kwargs.items()}
+    cols = ["admin_id"] + list(fields.keys())
+    placeholders = ",".join(["%s"] * len(cols))
+    values = [admin_id] + list(fields.values())
+    cur = conn.execute(f"INSERT INTO re_agents ({','.join(cols)}) VALUES ({placeholders}) RETURNING id", values)
+    aid = cur.fetchone()["id"]
+    conn.commit()
+    conn.close()
+    return aid
+
+def update_re_agent(agent_id, **kwargs):
+    conn = get_db()
+    fields = {k: v for k, v in kwargs.items()}
+    if fields:
+        set_clause = ", ".join(f"{k}=%s" for k in fields)
+        values = list(fields.values()) + [agent_id]
+        conn.execute(f"UPDATE re_agents SET {set_clause} WHERE id=%s", values)
+    conn.commit()
+    conn.close()
+
+def delete_re_agent(agent_id):
+    conn = get_db()
+    conn.execute("DELETE FROM re_agents WHERE id=%s", (agent_id,))
+    conn.commit()
+    conn.close()
+
+
+# ── RE Leads CRUD ──
+
+def get_re_leads(admin_id, status=None):
+    conn = get_db()
+    if status:
+        rows = conn.execute("SELECT * FROM re_leads WHERE admin_id=%s AND lead_status=%s ORDER BY created_at DESC", (admin_id, status)).fetchall()
+    else:
+        rows = conn.execute("SELECT * FROM re_leads WHERE admin_id=%s ORDER BY created_at DESC", (admin_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def create_re_lead(admin_id, **kwargs):
+    conn = get_db()
+    fields = {k: v for k, v in kwargs.items()}
+    cols = ["admin_id"] + list(fields.keys())
+    placeholders = ",".join(["%s"] * len(cols))
+    values = [admin_id] + list(fields.values())
+    cur = conn.execute(f"INSERT INTO re_leads ({','.join(cols)}) VALUES ({placeholders}) RETURNING id", values)
+    lid = cur.fetchone()["id"]
+    conn.commit()
+    conn.close()
+    return lid
+
+def update_re_lead(lead_id, **kwargs):
+    conn = get_db()
+    fields = {k: v for k, v in kwargs.items()}
+    if fields:
+        set_clause = ", ".join(f"{k}=%s" for k in fields)
+        values = list(fields.values()) + [lead_id]
+        conn.execute(f"UPDATE re_leads SET {set_clause}, updated_at=CURRENT_TIMESTAMP WHERE id=%s", values)
+    conn.commit()
+    conn.close()
+
+
+# ── Abandoned Carts CRUD ──
+
+def get_abandoned_carts(admin_id, status=None):
+    conn = get_db()
+    if status:
+        rows = conn.execute("SELECT * FROM abandoned_carts WHERE admin_id=%s AND recovery_status=%s ORDER BY abandoned_at DESC", (admin_id, status)).fetchall()
+    else:
+        rows = conn.execute("SELECT * FROM abandoned_carts WHERE admin_id=%s ORDER BY abandoned_at DESC", (admin_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+_ABANDONED_CART_COLUMNS = {
+    "session_id", "customer_name", "customer_email", "customer_phone",
+    "cart_items", "cart_total", "recovery_status", "recovery_messages_sent",
+    "discount_code_sent", "recovered_at", "recovered_order_id", "last_followup_at"
+}
+
+def create_abandoned_cart(admin_id, **kwargs):
+    conn = get_db()
+    try:
+        fields = {k: v for k, v in kwargs.items() if k in _ABANDONED_CART_COLUMNS}
+        cols = ["admin_id"] + list(fields.keys())
+        placeholders = ",".join(["%s"] * len(cols))
+        values = [admin_id] + list(fields.values())
+        cur = conn.execute(f"INSERT INTO abandoned_carts ({','.join(cols)}) VALUES ({placeholders}) RETURNING id", values)
+        cid = cur.fetchone()["id"]
+        conn.commit()
+    finally:
+        conn.close()
+    return cid
+
+
+# ── Predictive Replenishment & Zero-Party Data CRUD ──
+
+def record_purchase(admin_id, customer_key, product_id, product_name, product_category="", quantity=1):
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO purchase_history (admin_id, customer_key, product_id, product_name, product_category, quantity)
+           VALUES (%s, %s, %s, %s, %s, %s)""",
+        (admin_id, customer_key, product_id, product_name, product_category, quantity)
+    )
+    conn.commit()
+    conn.close()
+
+def get_purchase_history(admin_id, customer_key):
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM purchase_history WHERE admin_id=%s AND customer_key=%s ORDER BY purchased_at DESC",
+        (admin_id, customer_key)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def get_replenishment_candidates(admin_id, customer_key):
+    """Find products the customer bought before where the avg reorder interval has passed."""
+    conn = get_db()
+    rows = conn.execute(
+        """SELECT product_id, product_name, product_category,
+                  array_agg(purchased_at ORDER BY purchased_at) as purchase_dates,
+                  COUNT(*) as purchase_count
+           FROM purchase_history
+           WHERE admin_id=%s AND customer_key=%s
+           GROUP BY product_id, product_name, product_category
+           HAVING COUNT(*) >= 2""",
+        (admin_id, customer_key)
+    ).fetchall()
+    conn.close()
+
+    from datetime import datetime, timedelta
+    now = datetime.now()
+    candidates = []
+    for r in rows:
+        row = dict(r)
+        dates = row["purchase_dates"]
+        if not dates or len(dates) < 2:
+            continue
+        # Calculate avg days between orders
+        sorted_dates = sorted(dates)
+        gaps = []
+        for i in range(1, len(sorted_dates)):
+            gap = (sorted_dates[i] - sorted_dates[i - 1]).total_seconds() / 86400
+            if gap > 0:
+                gaps.append(gap)
+        if not gaps:
+            continue
+        avg_days = sum(gaps) / len(gaps)
+        last_purchase = sorted_dates[-1]
+        days_since = (now - last_purchase).total_seconds() / 86400
+        # If current date > last purchase + avg_days * 0.9 then it's a candidate
+        if days_since >= avg_days * 0.9:
+            candidates.append({
+                "product_id": row["product_id"],
+                "product_name": row["product_name"],
+                "product_category": row["product_category"],
+                "avg_days": avg_days,
+                "days_since": round(days_since, 1),
+                "purchase_count": row["purchase_count"],
+                "last_purchase": str(last_purchase),
+            })
+    return candidates
+
+def save_replenishment_prediction(admin_id, customer_key, product_id, product_name, predicted_date, avg_days, confidence=0.5):
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO replenishment_predictions
+           (admin_id, customer_key, product_id, product_name, predicted_reorder_date, avg_days_between_orders, confidence)
+           VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+        (admin_id, customer_key, product_id, product_name, predicted_date, avg_days, confidence)
+    )
+    conn.commit()
+    conn.close()
+
+def mark_replenishment_notified(prediction_id):
+    conn = get_db()
+    conn.execute(
+        "UPDATE replenishment_predictions SET notified=TRUE, notified_at=CURRENT_TIMESTAMP WHERE id=%s",
+        (prediction_id,)
+    )
+    conn.commit()
+    conn.close()
+
+def save_customer_preference(admin_id, customer_key, preference_type, preference_key, preference_value, source="chat"):
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO customer_preferences (admin_id, customer_key, preference_type, preference_key, preference_value, source)
+           VALUES (%s, %s, %s, %s, %s, %s)
+           ON CONFLICT (admin_id, customer_key, preference_type, preference_key)
+           DO UPDATE SET preference_value=%s, source=%s, collected_at=CURRENT_TIMESTAMP""",
+        (admin_id, customer_key, preference_type, preference_key, preference_value, source,
+         preference_value, source)
+    )
+    conn.commit()
+    conn.close()
+
+def get_customer_preferences(admin_id, customer_key):
+    """Returns dict grouped by preference_type."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM customer_preferences WHERE admin_id=%s AND customer_key=%s ORDER BY preference_type, collected_at DESC",
+        (admin_id, customer_key)
+    ).fetchall()
+    conn.close()
+    grouped = {}
+    for r in rows:
+        row = dict(r)
+        ptype = row["preference_type"]
+        if ptype not in grouped:
+            grouped[ptype] = []
+        grouped[ptype].append({
+            "key": row["preference_key"],
+            "value": row["preference_value"],
+            "source": row["source"],
+            "collected_at": str(row["collected_at"]),
+        })
+    return grouped
+
+def get_all_preference_insights(admin_id):
+    """Aggregated preference data for merchandising decisions."""
+    conn = get_db()
+    rows = conn.execute(
+        """SELECT preference_type, preference_key, preference_value, COUNT(*) as cnt
+           FROM customer_preferences
+           WHERE admin_id=%s
+           GROUP BY preference_type, preference_key, preference_value
+           ORDER BY preference_type, cnt DESC""",
+        (admin_id,)
+    ).fetchall()
+    total_customers_row = conn.execute(
+        "SELECT COUNT(DISTINCT customer_key) as total FROM customer_preferences WHERE admin_id=%s",
+        (admin_id,)
+    ).fetchone()
+    conn.close()
+
+    total_customers = total_customers_row["total"] if total_customers_row else 0
+    insights = {}
+    for r in rows:
+        row = dict(r)
+        ptype = row["preference_type"]
+        if ptype not in insights:
+            insights[ptype] = []
+        pct = round(row["cnt"] / total_customers * 100, 1) if total_customers > 0 else 0
+        insights[ptype].append({
+            "key": row["preference_key"],
+            "value": row["preference_value"],
+            "count": row["cnt"],
+            "percentage": pct,
+        })
+    return {"total_customers": total_customers, "insights": insights}
+
+
+# ── Qualification Flows CRUD ──
+
+def get_qualification_flows(admin_id):
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM qualification_flows WHERE admin_id=%s ORDER BY created_at DESC", (admin_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def get_qualification_questions(flow_id):
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM qualification_questions WHERE flow_id=%s ORDER BY question_order", (flow_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+# ── Cart Recovery Settings CRUD ──
+
+def get_cart_recovery_settings(admin_id):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM cart_recovery_settings WHERE admin_id=%s", (admin_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+_CART_RECOVERY_SETTINGS_COLUMNS = {
+    "cart_recovery_enabled", "exit_intent_trigger", "exit_intent_delay",
+    "scroll_up_trigger", "time_on_page_trigger", "cart_value_minimum", "cart_value_maximum",
+    "mobile_swipe_up_trigger", "tab_switch_trigger",
+    "recovery_message_1", "recovery_message_1_delay",
+    "recovery_message_2", "recovery_message_2_delay",
+    "recovery_message_3", "recovery_message_3_delay",
+    "discount_enabled", "discount_type", "discount_value",
+    "discount_minimum_cart_value", "discount_maximum_cap",
+    "discount_code_prefix", "single_use_codes",
+    "urgency_timer_enabled", "urgency_timer_duration",
+    "email_followup_enabled", "email_1_timing", "email_1_template",
+    "email_2_timing", "email_2_template", "email_3_timing", "email_3_template",
+    "sms_followup_enabled", "sms_timing", "sms_template",
+    "whatsapp_enabled", "whatsapp_timing", "whatsapp_template"
+}
+
+def save_cart_recovery_settings(admin_id, **kwargs):
+    conn = get_db()
+    try:
+        existing = conn.execute("SELECT id FROM cart_recovery_settings WHERE admin_id=%s", (admin_id,)).fetchone()
+        fields = {k: v for k, v in kwargs.items() if k in _CART_RECOVERY_SETTINGS_COLUMNS}
+        if existing:
+            if fields:
+                set_clause = ", ".join(f"{k}=%s" for k in fields)
+                values = list(fields.values()) + [admin_id]
+                conn.execute(f"UPDATE cart_recovery_settings SET {set_clause}, updated_at=CURRENT_TIMESTAMP WHERE admin_id=%s", values)
+        else:
+            cols = ["admin_id"] + list(fields.keys())
+            placeholders = ",".join(["%s"] * len(cols))
+            values = [admin_id] + list(fields.values())
+            conn.execute(f"INSERT INTO cart_recovery_settings ({','.join(cols)}) VALUES ({placeholders})", values)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# ── RE Showings CRUD ──
+
+def get_re_showings(admin_id, status=None):
+    conn = get_db()
+    if status:
+        rows = conn.execute("SELECT s.*, l.listing_address, l.listing_price FROM re_showings s LEFT JOIN property_listings l ON s.listing_id=l.id WHERE s.admin_id=%s AND s.showing_status=%s ORDER BY s.showing_date, s.showing_time", (admin_id, status)).fetchall()
+    else:
+        rows = conn.execute("SELECT s.*, l.listing_address, l.listing_price FROM re_showings s LEFT JOIN property_listings l ON s.listing_id=l.id WHERE s.admin_id=%s ORDER BY s.showing_date DESC, s.showing_time", (admin_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+def create_re_showing(admin_id, **kwargs):
+    conn = get_db()
+    fields = {k: v for k, v in kwargs.items()}
+    cols = ["admin_id"] + list(fields.keys())
+    placeholders = ",".join(["%s"] * len(cols))
+    values = [admin_id] + list(fields.values())
+    cur = conn.execute(f"INSERT INTO re_showings ({','.join(cols)}) VALUES ({placeholders}) RETURNING id", values)
+    sid = cur.fetchone()["id"]
+    conn.commit()
+    conn.close()
+    return sid
+
+
+# ── E-commerce Orders CRUD ──
+
+def get_ecom_order(admin_id, order_number):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM ecom_orders WHERE admin_id=%s AND UPPER(order_number)=UPPER(%s)", (admin_id, order_number)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def get_ecom_orders(admin_id, status=None):
+    conn = get_db()
+    if status:
+        rows = conn.execute("SELECT * FROM ecom_orders WHERE admin_id=%s AND order_status=%s ORDER BY created_at DESC", (admin_id, status)).fetchall()
+    else:
+        rows = conn.execute("SELECT * FROM ecom_orders WHERE admin_id=%s ORDER BY created_at DESC", (admin_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+_ECOM_ORDER_COLUMNS = {
+    "order_number", "customer_name", "customer_email", "customer_phone",
+    "order_status", "order_total", "subtotal", "tax_amount", "shipping_cost",
+    "discount_amount", "discount_code", "items_json", "shipping_address",
+    "shipping_method", "tracking_number", "carrier", "estimated_delivery",
+    "payment_method", "payment_status", "notes",
+}
+
+def create_ecom_order(admin_id, **kwargs):
+    conn = get_db()
+    try:
+        fields = {k: v for k, v in kwargs.items() if k in _ECOM_ORDER_COLUMNS}
+        cols = ["admin_id"] + list(fields.keys())
+        placeholders = ",".join(["%s"] * len(cols))
+        values = [admin_id] + list(fields.values())
+        cur = conn.execute(f"INSERT INTO ecom_orders ({','.join(cols)}) VALUES ({placeholders}) RETURNING id", values)
+        oid = cur.fetchone()["id"]
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return oid
+
+def update_ecom_order(order_id, admin_id=None, **kwargs):
+    conn = get_db()
+    try:
+        fields = {k: v for k, v in kwargs.items() if k in _ECOM_ORDER_COLUMNS}
+        if fields:
+            set_clause = ", ".join(f"{k}=%s" for k in fields)
+            if admin_id:
+                values = list(fields.values()) + [order_id, admin_id]
+                conn.execute(f"UPDATE ecom_orders SET {set_clause}, updated_at=CURRENT_TIMESTAMP WHERE id=%s AND admin_id=%s", values)
+            else:
+                values = list(fields.values()) + [order_id]
+                conn.execute(f"UPDATE ecom_orders SET {set_clause}, updated_at=CURRENT_TIMESTAMP WHERE id=%s", values)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+# ── E-commerce Customer CRUD ──
+
+def upsert_ecom_customer(admin_id, email, name="", phone="", order_total=0):
+    """Create or update a customer record. Increments order count and totals on each call."""
+    if not email:
+        return None
+    email = email.strip().lower()
+    conn = get_db()
+    try:
+        existing = conn.execute(
+            "SELECT id, total_orders, total_spent FROM ecom_customers WHERE admin_id=%s AND LOWER(customer_email)=%s",
+            (admin_id, email)
+        ).fetchone()
+        if existing:
+            new_orders = (existing["total_orders"] or 0) + 1
+            new_spent = float(existing["total_spent"] or 0) + float(order_total or 0)
+            new_aov = new_spent / new_orders if new_orders > 0 else 0
+            updates = {
+                "total_orders": new_orders,
+                "total_spent": round(new_spent, 2),
+                "avg_order_value": round(new_aov, 2),
+                "last_purchase_at": "CURRENT_TIMESTAMP",
+            }
+            if name:
+                updates["customer_name"] = name
+            if phone:
+                updates["customer_phone"] = phone
+            # Build SET clause — handle CURRENT_TIMESTAMP specially
+            parts = []
+            vals = []
+            for k, v in updates.items():
+                if v == "CURRENT_TIMESTAMP":
+                    parts.append(f"{k}=CURRENT_TIMESTAMP")
+                else:
+                    parts.append(f"{k}=%s")
+                    vals.append(v)
+            vals.append(existing["id"])
+            conn.execute(f"UPDATE ecom_customers SET {', '.join(parts)} WHERE id=%s", vals)
+            conn.commit()
+            return existing["id"]
+        else:
+            aov = round(float(order_total or 0), 2)
+            cur = conn.execute(
+                """INSERT INTO ecom_customers
+                   (admin_id, customer_email, customer_name, customer_phone,
+                    total_orders, total_spent, avg_order_value, first_purchase_at, last_purchase_at)
+                   VALUES (%s, %s, %s, %s, 1, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                   RETURNING id""",
+                (admin_id, email, name or "", phone or "", aov, aov)
+            )
+            cid = cur.fetchone()["id"]
+            conn.commit()
+            return cid
+    finally:
+        conn.close()
+
+
+def get_ecom_customer_by_email(admin_id, email):
+    if not email:
+        return None
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM ecom_customers WHERE admin_id=%s AND LOWER(customer_email)=LOWER(%s)",
+            (admin_id, email.strip().lower())
+        ).fetchone()
+    finally:
+        conn.close()
+    return dict(row) if row else None
+
+
+def get_ecom_orders_by_customer(admin_id, email):
+    """Get all orders for a customer by email, newest first."""
+    if not email:
+        return []
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM ecom_orders WHERE admin_id=%s AND LOWER(customer_email)=LOWER(%s) ORDER BY created_at DESC",
+            (admin_id, email.strip().lower())
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_ecom_order_by_id(order_id, admin_id=None):
+    conn = get_db()
+    try:
+        if admin_id:
+            row = conn.execute("SELECT * FROM ecom_orders WHERE id=%s AND admin_id=%s", (order_id, admin_id)).fetchone()
+        else:
+            row = conn.execute("SELECT * FROM ecom_orders WHERE id=%s", (order_id,)).fetchone()
+    finally:
+        conn.close()
+    return dict(row) if row else None
+
+
+def get_delivered_orders_for_review(admin_id, customer_email):
+    """Get orders delivered 5+ days ago that haven't been reviewed yet."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT o.* FROM ecom_orders o
+               WHERE o.admin_id=%s AND LOWER(o.customer_email)=LOWER(%s)
+               AND o.order_status='delivered'
+               AND o.updated_at <= CURRENT_TIMESTAMP - INTERVAL '5 days'
+               AND NOT EXISTS (
+                   SELECT 1 FROM review_prompts rp
+                   WHERE rp.order_id=o.id AND rp.review_submitted=TRUE
+               )
+               ORDER BY o.updated_at DESC LIMIT 3""",
+            (admin_id, customer_email.strip().lower())
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+def has_review_prompt_been_sent(admin_id, order_id):
+    """Check if a review prompt was already sent for this order."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT id FROM review_prompts WHERE admin_id=%s AND order_id=%s",
+            (admin_id, order_id)
+        ).fetchone()
+    finally:
+        conn.close()
+    return row is not None
+
+
+def record_review_prompt(admin_id, order_id, customer_email):
+    """Record that a review prompt was sent for an order."""
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT INTO review_prompts (admin_id, order_id, customer_email) VALUES (%s, %s, %s)",
+            (admin_id, order_id, customer_email)
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+    finally:
+        conn.close()
+
+
+def submit_product_review(admin_id, order_id, order_number, product_name, customer_email,
+                          customer_name, rating, review_text="", incentive_code="", product_id=0):
+    """Submit a product review from the chatbot."""
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO product_reviews
+               (admin_id, order_id, order_number, product_id, product_name, customer_email,
+                customer_name, rating, review_text, status, review_source, incentive_code)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'published', 'chatbot', %s)""",
+            (admin_id, order_id, order_number, product_id, product_name,
+             customer_email, customer_name, rating, review_text, incentive_code)
+        )
+        # Mark review as submitted in prompts table
+        conn.execute(
+            "UPDATE review_prompts SET review_submitted=TRUE WHERE admin_id=%s AND order_id=%s",
+            (admin_id, order_id)
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+def get_product_reviews(admin_id, product_id=None, limit=20):
+    """Get product reviews, optionally filtered by product."""
+    conn = get_db()
+    try:
+        if product_id:
+            rows = conn.execute(
+                "SELECT * FROM product_reviews WHERE admin_id=%s AND product_id=%s AND status='published' ORDER BY created_at DESC LIMIT %s",
+                (admin_id, product_id, limit)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM product_reviews WHERE admin_id=%s AND status='published' ORDER BY created_at DESC LIMIT %s",
+                (admin_id, limit)
+            ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_product_review_stats(admin_id, product_id=None):
+    """Get review statistics for a product or all products."""
+    conn = get_db()
+    try:
+        where = "WHERE admin_id=%s AND status='published'"
+        params = [admin_id]
+        if product_id:
+            where += " AND product_id=%s"
+            params.append(product_id)
+        row = conn.execute(
+            f"SELECT COUNT(*) as total, COALESCE(AVG(rating),0) as avg_rating FROM product_reviews {where}",
+            params
+        ).fetchone()
+    finally:
+        conn.close()
+    return {"total": row["total"], "avg_rating": round(float(row["avg_rating"]), 1)}
+
+
+# ── Stripe Integration Helpers ──
+
+def save_stripe_keys(admin_id, publishable_key, secret_key, webhook_secret=""):
+    """Store or update Stripe API keys in ecom_integrations table.
+    Uses dedicated payment_ columns to avoid overwriting Shopify/WooCommerce credentials."""
+    conn = get_db()
+    try:
+        existing = conn.execute(
+            "SELECT id FROM ecom_integrations WHERE admin_id=%s", (admin_id,)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                """UPDATE ecom_integrations
+                   SET payment_gateway='stripe', payment_api_key=%s,
+                       payment_publishable_key=%s, payment_webhook_secret=%s
+                   WHERE admin_id=%s""",
+                (secret_key, publishable_key, webhook_secret, admin_id)
+            )
+        else:
+            conn.execute(
+                """INSERT INTO ecom_integrations
+                   (admin_id, payment_gateway, payment_api_key, payment_publishable_key, payment_webhook_secret)
+                   VALUES (%s, 'stripe', %s, %s, %s)""",
+                (admin_id, secret_key, publishable_key, webhook_secret)
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+def get_stripe_keys(admin_id):
+    """Retrieve Stripe API keys for an admin. Returns dict or None."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT payment_api_key, payment_publishable_key, payment_webhook_secret FROM ecom_integrations WHERE admin_id=%s AND payment_gateway='stripe'",
+            (admin_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return None
+    return {
+        "publishable_key": row.get("payment_publishable_key", "") or "",
+        "secret_key": row["payment_api_key"] or "",
+        "webhook_secret": row.get("payment_webhook_secret", "") or "",
+    }
+
+
+# ── Ecom Integration CRUD (Shopify / WooCommerce / Generic) ──
+
+def save_ecom_integration(admin_id, platform, **kwargs):
+    """Upsert ecom integration config for a given platform.
+    Only updates columns relevant to the specified platform to avoid overwriting
+    other platforms' credentials."""
+    conn = get_db()
+    try:
+        field_map = {
+            "store_url": "platform_store_url",
+            "api_key": "platform_api_key",
+            "api_secret": "platform_api_secret",
+            "api_token": "platform_api_key",
+            "consumer_key": "platform_api_key",
+            "consumer_secret": "platform_api_secret",
+            "webhook_url": "webhook_url",
+            "storefront_url": "storefront_url",
+        }
+
+        mapped = {"ecommerce_platform": platform}
+        for k, v in kwargs.items():
+            col = field_map.get(k)
+            if col:
+                mapped[col] = v
+
+        cols = list(mapped.keys())
+        vals = list(mapped.values())
+        set_clause = ", ".join(f"{c}=EXCLUDED.{c}" for c in cols)
+        placeholders = ", ".join(["%s"] * (len(vals) + 1))
+        all_cols = ["admin_id"] + cols
+
+        conn.execute(
+            f"""INSERT INTO ecom_integrations ({', '.join(all_cols)}) VALUES ({placeholders})
+                ON CONFLICT (admin_id) DO UPDATE SET {set_clause}""",
+            [admin_id] + vals
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+def get_ecom_integration(admin_id):
+    """Get ecom integration config for an admin."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM ecom_integrations WHERE admin_id=%s", (admin_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+    return dict(row) if row else None
+
+
+def create_stripe_checkout(admin_id, session_id, stripe_session_id="", customer_email="",
+                           cart_items="", cart_total=0, currency="usd", checkout_url=""):
+    """Create a Stripe checkout session record."""
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO stripe_checkout_sessions
+               (admin_id, session_id, stripe_session_id, customer_email, cart_items, cart_total, currency, checkout_url)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (admin_id, session_id, stripe_session_id, customer_email, cart_items, cart_total, currency, checkout_url)
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+def get_stripe_checkout(stripe_session_id):
+    """Retrieve a Stripe checkout session record by its Stripe session ID."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM stripe_checkout_sessions WHERE stripe_session_id=%s",
+            (stripe_session_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+    return dict(row) if row else None
+
+
+def update_stripe_checkout_status(stripe_session_id, status, payment_intent=""):
+    """Update the status of a Stripe checkout session."""
+    conn = get_db()
+    try:
+        if status == "completed":
+            conn.execute(
+                "UPDATE stripe_checkout_sessions SET status=%s, stripe_payment_intent=%s, completed_at=CURRENT_TIMESTAMP WHERE stripe_session_id=%s",
+                (status, payment_intent, stripe_session_id)
+            )
+        else:
+            conn.execute(
+                "UPDATE stripe_checkout_sessions SET status=%s WHERE stripe_session_id=%s",
+                (status, stripe_session_id)
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+def update_stripe_checkout_failure(stripe_session_id, failure_reason="", failure_code=""):
+    """Record a payment failure on a stripe checkout session."""
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE stripe_checkout_sessions SET status='failed', failure_reason=%s, failure_code=%s WHERE stripe_session_id=%s",
+            (failure_reason, failure_code, stripe_session_id)
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+def get_stripe_checkout_by_session(session_id):
+    """Get the most recent stripe checkout for a chatbot session_id."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM stripe_checkout_sessions WHERE session_id=%s ORDER BY created_at DESC LIMIT 1",
+            (session_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+    return dict(row) if row else None
+
+
+# ── Conversation Quality CRUD ──
+
+def save_conversation_quality(admin_id, session_id, quality_score, metrics, escalated=False, converted=False):
+    """Save conversation quality score and metrics."""
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO conversation_quality
+               (admin_id, session_id, quality_score, engagement_score, avg_frustration,
+                frustration_trend, resolution_score, max_buying_intent, total_messages,
+                escalated, converted)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (admin_id, session_id, quality_score,
+             metrics.get("engagement_score", 0),
+             metrics.get("avg_frustration", 0),
+             metrics.get("frustration_trend", "stable"),
+             metrics.get("resolution_score", 0),
+             metrics.get("max_buying_intent", 0),
+             metrics.get("total_messages", 0),
+             escalated, converted)
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+    finally:
+        conn.close()
+
+
+def get_conversation_quality_stats(admin_id, days=30):
+    """Returns avg quality score, total conversations, escalation rate, conversion rate, avg frustration."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            """SELECT
+                COUNT(*) as total_conversations,
+                COALESCE(AVG(quality_score), 0) as avg_quality_score,
+                COALESCE(AVG(avg_frustration), 0) as avg_frustration,
+                COALESCE(SUM(CASE WHEN escalated THEN 1 ELSE 0 END), 0) as escalated_count,
+                COALESCE(SUM(CASE WHEN converted THEN 1 ELSE 0 END), 0) as converted_count,
+                COALESCE(AVG(engagement_score), 0) as avg_engagement,
+                COALESCE(AVG(resolution_score), 0) as avg_resolution,
+                COALESCE(AVG(max_buying_intent), 0) as avg_buying_intent,
+                COALESCE(AVG(total_messages), 0) as avg_messages
+            FROM conversation_quality
+            WHERE admin_id=%s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '%s days'""",
+            (admin_id, days)
+        ).fetchone()
+    finally:
+        conn.close()
+    if not row or row["total_conversations"] == 0:
+        return {
+            "total_conversations": 0,
+            "avg_quality_score": 0,
+            "avg_frustration": 0,
+            "escalation_rate": 0,
+            "conversion_rate": 0,
+            "avg_engagement": 0,
+            "avg_resolution": 0,
+            "avg_buying_intent": 0,
+            "avg_messages": 0,
+        }
+    total = row["total_conversations"]
+    return {
+        "total_conversations": total,
+        "avg_quality_score": round(float(row["avg_quality_score"]), 1),
+        "avg_frustration": round(float(row["avg_frustration"]), 1),
+        "escalation_rate": round(float(row["escalated_count"]) / total * 100, 1),
+        "conversion_rate": round(float(row["converted_count"]) / total * 100, 1),
+        "avg_engagement": round(float(row["avg_engagement"]), 1),
+        "avg_resolution": round(float(row["avg_resolution"]), 1),
+        "avg_buying_intent": round(float(row["avg_buying_intent"]), 1),
+        "avg_messages": round(float(row["avg_messages"]), 1),
+    }
+
+
+def get_conversation_quality_list(admin_id, days=30, limit=50):
+    """Returns recent conversation quality records for analytics."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT * FROM conversation_quality
+            WHERE admin_id=%s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '%s days'
+            ORDER BY created_at DESC LIMIT %s""",
+            (admin_id, days, limit)
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_knowledge_base(admin_id, category=None):
+    """Get all knowledge base entries for an admin."""
+    conn = get_db()
+    try:
+        if category:
+            rows = conn.execute(
+                "SELECT * FROM ai_knowledge_base WHERE admin_id=%s AND is_active=TRUE AND category=%s ORDER BY created_at DESC",
+                (admin_id, category)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM ai_knowledge_base WHERE admin_id=%s AND is_active=TRUE ORDER BY created_at DESC",
+                (admin_id,)
+            ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+def add_knowledge_entry(admin_id, question, answer, category="general", keywords="", entry_type="qa", source="manual"):
+    """Add a Q&A pair or document to the knowledge base."""
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO ai_knowledge_base (admin_id, entry_type, question, answer, category, keywords, source)
+               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+            (admin_id, entry_type, question, answer, category, keywords, source)
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+def update_knowledge_entry(entry_id, admin_id, **kwargs):
+    """Update a knowledge base entry."""
+    allowed = {"question", "answer", "category", "keywords", "is_active", "entry_type"}
+    updates = {k: v for k, v in kwargs.items() if k in allowed}
+    if not updates:
+        return
+    conn = get_db()
+    try:
+        set_clause = ", ".join(f"{k}=%s" for k in updates)
+        values = list(updates.values()) + [entry_id, admin_id]
+        conn.execute(
+            f"UPDATE ai_knowledge_base SET {set_clause}, updated_at=CURRENT_TIMESTAMP WHERE id=%s AND admin_id=%s",
+            values
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def delete_knowledge_entry(entry_id, admin_id):
+    """Delete a knowledge base entry."""
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM ai_knowledge_base WHERE id=%s AND admin_id=%s", (entry_id, admin_id))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+    finally:
+        conn.close()
+
+
+def search_knowledge_base(admin_id, query):
+    """Search knowledge base by keyword matching."""
+    conn = get_db()
+    try:
+        query_lower = query.lower().strip()
+        rows = conn.execute(
+            "SELECT * FROM ai_knowledge_base WHERE admin_id=%s AND is_active=TRUE",
+            (admin_id,)
+        ).fetchall()
+    finally:
+        conn.close()
+
+    results = []
+    for r in rows:
+        score = 0
+        q = (r["question"] or "").lower()
+        a = (r["answer"] or "").lower()
+        kw = (r["keywords"] or "").lower()
+        for word in query_lower.split():
+            if len(word) < 2:
+                continue
+            if word in q: score += 3
+            if word in kw: score += 2
+            if word in a: score += 1
+        if score > 0:
+            results.append((score, dict(r)))
+    results.sort(key=lambda x: -x[0])
+    return [r for _, r in results[:5]]
+
+
+def get_guardrails(admin_id):
+    """Get all active guardrails for an admin."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM ai_guardrails WHERE admin_id=%s AND is_active=TRUE ORDER BY created_at DESC",
+            (admin_id,)
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+def add_guardrail(admin_id, rule_type, rule_value, replacement_response=""):
+    """Add a guardrail rule."""
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT INTO ai_guardrails (admin_id, rule_type, rule_value, replacement_response) VALUES (%s, %s, %s, %s)",
+            (admin_id, rule_type, rule_value, replacement_response)
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+def delete_guardrail(guardrail_id, admin_id):
+    """Delete a guardrail rule."""
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM ai_guardrails WHERE id=%s AND admin_id=%s", (guardrail_id, admin_id))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+    finally:
+        conn.close()
+
+
+def record_product_view(admin_id, session_id, product_id, product_name, product_price=0,
+                        product_image="", customer_email=""):
+    """Record a product view for browse recovery."""
+    conn = get_db()
+    try:
+        # Don't duplicate if same product viewed in same session recently
+        existing = conn.execute(
+            """SELECT id FROM browse_history
+               WHERE admin_id=%s AND session_id=%s AND product_id=%s
+               AND viewed_at > CURRENT_TIMESTAMP - INTERVAL '1 hour'""",
+            (admin_id, session_id, product_id)
+        ).fetchone()
+        if not existing:
+            conn.execute(
+                """INSERT INTO browse_history (admin_id, session_id, customer_email, product_id,
+                   product_name, product_price, product_image)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+                (admin_id, session_id, customer_email, product_id, product_name, product_price, product_image)
+            )
+            conn.commit()
+    except Exception:
+        conn.rollback()
+    finally:
+        conn.close()
+
+
+def get_abandoned_browses(admin_id, hours_ago=24, limit=50):
+    """Get browse sessions with views but no purchase, older than hours_ago."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT bh.customer_email, bh.session_id,
+                      array_agg(DISTINCT bh.product_name) as products,
+                      MAX(bh.viewed_at) as last_viewed
+               FROM browse_history bh
+               WHERE bh.admin_id=%s
+               AND bh.customer_email != ''
+               AND bh.recovery_sent = FALSE
+               AND bh.viewed_at < CURRENT_TIMESTAMP - INTERVAL '%s hours'
+               AND bh.viewed_at > CURRENT_TIMESTAMP - INTERVAL '7 days'
+               AND NOT EXISTS (
+                   SELECT 1 FROM ecom_orders o
+                   WHERE o.admin_id=bh.admin_id AND LOWER(o.customer_email)=LOWER(bh.customer_email)
+                   AND o.created_at > bh.viewed_at
+               )
+               GROUP BY bh.customer_email, bh.session_id
+               LIMIT %s""",
+            (admin_id, hours_ago, limit)
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+def mark_browse_recovery_sent(admin_id, session_id):
+    """Mark browse recovery emails as sent for a session."""
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE browse_history SET recovery_sent=TRUE, recovery_sent_at=CURRENT_TIMESTAMP WHERE admin_id=%s AND session_id=%s",
+            (admin_id, session_id)
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+    finally:
+        conn.close()
+
+
+def save_conversation_topic(admin_id, session_id, topic, subtopic="", sentiment="neutral", intent=""):
+    """Record a conversation topic for insights tracking."""
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO conversation_topics (admin_id, session_id, topic, subtopic, sentiment, intent)
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (admin_id, session_id, topic, subtopic, sentiment, intent)
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+    finally:
+        conn.close()
+
+
+def get_trending_topics(admin_id, days=30, limit=10):
+    """Get most common conversation topics in the last N days."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT topic, COUNT(*) as count,
+                      COUNT(DISTINCT session_id) as unique_sessions,
+                      MODE() WITHIN GROUP (ORDER BY sentiment) as top_sentiment
+               FROM conversation_topics
+               WHERE admin_id=%s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '%s days'
+               GROUP BY topic
+               ORDER BY count DESC LIMIT %s""",
+            (admin_id, days, limit)
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_conversation_insights(admin_id, days=30):
+    """Get comprehensive conversation insights for the dashboard."""
+    conn = get_db()
+    try:
+        # Total conversations
+        total = conn.execute(
+            "SELECT COUNT(DISTINCT session_id) as c FROM conversation_topics WHERE admin_id=%s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '%s days'",
+            (admin_id, days)
+        ).fetchone()["c"]
+
+        # Sentiment distribution
+        sentiments = conn.execute(
+            """SELECT sentiment, COUNT(*) as count FROM conversation_topics
+               WHERE admin_id=%s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '%s days'
+               GROUP BY sentiment ORDER BY count DESC""",
+            (admin_id, days)
+        ).fetchall()
+
+        # Intent distribution
+        intents = conn.execute(
+            """SELECT intent, COUNT(*) as count FROM conversation_topics
+               WHERE admin_id=%s AND intent != '' AND created_at >= CURRENT_TIMESTAMP - INTERVAL '%s days'
+               GROUP BY intent ORDER BY count DESC LIMIT 10""",
+            (admin_id, days)
+        ).fetchall()
+
+        # Trending topics
+        topics = conn.execute(
+            """SELECT topic, COUNT(*) as count FROM conversation_topics
+               WHERE admin_id=%s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '%s days'
+               GROUP BY topic ORDER BY count DESC LIMIT 10""",
+            (admin_id, days)
+        ).fetchall()
+    finally:
+        conn.close()
+
+    return {
+        "total_conversations": total,
+        "sentiments": {r["sentiment"]: r["count"] for r in sentiments},
+        "top_intents": [dict(r) for r in intents],
+        "trending_topics": [dict(r) for r in topics],
+    }
+
+
+# ── Wishlist / Save-for-Later ──
+
+def add_to_wishlist(admin_id, customer_email, product_id, product_name, product_price=0,
+                    product_image="", session_id="", notes=""):
+    """Add a product to the customer's wishlist."""
+    conn = get_db()
+    try:
+        existing = conn.execute(
+            "SELECT id FROM wishlists WHERE admin_id=%s AND customer_email=%s AND product_id=%s",
+            (admin_id, customer_email.lower(), product_id)
+        ).fetchone()
+        if existing:
+            return {"ok": False, "message": "Already in wishlist"}
+        conn.execute(
+            """INSERT INTO wishlists (admin_id, customer_email, session_id, product_id,
+               product_name, product_price, product_image, notes)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (admin_id, customer_email.lower(), session_id, product_id, product_name,
+             product_price, product_image, notes)
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        return {"ok": False, "message": "Error saving"}
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+def get_wishlist(admin_id, customer_email, limit=20):
+    """Get a customer's wishlist."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT w.*, p.product_price as current_price, p.stock_quantity
+               FROM wishlists w
+               LEFT JOIN products p ON p.id = w.product_id AND p.admin_id = w.admin_id
+               WHERE w.admin_id=%s AND w.customer_email=%s
+               ORDER BY w.created_at DESC LIMIT %s""",
+            (admin_id, customer_email.lower(), limit)
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+def remove_from_wishlist(admin_id, customer_email, product_id):
+    """Remove a product from wishlist."""
+    conn = get_db()
+    try:
+        conn.execute(
+            "DELETE FROM wishlists WHERE admin_id=%s AND customer_email=%s AND product_id=%s",
+            (admin_id, customer_email.lower(), product_id)
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+    finally:
+        conn.close()
+
+
+def move_wishlist_to_cart(admin_id, customer_email, product_id):
+    """Get wishlist item details for adding to cart, then remove from wishlist."""
+    conn = get_db()
+    try:
+        item = conn.execute(
+            "SELECT * FROM wishlists WHERE admin_id=%s AND customer_email=%s AND product_id=%s",
+            (admin_id, customer_email.lower(), product_id)
+        ).fetchone()
+        if item:
+            conn.execute(
+                "DELETE FROM wishlists WHERE id=%s", (item["id"],)
+            )
+            conn.commit()
+            return dict(item)
+    except Exception:
+        conn.rollback()
+    finally:
+        conn.close()
+    return None
+
+
+def get_wishlist_price_drops(admin_id, customer_email):
+    """Find wishlist items where current price < saved price."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT w.*, p.product_price as current_price
+               FROM wishlists w
+               JOIN products p ON p.id = w.product_id AND p.admin_id = w.admin_id
+               WHERE w.admin_id=%s AND w.customer_email=%s
+               AND p.product_price < w.product_price
+               AND w.notified_price_drop = FALSE""",
+            (admin_id, customer_email.lower())
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+# ── Revenue Attribution ──
+
+def record_revenue_event(admin_id, session_id, event_type, event_value=0,
+                         product_id=0, product_name="", order_id=0, order_number="",
+                         customer_email="", touchpoints=None):
+    """Record a revenue attribution event."""
+    conn = get_db()
+    try:
+        import json
+        tp_json = json.dumps(touchpoints or [])
+        conn.execute(
+            """INSERT INTO revenue_events (admin_id, session_id, customer_email, event_type,
+               event_value, product_id, product_name, order_id, order_number, touchpoints_json)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (admin_id, session_id, customer_email, event_type, event_value,
+             product_id, product_name, order_id, order_number, tp_json)
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+    finally:
+        conn.close()
+
+
+def get_revenue_attribution(admin_id, days=30):
+    """Get revenue attribution summary for the dashboard."""
+    conn = get_db()
+    try:
+        # Total chatbot-influenced revenue
+        total = conn.execute(
+            """SELECT COALESCE(SUM(event_value), 0) as total_revenue,
+                      COUNT(DISTINCT order_number) as total_orders,
+                      COUNT(DISTINCT customer_email) as unique_customers
+               FROM revenue_events
+               WHERE admin_id=%s AND event_type='purchase'
+               AND created_at >= CURRENT_TIMESTAMP - INTERVAL '%s days'""",
+            (admin_id, days)
+        ).fetchone()
+
+        # Revenue by attribution source
+        by_source = conn.execute(
+            """SELECT attribution_source, SUM(event_value) as revenue, COUNT(*) as events
+               FROM revenue_events
+               WHERE admin_id=%s AND event_type='purchase'
+               AND created_at >= CURRENT_TIMESTAMP - INTERVAL '%s days'
+               GROUP BY attribution_source ORDER BY revenue DESC""",
+            (admin_id, days)
+        ).fetchall()
+
+        # Conversion funnel
+        funnel = conn.execute(
+            """SELECT event_type, COUNT(*) as count, COALESCE(SUM(event_value), 0) as value
+               FROM revenue_events
+               WHERE admin_id=%s AND created_at >= CURRENT_TIMESTAMP - INTERVAL '%s days'
+               GROUP BY event_type ORDER BY count DESC""",
+            (admin_id, days)
+        ).fetchall()
+
+        # Daily revenue trend
+        daily = conn.execute(
+            """SELECT DATE(created_at) as day, SUM(event_value) as revenue, COUNT(*) as orders
+               FROM revenue_events
+               WHERE admin_id=%s AND event_type='purchase'
+               AND created_at >= CURRENT_TIMESTAMP - INTERVAL '%s days'
+               GROUP BY DATE(created_at) ORDER BY day""",
+            (admin_id, days)
+        ).fetchall()
+    finally:
+        conn.close()
+
+    return {
+        "total_revenue": float(total["total_revenue"]),
+        "total_orders": total["total_orders"],
+        "unique_customers": total["unique_customers"],
+        "by_source": [dict(r) for r in by_source],
+        "funnel": [dict(r) for r in funnel],
+        "daily_trend": [{"day": str(r["day"]), "revenue": float(r["revenue"]), "orders": r["orders"]} for r in daily],
+    }
+
+
+# ── Customer Interest Scoring (Behavioral Personalization) ──
+
+def update_customer_interest(admin_id, customer_key, category, event_type="view"):
+    """Update interest score for a customer in a product category."""
+    if not category or not customer_key:
+        return
+    score_map = {"view": 1, "cart": 3, "purchase": 5, "wishlist": 2}
+    score_delta = score_map.get(event_type, 1)
+    count_col = {"view": "view_count", "cart": "cart_count", "purchase": "purchase_count"}.get(event_type, "view_count")
+
+    conn = get_db()
+    try:
+        existing = conn.execute(
+            "SELECT id FROM customer_interests WHERE admin_id=%s AND customer_key=%s AND category=%s",
+            (admin_id, customer_key, category)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                f"""UPDATE customer_interests
+                    SET interest_score = interest_score + %s,
+                        {count_col} = {count_col} + 1,
+                        last_interaction = CURRENT_TIMESTAMP
+                    WHERE id=%s""",
+                (score_delta, existing["id"])
+            )
+        else:
+            conn.execute(
+                f"""INSERT INTO customer_interests (admin_id, customer_key, category, interest_score, {count_col})
+                    VALUES (%s, %s, %s, %s, 1)""",
+                (admin_id, customer_key, category, score_delta)
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+    finally:
+        conn.close()
+
+
+def get_customer_interests(admin_id, customer_key, limit=5):
+    """Get top interest categories for a customer."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT category, interest_score, view_count, cart_count, purchase_count
+               FROM customer_interests
+               WHERE admin_id=%s AND customer_key=%s
+               ORDER BY interest_score DESC LIMIT %s""",
+            (admin_id, customer_key, limit)
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_personalized_products(admin_id, customer_key, limit=6):
+    """Get product recommendations based on customer interests."""
+    interests = get_customer_interests(admin_id, customer_key, limit=3)
+    if not interests:
+        return []
+    top_cats = [i["category"] for i in interests if i["category"]]
+    if not top_cats:
+        return []
+    conn = get_db()
+    try:
+        placeholders = ",".join(["%s"] * len(top_cats))
+        rows = conn.execute(
+            f"""SELECT * FROM products
+                WHERE admin_id=%s AND product_status='active'
+                AND LOWER(product_category) IN ({placeholders})
+                ORDER BY RANDOM() LIMIT %s""",
+            [admin_id] + [c.lower() for c in top_cats] + [limit]
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+# ══════════════════════════════════════════════════════════════
+#  SIZE & FIT PREDICTOR
+# ══════════════════════════════════════════════════════════════
+
+def upsert_size_fit_profile(admin_id, customer_key, **kwargs):
+    allowed = {"body_type", "preferred_fit", "height", "weight", "shoe_size", "typical_size", "fit_notes"}
+    fields = {k: v for k, v in kwargs.items() if k in allowed and v}
+    if not fields:
+        return
+    conn = get_db()
+    try:
+        existing = conn.execute(
+            "SELECT id FROM size_fit_profiles WHERE admin_id=%s AND customer_key=%s",
+            (admin_id, customer_key)
+        ).fetchone()
+        if existing:
+            set_clause = ", ".join(f"{k}=%s" for k in fields)
+            conn.execute(
+                f"UPDATE size_fit_profiles SET {set_clause}, updated_at=CURRENT_TIMESTAMP WHERE id=%s",
+                list(fields.values()) + [existing["id"]]
+            )
+        else:
+            cols = ["admin_id", "customer_key"] + list(fields.keys())
+            placeholders = ",".join(["%s"] * len(cols))
+            conn.execute(
+                f"INSERT INTO size_fit_profiles ({','.join(cols)}) VALUES ({placeholders})",
+                [admin_id, customer_key] + list(fields.values())
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+    finally:
+        conn.close()
+
+
+def get_size_fit_profile(admin_id, customer_key):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM size_fit_profiles WHERE admin_id=%s AND customer_key=%s",
+        (admin_id, customer_key)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def save_size_fit_feedback(admin_id, customer_key, product_id, product_name="",
+                           brand="", category="", recommended_size="", actual_fit="",
+                           returned=False, return_reason=""):
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO size_fit_feedback
+           (admin_id, customer_key, product_id, product_name, brand, category,
+            recommended_size, actual_fit, returned, return_reason)
+           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+        (admin_id, customer_key, product_id, product_name, brand, category,
+         recommended_size, actual_fit, returned, return_reason)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_size_fit_stats(admin_id, product_id=None, brand=None, category=None):
+    """Get aggregate size/fit data from feedback to power recommendations."""
+    conn = get_db()
+    conditions = ["admin_id=%s"]
+    params = [admin_id]
+    if product_id:
+        conditions.append("product_id=%s")
+        params.append(product_id)
+    if brand:
+        conditions.append("LOWER(brand)=LOWER(%s)")
+        params.append(brand)
+    if category:
+        conditions.append("LOWER(category)=LOWER(%s)")
+        params.append(category)
+    where = " AND ".join(conditions)
+    rows = conn.execute(
+        f"""SELECT recommended_size, actual_fit, returned, return_reason, COUNT(*) as cnt
+            FROM size_fit_feedback WHERE {where}
+            GROUP BY recommended_size, actual_fit, returned, return_reason
+            ORDER BY cnt DESC""",
+        params
+    ).fetchall()
+    conn.close()
+
+    stats = {"total": 0, "sizes": {}, "fit_issues": [], "return_rate": 0}
+    total = 0
+    returned_count = 0
+    for r in rows:
+        row = dict(r)
+        total += row["cnt"]
+        if row["returned"]:
+            returned_count += row["cnt"]
+            stats["fit_issues"].append({
+                "size": row["recommended_size"], "issue": row["return_reason"],
+                "count": row["cnt"]
+            })
+        size = row["recommended_size"]
+        if size not in stats["sizes"]:
+            stats["sizes"][size] = {"total": 0, "fits_well": 0}
+        stats["sizes"][size]["total"] += row["cnt"]
+        if row["actual_fit"] in ("perfect", "good", "true_to_size"):
+            stats["sizes"][size]["fits_well"] += row["cnt"]
+    stats["total"] = total
+    stats["return_rate"] = round(returned_count / total * 100, 1) if total > 0 else 0
+    return stats
+
+
+# ══════════════════════════════════════════════════════════════
+#  PRICE WATCH / DROP ALERTS
+# ══════════════════════════════════════════════════════════════
+
+def add_price_watch(admin_id, customer_email, product_id, product_name, current_price, target_price=0, session_id=""):
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO price_watches (admin_id, customer_email, session_id, product_id,
+               product_name, watched_price, target_price)
+               VALUES (%s,%s,%s,%s,%s,%s,%s)
+               ON CONFLICT (admin_id, customer_email, product_id) DO UPDATE
+               SET watched_price=%s, target_price=%s, notified=FALSE""",
+            (admin_id, customer_email, session_id, product_id, product_name,
+             current_price, target_price, current_price, target_price)
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+def get_price_watches(admin_id, customer_email):
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM price_watches WHERE admin_id=%s AND customer_email=%s AND notified=FALSE ORDER BY created_at DESC",
+        (admin_id, customer_email)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def check_price_drops_for_watches(admin_id):
+    """Check all active price watches against current product prices. Returns alerts."""
+    conn = get_db()
+    rows = conn.execute(
+        """SELECT pw.*, p.product_price as current_price
+           FROM price_watches pw
+           JOIN products p ON pw.admin_id = p.admin_id AND pw.product_id = p.id
+           WHERE pw.admin_id=%s AND pw.notified=FALSE
+           AND (CAST(p.product_price AS REAL) < pw.watched_price
+                OR (pw.target_price > 0 AND CAST(p.product_price AS REAL) <= pw.target_price))""",
+        (admin_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def mark_price_watch_notified(watch_id):
+    conn = get_db()
+    conn.execute(
+        "UPDATE price_watches SET notified=TRUE, notified_at=CURRENT_TIMESTAMP WHERE id=%s",
+        (watch_id,)
+    )
+    conn.commit()
+    conn.close()
+
+
+# ══════════════════════════════════════════════════════════════
+#  COMPETITOR PRICES
+# ══════════════════════════════════════════════════════════════
+
+def upsert_competitor_price(admin_id, product_id, competitor_name, competitor_price,
+                            competitor_url="", our_advantages=""):
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO competitor_prices (admin_id, product_id, competitor_name,
+               competitor_price, competitor_url, our_advantages)
+               VALUES (%s,%s,%s,%s,%s,%s)
+               ON CONFLICT (admin_id, product_id, competitor_name) DO UPDATE
+               SET competitor_price=%s, competitor_url=%s, our_advantages=%s, last_checked=CURRENT_TIMESTAMP""",
+            (admin_id, product_id, competitor_name, competitor_price, competitor_url, our_advantages,
+             competitor_price, competitor_url, our_advantages)
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+    finally:
+        conn.close()
+
+
+def get_competitor_prices(admin_id, product_id):
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM competitor_prices WHERE admin_id=%s AND product_id=%s ORDER BY competitor_price ASC",
+        (admin_id, product_id)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+# ══════════════════════════════════════════════════════════════
+#  FRAUD DETECTION
+# ══════════════════════════════════════════════════════════════
+
+def record_fraud_signal(admin_id, session_id, signal_type, signal_detail="",
+                        risk_score=0, customer_email=""):
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO fraud_signals (admin_id, session_id, customer_email,
+           signal_type, signal_detail, risk_score)
+           VALUES (%s,%s,%s,%s,%s,%s)""",
+        (admin_id, session_id, customer_email, signal_type, signal_detail, risk_score)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_session_fraud_score(admin_id, session_id):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT COALESCE(SUM(risk_score), 0) as total_risk FROM fraud_signals WHERE admin_id=%s AND session_id=%s AND resolved=FALSE",
+        (admin_id, session_id)
+    ).fetchone()
+    conn.close()
+    return float(row["total_risk"]) if row else 0
+
+
+def get_fraud_signals(admin_id, session_id=None, limit=50):
+    conn = get_db()
+    if session_id:
+        rows = conn.execute(
+            "SELECT * FROM fraud_signals WHERE admin_id=%s AND session_id=%s ORDER BY created_at DESC LIMIT %s",
+            (admin_id, session_id, limit)
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM fraud_signals WHERE admin_id=%s AND resolved=FALSE ORDER BY risk_score DESC, created_at DESC LIMIT %s",
+            (admin_id, limit)
+        ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+# ══════════════════════════════════════════════════════════════
+#  CLV / VIP SCORING
+# ══════════════════════════════════════════════════════════════
+
+def get_customer_ltv_score(admin_id, customer_email):
+    """Calculate LTV score from ecom_customers data."""
+    if not customer_email:
+        return None
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM ecom_customers WHERE admin_id=%s AND LOWER(customer_email)=LOWER(%s)",
+        (admin_id, customer_email)
+    ).fetchone()
+    conn.close()
+    if not row:
+        return None
+    cust = dict(row)
+    total_orders = int(cust.get("total_orders", 0) or 0)
+    total_spent = float(cust.get("total_spent", 0) or 0)
+    aov = float(cust.get("avg_order_value", 0) or 0)
+    loyalty_points = int(cust.get("loyalty_points", 0) or 0)
+
+    # Score: weighted combination
+    score = 0
+    if total_orders >= 10: score += 40
+    elif total_orders >= 5: score += 25
+    elif total_orders >= 3: score += 15
+    elif total_orders >= 1: score += 5
+
+    if total_spent >= 1000: score += 30
+    elif total_spent >= 500: score += 20
+    elif total_spent >= 200: score += 10
+    elif total_spent >= 50: score += 5
+
+    if aov >= 200: score += 15
+    elif aov >= 100: score += 10
+    elif aov >= 50: score += 5
+
+    if loyalty_points >= 500: score += 15
+    elif loyalty_points >= 100: score += 10
+    elif loyalty_points >= 20: score += 5
+
+    tier = "standard"
+    if score >= 70: tier = "vip"
+    elif score >= 45: tier = "gold"
+    elif score >= 25: tier = "silver"
+
+    return {
+        "score": score,
+        "tier": tier,
+        "total_orders": total_orders,
+        "total_spent": total_spent,
+        "avg_order_value": aov,
+        "loyalty_points": loyalty_points,
+    }
+
+
+# ══════════════════════════════════════════════════════════════
+#  INVENTORY SCARCITY / VIEW VELOCITY
+# ══════════════════════════════════════════════════════════════
+
+def get_product_view_velocity(admin_id, product_id, hours=1):
+    """Count unique sessions that viewed this product in the last N hours."""
+    conn = get_db()
+    row = conn.execute(
+        f"""SELECT COUNT(DISTINCT session_id) as viewer_count
+            FROM browse_history
+            WHERE admin_id=%s AND product_id=%s
+            AND viewed_at > CURRENT_TIMESTAMP - INTERVAL '{int(hours)} hours'""",
+        (admin_id, product_id)
+    ).fetchone()
+    conn.close()
+    return int(row["viewer_count"]) if row else 0
+
+
+def get_product_purchase_velocity(admin_id, product_id, hours=24):
+    """Count purchases of this product in the last N hours."""
+    conn = get_db()
+    row = conn.execute(
+        f"""SELECT COUNT(*) as purchase_count
+            FROM revenue_events
+            WHERE admin_id=%s AND product_id=%s AND event_type='purchase'
+            AND created_at > CURRENT_TIMESTAMP - INTERVAL '{int(hours)} hours'""",
+        (admin_id, product_id)
+    ).fetchone()
+    conn.close()
+    return int(row["purchase_count"]) if row else 0
+
+
+# ══════════════════════════════════════════════════════════════
+#  MERCHANT AI CO-PILOT
+# ══════════════════════════════════════════════════════════════
+
+def get_merchant_analytics_summary(admin_id, days=30):
+    """Aggregate analytics for merchant co-pilot queries."""
+    conn = get_db()
+    summary = {}
+
+    # Revenue summary
+    rev = conn.execute(
+        """SELECT COALESCE(SUM(event_value), 0) as total_revenue,
+                  COUNT(DISTINCT order_number) as order_count,
+                  COUNT(DISTINCT customer_email) as unique_customers
+           FROM revenue_events
+           WHERE admin_id=%s AND event_type='purchase'
+           AND created_at > CURRENT_TIMESTAMP - INTERVAL '%s days'""",
+        (admin_id, days)
+    ).fetchone()
+    summary["revenue"] = {
+        "total": float(rev["total_revenue"]) if rev else 0,
+        "orders": int(rev["order_count"]) if rev else 0,
+        "unique_customers": int(rev["unique_customers"]) if rev else 0,
+    }
+
+    # Top products by revenue
+    top_prods = conn.execute(
+        """SELECT product_name, SUM(event_value) as revenue, COUNT(*) as sales
+           FROM revenue_events
+           WHERE admin_id=%s AND event_type='purchase'
+           AND created_at > CURRENT_TIMESTAMP - INTERVAL '%s days'
+           AND product_name != ''
+           GROUP BY product_name ORDER BY revenue DESC LIMIT 10""",
+        (admin_id, days)
+    ).fetchall()
+    summary["top_products"] = [{"name": r["product_name"], "revenue": float(r["revenue"]), "sales": r["sales"]} for r in top_prods]
+
+    # Conversation topics
+    topics = conn.execute(
+        """SELECT topic, COUNT(*) as cnt
+           FROM conversation_topics
+           WHERE admin_id=%s AND created_at > CURRENT_TIMESTAMP - INTERVAL '%s days'
+           GROUP BY topic ORDER BY cnt DESC LIMIT 10""",
+        (admin_id, days)
+    ).fetchall()
+    summary["top_topics"] = [{"topic": r["topic"], "count": r["cnt"]} for r in topics]
+
+    # Return rate (from size_fit_feedback)
+    returns = conn.execute(
+        """SELECT COUNT(*) as total, SUM(CASE WHEN returned THEN 1 ELSE 0 END) as returned
+           FROM size_fit_feedback WHERE admin_id=%s
+           AND created_at > CURRENT_TIMESTAMP - INTERVAL '%s days'""",
+        (admin_id, days)
+    ).fetchone()
+    total_fb = int(returns["total"]) if returns and returns["total"] else 0
+    returned_fb = int(returns["returned"]) if returns and returns["returned"] else 0
+    summary["returns"] = {
+        "total_feedback": total_fb,
+        "returned": returned_fb,
+        "return_rate": round(returned_fb / total_fb * 100, 1) if total_fb > 0 else 0,
+    }
+
+    # Low stock products
+    low_stock = conn.execute(
+        """SELECT product_name, inventory_quantity, product_category
+           FROM products
+           WHERE admin_id=%s AND product_status='active'
+           AND inventory_quantity > 0 AND inventory_quantity <= low_stock_threshold
+           ORDER BY inventory_quantity ASC LIMIT 10""",
+        (admin_id,)
+    ).fetchall()
+    summary["low_stock"] = [{"name": r["product_name"], "qty": r["inventory_quantity"], "category": r["product_category"]} for r in low_stock]
+
+    # Fraud alerts
+    fraud = conn.execute(
+        "SELECT COUNT(*) as cnt FROM fraud_signals WHERE admin_id=%s AND resolved=FALSE",
+        (admin_id,)
+    ).fetchone()
+    summary["unresolved_fraud_alerts"] = int(fraud["cnt"]) if fraud else 0
+
+    # Conversion funnel
+    funnel = conn.execute(
+        """SELECT event_type, COUNT(*) as cnt
+           FROM revenue_events
+           WHERE admin_id=%s AND created_at > CURRENT_TIMESTAMP - INTERVAL '%s days'
+           GROUP BY event_type ORDER BY cnt DESC""",
+        (admin_id, days)
+    ).fetchall()
+    summary["funnel"] = {r["event_type"]: r["cnt"] for r in funnel}
+
+    conn.close()
+    return summary
+
+
+# ── Fast Setup results persistence ──
+
+def _ensure_fast_setup_table():
+    conn = get_db()
+    conn.execute("""CREATE TABLE IF NOT EXISTS fast_setup_results (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL UNIQUE,
+        source_url TEXT NOT NULL DEFAULT '',
+        data_json TEXT NOT NULL DEFAULT '{}',
+        applied BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+    conn.close()
+
+_ensure_fast_setup_table()
+
+
+def save_fast_setup_result(admin_id, source_url, data):
+    """Save fast setup scan results to DB."""
+    conn = get_db()
+    data_json = json.dumps(data)
+    existing = conn.execute("SELECT id FROM fast_setup_results WHERE admin_id=%s", (admin_id,)).fetchone()
+    if existing:
+        conn.execute(
+            "UPDATE fast_setup_results SET source_url=%s, data_json=%s, applied=FALSE, updated_at=CURRENT_TIMESTAMP WHERE admin_id=%s",
+            (source_url, data_json, admin_id))
+    else:
+        conn.execute(
+            "INSERT INTO fast_setup_results (admin_id, source_url, data_json) VALUES (%s,%s,%s)",
+            (admin_id, source_url, data_json))
+    conn.commit()
+    conn.close()
+
+
+def get_fast_setup_result(admin_id):
+    """Get saved fast setup results for an admin."""
+    conn = get_db()
+    row = conn.execute("SELECT source_url, data_json, applied FROM fast_setup_results WHERE admin_id=%s", (admin_id,)).fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {"source_url": row["source_url"], "data": json.loads(row["data_json"]), "applied": row["applied"]}
+
+
+def mark_fast_setup_applied(admin_id):
+    """Mark fast setup as applied."""
+    conn = get_db()
+    conn.execute("UPDATE fast_setup_results SET applied=TRUE, updated_at=CURRENT_TIMESTAMP WHERE admin_id=%s", (admin_id,))
+    conn.commit()
+    conn.close()
+
+
+# ── Website Visitor Tracking ──
+
+def record_page_visit(admin_id, visitor_id="", page_url="", page_path="", referrer="", user_agent="", ip_hash="", device_type="desktop"):
+    """Record a single page visit."""
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO page_visits (admin_id, visitor_id, page_url, page_path, referrer, user_agent, ip_hash, device_type)
+           VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
+        (admin_id, visitor_id, page_url, page_path, referrer, user_agent, ip_hash, device_type)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_visitor_stats(admin_id):
+    """Get visitor statistics for an admin's website."""
+    from datetime import datetime, timedelta
+    conn = get_db()
+    today = datetime.now().strftime("%Y-%m-%d")
+    week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+    month_ago = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+
+    try:
+        # Today
+        today_total = conn.execute(
+            "SELECT COUNT(*) as c FROM page_visits WHERE admin_id=%s AND created_at::date = %s", (admin_id, today)
+        ).fetchone()["c"]
+        today_unique = conn.execute(
+            "SELECT COUNT(DISTINCT visitor_id) as c FROM page_visits WHERE admin_id=%s AND created_at::date = %s", (admin_id, today)
+        ).fetchone()["c"]
+
+        # This week
+        week_total = conn.execute(
+            "SELECT COUNT(*) as c FROM page_visits WHERE admin_id=%s AND created_at::date >= %s", (admin_id, week_ago)
+        ).fetchone()["c"]
+        week_unique = conn.execute(
+            "SELECT COUNT(DISTINCT visitor_id) as c FROM page_visits WHERE admin_id=%s AND created_at::date >= %s", (admin_id, week_ago)
+        ).fetchone()["c"]
+
+        # This month
+        month_total = conn.execute(
+            "SELECT COUNT(*) as c FROM page_visits WHERE admin_id=%s AND created_at::date >= %s", (admin_id, month_ago)
+        ).fetchone()["c"]
+        month_unique = conn.execute(
+            "SELECT COUNT(DISTINCT visitor_id) as c FROM page_visits WHERE admin_id=%s AND created_at::date >= %s", (admin_id, month_ago)
+        ).fetchone()["c"]
+
+        # All time
+        all_total = conn.execute(
+            "SELECT COUNT(*) as c FROM page_visits WHERE admin_id=%s", (admin_id,)
+        ).fetchone()["c"]
+        all_unique = conn.execute(
+            "SELECT COUNT(DISTINCT visitor_id) as c FROM page_visits WHERE admin_id=%s", (admin_id,)
+        ).fetchone()["c"]
+
+        # Top pages (last 30 days)
+        top_pages = conn.execute(
+            """SELECT page_path, COUNT(*) as views, COUNT(DISTINCT visitor_id) as unique_visitors
+               FROM page_visits WHERE admin_id=%s AND created_at::date >= %s
+               GROUP BY page_path ORDER BY views DESC LIMIT 5""",
+            (admin_id, month_ago)
+        ).fetchall()
+
+        # Top referrers (last 30 days)
+        top_referrers = conn.execute(
+            """SELECT referrer, COUNT(*) as visits
+               FROM page_visits WHERE admin_id=%s AND created_at::date >= %s AND referrer != '' AND referrer NOT LIKE '%%' || page_url || '%%'
+               GROUP BY referrer ORDER BY visits DESC LIMIT 5""",
+            (admin_id, month_ago)
+        ).fetchall()
+
+        # Device breakdown (last 30 days)
+        devices = conn.execute(
+            """SELECT device_type, COUNT(*) as visits
+               FROM page_visits WHERE admin_id=%s AND created_at::date >= %s
+               GROUP BY device_type ORDER BY visits DESC""",
+            (admin_id, month_ago)
+        ).fetchall()
+
+        conn.close()
+        return {
+            "today_total": today_total,
+            "today_unique": today_unique,
+            "week_total": week_total,
+            "week_unique": week_unique,
+            "month_total": month_total,
+            "month_unique": month_unique,
+            "all_total": all_total,
+            "all_unique": all_unique,
+            "top_pages": [dict(r) for r in top_pages],
+            "top_referrers": [dict(r) for r in top_referrers],
+            "devices": [dict(r) for r in devices],
+        }
+    except Exception as e:
+        conn.close()
+        return None
 
 
 # Initialize on import

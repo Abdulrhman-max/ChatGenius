@@ -37,7 +37,15 @@ def create_followup(admin_id, doctor_id, doctor_name, patient_name, patient_emai
     now_str = now.strftime("%Y-%m-%d %H:%M:%S")
     ids = []
 
-    for day in [2, 5, 10]:
+    # Read admin's follow-up day config (defaults: day 1,3,7)
+    rc = db.get_reminder_config(admin_id)
+    day_map = {1: "followup_day1", 3: "followup_day3", 7: "followup_day7",
+               14: "followup_day14", 30: "followup_day30"}
+    active_days = [d for d, col in day_map.items() if rc.get(col, 1 if d <= 7 else 0)]
+    if not active_days:
+        active_days = [1, 3, 7]  # fallback
+
+    for day in active_days:
         _ins_cur = conn.execute(
             """INSERT INTO treatment_followups
                (admin_id, doctor_id, patient_name, patient_email, patient_phone,
@@ -50,7 +58,7 @@ def create_followup(admin_id, doctor_id, doctor_name, patient_name, patient_emai
 
     conn.commit()
     conn.close()
-    logger.info(f"Follow-up sequence created for {patient_name}: {treatment_name} (3 messages)")
+    logger.info(f"Follow-up sequence created for {patient_name}: {treatment_name} ({len(active_days)} messages, days: {active_days})")
     return ids
 
 
@@ -70,6 +78,9 @@ def process_pending_followups():
     ).fetchall()
 
     for fu in pending:
+        # Treatment follow-ups are dental-only
+        if db.get_company_type(fu["admin_id"]) not in ("dental", ""):
+            continue
         # Check if auto_followups feature is enabled for this admin
         if not db.is_feature_enabled(fu["admin_id"], "auto_followups"):
             continue

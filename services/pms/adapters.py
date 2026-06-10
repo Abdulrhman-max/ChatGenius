@@ -416,25 +416,125 @@ class DentrixAdapter(BasePMSAdapter):
 
     def create_appointment(self, appointment_data: Dict) -> Dict:
         """
-        Create appointment in Dentrix.
-        TODO: POST /v1/appointments
-        Body: { PatientId, ProviderId, Date, StartTime, Duration, ProcedureCode, Notes }
+        Create appointment in Dentrix via Dentrix Ascend REST API.
+        POST /appointments
         """
-        raise NotImplementedError("Dentrix create_appointment: awaiting API credentials")
+        import requests
+        try:
+            data = appointment_data
+            payload = {
+                "patientId": data.get("patient_id", ""),
+                "providerId": data.get("doctor_id", ""),
+                "operatoryId": data.get("operatory_id", ""),
+                "startDate": f"{data['date']}T{data['time']}:00",
+                "duration": data.get("duration", 30),
+                "reason": data.get("service", "General Appointment"),
+                "notes": data.get("notes", ""),
+                "status": "Scheduled"
+            }
+            # If no patient ID, create patient first
+            if not payload["patientId"] and data.get("patient_name"):
+                patient = self._find_or_create_patient(data)
+                payload["patientId"] = patient.get("id", "")
+
+            resp = requests.post(
+                f"{self.base_url}/appointments",
+                json=payload,
+                headers=self._headers(),
+                timeout=15
+            )
+            if resp.ok:
+                return {"status": "success", "pms_id": resp.json().get("id", ""), "message": "Synced to Dentrix"}
+            return {"status": "error", "message": f"Dentrix API error: {resp.status_code} - {resp.text[:200]}"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def _find_or_create_patient(self, data: Dict) -> Dict:
+        """Search for existing patient by email/phone, or create a new one."""
+        import requests
+        try:
+            # Search by email first
+            if data.get("patient_email"):
+                resp = requests.get(
+                    f"{self.base_url}/patients",
+                    params={"email": data["patient_email"]},
+                    headers=self._headers(),
+                    timeout=10
+                )
+                if resp.ok and resp.json():
+                    patients = resp.json()
+                    if isinstance(patients, list) and len(patients) > 0:
+                        return patients[0]
+
+            # Search by phone
+            if data.get("patient_phone"):
+                resp = requests.get(
+                    f"{self.base_url}/patients",
+                    params={"phone": data["patient_phone"]},
+                    headers=self._headers(),
+                    timeout=10
+                )
+                if resp.ok and resp.json():
+                    patients = resp.json()
+                    if isinstance(patients, list) and len(patients) > 0:
+                        return patients[0]
+
+            # Create new patient
+            name_parts = data.get("patient_name", "").split(" ", 1)
+            patient_payload = {
+                "firstName": name_parts[0] if name_parts else "",
+                "lastName": name_parts[1] if len(name_parts) > 1 else "",
+                "email": data.get("patient_email", ""),
+                "phone": data.get("patient_phone", ""),
+            }
+            resp = requests.post(
+                f"{self.base_url}/patients",
+                json=patient_payload,
+                headers=self._headers(),
+                timeout=10
+            )
+            if resp.ok:
+                return resp.json()
+            return {"id": ""}
+        except Exception:
+            return {"id": ""}
 
     def update_appointment(self, appointment_id: str, data: Dict) -> Dict:
-        """
-        Update appointment in Dentrix.
-        TODO: PUT /v1/appointments/{appointment_id}
-        """
-        raise NotImplementedError("Dentrix update_appointment: awaiting API credentials")
+        """Update appointment in Dentrix via PUT /appointments/{id}."""
+        import requests
+        try:
+            payload = {}
+            if data.get("date") and data.get("time"):
+                payload["startDate"] = f"{data['date']}T{data['time']}:00"
+            if data.get("doctor_name"):
+                payload["providerName"] = data["doctor_name"]
+            resp = requests.put(
+                f"{self.base_url}/appointments/{appointment_id}",
+                json=payload,
+                headers=self._headers(),
+                timeout=15
+            )
+            if resp.ok:
+                return {"status": "success", "message": "Updated in Dentrix"}
+            return {"status": "error", "message": f"Dentrix API error: {resp.status_code}"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
     def cancel_appointment(self, appointment_id: str, reason: str = "") -> Dict:
-        """
-        Cancel appointment in Dentrix.
-        TODO: DELETE /v1/appointments/{appointment_id}  or  PUT with status=cancelled
-        """
-        raise NotImplementedError("Dentrix cancel_appointment: awaiting API credentials")
+        """Cancel appointment in Dentrix via PUT /appointments/{id} with status=Cancelled."""
+        import requests
+        try:
+            resp = requests.put(
+                f"{self.base_url}/appointments/{appointment_id}",
+                json={"status": "Cancelled", "notes": reason},
+                headers=self._headers(),
+                timeout=15
+            )
+            if resp.ok:
+                return {"status": "success", "message": "Cancelled in Dentrix"}
+            return {"status": "error", "message": f"Dentrix API error: {resp.status_code}"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
     def get_doctors(self) -> List[Dict]:
         """
@@ -552,13 +652,123 @@ class EaglesoftAdapter(BasePMSAdapter):
         raise NotImplementedError("Eaglesoft get_appointment: awaiting API credentials")
 
     def create_appointment(self, appointment_data: Dict) -> Dict:
-        raise NotImplementedError("Eaglesoft create_appointment: awaiting API credentials")
+        """
+        Create appointment in Eaglesoft via Patterson Fuse API.
+        POST /api/appointments
+        """
+        import requests
+        try:
+            data = appointment_data
+            payload = {
+                "patient": {
+                    "name": data.get("patient_name", ""),
+                    "email": data.get("patient_email", ""),
+                    "phone": data.get("patient_phone", ""),
+                },
+                "provider": {"name": data.get("doctor_name", "")},
+                "appointmentDate": data["date"],
+                "appointmentTime": data["time"],
+                "duration": data.get("duration", 30),
+                "reason": data.get("service", ""),
+                "notes": data.get("notes", ""),
+                "status": "Scheduled"
+            }
+            resp = requests.post(
+                f"{self.base_url}/api/appointments",
+                json=payload,
+                headers=self._headers(),
+                timeout=15
+            )
+            if resp.ok:
+                return {"status": "success", "pms_id": str(resp.json().get("id", "")), "message": "Synced to Eaglesoft"}
+            return {"status": "error", "message": f"Eaglesoft API error: {resp.status_code} - {resp.text[:200]}"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def _find_or_create_patient(self, data: Dict) -> Dict:
+        """Search for existing patient by email/phone, or create a new one in Eaglesoft."""
+        import requests
+        try:
+            if data.get("patient_email"):
+                resp = requests.get(
+                    f"{self.base_url}/api/patients",
+                    params={"email": data["patient_email"]},
+                    headers=self._headers(),
+                    timeout=10
+                )
+                if resp.ok and resp.json():
+                    patients = resp.json()
+                    if isinstance(patients, list) and len(patients) > 0:
+                        return patients[0]
+
+            if data.get("patient_phone"):
+                resp = requests.get(
+                    f"{self.base_url}/api/patients",
+                    params={"phone": data["patient_phone"]},
+                    headers=self._headers(),
+                    timeout=10
+                )
+                if resp.ok and resp.json():
+                    patients = resp.json()
+                    if isinstance(patients, list) and len(patients) > 0:
+                        return patients[0]
+
+            # Create new patient
+            patient_payload = {
+                "name": data.get("patient_name", ""),
+                "email": data.get("patient_email", ""),
+                "phone": data.get("patient_phone", ""),
+            }
+            resp = requests.post(
+                f"{self.base_url}/api/patients",
+                json=patient_payload,
+                headers=self._headers(),
+                timeout=10
+            )
+            if resp.ok:
+                return resp.json()
+            return {"id": ""}
+        except Exception:
+            return {"id": ""}
 
     def update_appointment(self, appointment_id: str, data: Dict) -> Dict:
-        raise NotImplementedError("Eaglesoft update_appointment: awaiting API credentials")
+        """Update appointment in Eaglesoft."""
+        import requests
+        try:
+            payload = {}
+            if data.get("date"):
+                payload["appointmentDate"] = data["date"]
+            if data.get("time"):
+                payload["appointmentTime"] = data["time"]
+            if data.get("doctor_name"):
+                payload["provider"] = {"name": data["doctor_name"]}
+            resp = requests.put(
+                f"{self.base_url}/api/appointments/{appointment_id}",
+                json=payload,
+                headers={"X-API-Key": self.config.get("api_key", ""), "Content-Type": "application/json"},
+                timeout=15
+            )
+            if resp.ok:
+                return {"status": "success", "message": "Updated in Eaglesoft"}
+            return {"status": "error", "message": f"Eaglesoft API error: {resp.status_code}"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
     def cancel_appointment(self, appointment_id: str, reason: str = "") -> Dict:
-        raise NotImplementedError("Eaglesoft cancel_appointment: awaiting API credentials")
+        """Cancel appointment in Eaglesoft."""
+        import requests
+        try:
+            resp = requests.put(
+                f"{self.base_url}/api/appointments/{appointment_id}",
+                json={"status": "Cancelled", "cancelReason": reason},
+                headers={"X-API-Key": self.config.get("api_key", ""), "Content-Type": "application/json"},
+                timeout=15
+            )
+            if resp.ok:
+                return {"status": "success", "message": "Cancelled in Eaglesoft"}
+            return {"status": "error", "message": f"Eaglesoft API error: {resp.status_code}"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
     def get_doctors(self) -> List[Dict]:
         """TODO: GET /fuse/v1/providers"""
@@ -709,19 +919,118 @@ class OpenDentalAdapter(BasePMSAdapter):
 
     def create_appointment(self, appointment_data: Dict) -> Dict:
         """
-        Create appointment in Open Dental.
-        TODO: POST /api/v1/appointments
-        Body: { PatNum, ProvNum, AptDateTime, Pattern, Note }
+        Create appointment in Open Dental via REST API.
+        POST /api/v1/appointments
         """
-        raise NotImplementedError("Open Dental create_appointment: awaiting API credentials")
+        import requests
+        try:
+            data = appointment_data
+            payload = {
+                "PatNum": data.get("patient_id", 0),
+                "ProvNum": data.get("doctor_id", 0),
+                "AptDateTime": f"{data['date']} {data['time']}:00",
+                "Pattern": "/" * max(1, data.get("duration", 30) // 5),  # 5-min intervals
+                "ProcDescript": data.get("service", ""),
+                "Note": data.get("notes", ""),
+                "AptStatus": "Scheduled",
+                "IsNewPatient": True if not data.get("patient_id") else False,
+            }
+            resp = requests.post(
+                f"{self.base_url}/api/v1/appointments",
+                json=payload,
+                headers=self._headers(),
+                timeout=15
+            )
+            if resp.ok:
+                return {"status": "success", "pms_id": str(resp.json().get("AptNum", "")), "message": "Synced to Open Dental"}
+            return {"status": "error", "message": f"Open Dental API error: {resp.status_code} - {resp.text[:200]}"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def _find_or_create_patient(self, data: Dict) -> Dict:
+        """Search for existing patient by email/phone, or create a new one in Open Dental."""
+        import requests
+        try:
+            if data.get("patient_email"):
+                resp = requests.get(
+                    f"{self.base_url}/api/v1/patients",
+                    params={"Email": data["patient_email"]},
+                    headers=self._headers(),
+                    timeout=10
+                )
+                if resp.ok and resp.json():
+                    patients = resp.json()
+                    if isinstance(patients, list) and len(patients) > 0:
+                        return patients[0]
+
+            if data.get("patient_phone"):
+                resp = requests.get(
+                    f"{self.base_url}/api/v1/patients",
+                    params={"WirelessPhone": data["patient_phone"]},
+                    headers=self._headers(),
+                    timeout=10
+                )
+                if resp.ok and resp.json():
+                    patients = resp.json()
+                    if isinstance(patients, list) and len(patients) > 0:
+                        return patients[0]
+
+            # Create new patient
+            name_parts = data.get("patient_name", "").split(" ", 1)
+            patient_payload = {
+                "FName": name_parts[0] if name_parts else "",
+                "LName": name_parts[1] if len(name_parts) > 1 else "",
+                "Email": data.get("patient_email", ""),
+                "WirelessPhone": data.get("patient_phone", ""),
+            }
+            resp = requests.post(
+                f"{self.base_url}/api/v1/patients",
+                json=patient_payload,
+                headers=self._headers(),
+                timeout=10
+            )
+            if resp.ok:
+                return resp.json()
+            return {"PatNum": 0}
+        except Exception:
+            return {"PatNum": 0}
 
     def update_appointment(self, appointment_id: str, data: Dict) -> Dict:
-        """TODO: PUT /api/v1/appointments/{AptNum}"""
-        raise NotImplementedError("Open Dental update_appointment: awaiting API credentials")
+        """Update appointment in Open Dental via PUT /api/v1/appointments/{AptNum}."""
+        import requests
+        try:
+            payload = {}
+            if data.get("date") and data.get("time"):
+                payload["AptDateTime"] = f"{data['date']} {data['time']}:00"
+            if data.get("doctor_name"):
+                payload["Note"] = f"Provider: {data['doctor_name']}"
+            resp = requests.put(
+                f"{self.base_url}/api/v1/appointments/{appointment_id}",
+                json=payload,
+                headers={"Authorization": self.config.get("api_key", ""), "Content-Type": "application/json"},
+                timeout=15
+            )
+            if resp.ok:
+                return {"status": "success", "message": "Updated in Open Dental"}
+            return {"status": "error", "message": f"Open Dental API error: {resp.status_code}"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
     def cancel_appointment(self, appointment_id: str, reason: str = "") -> Dict:
-        """TODO: PUT /api/v1/appointments/{AptNum} with AptStatus=Broken"""
-        raise NotImplementedError("Open Dental cancel_appointment: awaiting API credentials")
+        """Cancel appointment in Open Dental via PUT with AptStatus=Broken."""
+        import requests
+        try:
+            resp = requests.put(
+                f"{self.base_url}/api/v1/appointments/{appointment_id}",
+                json={"AptStatus": "Broken", "Note": reason or "Cancelled via ChatGenius"},
+                headers={"Authorization": self.config.get("api_key", ""), "Content-Type": "application/json"},
+                timeout=15
+            )
+            if resp.ok:
+                return {"status": "success", "message": "Cancelled in Open Dental"}
+            return {"status": "error", "message": f"Open Dental API error: {resp.status_code}"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
     def get_doctors(self) -> List[Dict]:
         """

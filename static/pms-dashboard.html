@@ -10,15 +10,15 @@
         html { font-size: 90%; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --primary: #8b5cf6;
+            --primary: #8B5CF6;
             --primary-dark: #7c3aed;
-            --bg-dark: #0f0f1a;
-            --bg-card: rgba(255,255,255,0.03);
-            --border: rgba(255,255,255,0.08);
-            --text: #f1f5f9;
-            --text-muted: #64748b;
-            --success: #34d399;
-            --warning: #fbbf24;
+            --bg-dark: #F9FAFB;
+            --bg-card: rgba(249,250,251,1);
+            --border: rgba(229,231,235,1);
+            --text: #1A1A2E;
+            --text-muted: #6B7280;
+            --success: #10b981;
+            --warning: #f59e0b;
             --danger: #ef4444;
             --info: #3b82f6;
         }
@@ -34,6 +34,8 @@
             display: flex;
             align-items: center;
             gap: 1rem;
+            background: #FFFFFF;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
         .header h1 { font-size: 1.2rem; font-weight: 700; }
         .header h1 span { color: var(--primary); }
@@ -79,7 +81,7 @@
         .card {
             background: var(--bg-card);
             border: 1px solid var(--border);
-            border-radius: 16px;
+            border-radius: 8px;
             padding: 1.5rem;
             margin-bottom: 1.5rem;
         }
@@ -95,12 +97,12 @@
         }
         .status-badge {
             padding: 0.3rem 0.8rem;
-            border-radius: 20px;
+            border-radius: 8px;
             font-size: 0.75rem;
             font-weight: 600;
         }
         .status-connected {
-            background: rgba(52,211,153,0.15);
+            background: rgba(16,185,129,0.15);
             color: var(--success);
         }
         .status-disconnected {
@@ -119,7 +121,7 @@
         .form-input, .form-select {
             width: 100%;
             padding: 0.75rem 1rem;
-            background: rgba(0,0,0,0.3);
+            background: rgba(0,0,0,0.04);
             border: 1px solid var(--border);
             border-radius: 8px;
             color: var(--text);
@@ -146,12 +148,12 @@
             background: var(--primary-dark);
         }
         .btn-secondary {
-            background: rgba(255,255,255,0.1);
+            background: rgba(243,244,246,1);
             color: var(--text);
         }
         .btn-success {
             background: var(--success);
-            color: #000;
+            color: #fff;
         }
         table {
             width: 100%;
@@ -167,11 +169,12 @@
         }
         td {
             padding: 0.75rem 1rem;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
+            border-bottom: 1px solid var(--border);
             font-size: 0.9rem;
+            color: var(--text);
         }
         tr:hover td {
-            background: rgba(139,92,246,0.05);
+            background: rgba(243,244,246,1);
         }
         .empty-state {
             text-align: center;
@@ -184,11 +187,11 @@
             gap: 1rem;
         }
         .stat-card {
-            background: rgba(0,0,0,0.2);
+            background: rgba(0,0,0,0.03);
             border-radius: 12px;
             padding: 1rem;
             text-align: center;
-        }
+        ;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
         .stat-value {
             font-size: 2rem;
             font-weight: 700;
@@ -208,11 +211,11 @@
         }
         .adapter-card:hover {
             border-color: var(--primary);
-            background: rgba(139,92,246,0.05);
+            background: rgba(243,244,246,1);
         }
         .adapter-card.selected {
             border-color: var(--primary);
-            background: rgba(139,92,246,0.1);
+            background: rgba(243,244,246,1);
         }
         .adapter-icon {
             font-size: 2rem;
@@ -229,7 +232,7 @@
         .adapter-status {
             font-size: 0.7rem;
             padding: 0.2rem 0.5rem;
-            border-radius: 10px;
+            border-radius: 8px;
             margin-top: 0.5rem;
             display: inline-block;
         }
@@ -268,35 +271,50 @@
                     <div class="adapter-card" onclick="selectAdapter('dentrix')" id="adapter-dentrix">
                         <div class="adapter-icon">🏥</div>
                         <div class="adapter-name">Dentrix</div>
-                        <div class="adapter-desc">Enterprise dental PMS</div>
-                        <span class="adapter-status" style="background: rgba(255,255,255,0.1); color: var(--text-muted);">Coming Soon</span>
+                        <div class="adapter-desc">Henry Schein Dentrix / Ascend</div>
+                        <span class="adapter-status" id="status-dentrix" style="background:rgba(16,185,129,0.08);color:var(--success)">Available</span>
                     </div>
                     <div class="adapter-card" onclick="selectAdapter('eaglesoft')" id="adapter-eaglesoft">
                         <div class="adapter-icon">🦷</div>
                         <div class="adapter-name">Eaglesoft</div>
                         <div class="adapter-desc">Patterson Dental PMS</div>
-                        <span class="adapter-status" style="background: rgba(255,255,255,0.1); color: var(--text-muted);">Coming Soon</span>
+                        <span class="adapter-status" id="status-eaglesoft" style="background:rgba(16,185,129,0.08);color:var(--success)">Available</span>
                     </div>
                     <div class="adapter-card" onclick="selectAdapter('opendental')" id="adapter-opendental">
                         <div class="adapter-icon">🔓</div>
                         <div class="adapter-name">Open Dental</div>
-                        <div class="adapter-desc">Open source dental PMS</div>
-                        <span class="adapter-status" style="background: rgba(255,255,255,0.1); color: var(--text-muted);">Coming Soon</span>
+                        <div class="adapter-desc">Open Dental REST API</div>
+                        <span class="adapter-status" id="status-opendental" style="background:rgba(16,185,129,0.08);color:var(--success)">Available</span>
                     </div>
                 </div>
                 
+                <!-- PMS Setup Instructions (dynamic per adapter) -->
+                <div id="pmsSetupInstructions" style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:1.25rem;margin-bottom:1.25rem;display:none">
+                    <div style="font-weight:700;color:#111827;font-size:0.9rem;margin-bottom:0.75rem" id="pmsSetupTitle">Setup Instructions</div>
+                    <div id="pmsSetupContent" style="font-size:0.82rem;color:#374151;line-height:1.6"></div>
+                </div>
+
                 <div class="grid-2">
                     <div class="form-group">
-                        <label class="form-label">API URL (for real PMS)</label>
+                        <label class="form-label" id="apiUrlLabel">API URL</label>
                         <input type="text" class="form-input" id="apiUrl" placeholder="https://api.example.com">
+                        <div style="font-size:0.75rem;color:#9CA3AF;margin-top:4px" id="apiUrlHint"></div>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">API Key</label>
+                        <label class="form-label" id="apiKeyLabel">API Key</label>
                         <input type="password" class="form-input" id="apiKey" placeholder="Enter API key">
+                        <div style="font-size:0.75rem;color:#9CA3AF;margin-top:4px" id="apiKeyHint"></div>
                     </div>
                 </div>
-                
-                <button class="btn btn-primary" onclick="connectPMS()">Connect</button>
+
+                <div class="form-group" style="margin-bottom:1rem">
+                    <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.85rem;color:#374151">
+                        <input type="checkbox" id="syncEnabled" checked style="width:16px;height:16px;accent-color:#8B5CF6">
+                        <span><strong>Auto-sync bookings</strong> — When patients book through the chatbot, automatically create the appointment in your PMS</span>
+                    </label>
+                </div>
+
+                <button class="btn btn-primary" onclick="connectPMS()">Connect &amp; Save</button>
                 <button class="btn btn-secondary" onclick="testConnection()">Test Connection</button>
             </div>
         </div>
@@ -329,10 +347,11 @@
                             <th>Date</th>
                             <th>Time</th>
                             <th>Status</th>
+                            <th>PMS Sync</th>
                         </tr>
                     </thead>
                     <tbody id="appointmentsTable">
-                        <tr><td colspan="6" class="empty-state">No appointments found</td></tr>
+                        <tr><td colspan="7" class="empty-state">No appointments found</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -412,10 +431,7 @@
     
     <script>
         const token = localStorage.getItem('token');
-        // Bug 7: Auth guard — redirect to login if no token
         if (!token) { window.location.replace('/login'); }
-        // Bug 1: This page is a deprecated prototype — redirect to main dashboard PMS page
-        window.location.replace('/user-dashboard#pms');
         const headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
         let currentAdapter = 'mock';
         
@@ -431,30 +447,85 @@
             if (tab === 'sync') loadSyncStatus();
         }
         
-        function selectAdapter(adapter) {
-            if (adapter !== 'mock') {
-                alert('This adapter is not yet implemented. Please use Mock PMS for now.');
-                return;
+        const PMS_SETUP_INFO = {
+            mock: {
+                title: 'Mock PMS (Testing)',
+                urlLabel: 'API URL', urlPlaceholder: 'http://localhost:8080', urlHint: 'Uses built-in local database',
+                keyLabel: 'API Key', keyPlaceholder: 'Not required for mock', keyHint: 'Leave blank for testing',
+                instructions: 'The Mock PMS uses your local ChatGenius database for testing. No external setup needed.'
+            },
+            dentrix: {
+                title: 'Dentrix / Dentrix Ascend Setup',
+                urlLabel: 'Dentrix API Endpoint', urlPlaceholder: 'https://api.dentrixascend.com/v1', urlHint: 'For Dentrix Ascend cloud. For local Dentrix G-series, use http://localhost:PORT',
+                keyLabel: 'API Key / Bearer Token', keyPlaceholder: 'Your Dentrix API key or OAuth token', keyHint: 'Get this from the Dentrix Developer Portal',
+                instructions: '<strong>How to connect Dentrix:</strong><ol style="margin:0.5rem 0 0 1.25rem"><li>Log into your <a href="https://developer.dentrix.com" target="_blank" style="color:#8B5CF6">Dentrix Developer Portal</a></li><li>Go to <strong>Settings &gt; API Access</strong> and generate an API key</li><li>If using Dentrix Ascend (cloud), copy the API endpoint URL</li><li>If using Dentrix G-series (local), ensure the local API server is running and note its port</li><li>Paste both values above and click <strong>Connect &amp; Save</strong></li></ol><div style="margin-top:0.5rem;padding:0.5rem 0.75rem;background:rgba(139,92,246,0.06);border-radius:6px;font-size:0.78rem"><strong>What happens:</strong> When a patient books through your ChatGenius chatbot, the appointment automatically appears in your Dentrix schedule within seconds.</div>'
+            },
+            opendental: {
+                title: 'Open Dental API Setup',
+                urlLabel: 'Open Dental Server URL', urlPlaceholder: 'https://your-server.com:30223', urlHint: 'Your Open Dental API server address (default port 30223)',
+                keyLabel: 'Developer Key', keyPlaceholder: 'Your Open Dental API developer key', keyHint: 'Generate from Open Dental > Setup > Advanced > API',
+                instructions: '<strong>How to connect Open Dental:</strong><ol style="margin:0.5rem 0 0 1.25rem"><li>In Open Dental, go to <strong>Setup &gt; Advanced Setup &gt; API</strong></li><li>Enable the API and set a <strong>Developer Key</strong></li><li>Note your server\'s IP/hostname and API port (default: 30223)</li><li>If using Open Dental Cloud, contact their support for your API endpoint</li><li>Enter the URL and key above, then click <strong>Connect &amp; Save</strong></li></ol><div style="margin-top:0.5rem;padding:0.5rem 0.75rem;background:rgba(139,92,246,0.06);border-radius:6px;font-size:0.78rem"><strong>What happens:</strong> Chatbot bookings are instantly pushed to your Open Dental Appointments module. Patients are auto-matched by email/phone or created as new patients.</div>'
+            },
+            eaglesoft: {
+                title: 'Eaglesoft / Patterson Setup',
+                urlLabel: 'Eaglesoft API Endpoint', urlPlaceholder: 'https://your-eaglesoft-server.com/api', urlHint: 'Your Eaglesoft server API URL',
+                keyLabel: 'API Key', keyPlaceholder: 'Your Eaglesoft integration API key', keyHint: 'Contact Patterson support or your IT admin for API access',
+                instructions: '<strong>How to connect Eaglesoft:</strong><ol style="margin:0.5rem 0 0 1.25rem"><li>Contact <a href="https://www.pattersondental.com/support" target="_blank" style="color:#8B5CF6">Patterson Dental Support</a> to enable API access for your Eaglesoft installation</li><li>They will provide you with an API endpoint URL and authentication key</li><li>Ensure your Eaglesoft server allows external API connections (firewall/network settings)</li><li>Enter the credentials above and click <strong>Connect &amp; Save</strong></li></ol><div style="margin-top:0.5rem;padding:0.5rem 0.75rem;background:rgba(139,92,246,0.06);border-radius:6px;font-size:0.78rem"><strong>What happens:</strong> Every chatbot booking is synced to your Eaglesoft appointment book. Patient records are matched or created automatically.</div>'
             }
+        };
+
+        function selectAdapter(adapter) {
             currentAdapter = adapter;
             document.querySelectorAll('.adapter-card').forEach(c => c.classList.remove('selected'));
             document.getElementById('adapter-' + adapter).classList.add('selected');
+
+            // Show setup instructions
+            const info = PMS_SETUP_INFO[adapter];
+            if (info) {
+                const instrEl = document.getElementById('pmsSetupInstructions');
+                document.getElementById('pmsSetupTitle').textContent = info.title;
+                document.getElementById('pmsSetupContent').innerHTML = info.instructions;
+                instrEl.style.display = '';
+
+                document.getElementById('apiUrlLabel').textContent = info.urlLabel;
+                document.getElementById('apiUrl').placeholder = info.urlPlaceholder;
+                document.getElementById('apiUrlHint').textContent = info.urlHint;
+                document.getElementById('apiKeyLabel').textContent = info.keyLabel;
+                document.getElementById('apiKey').placeholder = info.keyPlaceholder;
+                document.getElementById('apiKeyHint').textContent = info.keyHint;
+            }
         }
-        
+
         async function connectPMS() {
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const syncEnabled = document.getElementById('syncEnabled').checked;
+
+            if (currentAdapter !== 'mock' && (!apiUrl || !apiKey)) {
+                alert('Please enter both the API URL and API Key.');
+                return;
+            }
+
             try {
-                const res = await fetch('/api/pms/sync', {
+                // Save to EMR integrations
+                const res = await fetch('/api/integrations/emr/configure', {
                     method: 'POST',
-                    headers,
+                    headers: { ...headers, 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        pms_type: currentAdapter,
-                        api_url: document.getElementById('apiUrl').value,
-                        api_key: document.getElementById('apiKey').value
+                        integration_type: currentAdapter,
+                        api_endpoint: apiUrl,
+                        api_key: apiKey,
+                        sync_enabled: syncEnabled
                     })
                 });
                 const data = await res.json();
-                document.getElementById('connectionStatus').textContent = 'Connected';
-                document.getElementById('connectionStatus').className = 'status-badge status-connected';
+                if (data.ok || data.message) {
+                    document.getElementById('connectionStatus').textContent = 'Connected';
+                    document.getElementById('connectionStatus').className = 'status-badge status-connected';
+                    alert('Integration saved! ' + (syncEnabled ? 'Auto-sync is enabled — new chatbot bookings will appear in your PMS automatically.' : 'Auto-sync is disabled.'));
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to save'));
+                }
             } catch (e) {
                 alert('Connection failed: ' + e.message);
             }
@@ -462,11 +533,18 @@
         
         async function testConnection() {
             try {
-                const res = await fetch('/api/pms/status', {
+                const res = await fetch('/api/integrations/emr/status', {
                     headers
                 });
                 const data = await res.json();
-                alert('Connection test: ' + (data.is_connected ? 'Success' : 'Failed'));
+                const integration = (data.integrations || []).find(i => i.integration_type === currentAdapter);
+                if (integration && integration.status === 'active') {
+                    alert('Connection test: Success — ' + currentAdapter + ' is connected.');
+                } else if (integration) {
+                    alert('Connection test: Integration found but status is "' + (integration.status || 'pending') + '".');
+                } else {
+                    alert('Connection test: No integration configured for ' + currentAdapter + '. Save credentials first.');
+                }
             } catch (e) {
                 alert('Test failed: ' + e.message);
             }
@@ -476,16 +554,16 @@
             try {
                 const res = await fetch('/api/pms/appointments', { headers });
                 const appointments = await res.json();
-                
+
                 document.getElementById('totalAppointments').textContent = appointments.length;
-                
+
                 const today = new Date().toISOString().split('T')[0];
                 const todayCount = appointments.filter(a => a.date === today).length;
                 document.getElementById('todayAppointments').textContent = todayCount;
-                
+
                 const tbody = document.getElementById('appointmentsTable');
                 if (appointments.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No appointments found</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No appointments found</td></tr>';
                 } else {
                     tbody.innerHTML = appointments.map(a => `
                         <tr>
@@ -494,12 +572,35 @@
                             <td>${escapeHtml(a.service || 'General')}</td>
                             <td>${a.date}</td>
                             <td>${a.time}</td>
-                            <td><span class="status-badge ${a.status === 'scheduled' ? 'status-connected' : 'status-disconnected'}">${a.status}</span></td>
+                            <td><span class="status-badge ${a.status === 'confirmed' ? 'status-connected' : 'status-disconnected'}">${a.status}</span></td>
+                            <td>${a.synced
+                                ? '<span class="status-badge status-connected">Synced</span>'
+                                : '<button class="btn btn-secondary" style="font-size:11px;padding:4px 8px;" onclick="pushToPMS(' + a.id + ')">Push to PMS</button>'
+                            }</td>
                         </tr>
                     `).join('');
                 }
             } catch (e) {
                 console.error(e);
+            }
+        }
+
+        async function pushToPMS(bookingId) {
+            try {
+                const res = await fetch('/api/pms/sync-booking', {
+                    method: 'POST',
+                    headers: { ...headers, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ booking_id: bookingId })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    alert('Booking pushed to ' + (data.pms_type || 'PMS') + ' successfully!');
+                    loadAppointments();
+                } else {
+                    alert('Sync failed: ' + (data.message || 'Unknown error'));
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
             }
         }
         

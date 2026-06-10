@@ -8,156 +8,167 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
+        :root{--text:#1A1A2E;--text-muted:#6B7280;--text-dim:#6B7280;--border:#E5E7EB;--ease:cubic-bezier(0.22,1,0.36,1)}
         html{font-size:90%}
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:'Outfit','Inter',sans-serif;background:#06080d;color:#f1f5f9;min-height:100vh}
-        body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.022;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-        a{color:#8b5cf6;text-decoration:none}
+        body{font-family:'Outfit','Inter',sans-serif;background:#F9FAFB;color:#1A1A2E;min-height:100vh}
+        body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+        a{color:#1A1A2E;text-decoration:none}
         a:hover{text-decoration:underline}
 
         /* ── Nav ── */
-        .nav{position:sticky;top:0;z-index:100;background:rgba(6,8,13,0.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,0.06);padding:0 2rem}
+        .nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid #E5E7EB;padding:0 2rem}
         .nav-inner{max-width:1280px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px}
-        .nav-logo{font-size:1.35rem;font-weight:800;letter-spacing:-0.5px;color:#f1f5f9}
-        .nav-logo span{background:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .nav-logo{font-size:1.35rem;font-weight:800;letter-spacing:-0.5px;color:#1A1A2E}
+        .nav-logo span{background:linear-gradient(135deg,#8B5CF6,#7C3AED,#6D28D9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
         .nav-links{display:flex;align-items:center;gap:2rem}
-        .nav-links a{color:#8b95a8;text-decoration:none;font-size:0.9rem;font-weight:500;transition:color .2s}
-        .nav-links a:hover,.nav-links a.active{color:#f1f5f9;text-decoration:none}
-        .nav-links .btn-nav{background:linear-gradient(135deg,#8b5cf6,#6366f1);color:#fff;padding:0.5rem 1.25rem;border-radius:10px;font-weight:600;transition:opacity .2s}
+        .nav-links a{color:#6B7280;text-decoration:none;font-size:0.9rem;font-weight:500;transition:color .2s}
+        .nav-links a:hover,.nav-links a.active{color:#1A1A2E;text-decoration:none}
+        .nav-links .btn-nav{background:#8B5CF6;color:#FFFFFF;padding:0.5rem 1.25rem;border-radius:8px;font-weight:600;transition:opacity .2s}
         .nav-links .btn-nav:hover{opacity:0.9}
-        .nav-mobile-toggle{display:none;background:none;border:none;color:#f1f5f9;font-size:1.5rem;cursor:pointer}
+        .nav-mobile-toggle{display:none;background:none;border:none;color:#1A1A2E;font-size:1.5rem;cursor:pointer}
 
         /* ── Hero ── */
         .hero{text-align:center;padding:5rem 2rem 2rem;position:relative;z-index:1}
-        .hero h1{font-size:3rem;font-weight:900;letter-spacing:-1px;margin-bottom:1rem;background:linear-gradient(135deg,#f1f5f9 40%,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-        .hero p{color:#8b95a8;font-size:1.15rem;max-width:540px;margin:0 auto;line-height:1.7}
+        .hero h1{font-size:3rem;font-weight:900;letter-spacing:-1px;margin-bottom:1rem;background:linear-gradient(135deg,#1A1A2E 40%,#374151);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .hero p{color:#6B7280;font-size:1.15rem;max-width:540px;margin:0 auto;line-height:1.7}
 
         /* ── Toggle ── */
         .toggle-wrap{display:flex;align-items:center;justify-content:center;gap:1rem;margin:2.5rem 0 3rem;position:relative;z-index:1}
-        .toggle-label{font-size:0.95rem;font-weight:600;color:#8b95a8;cursor:pointer;transition:color .2s;user-select:none}
-        .toggle-label.active{color:#f1f5f9}
-        .toggle-track{width:56px;height:30px;background:rgba(255,255,255,0.1);border-radius:999px;cursor:pointer;position:relative;transition:background .3s;border:1px solid rgba(255,255,255,0.08)}
-        .toggle-track.annual{background:linear-gradient(135deg,#8b5cf6,#6366f1)}
+        .toggle-label{font-size:0.95rem;font-weight:600;color:#6B7280;cursor:pointer;transition:color .2s;user-select:none}
+        .toggle-label.active{color:#1A1A2E}
+        .toggle-track{width:56px;height:30px;background:#F3F4F6;border-radius:6px;cursor:pointer;position:relative;transition:background .3s;border:1px solid #E5E7EB}
+        .toggle-track.annual{background:linear-gradient(135deg,#8B5CF6,#7C3AED)}
         .toggle-knob{width:24px;height:24px;background:#fff;border-radius:50%;position:absolute;top:2px;left:3px;transition:transform .3s;box-shadow:0 2px 6px rgba(0,0,0,0.3)}
         .toggle-track.annual .toggle-knob{transform:translateX(26px)}
-        .toggle-badge{background:rgba(139,92,246,0.15);color:#a78bfa;font-size:0.75rem;font-weight:700;padding:0.25rem 0.65rem;border-radius:999px;letter-spacing:0.3px}
+        .toggle-badge{background:#E5E7EB;color:#374151;font-size:0.75rem;font-weight:700;padding:0.25rem 0.65rem;border-radius:6px;letter-spacing:0.3px}
 
         /* ── Cards grid ── */
-        .plans{max-width:1280px;margin:0 auto;padding:0 1.5rem 4rem;display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;position:relative;z-index:1}
+        .plans{max-width:1380px;margin:0 auto;padding:0 1.5rem 4rem;display:grid;grid-template-columns:repeat(5,1fr);gap:1.25rem;position:relative;z-index:1}
 
         /* ── Card ── */
-        .plan-card{background:rgba(255,255,255,0.035);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:20px;padding:2.25rem 1.75rem;border:1px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;transition:transform .3s,box-shadow .3s,border-color .3s;position:relative}
-        .plan-card:hover{transform:translateY(-6px);box-shadow:0 24px 60px rgba(0,0,0,0.35);border-color:rgba(255,255,255,0.1)}
+        .plan-card{background:#F9FAFB;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius: 8px;padding:2.25rem 1.75rem;border:1px solid #E5E7EB;display:flex;flex-direction:column;transition:transform .3s,box-shadow .3s,border-color .3s;position:relative}
+        .plan-card:hover{transform:translateY(-6px);box-shadow:0 24px 60px rgba(0,0,0,0.35);border-color:#E5E7EB}
 
         /* Pro highlight */
-        .plan-card.popular{border:2px solid transparent;background-image:linear-gradient(rgba(6,8,13,0.97),rgba(6,8,13,0.97)),linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);background-origin:border-box;background-clip:padding-box,border-box;transform:scale(1.04);z-index:2;box-shadow:0 20px 60px rgba(139,92,246,0.15)}
-        .plan-card.popular:hover{transform:scale(1.04) translateY(-6px);box-shadow:0 28px 70px rgba(139,92,246,0.25)}
-        .badge-popular{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);color:#fff;font-size:0.7rem;font-weight:800;padding:0.35rem 1rem;border-radius:999px;letter-spacing:1px;text-transform:uppercase;white-space:nowrap}
+        .plan-card.popular{border:2px solid transparent;background-image:linear-gradient(rgba(6,8,13,0.97),rgba(6,8,13,0.97)),linear-gradient(135deg,#ffffff,#e4e4e7,#d4d4d8);background-origin:border-box;background-clip:padding-box,border-box;transform:scale(1.04);z-index:2;box-shadow:0 20px 60px rgba(229,231,235,1)}
+        .plan-card.popular:hover{transform:scale(1.04) translateY(-6px);box-shadow:0 28px 70px rgba(209,213,219,1)}
+        .plan-card.popular .plan-name{color:#FFFFFF}
+        .plan-card.popular .plan-price{color:#FFFFFF}
+        .plan-card.popular .plan-price .period{color:#A1A1AA}
+        .plan-card.popular .plan-billed{color:#A1A1AA}
+        .plan-card.popular .plan-billed .savings{color:#FFFFFF}
+        .plan-card.popular .plan-divider{border-top-color:#374151}
+        .plan-card.popular .plan-features li{color:#D1D5DB}
+        .plan-card.popular .plan-features li::before{background:rgba(139,92,246,0.2)}
+        .plan-card.popular .plan-features li::after{color:#A78BFA}
+        .plan-card.popular .plan-features li.section-label{color:#A78BFA}
+        .badge-popular{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:#8B5CF6;color:#FFFFFF;font-size:0.7rem;font-weight:800;padding:0.35rem 1rem;border-radius:6px;letter-spacing:1px;text-transform:uppercase;white-space:nowrap}
 
-        .plan-name{font-size:1.1rem;font-weight:700;margin-bottom:0.25rem;color:#f1f5f9}
-        .plan-price{font-size:2.8rem;font-weight:900;letter-spacing:-1.5px;color:#f1f5f9;margin-bottom:0.15rem}
+        .plan-name{font-size:1.1rem;font-weight:700;margin-bottom:0.25rem;color:#1A1A2E}
+        .plan-price{font-size:2.8rem;font-weight:900;letter-spacing:-1.5px;color:#1A1A2E;margin-bottom:0.15rem}
         .plan-price .currency{font-size:1.3rem;vertical-align:super;font-weight:700}
-        .plan-price .period{font-size:0.9rem;font-weight:500;color:#8b95a8}
-        .plan-billed{font-size:0.8rem;color:#8b95a8;margin-bottom:1.25rem;min-height:1.1rem}
-        .plan-billed .savings{color:#22c55e;font-weight:600}
+        .plan-price .period{font-size:0.9rem;font-weight:500;color:#6B7280}
+        .plan-billed{font-size:0.8rem;color:#6B7280;margin-bottom:1.25rem;min-height:1.1rem}
+        .plan-billed .savings{color:#1A1A2E;font-weight:600}
 
-        .plan-divider{border:none;border-top:1px solid rgba(255,255,255,0.06);margin-bottom:1.25rem}
+        .plan-divider{border:none;border-top:1px solid #E5E7EB;margin-bottom:1.25rem}
 
         .plan-features{list-style:none;margin-bottom:2rem;flex:1}
-        .plan-features li{font-size:0.85rem;color:#8b95a8;padding:0.35rem 0;padding-left:1.5rem;position:relative;line-height:1.5}
-        .plan-features li::before{content:'';position:absolute;left:0;top:0.55rem;width:14px;height:14px;border-radius:50%;background:rgba(139,92,246,0.12)}
-        .plan-features li::after{content:'\2713';position:absolute;left:2.5px;top:0.3rem;font-size:0.65rem;color:#8b5cf6;font-weight:700}
-        .plan-features li.section-label{padding-left:0;font-weight:700;color:#a78bfa;font-size:0.8rem;letter-spacing:0.5px;margin-top:0.5rem}
+        .plan-features li{font-size:0.85rem;color:#6B7280;padding:0.35rem 0;padding-left:1.5rem;position:relative;line-height:1.5}
+        .plan-features li::before{content:'';position:absolute;left:0;top:0.55rem;width:14px;height:14px;border-radius:50%;background:rgba(16,185,129,0.12)}
+        .plan-features li::after{content:'\2713';position:absolute;left:2.5px;top:0.3rem;font-size:0.65rem;color:#10b981;font-weight:700}
+        .plan-features li.section-label{padding-left:0;font-weight:700;color:#7C3AED;font-size:0.8rem;letter-spacing:0.5px;margin-top:0.5rem}
         .plan-features li.section-label::before,.plan-features li.section-label::after{display:none}
 
         .plan-btn{display:block;text-align:center;padding:0.85rem 1.5rem;border-radius:12px;font-weight:700;font-size:0.9rem;text-decoration:none;transition:opacity .2s,transform .2s;border:none;cursor:pointer;width:100%}
         .plan-btn:hover{opacity:0.9;transform:translateY(-1px);text-decoration:none}
-        .btn-outline{background:transparent;border:1px solid rgba(255,255,255,0.12);color:#f1f5f9}
-        .btn-outline:hover{border-color:rgba(255,255,255,0.25);color:#fff}
-        .btn-primary{background:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);color:#fff;box-shadow:0 4px 20px rgba(139,92,246,0.3)}
-        .btn-primary:hover{box-shadow:0 6px 28px rgba(139,92,246,0.4)}
+        .btn-outline{background:transparent;border:1px solid #E5E7EB;color:#1A1A2E}
+        .btn-outline:hover{border-color:rgba(209,213,219,1);color:#1A1A2E}
+        .btn-primary{background:#8B5CF6;color:#FFFFFF;box-shadow:0 0 20px rgba(139,92,246,0.3)}
+        .btn-primary:hover{box-shadow:0 0 35px rgba(139,92,246,0.45)}
 
         /* ── Comparison Table ── */
         .comparison{max-width:1280px;margin:0 auto 5rem;padding:0 1.5rem;position:relative;z-index:1}
         .comparison h2{text-align:center;font-size:2rem;font-weight:800;letter-spacing:-0.5px;margin-bottom:0.5rem}
-        .comparison .subtitle{text-align:center;color:#8b95a8;font-size:1rem;margin-bottom:2.5rem}
-        .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:16px;border:1px solid rgba(255,255,255,0.06)}
+        .comparison .subtitle{text-align:center;color:#6B7280;font-size:1rem;margin-bottom:2.5rem}
+        .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px;border:1px solid #E5E7EB}
         .comp-table{width:100%;border-collapse:collapse;min-width:760px}
-        .comp-table th,.comp-table td{padding:0.85rem 1.1rem;text-align:center;font-size:0.85rem;border-bottom:1px solid rgba(255,255,255,0.04)}
-        .comp-table th{background:rgba(255,255,255,0.04);color:#f1f5f9;font-weight:700;position:sticky;top:0}
-        .comp-table th:first-child,.comp-table td:first-child{text-align:left;color:#cbd5e1;font-weight:500}
-        .comp-table th.highlight{background:linear-gradient(180deg,rgba(139,92,246,0.15),rgba(139,92,246,0.05));color:#a78bfa}
-        .comp-table td.highlight{background:rgba(139,92,246,0.04)}
+        .comp-table th,.comp-table td{padding:0.85rem 1.1rem;text-align:center;font-size:0.85rem;border-bottom:1px solid #E5E7EB}
+        .comp-table th{background:#FFFFFF;color:#1A1A2E;font-weight:700;position:sticky;top:0}
+        .comp-table th:first-child,.comp-table td:first-child{text-align:left;color:#374151;font-weight:500}
+        .comp-table th.highlight{background:linear-gradient(180deg,rgba(229,231,235,1),rgba(243,244,246,1));color:#374151}
+        .comp-table td.highlight{background:#F9FAFB}
         .comp-table tr:last-child td{border-bottom:none}
-        .comp-table .check{color:#8b5cf6;font-weight:700;font-size:1.1rem}
-        .comp-table .dash{color:#3a3f4d}
-        .comp-table .cat-row td{background:rgba(255,255,255,0.02);font-weight:700;color:#a78bfa;font-size:0.8rem;letter-spacing:0.5px;text-transform:uppercase;padding-top:1.1rem}
+        .comp-table .check{color:#1A1A2E;font-weight:700;font-size:1.1rem}
+        .comp-table .dash{color:#52525b}
+        .comp-table .cat-row td{background:#FFFFFF;font-weight:700;color:#374151;font-size:0.8rem;letter-spacing:0.5px;text-transform:uppercase;padding-top:1.1rem}
 
         /* ── ROI Calculator ── */
         .roi-section{max-width:1100px;margin:0 auto 5rem;padding:0 1.5rem;position:relative;z-index:1}
         .roi-section h2{text-align:center;font-size:2rem;font-weight:800;letter-spacing:-0.5px;margin-bottom:0.5rem}
-        .roi-section .subtitle{text-align:center;color:#8b95a8;font-size:1rem;margin-bottom:2.5rem}
-        .roi-card{background:rgba(255,255,255,0.025);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:24px;padding:2.5rem;border:1px solid rgba(255,255,255,0.06);display:grid;grid-template-columns:1fr 1fr;gap:3rem}
+        .roi-section .subtitle{text-align:center;color:#6B7280;font-size:1rem;margin-bottom:2.5rem}
+        .roi-card{background:#F9FAFB;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius: 8px;padding:2.5rem;border:1px solid #E5E7EB;display:grid;grid-template-columns:1fr 1fr;gap:3rem}
         .roi-inputs{display:flex;flex-direction:column;gap:1.75rem}
-        .roi-input-group label{display:flex;justify-content:space-between;align-items:center;font-size:0.88rem;font-weight:600;color:#cbd5e1;margin-bottom:0.5rem}
-        .roi-input-group .roi-val{color:#a78bfa;font-weight:700;font-size:0.95rem;min-width:60px;text-align:right}
-        .roi-input-group input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;background:rgba(255,255,255,0.08);outline:none;cursor:pointer}
-        .roi-input-group input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#6366f1);cursor:pointer;box-shadow:0 2px 10px rgba(139,92,246,0.4)}
-        .roi-input-group input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#6366f1);cursor:pointer;border:none;box-shadow:0 2px 10px rgba(139,92,246,0.4)}
+        .roi-input-group label{display:flex;justify-content:space-between;align-items:center;font-size:0.88rem;font-weight:600;color:#374151;margin-bottom:0.5rem}
+        .roi-input-group .roi-val{color:#374151;font-weight:700;font-size:0.95rem;min-width:60px;text-align:right}
+        .roi-input-group input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;background:#F3F4F6;outline:none;cursor:pointer}
+        .roi-input-group input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,#8B5CF6,#7C3AED);cursor:pointer;box-shadow:0 2px 10px rgba(156,163,175,1)}
+        .roi-input-group input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,#8B5CF6,#7C3AED);cursor:pointer;border:none;box-shadow:0 2px 10px rgba(156,163,175,1)}
         .roi-results{display:flex;flex-direction:column;gap:1rem;justify-content:center}
-        .roi-result-item{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:14px;padding:1rem 1.25rem;display:flex;justify-content:space-between;align-items:center}
-        .roi-result-item .roi-label{font-size:0.85rem;color:#8b95a8;max-width:55%}
-        .roi-result-item .roi-number{font-size:1.3rem;font-weight:800;background:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:right}
-        .roi-total{background:linear-gradient(135deg,rgba(139,92,246,0.08),rgba(99,102,241,0.04));border:1px solid rgba(139,92,246,0.15)}
+        .roi-result-item{background:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;padding:1rem 1.25rem;display:flex;justify-content:space-between;align-items:center}
+        .roi-result-item .roi-label{font-size:0.85rem;color:#6B7280;max-width:55%}
+        .roi-result-item .roi-number{font-size:1.3rem;font-weight:800;background:linear-gradient(135deg,#8B5CF6,#7C3AED,#6D28D9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:right}
+        .roi-total{background:linear-gradient(135deg,rgba(229,231,235,1),rgba(249,250,251,1));border:1px solid #D1D5DB}
         .roi-total .roi-number{font-size:1.6rem}
-        .roi-total .roi-label{font-weight:700;color:#f1f5f9}
-        .roi-annual{background:linear-gradient(135deg,rgba(52,211,153,0.06),rgba(59,130,246,0.04));border:1px solid rgba(52,211,153,0.12)}
-        .roi-annual .roi-number{background:linear-gradient(135deg,#34d399,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-size:1.8rem}
-        .roi-annual .roi-label{font-weight:700;color:#f1f5f9}
-        .roi-multiplier{text-align:center;margin-top:0.5rem;padding:0.75rem;border-radius:12px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.1)}
-        .roi-multiplier span{font-weight:900;font-size:1.5rem;background:linear-gradient(135deg,#8b5cf6,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-        .roi-multiplier .roi-mult-label{font-size:0.82rem;color:#8b95a8;display:block;margin-top:0.15rem}
+        .roi-total .roi-label{font-weight:700;color:#1A1A2E}
+        .roi-annual{background:linear-gradient(135deg,rgba(229,231,235,1),rgba(249,250,251,1));border:1px solid #E5E7EB}
+        .roi-annual .roi-number{background:linear-gradient(135deg,#8B5CF6,#6D28D9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-size:1.8rem}
+        .roi-annual .roi-label{font-weight:700;color:#1A1A2E}
+        .roi-multiplier{text-align:center;margin-top:0.5rem;padding:0.75rem;border-radius:12px;background:#F3F4F6;border:1px solid #E5E7EB}
+        .roi-multiplier span{font-weight:900;font-size:1.5rem;background:linear-gradient(135deg,#8B5CF6,#7C3AED);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .roi-multiplier .roi-mult-label{font-size:0.82rem;color:#6B7280;display:block;margin-top:0.15rem}
         .roi-cta{text-align:center;margin-top:1.5rem}
-        .roi-cta a{display:inline-block;background:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);color:#fff;padding:0.85rem 2rem;border-radius:12px;font-weight:700;font-size:0.95rem;text-decoration:none;transition:opacity .2s,transform .2s;box-shadow:0 4px 20px rgba(139,92,246,0.3)}
+        .roi-cta a{display:inline-block;background:#8B5CF6;color:#FFFFFF;padding:0.85rem 2rem;border-radius:12px;font-weight:700;font-size:0.95rem;text-decoration:none;transition:opacity .2s,transform .2s;box-shadow:0 4px 20px rgba(139,92,246,0.3)}
         .roi-cta a:hover{opacity:0.9;transform:translateY(-2px);text-decoration:none}
         @media(max-width:768px){.roi-card{grid-template-columns:1fr;gap:2rem}}
 
         /* ── FAQ ── */
         .faq{max-width:800px;margin:0 auto 5rem;padding:0 1.5rem;position:relative;z-index:1}
         .faq h2{text-align:center;font-size:2rem;font-weight:800;letter-spacing:-0.5px;margin-bottom:0.5rem}
-        .faq .subtitle{text-align:center;color:#8b95a8;font-size:1rem;margin-bottom:2.5rem}
-        .faq-item{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:14px;margin-bottom:0.75rem;overflow:hidden;transition:border-color .2s}
-        .faq-item:hover{border-color:rgba(139,92,246,0.25)}
+        .faq .subtitle{text-align:center;color:#6B7280;font-size:1rem;margin-bottom:2.5rem}
+        .faq-item{background:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;margin-bottom:0.75rem;overflow:hidden;transition:border-color .2s}
+        .faq-item:hover{border-color:rgba(209,213,219,1)}
         .faq-q{display:flex;align-items:center;justify-content:space-between;padding:1.15rem 1.5rem;cursor:pointer;user-select:none;gap:1rem}
-        .faq-q span{font-weight:600;font-size:0.95rem;color:#f1f5f9}
-        .faq-icon{font-size:1.25rem;color:#8b95a8;transition:transform .3s;flex-shrink:0}
-        .faq-item.open .faq-icon{transform:rotate(45deg);color:#8b5cf6}
+        .faq-q span{font-weight:600;font-size:0.95rem;color:#1A1A2E}
+        .faq-icon{font-size:1.25rem;color:#6B7280;transition:transform .3s;flex-shrink:0}
+        .faq-item.open .faq-icon{transform:rotate(45deg);color:#1A1A2E}
         .faq-a{max-height:0;overflow:hidden;transition:max-height .35s ease,padding .35s ease}
         .faq-item.open .faq-a{max-height:200px}
-        .faq-a p{padding:0 1.5rem 1.15rem;font-size:0.9rem;color:#8b95a8;line-height:1.7}
+        .faq-a p{padding:0 1.5rem 1.15rem;font-size:0.9rem;color:#6B7280;line-height:1.7}
 
         /* ── CTA ── */
         .cta{text-align:center;padding:4rem 2rem 5rem;position:relative;z-index:1}
-        .cta-box{max-width:680px;margin:0 auto;background:linear-gradient(135deg,rgba(139,92,246,0.12),rgba(99,102,241,0.08));border:1px solid rgba(139,92,246,0.2);border-radius:24px;padding:3.5rem 2.5rem}
+        .cta-box{max-width:680px;margin:0 auto;background:linear-gradient(135deg,rgba(229,231,235,1),rgba(229,231,235,1));border:1px solid #D1D5DB;border-radius: 8px;padding:3.5rem 2.5rem}
         .cta h2{font-size:2rem;font-weight:800;margin-bottom:0.75rem;letter-spacing:-0.5px}
-        .cta p{color:#8b95a8;font-size:1.05rem;margin-bottom:2rem;line-height:1.7}
-        .cta .btn-primary{display:inline-block;padding:1rem 2.5rem;font-size:1rem;border-radius:14px}
+        .cta p{color:#6B7280;font-size:1.05rem;margin-bottom:2rem;line-height:1.7}
+        .cta .btn-primary{display:inline-block;padding:1rem 2.5rem;font-size:1rem;border-radius:8px}
 
         /* ── Footer ── */
-        .footer{border-top:1px solid rgba(255,255,255,0.06);padding:2rem;text-align:center;position:relative;z-index:1}
+        .footer{border-top:1px solid #E5E7EB;padding:2rem;text-align:center;position:relative;z-index:1}
         .footer-links{display:flex;justify-content:center;gap:2rem;flex-wrap:wrap;margin-bottom:0.75rem}
-        .footer-links a{color:#8b95a8;font-size:0.85rem;text-decoration:none;transition:color .2s}
-        .footer-links a:hover{color:#8b5cf6}
-        .footer-copy{color:#4a5064;font-size:0.8rem}
+        .footer-links a{color:#6B7280;font-size:0.85rem;text-decoration:none;transition:color .2s}
+        .footer-links a:hover{color:#1A1A2E}
+        .footer-copy{color:#52525b;font-size:0.8rem}
 
         /* ── Responsive ── */
-        @media(max-width:1100px){
-            .plans{grid-template-columns:repeat(2,1fr)}
+        @media(max-width:1200px){
+            .plans{grid-template-columns:repeat(3,1fr)}
             .plan-card.popular{transform:scale(1)}
             .plan-card.popular:hover{transform:translateY(-6px)}
         }
         @media(max-width:700px){
-            .nav-links{display:none;position:absolute;top:64px;left:0;right:0;flex-direction:column;background:rgba(6,8,13,0.97);backdrop-filter:blur(20px);padding:1.5rem;gap:1rem;border-bottom:1px solid rgba(255,255,255,0.06)}
+            .nav-links{display:none;position:absolute;top:64px;left:0;right:0;flex-direction:column;background:rgba(255,255,255,0.97);backdrop-filter:blur(20px);padding:1.5rem;gap:1rem;border-bottom:1px solid #E5E7EB}
             .nav-links.open{display:flex}
             .nav-mobile-toggle{display:block}
             .plans{grid-template-columns:1fr}
@@ -179,32 +190,32 @@
             <li>
                 <a href="#" class="nav-dropdown-trigger" onclick="return false">Product <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
                 <div class="nav-dropdown">
-                    <a href="/#features"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6">&#9889;</span><div>Features<small>All platform capabilities</small></div></a>
-                    <a href="/ai-technology"><span class="nav-dd-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6">&#129302;</span><div>AI Technology<small>Model transparency</small></div></a>
-                    <a href="/integrations"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#128268;</span><div>Integrations<small>Connect your stack</small></div></a>
-                    <a href="/trust-center"><span class="nav-dd-icon" style="background:rgba(6,182,212,0.1);color:#06b6d4">&#128274;</span><div>Trust Center<small>Security &amp; compliance</small></div></a>
-                    <a href="/agent-marketplace"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#129302;</span><div>Agent Marketplace<small>Pre-built AI agents</small></div></a>
-                    <a href="/voice-agent"><span class="nav-dd-icon" style="background:rgba(251,191,36,0.1);color:#fbbf24">&#127908;</span><div>Voice AI<small>Voice-powered calls</small></div></a>
-                    <a href="/mobile-app"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#c4b5fd">&#128241;</span><div>Mobile App<small>iOS &amp; Android</small></div></a>
+                    <a href="/#features"><span class="nav-dd-icon" style="background:#E5E7EB;color:#ffffff">&#9889;</span><div>Features<small>All platform capabilities</small></div></a>
+                    <a href="/ai-technology"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#129302;</span><div>AI Technology<small>Model transparency</small></div></a>
+                    <a href="/integrations"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128268;</span><div>Integrations<small>Connect your stack</small></div></a>
+                    <a href="/trust-center"><span class="nav-dd-icon" style="background:#F3F4F6;color:#6B7280">&#128274;</span><div>Trust Center<small>Security &amp; compliance</small></div></a>
+                    <a href="/agent-marketplace"><span class="nav-dd-icon" style="background:#F3F4F6;color:#6B7280">&#129302;</span><div>Agent Marketplace<small>Pre-built AI agents</small></div></a>
+                    <a href="/voice-agent"><span class="nav-dd-icon" style="background:#F3F4F6;color:#6B7280">&#127908;</span><div>Voice AI<small>Voice-powered calls</small></div></a>
+                    <a href="/mobile-app"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128241;</span><div>Mobile App<small>iOS &amp; Android</small></div></a>
                 </div>
             </li>
             <li><a href="/pricing-plans">Pricing</a></li>
             <li>
                 <a href="#" class="nav-dropdown-trigger" onclick="return false">Resources <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
                 <div class="nav-dropdown">
-                    <a href="/developers"><span class="nav-dd-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6">&#128187;</span><div>API Docs<small>Developer portal</small></div></a>
-                    <a href="/compare"><span class="nav-dd-icon" style="background:rgba(251,191,36,0.1);color:#fbbf24">&#128200;</span><div>Compare<small>vs Intercom, Tidio</small></div></a>
-                    <a href="/partners"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#129309;</span><div>Partner Program<small>Earn commissions</small></div></a>
-                    <a href="/blog"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#128221;</span><div>Blog &amp; Guides<small>Tips &amp; insights</small></div></a>
-                    <a href="/case-studies"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6">&#128202;</span><div>Case Studies<small>Real results</small></div></a>
+                    <a href="/developers"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128187;</span><div>API Docs<small>Developer portal</small></div></a>
+                    <a href="/compare"><span class="nav-dd-icon" style="background:#F3F4F6;color:#6B7280">&#128200;</span><div>Compare<small>vs Intercom, Tidio</small></div></a>
+                    <a href="/partners"><span class="nav-dd-icon" style="background:#F3F4F6;color:#6B7280">&#129309;</span><div>Partner Program<small>Earn commissions</small></div></a>
+                    <a href="/blog"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128221;</span><div>Blog &amp; Guides<small>Tips &amp; insights</small></div></a>
+                    <a href="/case-studies"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128202;</span><div>Case Studies<small>Real results</small></div></a>
                 </div>
             </li>
             <li>
                 <a href="#" class="nav-dropdown-trigger" onclick="return false">Use Cases <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
                 <div class="nav-dropdown">
-                    <a href="/for-dental-clinics"><span class="nav-dd-icon" style="background:rgba(6,182,212,0.1);color:#06b6d4">&#129463;</span><div>Dental Clinics<small>Bookings &amp; recalls</small></div></a>
-                    <a href="/for-medical-practices"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#127973;</span><div>Medical Practices<small>Patient engagement</small></div></a>
-                    <a href="/for-salons-spas"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#128135;</span><div>Salons &amp; Spas<small>Beauty appointments</small></div></a>
+                    <a href="/for-dental-clinics"><span class="nav-dd-icon" style="background:#F3F4F6;color:#6B7280">&#129463;</span><div>Dental Clinics<small>Bookings &amp; recalls</small></div></a>
+                    <a href="/for-medical-practices"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#127973;</span><div>Medical Practices<small>Patient engagement</small></div></a>
+                    <a href="/for-salons-spas"><span class="nav-dd-icon" style="background:#F3F4F6;color:#6B7280">&#128135;</span><div>Salons &amp; Spas<small>Beauty appointments</small></div></a>
                 </div>
             </li>
             <li><a href="/login" class="nav-btn-outline">Log In</a></li>
@@ -230,7 +241,7 @@
         <a href="/for-medical-practices">Medical</a>
         <a href="/for-salons-spas">Salons</a>
         <a href="/login">Log In</a>
-        <a href="/login?signup=1" style="color:#c4b5fd;font-weight:700">Start Free</a>
+        <a href="/login?signup=1" style="color:#374151;font-weight:700">Start Free</a>
     </div>
 </nav>
 
@@ -252,18 +263,22 @@
 
 <!-- Plan Cards -->
 <section class="plans">
-    <!-- Free Trial -->
+    <!-- Free -->
     <div class="plan-card">
-        <div class="plan-name">Free Trial</div>
+        <div class="plan-name">Free</div>
         <div class="plan-price"><span class="currency">$</span>0<span class="period">/mo</span></div>
-        <div class="plan-billed">Free for 14 days</div>
+        <div class="plan-billed">Free forever</div>
         <hr class="plan-divider">
         <ul class="plan-features">
-            <li>200 conversations/month</li>
-            <li>1 chatbot (with watermark)</li>
-            <li>Basic AI responses</li>
-            <li>14-day full access</li>
-            <li>Community support</li>
+            <li>50 conversations/month</li>
+            <li>1 chatbot (with branding)</li>
+            <li>Basic FAQ (5 questions)</li>
+            <li>1 doctor, 1 location</li>
+            <li>Basic booking (date + time)</li>
+            <li>Email reminders</li>
+            <li>20 patients max</li>
+            <li>Chat count analytics</li>
+            <li>No AI, no SMS</li>
         </ul>
         <a href="/login?signup=1" class="plan-btn btn-outline">Start Free</a>
     </div>
@@ -271,76 +286,98 @@
     <!-- Basic -->
     <div class="plan-card">
         <div class="plan-name">Basic</div>
-        <div class="plan-price" data-monthly="79" data-annual="63"><span class="currency">$</span><span class="price-val">79</span><span class="period">/mo</span></div>
+        <div class="plan-price" data-monthly="23" data-annual="18"><span class="currency">$</span><span class="price-val">23</span><span class="period">/mo</span></div>
         <div class="plan-billed billed-text">&nbsp;</div>
         <hr class="plan-divider">
         <ul class="plan-features">
-            <li>700 conversations/month</li>
-            <li>1 chatbot (with watermark)</li>
-            <li>AI chatbot (website only)</li>
-            <li>Smart appointment booking</li>
-            <li>Calendar &amp; doctor scheduling</li>
-            <li>Email reminders (48h, 24h)</li>
-            <li>Basic patient profiles</li>
-            <li>Pre-visit forms</li>
+            <li>Unlimited conversations</li>
+            <li>1 chatbot, multi-language (3)</li>
+            <li>Smart booking (service&rarr;date&rarr;time)</li>
+            <li>Email reminders (24h + 2h)</li>
+            <li>Unlimited patients</li>
+            <li>Lead capture + hot alerts</li>
+            <li>Pre-visit forms (standard)</li>
+            <li>3 email templates</li>
+            <li>Live chat handoff</li>
+            <li>1 doctor, 2 staff</li>
             <li>Basic analytics</li>
-            <li>Email support</li>
+            <li>Colors (3 presets)</li>
         </ul>
         <a href="/login?signup=1" class="plan-btn btn-outline">Get Started</a>
     </div>
 
-    <!-- Pro (POPULAR) -->
+    <!-- Growth (MOST POPULAR) -->
     <div class="plan-card popular">
         <div class="badge-popular">Most Popular</div>
-        <div class="plan-name">Pro</div>
-        <div class="plan-price" data-monthly="239" data-annual="191"><span class="currency">$</span><span class="price-val">239</span><span class="period">/mo</span></div>
+        <div class="plan-name">Growth</div>
+        <div class="plan-price" data-monthly="79" data-annual="63"><span class="currency">$</span><span class="price-val">79</span><span class="period">/mo</span></div>
         <div class="plan-billed billed-text">&nbsp;</div>
         <hr class="plan-divider">
         <ul class="plan-features">
-            <li>5,000 conversations/month</li>
-            <li>4 chatbots (no watermark)</li>
             <li class="section-label">Everything in Basic +</li>
-            <li>Advanced reminders (48h, 24h, 2h)</li>
+            <li>2 chatbots</li>
+            <li>SMS reminders (Twilio)</li>
             <li>No-show detection &amp; recovery</li>
-            <li>ROI dashboard</li>
-            <li>Lead capture + auto follow-ups</li>
             <li>Waitlist system</li>
-            <li>Promotions &amp; loyalty program</li>
-            <li>Multi-language chatbot</li>
-            <li>Treatment follow-ups</li>
-            <li>Customer integration</li>
-            <li>Customizable chatbot</li>
-            <li>AI PDF extraction</li>
-            <li>Configurable emails</li>
-            <li>Priority support</li>
+            <li>Loyalty &amp; referral program</li>
+            <li>Invoicing</li>
+            <li>Full analytics &amp; ROI</li>
+            <li>Surveys &amp; Google reviews</li>
+            <li>10 languages, AI scoring</li>
+            <li>WhatsApp + unified inbox</li>
+            <li>Google Calendar, Calendly, Zapier</li>
+            <li>All widget styles &amp; custom colors</li>
+            <li>3 doctors, 5 staff</li>
+            <li>10 promo codes, 10 custom fields</li>
+            <li>Before/after gallery</li>
         </ul>
         <a href="/login?signup=1" class="plan-btn btn-primary">Get Started</a>
+    </div>
+
+    <!-- Pro -->
+    <div class="plan-card">
+        <div class="plan-name">Pro</div>
+        <div class="plan-price" data-monthly="299" data-annual="239"><span class="currency">$</span><span class="price-val">299</span><span class="period">/mo</span></div>
+        <div class="plan-billed billed-text">&nbsp;</div>
+        <hr class="plan-divider">
+        <ul class="plan-features">
+            <li class="section-label">Everything in Growth +</li>
+            <li>3 chatbots</li>
+            <li>Custom AI training</li>
+            <li>Voice input</li>
+            <li>White-label + custom domain</li>
+            <li>A/B testing</li>
+            <li>Missed call handling</li>
+            <li>Facebook &amp; Instagram inbox</li>
+            <li>Treatment packages &amp; upsells</li>
+            <li>Own email sender domain</li>
+            <li>Unlimited promo codes &amp; fields</li>
+            <li>10 doctors, 3 locations, 15 staff</li>
+            <li>ROI dashboard &amp; benchmarking</li>
+            <li>Multi-currency invoicing</li>
+        </ul>
+        <a href="/login?signup=1" class="plan-btn btn-outline">Get Started</a>
     </div>
 
     <!-- Enterprise -->
     <div class="plan-card">
         <div class="plan-name">Enterprise</div>
         <div class="plan-price" data-monthly="699" data-annual="559"><span class="currency">$</span><span class="price-val">699</span><span class="period">/mo</span></div>
-        <div class="plan-billed billed-text">&nbsp;</div>
+        <div class="plan-billed billed-text">12-month contract &middot; $6,708/yr</div>
         <hr class="plan-divider">
         <ul class="plan-features">
-            <li>Unlimited conversations</li>
-            <li>Unlimited chatbots</li>
             <li class="section-label">Everything in Pro +</li>
-            <li>AI no-show prediction reminders</li>
-            <li>Advanced analytics &amp; reports</li>
-            <li>Custom workflows</li>
-            <li>API access (integrations)</li>
-            <li>Appointment database integrations</li>
-            <li>PMS/CRM integration</li>
-            <li>Full doctor portal access</li>
-            <li>Customizable emails</li>
-            <li>Use your own email to send</li>
-            <li>Chatbot customization</li>
-            <li>Dedicated account manager</li>
+            <li>PMS integration (Dentrix, Open Dental, Eaglesoft)</li>
+            <li>EMR/EHR integration</li>
+            <li>SOC 2 &amp; HIPAA compliance</li>
+            <li>Dedicated exclusive account manager</li>
+            <li>SLA guarantee</li>
+            <li>Quarterly business reviews</li>
+            <li>Custom development (10h/quarter)</li>
+            <li>Unlimited everything</li>
         </ul>
         <a href="/login?signup=1" class="plan-btn btn-outline">Get Started</a>
-        <button onclick="contactSales()" class="plan-btn" style="margin-top:.5rem;background:transparent;border:1px solid rgba(139,92,246,0.3);color:#c4b5fd;font-size:.82rem;padding:.65rem 1rem;font-family:inherit;cursor:pointer;width:100%;text-align:center">Contact Sales</button>
+        <button onclick="contactSales()" class="plan-btn" style="margin-top:.5rem;background:transparent;border:1px solid #D1D5DB;color:#374151;font-size:.82rem;padding:.65rem 1rem;font-family:inherit;cursor:pointer;width:100%;text-align:center">Contact Sales</button>
     </div>
 </section>
 
@@ -353,59 +390,141 @@
             <thead>
                 <tr>
                     <th>Feature</th>
-                    <th>Free Trial</th>
-                    <th>Basic</th>
-                    <th class="highlight">Pro</th>
-                    <th>Enterprise</th>
+                    <th>Free $0</th>
+                    <th>Basic $23</th>
+                    <th class="highlight">Growth $79</th>
+                    <th>Pro $299</th>
+                    <th>Enterprise $699</th>
                 </tr>
             </thead>
             <tbody>
-                <tr class="cat-row"><td colspan="5">Conversations &amp; Chatbots</td></tr>
-                <tr><td>Conversations/month</td><td>50</td><td>700</td><td class="highlight">5,000</td><td>Unlimited</td></tr>
-                <tr><td>Chatbots</td><td>1</td><td>1</td><td class="highlight">4</td><td>Unlimited</td></tr>
-                <tr><td>No watermark</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
-                <tr><td>Multi-language chatbot</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
-                <tr><td>Customizable chatbot</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
-                <tr><td>Full chatbot customization</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td></tr>
+                <tr class="cat-row"><td colspan="6">Conversations &amp; Chatbots</td></tr>
+                <tr><td>Conversations/month</td><td>50</td><td>Unlimited</td><td class="highlight">Unlimited</td><td>Unlimited</td><td>Unlimited</td></tr>
+                <tr><td>Chatbots</td><td>1</td><td>1</td><td class="highlight">1</td><td>3</td><td>Unlimited</td></tr>
+                <tr><td>Doctors</td><td>1</td><td>1</td><td class="highlight">3</td><td>10</td><td>Unlimited</td></tr>
+                <tr><td>Locations</td><td>1</td><td>1</td><td class="highlight">1</td><td>3</td><td>Unlimited</td></tr>
+                <tr><td>Staff Accounts</td><td>1</td><td>2</td><td class="highlight">5</td><td>15</td><td>Unlimited</td></tr>
+                <tr><td>Languages</td><td>1</td><td>3</td><td class="highlight">10</td><td>10</td><td>10</td></tr>
+                <tr><td>AI Model</td><td>None</td><td>Basic</td><td class="highlight">GPT-4</td><td>Custom training</td><td>Dedicated model</td></tr>
 
-                <tr class="cat-row"><td colspan="5">Appointments &amp; Scheduling</td></tr>
-                <tr><td>Smart appointment booking</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
-                <tr><td>Calendar &amp; doctor scheduling</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
-                <tr><td>Email reminders (48h, 24h)</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
-                <tr><td>Advanced reminders (48h, 24h, 2h)</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
-                <tr><td>No-show detection &amp; recovery</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
-                <tr><td>AI no-show prediction</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td></tr>
-                <tr><td>Waitlist system</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
-                <tr><td>Appointment database integrations</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td></tr>
+                <tr class="cat-row"><td colspan="6">Chatbot Features</td></tr>
+                <tr><td>Natural Language Understanding</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Canned Responses</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>AI Guardrails</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Proactive Engagement</td><td class="dash">&mdash;</td><td>1 trigger</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Treatment Education</td><td class="dash">&mdash;</td><td>15 topics</td><td class="highlight">61 topics</td><td>61 topics</td><td>61 topics</td></tr>
+                <tr><td>Patient Recognition</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>AI Confidence Scoring</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Sentiment Analysis</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Upsell Detection</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Before/After Gallery</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Custom AI Training</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Voice Input</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td>&#10003; (Advanced)</td></tr>
+                <tr><td>Copilot Suggestions</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
 
-                <tr class="cat-row"><td colspan="5">Patient &amp; Lead Management</td></tr>
-                <tr><td>Basic patient profiles</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
-                <tr><td>Pre-visit forms</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
-                <tr><td>Lead capture + auto follow-ups</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
-                <tr><td>Treatment follow-ups</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
-                <tr><td>Promotions &amp; loyalty program</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr class="cat-row"><td colspan="6">Booking &amp; Scheduling</td></tr>
+                <tr><td>Basic Booking (date+time)</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Smart Booking (service&rarr;date&rarr;time)</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Conflict Detection</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Doctor Schedule (weekly)</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Doctor Breaks/Off-days</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Schedule Blocks</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Flexible Lengths</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Waitlist</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Check-in System</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Google Calendar</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Calendly</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
 
-                <tr class="cat-row"><td colspan="5">Analytics &amp; Tools</td></tr>
-                <tr><td>Basic analytics</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
-                <tr><td>ROI dashboard</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
-                <tr><td>Advanced analytics &amp; reports</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td></tr>
-                <tr><td>AI PDF extraction</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
-                <tr><td>Custom workflows</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td></tr>
+                <tr class="cat-row"><td colspan="6">Reminders &amp; No-Show</td></tr>
+                <tr><td>Email Reminders</td><td class="check">&#10003;</td><td>24h+2h</td><td class="highlight">48h+24h+2h</td><td>48h+24h+2h</td><td>48h+24h+2h</td></tr>
+                <tr><td>SMS Reminders</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>No-Show Detection</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Recovery Email</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Deposit Requirement</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>AI No-Show Prediction</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
 
-                <tr class="cat-row"><td colspan="5">Integrations &amp; Emails</td></tr>
-                <tr><td>Customer integration</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
-                <tr><td>API access</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td></tr>
-                <tr><td>PMS/CRM integration</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td></tr>
-                <tr><td>Configurable emails</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
-                <tr><td>Customizable emails</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td></tr>
-                <tr><td>Use your own email to send</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td></tr>
-                <tr><td>Full doctor portal access</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td></tr>
+                <tr class="cat-row"><td colspan="6">Patient Management</td></tr>
+                <tr><td>Basic Profiles</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Max Patients</td><td>20</td><td>Unlimited</td><td class="highlight">Unlimited</td><td>Unlimited</td><td>Unlimited</td></tr>
+                <tr><td>Visit History</td><td class="dash">&mdash;</td><td>Last 3</td><td class="highlight">Full</td><td>Full</td><td>Full</td></tr>
+                <tr><td>Medical History</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Insurance Info</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Patient Notes</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
 
-                <tr class="cat-row"><td colspan="5">Support</td></tr>
-                <tr><td>Community support</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
-                <tr><td>Email support</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
-                <tr><td>Priority support</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td></tr>
-                <tr><td>Dedicated account manager</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td></tr>
+                <tr class="cat-row"><td colspan="6">Lead Management</td></tr>
+                <tr><td>Auto Capture</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Lead Scoring</td><td class="dash">&mdash;</td><td>Hot/Cold</td><td class="highlight">Advanced</td><td>Advanced</td><td>Advanced</td></tr>
+                <tr><td>Auto Follow-ups</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight">Day 1,3,7</td><td>Day 1,3,7</td><td>Day 1,3,7</td></tr>
+                <tr><td>Lead Routing</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>CSV Export</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+
+                <tr class="cat-row"><td colspan="6">Forms &amp; Surveys</td></tr>
+                <tr><td>Pre-visit Forms</td><td class="dash">&mdash;</td><td>Standard</td><td class="highlight">Standard</td><td>Standard</td><td>Standard</td></tr>
+                <tr><td>Custom Form Fields</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight">10</td><td>Unlimited</td><td>Unlimited</td></tr>
+                <tr><td>Digital Signatures</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Post-visit Surveys</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Google Review Redirect</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+
+                <tr class="cat-row"><td colspan="6">Retention &amp; Revenue</td></tr>
+                <tr><td>Treatment Follow-ups</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight">Basic</td><td>Configurable</td><td>Configurable</td></tr>
+                <tr><td>Recall Campaigns</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Birthday Greetings</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Loyalty Program</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight">Basic</td><td>Advanced</td><td>Advanced</td></tr>
+                <tr><td>Referral Program</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight">Basic</td><td>Advanced</td><td>Advanced</td></tr>
+                <tr><td>Promo Codes</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight">10</td><td>Unlimited</td><td>Unlimited</td></tr>
+                <tr><td>Invoicing</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td>Multi-currency</td><td>Multi-currency</td></tr>
+                <tr><td>Treatment Packages</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Upsell Engine</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+
+                <tr class="cat-row"><td colspan="6">Channels &amp; Inbox</td></tr>
+                <tr><td>Web Chat</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>WhatsApp</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Facebook/Instagram</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Live Chat Handoff</td><td class="dash">&mdash;</td><td>Basic</td><td class="highlight">Queue + Assign</td><td>Timeout + Tags</td><td>Timeout + Tags</td></tr>
+                <tr><td>Unified Inbox</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight">Web+WhatsApp</td><td>All Channels</td><td>All Channels</td></tr>
+
+                <tr class="cat-row"><td colspan="6">Analytics &amp; Reports</td></tr>
+                <tr><td>Basic Analytics</td><td>Chat count</td><td>Basic</td><td class="highlight">Full</td><td>Full + ROI</td><td>Full + ROI</td></tr>
+                <tr><td>Monthly Reports</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>ROI Dashboard</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Real-time SSE</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Benchmarking</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+
+                <tr class="cat-row"><td colspan="6">Email &amp; Templates</td></tr>
+                <tr><td>Email Templates</td><td>0</td><td>3</td><td class="highlight">10</td><td>Unlimited</td><td>Unlimited</td></tr>
+                <tr><td>Own Sender Domain</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+
+                <tr class="cat-row"><td colspan="6">Customization</td></tr>
+                <tr><td>Widget Colors</td><td>None</td><td>3 presets</td><td class="highlight">Full</td><td>Full</td><td>Full</td></tr>
+                <tr><td>Widget Styles</td><td class="dash">&mdash;</td><td>Default</td><td class="highlight">All (3)</td><td>All (3)</td><td>All (3)</td></tr>
+                <tr><td>Custom Avatar</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>White-label</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Custom Domain</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Branding</td><td>ChatGenius</td><td>ChatGenius</td><td class="highlight">ChatGenius</td><td>None</td><td>White-label</td></tr>
+
+                <tr class="cat-row"><td colspan="6">Integrations</td></tr>
+                <tr><td>Twilio SMS</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Stripe</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Zapier</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>REST API</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Google My Business</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Mailchimp</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>PMS (Dentrix etc)</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td></tr>
+                <tr><td>EMR/EHR</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td></tr>
+
+                <tr class="cat-row"><td colspan="6">Security</td></tr>
+                <tr><td>Encryption</td><td>Basic</td><td>AES-256</td><td class="highlight">AES-256</td><td>AES-256</td><td>AES-256</td></tr>
+                <tr><td>2FA</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight">Optional</td><td>Enforced</td><td>Enforced</td></tr>
+                <tr><td>Audit Log</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="highlight">90 days</td><td>1 year</td><td>1 year</td></tr>
+                <tr><td>SOC 2/HIPAA</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td></tr>
+
+                <tr class="cat-row"><td colspan="6">Pro &amp; Enterprise Exclusive</td></tr>
+                <tr><td>Missed Call Handling</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>A/B Testing</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Dedicated Manager</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td>Shared</td><td>Exclusive</td></tr>
+                <tr><td>SLA Guarantee</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td></tr>
+                <tr><td>Custom Development</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td>10h/quarter</td></tr>
+                <tr><td>Quarterly Reviews</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="dash">&mdash;</td><td class="check">&#10003;</td></tr>
             </tbody>
         </table>
     </div>
@@ -462,7 +581,7 @@
             </div>
             <div class="roi-multiplier">
                 <span id="roi-mult">0x</span>
-                <span class="roi-mult-label">ROI multiple vs. Pro plan ($239/mo)</span>
+                <span class="roi-mult-label">ROI multiple vs. Growth plan ($79/mo)</span>
             </div>
             <div class="roi-cta">
                 <a href="/login?signup=1">Start Free Trial &rarr;</a>
@@ -482,7 +601,7 @@
     </div>
     <div class="faq-item">
         <div class="faq-q" onclick="toggleFaq(this)"><span>Is there a free trial?</span><span class="faq-icon">+</span></div>
-        <div class="faq-a"><p>Yes! We offer a 14-day free trial with full access to Pro features. No credit card required to start. Experience everything ChatGeniusX has to offer before committing.</p></div>
+        <div class="faq-a"><p>Yes! We offer a 14-day free trial with full access to Growth features. No credit card required to start. Experience everything ChatGeniusX has to offer before committing.</p></div>
     </div>
     <div class="faq-item">
         <div class="faq-q" onclick="toggleFaq(this)"><span>What payment methods do you accept?</span><span class="faq-icon">+</span></div>
@@ -665,7 +784,7 @@
         var deskSavings = Math.round(hours * rate * 22 * 0.40);
         var monthlyTotal = aiRevenue + noshowSavings + deskSavings;
         var annualTotal = monthlyTotal * 12;
-        var planCost = 239; // Pro plan
+        var planCost = 79; // Growth plan
         var roiMult = planCost > 0 ? (monthlyTotal / planCost) : 0;
 
         animateNumber(document.getElementById('roi-revenue'), aiRevenue, '$');
@@ -685,30 +804,30 @@
 
 <!-- ═══ FLOATING CHATBOT WIDGET ═══ -->
 <style>
-    .chat-widget-btn{position:fixed;bottom:24px;right:24px;width:60px;height:60px;border-radius:50%;background:var(--gradient);border:none;cursor:pointer;z-index:10000;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 30px rgba(139,92,246,0.4);transition:transform .3s,box-shadow .3s;opacity:0;pointer-events:none}
+    .chat-widget-btn{position:fixed;bottom:24px;right:24px;width:60px;height:60px;border-radius:50%;background:#8B5CF6;border:none;cursor:pointer;z-index:10000;display:flex;align-items:center;justify-content:center;box-shadow:0 0 30px rgba(139,92,246,0.4);transition:transform .3s,box-shadow .3s;opacity:0;pointer-events:none}
     .chat-widget-btn.visible{opacity:1;pointer-events:auto}
     .chat-widget-btn.bounce{animation:widgetBounce 1s var(--ease) 3}
     @keyframes widgetBounce{0%,100%{transform:translateY(0)}30%{transform:translateY(-12px)}50%{transform:translateY(-4px)}70%{transform:translateY(-8px)}}
-    .chat-widget-btn:hover{transform:scale(1.1);box-shadow:0 12px 40px rgba(139,92,246,0.5)}
+    .chat-widget-btn:hover{transform:scale(1.1);box-shadow:0 0 40px rgba(139,92,246,0.5)}
     .chat-widget-btn svg{width:28px;height:28px;fill:#fff}
-    .chat-widget-window{position:fixed;bottom:96px;right:24px;width:380px;height:500px;background:rgba(10,14,26,0.97);border-radius:20px;border:1px solid rgba(139,92,246,0.15);box-shadow:0 30px 80px rgba(0,0,0,0.6);z-index:10000;display:none;flex-direction:column;overflow:hidden}
-    .chat-widget-window.open{display:flex}
-    .cw-demo-badge{background:rgba(251,191,36,0.12);color:var(--amber);font-size:.65rem;font-weight:700;padding:.15rem .5rem;border-radius:50px;letter-spacing:.5px}
+    .chat-widget-window{position:fixed;bottom:96px;right:24px;width:380px;height:500px;background:#FFFFFF;border-radius:8px;border:1px solid #E5E7EB;box-shadow:0 30px 80px rgba(0,0,0,0.15);z-index:10000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(20px) scale(0.95);opacity:0;pointer-events:none;transition:transform .4s cubic-bezier(.16,1,.3,1),opacity .4s cubic-bezier(.16,1,.3,1)}
+    .chat-widget-window.open{transform:translateY(0) scale(1);opacity:1;pointer-events:auto}
+    .cw-demo-badge{background:#E5E7EB;color:var(--amber);font-size:.65rem;font-weight:700;padding:.15rem .5rem;border-radius: 6px;letter-spacing:.5px}
     .cw-quick-btns{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem}
-    .cw-quick-btn{background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.15);border-radius:50px;padding:.35rem .75rem;font-size:.75rem;color:#c4b5fd;cursor:pointer;font-family:inherit;transition:all .2s}
-    .cw-quick-btn:hover{background:rgba(139,92,246,0.15);color:#fff}
-    .cwh{padding:1rem 1.25rem;background:linear-gradient(135deg,rgba(139,92,246,0.08),rgba(99,102,241,0.04));border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.6rem}
-    .cwh-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px rgba(52,211,153,0.5)}
+    .cw-quick-btn{background:#F3F4F6;border:1px solid #D1D5DB;border-radius: 6px;padding:.35rem .75rem;font-size:.75rem;color:#374151;cursor:pointer;font-family:inherit;transition:all .2s}
+    .cw-quick-btn:hover{background:#E5E7EB;color:#1A1A2E}
+    .cwh{padding:1rem 1.25rem;background:linear-gradient(135deg,rgba(229,231,235,1),rgba(249,250,251,1));border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.6rem}
+    .cwh-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px rgba(139,92,246,0.6)}
     .cwh h4{font-size:.85rem;font-weight:700;flex:1}
     .cwh-close{background:none;border:none;color:var(--text-dim);font-size:1.2rem;cursor:pointer;padding:4px}
     .cw-body{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.5rem}
-    .cw-body::-webkit-scrollbar{width:3px}.cw-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.06);border-radius:3px}
-    .cw-msg{max-width:85%;padding:.65rem 1rem;border-radius:14px;font-size:.85rem;line-height:1.7}
-    .cw-msg.bot{background:rgba(255,255,255,0.04);align-self:flex-start;border:1px solid rgba(255,255,255,0.04)}
-    .cw-msg.user{background:linear-gradient(135deg,#7c3aed,#6d28d9);align-self:flex-end}
+    .cw-body::-webkit-scrollbar{width:3px}.cw-body::-webkit-scrollbar-thumb{background:#F3F4F6;border-radius:3px}
+    .cw-msg{max-width:85%;padding:.65rem 1rem;border-radius:8px;font-size:.85rem;line-height:1.7}
+    .cw-msg.bot{background:#FFFFFF;align-self:flex-start;border:1px solid #E5E7EB}
+    .cw-msg.user{background:linear-gradient(135deg,#d4d4d8,#52525b);align-self:flex-end}
     .cw-input{display:flex;gap:.4rem;padding:.75rem;border-top:1px solid var(--border)}
-    .cw-input input{flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:.55rem .8rem;color:var(--text);font-size:.85rem;font-family:inherit;outline:none}
-    .cw-input button{background:var(--gradient);border:none;color:#fff;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:1rem}
+    .cw-input input{flex:1;background:#FFFFFF;border:1px solid var(--border);border-radius:8px;padding:.55rem .8rem;color:var(--text);font-size:.85rem;font-family:inherit;outline:none}
+    .cw-input button{background:#8B5CF6;border:none;color:#FFFFFF;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:1rem}
     @media(max-width:768px){
         .chat-widget-window{position:fixed;inset:0;width:100%;height:100%;border-radius:0;bottom:0;right:0}
         .chat-widget-window.open+.chat-widget-btn{display:none}
@@ -718,17 +837,17 @@
         .nav-dropdown-trigger{cursor:pointer;display:flex;align-items:center;gap:4px}
         .nav-dropdown-trigger::after{content:'';display:none}
         .nav-dropdown-trigger svg{width:12px;height:12px;opacity:.5;transition:transform .3s}
-        .nav-dropdown{position:absolute;top:calc(100% + 12px);left:50%;transform:translateX(-50%) translateY(8px);min-width:220px;background:rgba(10,14,26,0.98);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:.5rem;opacity:0;visibility:hidden;transition:all .25s var(--ease);z-index:1001;box-shadow:0 20px 50px rgba(0,0,0,0.5)}
+        .nav-dropdown{position:absolute;top:calc(100% + 12px);left:50%;transform:translateX(-50%) translateY(8px);min-width:220px;background:#FFFFFF;backdrop-filter:blur(24px);border:1px solid #E5E7EB;border-radius:8px;padding:.5rem;opacity:0;visibility:hidden;transition:all .25s var(--ease);z-index:1001;box-shadow:0 4px 16px rgba(0,0,0,0.08)}
         .nav-links>li:hover .nav-dropdown{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
         .nav-links>li:hover .nav-dropdown-trigger svg{transform:rotate(180deg)}
         .nav-dropdown a{display:flex;align-items:center;gap:.6rem;padding:.55rem .85rem;border-radius:8px;font-size:.82rem;color:var(--text-muted);transition:all .2s}
         .nav-dropdown a::after{display:none}
-        .nav-dropdown a:hover{background:rgba(139,92,246,0.08);color:#fff}
+        .nav-dropdown a:hover{background:#F9FAFB;color:#1A1A2E}
         .nav-dropdown a small{font-size:.7rem;color:var(--text-dim);display:block;margin-top:1px}
         .nav-dd-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0}
     
         /* FOOTER */
-        footer{padding:3rem 2rem;border-top:1px solid var(--border);background:rgba(5,7,16,0.5)}
+        footer{padding:3rem 2rem;border-top:1px solid var(--border);background:rgba(255,255,255,0.85)}
         .footer-inner{max-width:1140px;margin:auto}
         .footer-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 1fr;gap:2rem;margin-bottom:2rem}
         .footer-col{display:flex;flex-direction:column;gap:.5rem}
@@ -737,19 +856,19 @@
         .footer-col a:hover{color:var(--text)}
         .footer-col p{color:var(--text-dim);font-size:.82rem;line-height:1.7}
         .footer-logo{font-size:1.2rem;font-weight:800;letter-spacing:-.5px}
-        .footer-logo span{background:var(--gradient2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .footer-logo span{background:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
         .footer-newsletter{display:flex;gap:.5rem}
-        .footer-newsletter input{flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-size:.82rem;font-family:inherit}
+        .footer-newsletter input{flex:1;background:#FFFFFF;border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-size:.82rem;font-family:inherit}
         .footer-newsletter input::placeholder{color:var(--text-dim)}
-        .footer-newsletter button{background:var(--gradient);color:#fff;border:none;padding:.5rem 1rem;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .3s}
+        .footer-newsletter button{background:#8B5CF6;color:#FFFFFF;border:none;padding:.5rem 1rem;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .3s}
         .footer-newsletter button:hover{transform:translateY(-1px)}
         .footer-bottom{display:flex;justify-content:space-between;align-items:center;padding-top:1.5rem;border-top:1px solid var(--border)}
         .footer-copy{color:var(--text-dim);font-size:.8rem}
         @media(max-width:900px){.footer-grid{grid-template-columns:1fr 1fr;gap:1.5rem}.footer-bottom{flex-direction:column;gap:.75rem;text-align:center}}
         @media(max-width:480px){.footer-grid{grid-template-columns:1fr}}
     
-        .hamburger{display:none;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;padding:.5rem}
-        .mobile-menu{display:none;position:fixed;top:72px;left:0;right:0;background:rgba(5,7,16,0.95);backdrop-filter:blur(20px);padding:1.5rem 2rem;border-bottom:1px solid var(--border);flex-direction:column;gap:1rem;z-index:999}
+        .hamburger{display:none;background:none;border:none;color:#1A1A2E;font-size:1.5rem;cursor:pointer;padding:.5rem}
+        .mobile-menu{display:none;position:fixed;top:72px;left:0;right:0;background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);padding:1.5rem 2rem;border-bottom:1px solid var(--border);flex-direction:column;gap:1rem;z-index:999}
         .mobile-menu.open{display:flex}
         .mobile-menu a{color:var(--text-muted);text-decoration:none;font-size:1rem;padding:.75rem 0;border-bottom:1px solid var(--border);font-weight:500}
         .mobile-menu a:last-child{border:none}
@@ -878,28 +997,28 @@ function sendWidgetMsg(){
 </script>
 
 <!-- Contact Sales Modal -->
-<div id="salesModal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);align-items:center;justify-content:center">
-    <div style="background:rgba(10,14,26,0.97);border:1px solid rgba(139,92,246,0.2);border-radius:24px;padding:2.5rem;max-width:480px;width:90%;position:relative;box-shadow:0 30px 80px rgba(0,0,0,0.6)">
-        <button onclick="closeSalesModal()" style="position:absolute;top:1rem;right:1.25rem;background:none;border:none;color:#8b95a8;font-size:1.5rem;cursor:pointer">&times;</button>
-        <h3 style="font-size:1.4rem;font-weight:800;margin-bottom:.5rem;background:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Contact Our Sales Team</h3>
-        <p style="color:#8b95a8;font-size:.92rem;margin-bottom:1.75rem;line-height:1.7">Get in touch with us for Enterprise plan details, custom pricing, and tailored solutions.</p>
+<div id="salesModal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.06);backdrop-filter:blur(8px);align-items:center;justify-content:center">
+    <div style="background:rgba(10,14,26,0.97);border:1px solid #D1D5DB;border-radius: 8px;padding:2.5rem;max-width:480px;width:90%;position:relative;box-shadow:0 30px 80px rgba(0,0,0,0.6)">
+        <button onclick="closeSalesModal()" style="position:absolute;top:1rem;right:1.25rem;background:none;border:none;color:#6B7280;font-size:1.5rem;cursor:pointer">&times;</button>
+        <h3 style="font-size:1.4rem;font-weight:800;margin-bottom:.5rem;background:linear-gradient(135deg,#e4e4e7,#e4e4e7,#e4e4e7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Contact Our Sales Team</h3>
+        <p style="color:#6B7280;font-size:.92rem;margin-bottom:1.75rem;line-height:1.7">Get in touch with us for Enterprise plan details, custom pricing, and tailored solutions.</p>
         <div style="display:flex;flex-direction:column;gap:1rem">
-            <div style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.15);border-radius:14px;padding:1.1rem 1.25rem;display:flex;align-items:center;gap:.75rem">
+            <div style="background:#F3F4F6;border:1px solid #D1D5DB;border-radius:8px;padding:1.1rem 1.25rem;display:flex;align-items:center;gap:.75rem">
                 <span style="font-size:1.3rem">&#128231;</span>
                 <div>
-                    <div style="font-size:.75rem;color:#8b95a8;margin-bottom:.15rem">Email Us</div>
-                    <a href="mailto:abdulrhman.ali.khadr@gmail.com" style="color:#c4b5fd;font-weight:600;font-size:.95rem;text-decoration:none">abdulrhman.ali.khadr@gmail.com</a>
+                    <div style="font-size:.75rem;color:#6B7280;margin-bottom:.15rem">Email Us</div>
+                    <a href="mailto:abdulrhman.ali.khadr@gmail.com" style="color:#374151;font-weight:600;font-size:.95rem;text-decoration:none">abdulrhman.ali.khadr@gmail.com</a>
                 </div>
             </div>
-            <div style="background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.15);border-radius:14px;padding:1.1rem 1.25rem;display:flex;align-items:center;gap:.75rem">
+            <div style="background:#F3F4F6;border:1px solid #D1D5DB;border-radius:8px;padding:1.1rem 1.25rem;display:flex;align-items:center;gap:.75rem">
                 <span style="font-size:1.3rem">&#128222;</span>
                 <div>
-                    <div style="font-size:.75rem;color:#8b95a8;margin-bottom:.15rem">Call or WhatsApp</div>
-                    <a href="tel:+966538805220" style="color:#34d399;font-weight:600;font-size:.95rem;text-decoration:none">+966 538 805 220</a>
+                    <div style="font-size:.75rem;color:#6B7280;margin-bottom:.15rem">Call or WhatsApp</div>
+                    <a href="tel:+966538805220" style="color:#1A1A2E;font-weight:600;font-size:.95rem;text-decoration:none">+966 538 805 220</a>
                 </div>
             </div>
         </div>
-        <p style="color:#64748b;font-size:.8rem;margin-top:1.25rem;text-align:center;line-height:1.6">Send us an email or message and we'll be in touch within 24 hours.</p>
+        <p style="color:#6B7280;font-size:.8rem;margin-top:1.25rem;text-align:center;line-height:1.6">Send us an email or message and we'll be in touch within 24 hours.</p>
     </div>
 </div>
 <script>

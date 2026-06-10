@@ -568,11 +568,12 @@ def get_emergency_alerts(admin_id, status="active"):
         conn.close()
 
 
-def acknowledge_alert(alert_id):
+def acknowledge_alert(alert_id, admin_id=None):
     """Mark an emergency alert as acknowledged by staff.
 
     Args:
         alert_id: The integer ID of the alert row.
+        admin_id: The admin_id for ownership verification.
 
     Returns:
         dict: {"ok": True} on success, {"error": str} on failure.
@@ -581,10 +582,16 @@ def acknowledge_alert(alert_id):
 
     conn = db.get_db()
     try:
-        conn.execute(
-            "UPDATE emergency_alerts SET status = 'acknowledged' WHERE id = %s",
-            (alert_id,),
-        )
+        if admin_id is not None:
+            conn.execute(
+                "UPDATE emergency_alerts SET status = 'acknowledged' WHERE id = %s AND admin_id = %s",
+                (alert_id, admin_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE emergency_alerts SET status = 'acknowledged' WHERE id = %s",
+                (alert_id,),
+            )
         conn.commit()
         return {"ok": True}
     except Exception as e:

@@ -11,6 +11,8 @@
   var SESSION_KEY = "cg_support_bot_session";
   var isOpen = false;
   var conversationHistory = [];
+  var authToken = "";
+  try { authToken = localStorage.getItem("token") || ""; } catch (e) {}
 
   try {
     var saved = sessionStorage.getItem(SESSION_KEY);
@@ -342,6 +344,154 @@
       .sb-send:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
       .sb-send svg { width: 18px; height: 18px; color: #ffffff; }
 
+      /* ── Quick action chips ── */
+      .sb-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 0 18px 12px;
+        animation: fadeIn 0.4s ease;
+      }
+      .sb-chip {
+        padding: 7px 14px;
+        border-radius: 20px;
+        border: 1px solid rgba(210,213,220,0.5);
+        background: #ffffff;
+        color: #555b6e;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: inherit;
+        line-height: 1.3;
+      }
+      .sb-chip:hover {
+        background: linear-gradient(135deg, #e8e9ee, #dddfe5);
+        border-color: rgba(160,165,180,0.5);
+        color: #2d3142;
+      }
+      .sb-chip:active { transform: scale(0.96); }
+
+      /* ── Nav action buttons (rendered from bot messages) ── */
+      .sb-nav-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 14px;
+        margin: 4px 4px 4px 0;
+        border-radius: 8px;
+        border: 1px solid rgba(139,92,246,0.25);
+        background: rgba(139,92,246,0.06);
+        color: #7c3aed;
+        font-size: 12.5px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: inherit;
+        line-height: 1.3;
+      }
+      .sb-nav-btn:hover {
+        background: rgba(139,92,246,0.14);
+        border-color: rgba(139,92,246,0.4);
+        transform: translateY(-1px);
+      }
+      .sb-nav-btn:active { transform: scale(0.97); }
+      .sb-nav-btn::before {
+        content: '\\2192';
+        font-size: 13px;
+      }
+
+      /* ── Status badge ── */
+      .sb-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 10.5px;
+        font-weight: 600;
+        margin-top: 3px;
+        letter-spacing: 0.02em;
+      }
+      .sb-status-dot {
+        width: 7px; height: 7px; border-radius: 50%;
+        display: inline-block;
+      }
+      .sb-status-dot.online { background: #34d399; box-shadow: 0 0 6px rgba(52,211,153,0.5); }
+      .sb-status-dot.offline { background: #9ca0b0; }
+      .sb-status-text { color: #9ca0b0; }
+      .sb-status-name { color: #555b6e; }
+      .sb-plan-badge {
+        display: inline-block;
+        padding: 1px 7px;
+        border-radius: 4px;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        margin-left: 4px;
+        vertical-align: middle;
+      }
+      .sb-plan-badge.free { background: #F3F4F6; color: #6B7280; }
+      .sb-plan-badge.basic { background: #DBEAFE; color: #2563EB; }
+      .sb-plan-badge.growth { background: #EDE9FE; color: #7C3AED; }
+      .sb-plan-badge.pro { background: #FEF3C7; color: #D97706; }
+      .sb-plan-badge.enterprise { background: #FEE2E2; color: #DC2626; }
+
+      /* ── Feedback buttons ── */
+      .sb-feedback {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(210,213,220,0.2);
+      }
+      .sb-feedback-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        border: 1px solid rgba(210,213,220,0.4);
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.2s;
+        color: #9ca0b0;
+        font-size: 13px;
+      }
+      .sb-feedback-btn:hover { background: rgba(210,213,220,0.15); color: #555b6e; }
+      .sb-feedback-btn.selected { border-color: rgba(139,92,246,0.4); color: #7c3aed; background: rgba(139,92,246,0.06); }
+      .sb-feedback-label { font-size: 10.5px; color: #b0b4c3; margin-right: 4px; }
+      .sb-feedback-thanks { font-size: 10.5px; color: #34d399; font-weight: 500; }
+
+      /* ── Follow-up chips (below a message) ── */
+      .sb-follow-ups {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(210,213,220,0.15);
+      }
+      .sb-follow-up {
+        padding: 5px 12px;
+        border-radius: 16px;
+        border: 1px solid rgba(139,92,246,0.2);
+        background: rgba(139,92,246,0.04);
+        color: #7c3aed;
+        font-size: 11.5px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: inherit;
+        line-height: 1.3;
+      }
+      .sb-follow-up:hover {
+        background: rgba(139,92,246,0.1);
+        border-color: rgba(139,92,246,0.35);
+      }
+      .sb-follow-up:active { transform: scale(0.97); }
+
       /* ── Footer ── */
       .sb-powered {
         text-align: center;
@@ -385,7 +535,10 @@
         </div>
         <div class="sb-header-text">
           <h3>ChatGenius Support</h3>
-          <p>Ask anything about our platform</p>
+          <div class="sb-status" id="sbStatus">
+            <span class="sb-status-dot offline"></span>
+            <span class="sb-status-text">Platform help & account assistant</span>
+          </div>
         </div>
         <button class="sb-refresh" aria-label="New conversation" title="New conversation">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -415,12 +568,100 @@
   var input = shadow.querySelector(".sb-input");
   var sendBtn = shadow.querySelector(".sb-send");
   var refreshBtn = shadow.querySelector(".sb-refresh");
+  var statusEl = shadow.getElementById("sbStatus");
+  var quickActions = [];
+  var initDone = false;
+
+  var currentPlan = "";
+
+  function updateStatus(loggedIn, name, role, plan) {
+    if (!statusEl) return;
+    var dot = statusEl.querySelector(".sb-status-dot");
+    var txt = statusEl.querySelector(".sb-status-text");
+    if (loggedIn) {
+      dot.className = "sb-status-dot online";
+      var rLabel = role === "doctor" ? "Doctor" : "Admin";
+      var planBadge = plan ? ' <span class="sb-plan-badge ' + (plan || "free") + '">' + (plan || "free").toUpperCase() + '</span>' : '';
+      txt.innerHTML = '<span class="sb-status-name">' + (name || "User") + '</span> \u00B7 ' + rLabel + planBadge;
+      currentPlan = plan || "free";
+    } else {
+      dot.className = "sb-status-dot offline";
+      txt.textContent = "Platform help & account assistant";
+      currentPlan = "";
+    }
+  }
+
+  function renderChips(actions) {
+    // Remove existing chips
+    var old = shadow.querySelector(".sb-chips");
+    if (old) old.remove();
+    if (!actions || !actions.length) return;
+    var wrap = document.createElement("div");
+    wrap.className = "sb-chips";
+    actions.forEach(function (a) {
+      var chip = document.createElement("button");
+      chip.className = "sb-chip";
+      chip.textContent = a.label;
+      chip.addEventListener("click", function () {
+        input.value = a.msg;
+        sendMessage();
+        // Remove chips after click
+        var c = shadow.querySelector(".sb-chips");
+        if (c) c.remove();
+      });
+      wrap.appendChild(chip);
+    });
+    messagesEl.after(wrap);
+  }
+
+  function fetchInit() {
+    try { authToken = localStorage.getItem("token") || ""; } catch (e) {}
+    var h = { "Content-Type": "application/json" };
+    if (authToken) h["Authorization"] = "Bearer " + authToken;
+    fetch(ENDPOINT, {
+      method: "POST",
+      headers: h,
+      body: JSON.stringify({ init: true })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      updateStatus(data.logged_in, data.user_name, data.role, data.plan);
+      quickActions = data.quick_actions || [];
+      // Update placeholder based on login state
+      if (data.logged_in) {
+        input.placeholder = "Ask about your bookings, leads, setup, or get help...";
+      }
+      if (conversationHistory.length > 0) {
+        // Restore conversation history (skip greeting since we have history)
+        conversationHistory.forEach(function (msg) {
+          if (msg.role === "user") addUserMessage(msg.content);
+          else addBotMessage(msg.content);
+        });
+      } else {
+        // Show greeting
+        if (data.logged_in && data.greeting) {
+          addBotMessage(data.greeting);
+        } else if (data.logged_in) {
+          addBotMessage("Hi" + (data.user_name ? ", **" + data.user_name + "**" : "") + "! I\u2019m your ChatGenius assistant. I have access to your account data \u2014 ask me about bookings, doctors, patients, leads, stats, or anything about the platform. How can I help?");
+        } else {
+          addBotMessage("Hi! I\u2019m the ChatGenius Support Assistant. Ask me anything about our platform \u2014 features, pricing, setup, integrations, and more. How can I help you today?");
+        }
+        renderChips(quickActions);
+      }
+      initDone = true;
+    })
+    .catch(function () {
+      addBotMessage("Hi! I\u2019m the ChatGenius Support Assistant. Ask me anything about our platform. How can I help you today?");
+      initDone = true;
+    });
+  }
 
   refreshBtn.addEventListener("click", function () {
     conversationHistory = [];
     sessionStorage.removeItem(SESSION_KEY);
     messagesEl.innerHTML = "";
-    addBotMessage("Hi! I\u2019m the ChatGenius Support Assistant. Ask me anything about our platform \u2014 features, pricing, setup, integrations, and more. How can I help you today?");
+    initDone = false;
+    fetchInit();
   });
 
   toggle.addEventListener("click", function () {
@@ -434,12 +675,8 @@
         });
       });
       input.focus();
-      if (messagesEl.children.length === 0) {
-        addBotMessage("Hi! I\u2019m the ChatGenius Support Assistant. Ask me anything about our platform \u2014 features, pricing, setup, integrations, and more. How can I help you today?");
-        conversationHistory.forEach(function (msg) {
-          if (msg.role === "user") addUserMessage(msg.content);
-          else addBotMessage(msg.content);
-        });
+      if (!initDone && messagesEl.children.length === 0) {
+        fetchInit();
       }
     } else {
       chatWindow.classList.remove("visible");
@@ -463,9 +700,25 @@
 
   sendBtn.addEventListener("click", sendMessage);
 
+  // Keyboard shortcut: Ctrl+/ or Cmd+/ to toggle bot
+  document.addEventListener("keydown", function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === "/") {
+      e.preventDefault();
+      toggle.click();
+    }
+    // Escape to close
+    if (e.key === "Escape" && isOpen) {
+      toggle.click();
+    }
+  });
+
   function sendMessage() {
     var text = input.value.trim();
     if (!text) return;
+
+    // Remove chips when sending
+    var chips = shadow.querySelector(".sb-chips");
+    if (chips) chips.remove();
 
     addUserMessage(text);
     input.value = "";
@@ -474,9 +727,12 @@
 
     var typing = addTypingIndicator();
 
+    var fetchHeaders = { "Content-Type": "application/json" };
+    if (authToken) fetchHeaders["Authorization"] = "Bearer " + authToken;
+
     fetch(ENDPOINT, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: fetchHeaders,
       body: JSON.stringify({ message: text, history: conversationHistory.slice(-20) }),
     })
       .then(function (r) { return r.json(); })
@@ -485,9 +741,15 @@
         if (data.error) {
           addErrorMessage(data.error);
         } else {
-          addBotMessage(data.answer);
+          var msgEl = addBotMessage(data.answer, true);
           conversationHistory.push({ role: "assistant", content: data.answer });
           saveSession();
+          // Render follow-up suggestions inside the message bubble
+          if (data.follow_ups && data.follow_ups.length > 0) {
+            renderFollowUps(msgEl, data.follow_ups);
+          }
+          // Add feedback buttons
+          addFeedbackButtons(msgEl);
         }
         sendBtn.disabled = false;
         input.focus();
@@ -510,11 +772,78 @@
     scroll();
   }
 
-  function addBotMessage(text) {
+  function addBotMessage(text, returnEl) {
     var d = document.createElement("div");
     d.className = "msg bot";
     d.innerHTML = fmt(text);
+    // Attach click handlers to nav buttons
+    var navBtns = d.querySelectorAll(".sb-nav-btn");
+    navBtns.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var page = btn.getAttribute("data-page");
+        if (page) {
+          if (typeof window.showPage === "function") {
+            window.showPage(page);
+          } else {
+            window.location.href = "/user-dashboard#" + page;
+          }
+        }
+      });
+    });
     messagesEl.appendChild(d);
+    scroll();
+    return returnEl ? d : undefined;
+  }
+
+  function renderFollowUps(msgEl, followUps) {
+    var wrap = document.createElement("div");
+    wrap.className = "sb-follow-ups";
+    followUps.forEach(function (fu) {
+      var btn = document.createElement("button");
+      btn.className = "sb-follow-up";
+      btn.textContent = fu.label;
+      btn.addEventListener("click", function () {
+        input.value = fu.msg;
+        sendMessage();
+        // Remove this follow-up row
+        wrap.remove();
+      });
+      wrap.appendChild(btn);
+    });
+    msgEl.appendChild(wrap);
+    scroll();
+  }
+
+  function addFeedbackButtons(msgEl) {
+    var wrap = document.createElement("div");
+    wrap.className = "sb-feedback";
+    wrap.innerHTML = '<span class="sb-feedback-label">Helpful?</span>';
+    var thumbUp = document.createElement("button");
+    thumbUp.className = "sb-feedback-btn";
+    thumbUp.innerHTML = "\u{1F44D}";
+    thumbUp.title = "Helpful";
+    var thumbDown = document.createElement("button");
+    thumbDown.className = "sb-feedback-btn";
+    thumbDown.innerHTML = "\u{1F44E}";
+    thumbDown.title = "Not helpful";
+
+    function handleFeedback(selected, btn) {
+      thumbUp.disabled = true;
+      thumbDown.disabled = true;
+      btn.classList.add("selected");
+      var label = wrap.querySelector(".sb-feedback-label");
+      if (label) {
+        label.className = "sb-feedback-thanks";
+        label.textContent = "Thanks for the feedback!";
+      }
+    }
+
+    thumbUp.addEventListener("click", function () { handleFeedback("up", thumbUp); });
+    thumbDown.addEventListener("click", function () { handleFeedback("down", thumbDown); });
+
+    wrap.appendChild(thumbUp);
+    wrap.appendChild(thumbDown);
+    msgEl.appendChild(wrap);
     scroll();
   }
 
@@ -542,6 +871,10 @@
   }
 
   function inlineFmt(s) {
+    // Nav links: [[nav:page-name|Button Label]] → clickable button
+    s = s.replace(/\[\[nav:([a-z0-9\-]+)\|(.+?)\]\]/g, '<button class="sb-nav-btn" data-page="$1">$2</button>');
+    // Markdown links: [text](url) → anchor tag (only for http/https URLs)
+    s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" style="color:#7c3aed;text-decoration:underline;font-weight:500">$1</a>');
     s = s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
     s = s.replace(/`([^`]+?)`/g, "<code>$1</code>");
     return s;

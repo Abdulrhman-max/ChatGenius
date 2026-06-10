@@ -12,8 +12,8 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Outfit', sans-serif;
-            background: #06080d;
-            color: #f1f5f9;
+            background:#F9FAFB;
+            color: #1A1A2E;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -24,8 +24,8 @@
             content: '';
             position: fixed;
             inset: 0;
-            background: radial-gradient(ellipse at 30% 20%, rgba(139,92,246,0.06) 0%, transparent 60%),
-                        radial-gradient(ellipse at 70% 80%, rgba(59,130,246,0.04) 0%, transparent 60%);
+            background: radial-gradient(ellipse at 30% 20%, rgba(229,231,235,1) 0%, transparent 60%),
+                        radial-gradient(ellipse at 70% 80%, rgba(249,250,251,1) 0%, transparent 60%);
             pointer-events: none;
         }
         .checkout-container {
@@ -36,86 +36,86 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 0;
-            border-radius: 28px;
+            border-radius: 8px;
             overflow: hidden;
-            border: 1px solid rgba(139,92,246,0.15);
-            box-shadow: 0 30px 100px rgba(0,0,0,0.5), 0 0 80px rgba(139,92,246,0.06);
+            border: 1px solid rgba(229,231,235,1);
+            box-shadow: 0 30px 100px rgba(0,0,0,0.5), 0 0 80px rgba(229,231,235,1);
         }
         @media (max-width: 700px) {
             .checkout-container { grid-template-columns: 1fr; max-width: 440px; }
         }
         .order-summary {
-            background: rgba(139,92,246,0.04);
+            background: rgba(249,250,251,1);
             padding: 2.5rem;
-            border-right: 1px solid rgba(255,255,255,0.04);
+            border-right: 1px solid rgba(249,250,251,1);
             display: flex; flex-direction: column; justify-content: center;
         }
         .order-back {
             display: inline-flex; align-items: center; gap: 0.4rem;
-            color: #8b95a8; text-decoration: none; font-size: 0.82rem; font-weight: 600;
+            color: #6B7280; text-decoration: none; font-size: 0.82rem; font-weight: 600;
             margin-bottom: 1.5rem; transition: color .2s;
         }
-        .order-back:hover { color: #f1f5f9; }
+        .order-back:hover { color: #1A1A2E; }
         .order-logo { font-size: 1.1rem; font-weight: 800; margin-bottom: 2rem; }
         .order-logo span {
-            background: linear-gradient(135deg, #8b5cf6, #6366f1, #3b82f6);
+            background: linear-gradient(135deg, #8B5CF6, #7C3AED, #6D28D9);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
         }
         .order-plan-badge {
-            display: inline-block; padding: 0.3rem 0.9rem; border-radius: 50px;
+            display: inline-block; padding: 0.3rem 0.9rem; border-radius: 6px;
             font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
-            background: rgba(139,92,246,0.15); color: #a78bfa; margin-bottom: 0.6rem;
+            background: rgba(139,92,246,0.1); color: #8B5CF6; margin-bottom: 0.6rem;
         }
         .order-plan-name { font-size: 1.6rem; font-weight: 900; margin-bottom: 0.3rem; }
         .order-price {
             font-size: 2.8rem; font-weight: 900; line-height: 1.1;
-            background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+            background: linear-gradient(135deg, #8B5CF6, #7C3AED);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
         }
-        .order-price small { font-size: 1rem; font-weight: 500; -webkit-text-fill-color: #8b95a8; }
+        .order-price small { font-size: 1rem; font-weight: 500; -webkit-text-fill-color: #6B7280; }
         .order-features {
             list-style: none; margin-top: 1.5rem;
-            border-top: 1px solid rgba(255,255,255,0.06); padding-top: 1.2rem;
+            border-top: 1px solid rgba(229,231,235,1); padding-top: 1.2rem;
         }
         .order-features li {
-            padding: 0.35rem 0; font-size: 0.88rem; color: #c4cad6;
+            padding: 0.35rem 0; font-size: 0.88rem; color:#6B7280;
             display: flex; align-items: center; gap: 0.5rem;
         }
         .order-features li::before {
             content: ''; width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
-            background: rgba(52,211,153,0.15);
+            background: rgba(229,231,235,1);
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='8' fill='none'%3E%3Cpath d='M1 4l2.5 2.5L9 1' stroke='%2334d399' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
             background-repeat: no-repeat; background-position: center;
         }
         .order-guarantee {
             margin-top: 1.5rem; padding: 0.8rem;
-            background: rgba(52,211,153,0.06); border: 1px solid rgba(52,211,153,0.1);
-            border-radius: 12px; font-size: 0.78rem; color: #34d399; text-align: center; font-weight: 600;
+            background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2);
+            border-radius: 12px; font-size: 0.78rem; color: #10b981; text-align: center; font-weight: 600;
         }
         .payment-form-side {
-            background: rgba(255,255,255,0.02);
+            background: rgba(255,255,255,1);
             padding: 2.5rem;
             display: flex; flex-direction: column; justify-content: center;
         }
         .payment-title { font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem; }
-        .payment-subtitle { font-size: 0.88rem; color: #8b95a8; margin-bottom: 1.5rem; line-height: 1.5; }
+        .payment-subtitle { font-size: 0.88rem; color: #6B7280; margin-bottom: 1.5rem; line-height: 1.5; }
         .paypal-wrapper { min-height: 150px; }
-        .paypal-loading { color: #8b95a8; font-size: 0.9rem; text-align: center; padding: 2rem 0; }
-        .error-msg { color: #ff6b6b; font-size: 0.82rem; margin-top: 0.6rem; text-align: center; display: none; }
-        .success-msg { color: #34d399; font-size: 0.88rem; margin-top: 0.6rem; text-align: center; display: none; font-weight: 600; }
+        .paypal-loading { color: #6B7280; font-size: 0.9rem; text-align: center; padding: 2rem 0; }
+        .error-msg { color: #6B7280; font-size: 0.82rem; margin-top: 0.6rem; text-align: center; display: none; }
+        .success-msg { color: #10b981; font-size: 0.88rem; margin-top: 0.6rem; text-align: center; display: none; font-weight: 600; }
         .secure-badge {
             display: flex; align-items: center; justify-content: center; gap: 0.4rem;
-            margin-top: 1.5rem; font-size: 0.75rem; color: #5a6275;
+            margin-top: 1.5rem; font-size: 0.75rem; color: #71717a;
         }
         .secure-badge svg { opacity: 0.6; }
         .cancel-link {
             display: block; text-align: center; margin-top: 1rem;
-            color: #8b95a8; font-size: 0.82rem; text-decoration: none; font-weight: 600; transition: color .2s;
+            color: #6B7280; font-size: 0.82rem; text-decoration: none; font-weight: 600; transition: color .2s;
         }
-        .cancel-link:hover { color: #f1f5f9; }
+        .cancel-link:hover { color: #1A1A2E; }
         .subscribe-btn {
-            width: 100%; padding: 1rem; border: none; border-radius: 16px; cursor: pointer;
-            background: linear-gradient(135deg, #0070ba, #003087); color: #fff;
+            width: 100%; padding: 1rem; border: none; border-radius: 8px; cursor: pointer;
+            background: linear-gradient(135deg, #71717a, #52525b); color: #fff;
             font-family: 'Outfit', sans-serif; font-size: 1rem; font-weight: 700;
             display: flex; align-items: center; justify-content: center; gap: 0.6rem;
             transition: transform .2s, box-shadow .2s;
@@ -149,8 +149,8 @@
                 Subscribe with PayPal
             </button>
             <div id="subscribeSpinner" style="display:none;text-align:center;padding:1.5rem 0;">
-                <div style="width:36px;height:36px;border:3px solid rgba(139,92,246,0.2);border-top-color:#8b5cf6;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 0.8rem;"></div>
-                <div style="color:#8b95a8;font-size:0.88rem;">Redirecting to PayPal...</div>
+                <div style="width:36px;height:36px;border:3px solid rgba(209,213,219,1);border-top-color:#1A1A2E;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 0.8rem;"></div>
+                <div style="color:#6B7280;font-size:0.88rem;">Redirecting to PayPal...</div>
             </div>
         </div>
 
@@ -167,18 +167,26 @@
 
 <script>
     var PLANS = {
+        free: {
+            name: 'Free', badge: 'FREE PLAN', price: '$0',
+            features: ['50 chats/mo', '1 chatbot (with branding)', 'Basic FAQ (5 questions)', '1 doctor, 1 location', 'Basic booking (date+time)', 'Email reminders', '20 patients max', 'Chat count analytics', 'No AI / No SMS']
+        },
         basic: {
-            name: 'Basic', badge: 'BASIC PLAN', price: '$79',
-            features: ['700 conversations/month', '1 chatbot (with watermark)', 'Smart appointment booking', 'Calendar & doctor scheduling', 'Email reminders (48h, 24h)', 'Basic patient profiles', 'Pre-visit forms', 'Basic analytics']
+            name: 'Basic', badge: 'BASIC PLAN', price: '$23',
+            features: ['Unlimited chats', '1 chatbot, multi-language (3)', 'Smart booking', 'Email reminders (24h+2h)', 'Unlimited patients', 'Lead capture & pre-visit forms', '3 email templates', 'Live chat handoff', '1 doctor, 2 staff', 'Basic analytics, 3 color presets']
+        },
+        growth: {
+            name: 'Growth', badge: 'GROWTH PLAN', price: '$79',
+            features: ['Everything in Basic +', '2 chatbots', 'SMS reminders & no-show recovery', 'Waitlist, loyalty & referral', 'Invoicing & full analytics', 'Surveys & Google reviews', '10 languages, AI scoring', 'WhatsApp + unified inbox', 'Google Calendar/Calendly/Zapier', 'All widget styles', '3 doctors, 5 staff', '10 promo codes, 10 custom fields', 'Before/after gallery']
         },
         pro: {
-            name: 'Pro', badge: 'PRO PLAN', price: '$239',
-            features: ['5,000 conversations/month', '4 chatbots (no watermark)', 'Everything in Basic +', 'Advanced reminders (48h, 24h, 2h)', 'No-show detection & recovery', 'ROI dashboard', 'Lead capture + auto follow-ups', 'Waitlist system', 'Promotions & loyalty', 'Multi-language chatbot', 'AI PDF extraction']
+            name: 'Pro', badge: 'PRO PLAN', price: '$299',
+            features: ['Everything in Growth +', '3 chatbots', 'Custom AI training & voice input', 'White-label + custom domain', 'A/B testing', 'Missed call handling', 'Facebook & Instagram inbox', 'Treatment packages & upsells', 'Own email sender', 'Unlimited promo codes & fields', '10 doctors, 3 locations, 15 staff', 'ROI dashboard', 'Multi-currency invoicing']
         },
-        agency: {
+        enterprise: {
             name: 'Enterprise', badge: 'ENTERPRISE PLAN', price: '$699',
-            features: ['Unlimited conversations', 'Unlimited chatbots', 'Everything in Pro +', 'AI no-show prediction', 'Advanced analytics & reports', 'API access & PMS/CRM integration', 'Full doctor portal', 'Chatbot customization & white-label', 'Dedicated account manager', 'Priority support', 'Custom email sending', 'SOC 2 compliance']
-        }
+            features: ['Everything in Pro +', 'PMS integration (Dentrix/Open Dental/Eaglesoft)', 'EMR/EHR integration', 'SOC 2 & HIPAA', 'Dedicated exclusive account manager', 'SLA guarantee', 'Quarterly business reviews', 'Custom development (10h/quarter)', 'Unlimited everything']
+        },
     };
 
     var path = window.location.pathname;

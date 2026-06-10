@@ -12,24 +12,24 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Outfit','Inter',sans-serif;
-            background: #06080d;
+            background:#F9FAFB;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
-            color: #f1f5f9;
+            color: #1A1A2E;
         }
-        body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.022;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+        body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
         .card {
-            background: rgba(255,255,255,0.035);
+            background: rgba(249,250,251,1);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
-            border-radius: 20px;
+            border-radius: 8px;
             max-width: 480px;
             width: 100%;
             overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.05);
+            border: 1px solid rgba(243,244,246,1);
             box-shadow: 0 30px 80px rgba(0,0,0,0.5);
             animation: slideUp 0.6s ease-out;
             position: relative;
@@ -41,10 +41,10 @@
         }
         .gold-bar {
             height: 4px;
-            background: linear-gradient(90deg, #8b5cf6, #6366f1, #3b82f6, #6366f1, #8b5cf6);
+            background: linear-gradient(90deg, #059669, #10b981, #34d399, #10b981, #059669);
         }
         .header {
-            background: rgba(255,255,255,0.02);
+            background: rgba(255,255,255,1);
             padding: 48px 32px;
             text-align: center;
             position: relative;
@@ -53,13 +53,13 @@
             width: 80px;
             height: 80px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #8b5cf6, #6366f1, #3b82f6);
+            background: linear-gradient(135deg, #10b981, #059669);
             margin: 0 auto 20px;
             display: flex;
             align-items: center;
             justify-content: center;
             animation: scaleIn 0.4s ease-out 0.3s both;
-            box-shadow: 0 8px 32px rgba(139, 92, 246, 0.4);
+            box-shadow: 0 8px 32px rgba(16, 185, 129, 0.4);
         }
         @keyframes scaleIn {
             from { transform: scale(0); }
@@ -81,14 +81,14 @@
             to { stroke-dashoffset: 0; }
         }
         .header h1 {
-            color: #f1f5f9;
+            color: #1A1A2E;
             font-size: 26px;
             font-weight: 300;
             letter-spacing: 1px;
         }
         .header h1 strong { font-weight: 700; }
         .header .subtitle {
-            color: #8b5cf6;
+            color: #6B7280;
             font-size: 13px;
             letter-spacing: 3px;
             text-transform: uppercase;
@@ -97,55 +97,55 @@
         .body { padding: 36px 32px; }
         .greeting {
             font-size: 16px;
-            color: #8b95a8;
+            color: #6B7280;
             line-height: 1.6;
             margin-bottom: 24px;
         }
-        .greeting strong { color: #f1f5f9; }
+        .greeting strong { color: #1A1A2E; }
         .details-card {
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 16px;
+            background: rgba(249,250,251,1);
+            border: 1px solid rgba(229,231,235,1);
+            border-radius: 8px;
             padding: 28px;
             margin-bottom: 24px;
         }
         .detail-row {
             padding: 10px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid rgba(243,244,246,1);
         }
         .detail-row:last-child { border-bottom: none; }
         .detail-label {
             font-size: 11px;
-            color: #8b95a8;
+            color: #6B7280;
             text-transform: uppercase;
             letter-spacing: 1.5px;
             margin-bottom: 4px;
         }
         .detail-value {
             font-size: 17px;
-            color: #f1f5f9;
+            color: #1A1A2E;
             font-weight: 700;
         }
         .status-badge {
             display: inline-block;
-            background: linear-gradient(135deg, #8b5cf6, #6366f1);
-            color: #fff;
+            background: linear-gradient(135deg, #ffffff, #e4e4e7);
+            color: #09090B;
             padding: 6px 16px;
-            border-radius: 20px;
+            border-radius: 8px;
             font-size: 13px;
             font-weight: 600;
             letter-spacing: 0.5px;
         }
         .tips {
-            background: rgba(139,92,246,0.06);
-            border-left: 4px solid #8b5cf6;
+            background: rgba(229,231,235,1);
+            border-left: 4px solid #ffffff;
             border-radius: 0 12px 12px 0;
             padding: 20px 24px;
             margin-bottom: 24px;
         }
         .tips h3 {
             font-size: 14px;
-            color: #f1f5f9;
+            color: #1A1A2E;
             margin-bottom: 10px;
         }
         .tips ul {
@@ -154,7 +154,7 @@
         }
         .tips ul li {
             font-size: 13px;
-            color: #8b95a8;
+            color: #6B7280;
             padding: 4px 0;
             padding-left: 20px;
             position: relative;
@@ -168,28 +168,28 @@
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+            background: linear-gradient(135deg, #ffffff, #d4d4d8);
         }
         .footer {
             text-align: center;
             padding: 0 32px 36px;
-            border-top: 1px solid rgba(255,255,255,0.05);
+            border-top: 1px solid rgba(243,244,246,1);
             padding-top: 24px;
         }
         .footer p {
             font-size: 13px;
-            color: #8b95a8;
+            color: #6B7280;
             line-height: 1.6;
         }
         .footer .brand {
-            color: #8b5cf6;
+            color: #1A1A2E;
             font-weight: 700;
         }
         .loading { text-align: center; padding: 60px 20px; }
-        .loading p { color: #8b95a8; font-size: 14px; }
+        .loading p { color: #6B7280; font-size: 14px; }
         .error-state { text-align: center; padding: 40px 32px; }
-        .error-state h2 { color: #f87171; font-size: 20px; margin-bottom: 8px; }
-        .error-state p { color: #8b95a8; font-size: 14px; }
+        .error-state h2 { color: #6B7280; font-size: 20px; margin-bottom: 8px; }
+        .error-state p { color: #6B7280; font-size: 14px; }
     </style>
 </head>
 <body>

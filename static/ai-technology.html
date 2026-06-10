@@ -11,26 +11,26 @@
     <style>
         *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
         :root{
-            --bg:#050710;--bg2:#0a0e1a;--card:rgba(255,255,255,0.028);--card-hover:rgba(255,255,255,0.045);
-            --border:rgba(255,255,255,0.06);--border-hover:rgba(139,92,246,0.2);
-            --purple:#8b5cf6;--indigo:#6366f1;--blue:#3b82f6;--cyan:#06b6d4;--green:#34d399;--amber:#fbbf24;--red:#f87171;
-            --gradient:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);
-            --gradient2:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);
-            --gradient3:linear-gradient(135deg,#8b5cf6,#ec4899);
-            --text:#f1f5f9;--text-muted:#8b95a8;--text-dim:#64748b;
+            --bg:#F9FAFB;--bg2:#F9FAFB;--card:#FFFFFF;--card-hover:#F3F4F6;
+            --border:#E5E7EB;--border-hover:#D1D5DB;
+            --purple:#8B5CF6;--indigo:#6366F1;--blue:#3B82F6;--cyan:#06B6D4;--green:#10b981;--amber:#f59e0b;--red:#ef4444;
+            --gradient:linear-gradient(135deg,#8B5CF6,#7C3AED,#6D28D9);
+            --gradient2:linear-gradient(135deg,#8B5CF6,#7C3AED,#6D28D9);
+            --gradient3:linear-gradient(135deg,#ffffff,#71717a);
+            --text:#1A1A2E;--text-muted:#6B7280;--text-dim:#6B7280;
             --ease:cubic-bezier(0.22,1,0.36,1);
-            --glow:0 0 60px rgba(139,92,246,0.08);
+            --glow:0 4px 12px rgba(0,0,0,0.05);
         }
-        ::selection{background:rgba(139,92,246,0.35)}
+        ::selection{background:rgba(139,92,246,0.15)}
         html{scroll-behavior:smooth}
         body{font-family:'Outfit','Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;overflow-x:hidden;-webkit-font-smoothing:antialiased}
         body::after{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:0.018;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 
         .aurora{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
-        .aurora div{position:absolute;border-radius:50%;filter:blur(120px);opacity:0.1;animation:aurMove 20s ease-in-out infinite}
-        .aurora div:nth-child(1){width:60vw;height:60vw;top:-20%;left:-15%;background:conic-gradient(from 0deg,#8b5cf6,#6366f1,#3b82f6,#8b5cf6);animation-duration:24s}
-        .aurora div:nth-child(2){width:50vw;height:50vw;top:30%;right:-15%;background:conic-gradient(from 120deg,#3b82f6,#06b6d4,#8b5cf6);animation-duration:30s;animation-delay:-8s}
-        .aurora div:nth-child(3){width:45vw;height:45vw;bottom:-15%;left:20%;background:conic-gradient(from 240deg,#ec4899,#8b5cf6,#6366f1);animation-duration:26s;animation-delay:-15s}
+        .aurora div{position:absolute;border-radius:50%;filter:blur(120px);opacity:0.04;animation:aurMove 20s ease-in-out infinite}
+        .aurora div:nth-child(1){width:60vw;height:60vw;top:-20%;left:-15%;background:conic-gradient(from 0deg,#E0E7FF,#DDD6FE,#C7D2FE,#E0E7FF);animation-duration:24s}
+        .aurora div:nth-child(2){width:50vw;height:50vw;top:30%;right:-15%;background:conic-gradient(from 120deg,#DDD6FE,#C7D2FE,#E0E7FF);animation-duration:30s;animation-delay:-8s}
+        .aurora div:nth-child(3){width:45vw;height:45vw;bottom:-15%;left:20%;background:conic-gradient(from 240deg,#A5B4FC,#E0E7FF,#DDD6FE);animation-duration:26s;animation-delay:-15s}
         @keyframes aurMove{0%{transform:translate(0,0) rotate(0) scale(1)}33%{transform:translate(40px,-30px) rotate(120deg) scale(1.06)}66%{transform:translate(-30px,20px) rotate(240deg) scale(.95)}100%{transform:translate(0,0) rotate(360deg) scale(1)}}
 
         @keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
@@ -39,58 +39,58 @@
         .anim{opacity:0;transform:translateY(30px);transition:opacity .8s var(--ease),transform .8s var(--ease)}.anim.visible{opacity:1;transform:translateY(0)}
 
         /* NAV */
-        nav{position:fixed;top:0;width:100%;z-index:1000;background:rgba(5,7,16,0.6);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);border-bottom:1px solid rgba(255,255,255,0.04);transition:all .4s var(--ease)}
-        nav.scrolled{background:rgba(5,7,16,0.85);border-bottom-color:rgba(255,255,255,0.06)}
+        nav{position:fixed;top:0;width:100%;z-index:1000;background:rgba(255,255,255,0.85);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);border-bottom:1px solid #E5E7EB;transition:all .4s var(--ease)}
+        nav.scrolled{background:rgba(255,255,255,0.92);border-bottom-color:#E5E7EB}
         .nav-inner{max-width:1200px;margin:auto;display:flex;align-items:center;justify-content:space-between;height:72px;padding:0 2rem}
         .logo{font-size:1.5rem;font-weight:800;letter-spacing:-.5px;text-decoration:none;color:var(--text)}
-        .logo span{background:var(--gradient2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .logo span{background:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
         .nav-links{display:flex;gap:1.25rem;list-style:none;align-items:center;flex-wrap:wrap}
         .nav-links a{color:var(--text-muted);text-decoration:none;font-size:.88rem;font-weight:500;transition:color .3s;position:relative}
         .nav-links a::after{content:'';position:absolute;bottom:-4px;left:50%;width:0;height:2px;background:var(--gradient);border-radius:2px;transition:all .3s var(--ease);transform:translateX(-50%)}
-        .nav-links a:hover{color:#fff}
+        .nav-links a:hover{color:#1A1A2E}
         .nav-links a:hover::after{width:100%}
-        .nav-btn{background:var(--gradient);color:#fff;border:none;padding:.6rem 1.6rem;border-radius:50px;font-weight:600;cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .35s var(--ease);box-shadow:0 4px 20px rgba(139,92,246,0.25);text-decoration:none;display:inline-flex;align-items:center;gap:.4rem}
-        .nav-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(139,92,246,0.35)}
-        .nav-btn-outline{background:transparent;border:1px solid var(--border);color:var(--text);padding:.55rem 1.4rem;border-radius:50px;font-weight:500;cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .3s var(--ease);text-decoration:none}
-        .nav-btn-outline:hover{border-color:var(--border-hover);background:rgba(139,92,246,0.05)}
+        .nav-btn{background:#8B5CF6;color:#FFFFFF;border:none;padding:.6rem 1.6rem;border-radius: 6px;font-weight:600;cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .35s var(--ease);box-shadow:0 0 20px rgba(139,92,246,0.25);text-decoration:none;display:inline-flex;align-items:center;gap:.4rem}
+        .nav-btn:hover{transform:translateY(-2px);box-shadow:0 0 35px rgba(139,92,246,0.45);
+        .nav-btn-outline{background:transparent;border:1px solid var(--border);color:var(--text);padding:.55rem 1.4rem;border-radius: 6px;font-weight:500;cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .3s var(--ease);text-decoration:none}
+        .nav-btn-outline:hover{border-color:var(--border-hover);background:#F9FAFB}
         .nav-links>li{position:relative}
         .nav-dropdown-trigger{cursor:pointer;display:flex;align-items:center;gap:4px}
         .nav-dropdown-trigger::after{content:'';display:none}
         .nav-dropdown-trigger svg{width:12px;height:12px;opacity:.5;transition:transform .3s}
-        .nav-dropdown{position:absolute;top:calc(100% + 12px);left:50%;transform:translateX(-50%) translateY(8px);min-width:220px;background:rgba(10,14,26,0.98);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:.5rem;opacity:0;visibility:hidden;transition:all .25s var(--ease);z-index:1001;box-shadow:0 20px 50px rgba(0,0,0,0.5)}
+        .nav-dropdown{position:absolute;top:calc(100% + 12px);left:50%;transform:translateX(-50%) translateY(8px);min-width:220px;background:#FFFFFF;backdrop-filter:blur(24px);border:1px solid #E5E7EB;border-radius:8px;padding:.5rem;opacity:0;visibility:hidden;transition:all .25s var(--ease);z-index:1001;box-shadow:0 4px 16px rgba(0,0,0,0.06)}
         .nav-links>li:hover .nav-dropdown{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
         .nav-links>li:hover .nav-dropdown-trigger svg{transform:rotate(180deg)}
         .nav-dropdown a{display:flex;align-items:center;gap:.6rem;padding:.55rem .85rem;border-radius:8px;font-size:.82rem;color:var(--text-muted);transition:all .2s}
         .nav-dropdown a::after{display:none}
-        .nav-dropdown a:hover{background:rgba(139,92,246,0.08);color:#fff}
+        .nav-dropdown a:hover{background:#F9FAFB;color:#1A1A2E}
         .nav-dropdown a small{font-size:.7rem;color:var(--text-dim);display:block;margin-top:1px}
         .nav-dd-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0}
 
-        .hamburger{display:none;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;padding:.5rem}
-        .mobile-menu{display:none;position:fixed;top:72px;left:0;right:0;background:rgba(5,7,16,0.95);backdrop-filter:blur(20px);padding:1.5rem 2rem;border-bottom:1px solid var(--border);flex-direction:column;gap:1rem}
+        .hamburger{display:none;background:none;border:none;color:#1A1A2E;font-size:1.5rem;cursor:pointer;padding:.5rem}
+        .mobile-menu{display:none;position:fixed;top:72px;left:0;right:0;background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);padding:1.5rem 2rem;border-bottom:1px solid var(--border);flex-direction:column;gap:1rem}
         .mobile-menu.open{display:flex}
         .mobile-menu a{color:var(--text-muted);text-decoration:none;font-size:1rem;padding:.75rem 0;border-bottom:1px solid var(--border);font-weight:500}
 
         /* SHARED */
         section{padding:5rem 2rem;position:relative}
         .container{max-width:1140px;margin:auto}
-        .section-label{text-transform:uppercase;font-size:.7rem;letter-spacing:4px;font-weight:700;margin-bottom:1rem;display:inline-block;padding:.4rem 1.2rem;border-radius:50px;background:rgba(139,92,246,0.08);color:#c4b5fd;border:1px solid rgba(139,92,246,0.12)}
+        .section-label{text-transform:uppercase;font-size:.7rem;letter-spacing:4px;font-weight:700;margin-bottom:1rem;display:inline-block;padding:.4rem 1.2rem;border-radius: 6px;background:rgba(139,92,246,0.08);color:#7C3AED;border:1px solid #E5E7EB}
         .section-title{font-size:clamp(2rem,4.5vw,2.8rem);font-weight:800;margin-bottom:1rem;letter-spacing:-.03em;line-height:1.15}
         .section-sub{color:var(--text-muted);max-width:620px;margin:0 auto 3rem;font-size:1.05rem;line-height:1.85}
 
         /* HERO */
         .hero{padding:10rem 2rem 5rem;text-align:center;position:relative}
-        .hero-label{text-transform:uppercase;font-size:.7rem;letter-spacing:4px;font-weight:700;margin-bottom:1.25rem;display:inline-block;padding:.5rem 1.4rem;border-radius:50px;background:rgba(139,92,246,0.06);color:#c4b5fd;border:1px solid rgba(139,92,246,0.1);animation:fadeUp .8s var(--ease) both}
+        .hero-label{text-transform:uppercase;font-size:.7rem;letter-spacing:4px;font-weight:700;margin-bottom:1.25rem;display:inline-block;padding:.5rem 1.4rem;border-radius: 6px;background:#F3F4F6;color:#374151;border:1px solid #E5E7EB;animation:fadeUp .8s var(--ease) both}
         .hero h1{font-size:clamp(2.5rem,6vw,4rem);font-weight:900;letter-spacing:-.04em;line-height:1.1;margin-bottom:1.5rem;animation:fadeUp .8s .1s var(--ease) both}
         .hero h1 em{font-style:normal;background:var(--gradient2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
         .hero p{color:var(--text-muted);font-size:1.15rem;max-width:700px;margin:0 auto 2.5rem;line-height:1.85;animation:fadeUp .8s .2s var(--ease) both}
 
         /* GLASS CARDS */
-        .glass-card{background:rgba(255,255,255,0.028);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:2rem;transition:all .4s var(--ease);position:relative;overflow:hidden}
-        .glass-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(139,92,246,0.04),transparent);opacity:0;transition:opacity .4s}
-        .glass-card:hover{border-color:rgba(139,92,246,0.15);transform:translateY(-4px);box-shadow:0 20px 60px rgba(0,0,0,0.2)}
+        .glass-card{background:#FFFFFF;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid #E5E7EB;border-radius: 8px;padding:2rem;transition:all .4s var(--ease);position:relative;overflow:hidden}
+        .glass-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(249,250,251,1),transparent);opacity:0;transition:opacity .4s}
+        .glass-card:hover{border-color:#D1D5DB;transform:translateY(-4px);box-shadow:0 20px 60px rgba(0,0,0,0.2)}
         .glass-card:hover::before{opacity:1}
-        .glass-card-icon{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin-bottom:1.25rem;background:rgba(139,92,246,0.08);box-shadow:0 4px 16px rgba(139,92,246,0.1)}
+        .glass-card-icon{width:56px;height:56px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin-bottom:1.25rem;background:#F3F4F6;box-shadow:0 4px 16px rgba(243,244,246,1)}
         .glass-card h3{font-size:1.15rem;font-weight:700;margin-bottom:.5rem}
         .glass-card p{color:var(--text-muted);font-size:.92rem;line-height:1.7}
 
@@ -100,13 +100,13 @@
         .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem}
 
         /* MODEL CARDS */
-        .model-card{background:rgba(255,255,255,0.028);border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:2rem;position:relative;overflow:hidden;transition:all .4s var(--ease)}
+        .model-card{background:#FFFFFF;border:1px solid #E5E7EB;border-radius: 8px;padding:2rem;position:relative;overflow:hidden;transition:all .4s var(--ease)}
         .model-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:3px 3px 0 0}
         .model-card:nth-child(1)::after{background:var(--gradient)}
-        .model-card:nth-child(2)::after{background:linear-gradient(135deg,#06b6d4,#3b82f6)}
-        .model-card:nth-child(3)::after{background:linear-gradient(135deg,#34d399,#06b6d4)}
-        .model-card:hover{border-color:rgba(139,92,246,0.15);transform:translateY(-4px)}
-        .model-badge{display:inline-block;padding:.25rem .75rem;border-radius:50px;font-size:.7rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:.75rem}
+        .model-card:nth-child(2)::after{background:linear-gradient(135deg,#a1a1aa,#d4d4d8)}
+        .model-card:nth-child(3)::after{background:linear-gradient(135deg,#ffffff,#a1a1aa)}
+        .model-card:hover{border-color:#D1D5DB;transform:translateY(-4px)}
+        .model-badge{display:inline-block;padding:.25rem .75rem;border-radius: 6px;font-size:.7rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:.75rem}
         .model-name{font-size:1.3rem;font-weight:800;margin-bottom:.5rem}
         .model-desc{color:var(--text-muted);font-size:.88rem;line-height:1.7;margin-bottom:1rem}
         .model-specs{display:flex;flex-direction:column;gap:.35rem}
@@ -114,26 +114,26 @@
         .model-spec-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 
         /* PREVENTION */
-        .prevention-item{display:flex;gap:1rem;padding:1.25rem;border-radius:14px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);transition:all .3s var(--ease)}
-        .prevention-item:hover{border-color:rgba(139,92,246,0.12);background:rgba(139,92,246,0.02)}
-        .prevention-num{width:36px;height:36px;border-radius:10px;background:var(--gradient);display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:800;color:#fff;flex-shrink:0}
+        .prevention-item{display:flex;gap:1rem;padding:1.25rem;border-radius:8px;background:#FFFFFF;border:1px solid #E5E7EB;transition:all .3s var(--ease)}
+        .prevention-item:hover{border-color:#D1D5DB;background:#F9FAFB}
+        .prevention-num{width:36px;height:36px;border-radius:8px;background:var(--gradient);display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:800;color:#09090B;flex-shrink:0}
         .prevention-text h4{font-size:.95rem;font-weight:700;margin-bottom:.2rem}
         .prevention-text p{color:var(--text-muted);font-size:.85rem;line-height:1.65}
 
         /* SECURITY */
-        .security-badge{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem 1.25rem;border-radius:50px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.12);color:var(--green);font-size:.82rem;font-weight:600}
+        .security-badge{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem 1.25rem;border-radius: 6px;background:#F3F4F6;border:1px solid #E5E7EB;color:var(--green);font-size:.82rem;font-weight:600}
 
         /* METRICS LIVE */
         .metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem}
-        .metric-card{text-align:center;padding:1.75rem 1rem;background:rgba(255,255,255,0.028);border:1px solid rgba(255,255,255,0.06);border-radius:20px;transition:all .4s var(--ease)}
-        .metric-card:hover{border-color:rgba(139,92,246,0.15);transform:translateY(-3px)}
+        .metric-card{text-align:center;padding:1.75rem 1rem;background:#FFFFFF;border:1px solid #E5E7EB;border-radius: 8px;transition:all .4s var(--ease)}
+        .metric-card:hover{border-color:#D1D5DB;transform:translateY(-3px)}
         .metric-value{font-size:2.2rem;font-weight:900;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.25rem}
         .metric-label{color:var(--text-muted);font-size:.82rem;font-weight:500}
 
         /* LANGUAGES */
         .lang-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
-        .lang-card{text-align:center;padding:1.5rem 1rem;background:rgba(255,255,255,0.028);border:1px solid rgba(255,255,255,0.06);border-radius:20px;transition:all .3s var(--ease)}
-        .lang-card:hover{border-color:rgba(139,92,246,0.15);transform:translateY(-3px)}
+        .lang-card{text-align:center;padding:1.5rem 1rem;background:#FFFFFF;border:1px solid #E5E7EB;border-radius: 8px;transition:all .3s var(--ease)}
+        .lang-card:hover{border-color:#D1D5DB;transform:translateY(-3px)}
         .lang-flag{font-size:2rem;margin-bottom:.5rem}
         .lang-name{font-size:.95rem;font-weight:700;margin-bottom:.15rem}
         .lang-status{font-size:.75rem;color:var(--text-muted)}
@@ -141,14 +141,14 @@
 
         /* IMPROVEMENT */
         .improve-timeline{position:relative;padding-left:2rem}
-        .improve-timeline::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:linear-gradient(to bottom,rgba(139,92,246,0.3),rgba(99,102,241,0.1))}
+        .improve-timeline::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:linear-gradient(to bottom,rgba(209,213,219,1),rgba(243,244,246,1))}
         .improve-item{position:relative;padding:1rem 0 1rem 1.5rem;margin-bottom:.5rem}
-        .improve-item::before{content:'';position:absolute;left:-1.55rem;top:1.35rem;width:12px;height:12px;border-radius:50%;background:var(--gradient);box-shadow:0 0 12px rgba(139,92,246,0.3)}
+        .improve-item::before{content:'';position:absolute;left:-1.55rem;top:1.35rem;width:12px;height:12px;border-radius:50%;background:#ffffff;box-shadow:0 0 12px rgba(209,213,219,1)}
         .improve-item h4{font-size:1rem;font-weight:700;margin-bottom:.25rem}
         .improve-item p{color:var(--text-muted);font-size:.88rem;line-height:1.7}
 
         /* FOOTER */
-        footer{padding:3rem 2rem;border-top:1px solid var(--border);background:rgba(5,7,16,0.5)}
+        footer{padding:3rem 2rem;border-top:1px solid var(--border);background:rgba(255,255,255,0.85)}
         .footer-inner{max-width:1140px;margin:auto}
         .footer-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 1.5fr;gap:2rem;text-align:left;margin-bottom:2rem}
         .footer-col h4{font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:1rem;text-transform:uppercase;letter-spacing:1px}
@@ -156,7 +156,7 @@
         .footer-col a:hover{color:var(--text)}
         .footer-col p{color:var(--text-dim);font-size:.85rem;line-height:1.7}
         .footer-logo{font-size:1.2rem;font-weight:800;letter-spacing:-.5px}
-        .footer-logo span{background:var(--gradient2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .footer-logo span{background:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
         .footer-bottom{border-top:1px solid var(--border);padding-top:1.5rem;display:flex;justify-content:space-between;align-items:center}
         .footer-copy{color:var(--text-dim);font-size:.8rem}
 
@@ -185,32 +185,32 @@
             <li>
                 <a href="#" class="nav-dropdown-trigger" onclick="return false">Product <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
                 <div class="nav-dropdown">
-                    <a href="/#features"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6">&#9889;</span><div>Features<small>All platform capabilities</small></div></a>
-                    <a href="/ai-technology"><span class="nav-dd-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6">&#129302;</span><div>AI Technology<small>Model transparency</small></div></a>
-                    <a href="/integrations"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#128268;</span><div>Integrations<small>Connect your stack</small></div></a>
-                    <a href="/trust-center"><span class="nav-dd-icon" style="background:rgba(6,182,212,0.1);color:#06b6d4">&#128274;</span><div>Trust Center<small>Security &amp; compliance</small></div></a>
-                    <a href="/agent-marketplace"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#129302;</span><div>Agent Marketplace<small>Pre-built AI agents</small></div></a>
-                    <a href="/voice-agent"><span class="nav-dd-icon" style="background:rgba(251,191,36,0.1);color:#fbbf24">&#127908;</span><div>Voice AI<small>Voice-powered calls</small></div></a>
-                    <a href="/mobile-app"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#c4b5fd">&#128241;</span><div>Mobile App<small>iOS &amp; Android</small></div></a>
+                    <a href="/#features"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#9889;</span><div>Features<small>All platform capabilities</small></div></a>
+                    <a href="/ai-technology"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#129302;</span><div>AI Technology<small>Model transparency</small></div></a>
+                    <a href="/integrations"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128268;</span><div>Integrations<small>Connect your stack</small></div></a>
+                    <a href="/trust-center"><span class="nav-dd-icon" style="background:#F3F4F6;color:#6B7280">&#128274;</span><div>Trust Center<small>Security &amp; compliance</small></div></a>
+                    <a href="/agent-marketplace"><span class="nav-dd-icon" style="background:#F3F4F6;color:#6B7280">&#129302;</span><div>Agent Marketplace<small>Pre-built AI agents</small></div></a>
+                    <a href="/voice-agent"><span class="nav-dd-icon" style="background:#F3F4F6;color:#6B7280">&#127908;</span><div>Voice AI<small>Voice-powered calls</small></div></a>
+                    <a href="/mobile-app"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128241;</span><div>Mobile App<small>iOS &amp; Android</small></div></a>
                 </div>
             </li>
             <li><a href="/pricing-plans">Pricing</a></li>
             <li>
                 <a href="#" class="nav-dropdown-trigger" onclick="return false">Resources <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
                 <div class="nav-dropdown">
-                    <a href="/developers"><span class="nav-dd-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6">&#128187;</span><div>API Docs<small>Developer portal</small></div></a>
-                    <a href="/compare"><span class="nav-dd-icon" style="background:rgba(251,191,36,0.1);color:#fbbf24">&#128200;</span><div>Compare<small>vs Intercom, Tidio</small></div></a>
-                    <a href="/partners"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#129309;</span><div>Partner Program<small>Earn commissions</small></div></a>
-                    <a href="/blog"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#128221;</span><div>Blog &amp; Guides<small>Tips &amp; insights</small></div></a>
-                    <a href="/case-studies"><span class="nav-dd-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6">&#128202;</span><div>Case Studies<small>Real results</small></div></a>
+                    <a href="/developers"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128187;</span><div>API Docs<small>Developer portal</small></div></a>
+                    <a href="/compare"><span class="nav-dd-icon" style="background:#F3F4F6;color:#6B7280">&#128200;</span><div>Compare<small>vs Intercom, Tidio</small></div></a>
+                    <a href="/partners"><span class="nav-dd-icon" style="background:#F3F4F6;color:#6B7280">&#129309;</span><div>Partner Program<small>Earn commissions</small></div></a>
+                    <a href="/blog"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128221;</span><div>Blog &amp; Guides<small>Tips &amp; insights</small></div></a>
+                    <a href="/case-studies"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128202;</span><div>Case Studies<small>Real results</small></div></a>
                 </div>
             </li>
             <li>
                 <a href="#" class="nav-dropdown-trigger" onclick="return false">Use Cases <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
                 <div class="nav-dropdown">
-                    <a href="/for-dental-clinics"><span class="nav-dd-icon" style="background:rgba(6,182,212,0.1);color:#06b6d4">&#129463;</span><div>Dental Clinics<small>Bookings &amp; recalls</small></div></a>
-                    <a href="/for-medical-practices"><span class="nav-dd-icon" style="background:rgba(52,211,153,0.1);color:#34d399">&#127973;</span><div>Medical Practices<small>Patient engagement</small></div></a>
-                    <a href="/for-salons-spas"><span class="nav-dd-icon" style="background:rgba(236,72,153,0.1);color:#ec4899">&#128135;</span><div>Salons &amp; Spas<small>Beauty appointments</small></div></a>
+                    <a href="/for-dental-clinics"><span class="nav-dd-icon" style="background:#F3F4F6;color:#6B7280">&#129463;</span><div>Dental Clinics<small>Bookings &amp; recalls</small></div></a>
+                    <a href="/for-medical-practices"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#127973;</span><div>Medical Practices<small>Patient engagement</small></div></a>
+                    <a href="/for-salons-spas"><span class="nav-dd-icon" style="background:#F3F4F6;color:#6B7280">&#128135;</span><div>Salons &amp; Spas<small>Beauty appointments</small></div></a>
                 </div>
             </li>
             <li><a href="/login" class="nav-btn-outline">Log In</a></li>
@@ -236,7 +236,7 @@
         <a href="/for-medical-practices">Medical</a>
         <a href="/for-salons-spas">Salons</a>
         <a href="/login">Log In</a>
-        <a href="/login?signup=1" style="color:#c4b5fd;font-weight:700">Start Free</a>
+        <a href="/login?signup=1" style="color:#374151;font-weight:700">Start Free</a>
     </div>
 </nav>
 
@@ -259,7 +259,7 @@
         </div>
         <div class="grid-3 anim">
             <div class="model-card">
-                <div class="model-badge" style="background:rgba(139,92,246,0.1);color:#c4b5fd">Primary</div>
+                <div class="model-badge" style="background:#F3F4F6;color:#374151">Primary</div>
                 <div class="model-name">GPT-4o-mini</div>
                 <div class="model-desc">Powers complex medical Q&A, treatment explanations, and nuanced patient conversations requiring deep medical knowledge.</div>
                 <div class="model-specs">
@@ -270,7 +270,7 @@
                 </div>
             </div>
             <div class="model-card">
-                <div class="model-badge" style="background:rgba(6,182,212,0.1);color:var(--cyan)">Speed</div>
+                <div class="model-badge" style="background:#F3F4F6;color:var(--cyan)">Speed</div>
                 <div class="model-name">Groq Llama</div>
                 <div class="model-desc">Ultra-fast inference for quick responses like appointment confirmations, greeting messages, and simple lookups where speed matters most.</div>
                 <div class="model-specs">
@@ -281,7 +281,7 @@
                 </div>
             </div>
             <div class="model-card">
-                <div class="model-badge" style="background:rgba(52,211,153,0.1);color:var(--green)">On-Device</div>
+                <div class="model-badge" style="background:#F3F4F6;color:var(--green)">On-Device</div>
                 <div class="model-name">Fine-tuned TinyLlama</div>
                 <div class="model-desc">Our custom fine-tuned model trained on 4,000+ dental conversations. Runs on-device for offline intent classification and initial routing.</div>
                 <div class="model-specs">
@@ -296,7 +296,7 @@
 </section>
 
 <!-- SECTION 2: HALLUCINATION PREVENTION -->
-<section id="safety" style="background:rgba(255,255,255,0.008)">
+<section id="safety" style="background:#FAFAFA">
     <div class="container">
         <div style="text-align:center;margin-bottom:3rem">
             <div class="section-label">Safety</div>
@@ -380,19 +380,19 @@
             <div class="glass-card">
                 <h3 style="font-size:1.3rem;margin-bottom:1rem">Technical Security</h3>
                 <div style="display:flex;flex-direction:column;gap:.75rem">
-                    <div style="padding:.75rem 1rem;background:rgba(255,255,255,0.02);border-radius:10px;border:1px solid rgba(255,255,255,0.04)">
+                    <div style="padding:.75rem 1rem;background:#FFFFFF;border-radius:8px;border:1px solid #E5E7EB">
                         <div style="font-size:.85rem;font-weight:700;margin-bottom:.15rem">No Data Used for Training</div>
                         <div style="font-size:.8rem;color:var(--text-muted)">Your patient conversations are never used to train AI models. Period.</div>
                     </div>
-                    <div style="padding:.75rem 1rem;background:rgba(255,255,255,0.02);border-radius:10px;border:1px solid rgba(255,255,255,0.04)">
+                    <div style="padding:.75rem 1rem;background:#FFFFFF;border-radius:8px;border:1px solid #E5E7EB">
                         <div style="font-size:.85rem;font-weight:700;margin-bottom:.15rem">Encrypted at Rest (AES-256)</div>
                         <div style="font-size:.8rem;color:var(--text-muted)">All data is encrypted using AES-256 encryption at rest and TLS 1.3 in transit.</div>
                     </div>
-                    <div style="padding:.75rem 1rem;background:rgba(255,255,255,0.02);border-radius:10px;border:1px solid rgba(255,255,255,0.04)">
+                    <div style="padding:.75rem 1rem;background:#FFFFFF;border-radius:8px;border:1px solid #E5E7EB">
                         <div style="font-size:.85rem;font-weight:700;margin-bottom:.15rem">Tenant Isolation</div>
                         <div style="font-size:.8rem;color:var(--text-muted)">Each practice's data is logically isolated. No cross-tenant data access is possible.</div>
                     </div>
-                    <div style="padding:.75rem 1rem;background:rgba(255,255,255,0.02);border-radius:10px;border:1px solid rgba(255,255,255,0.04)">
+                    <div style="padding:.75rem 1rem;background:#FFFFFF;border-radius:8px;border:1px solid #E5E7EB">
                         <div style="font-size:.85rem;font-weight:700;margin-bottom:.15rem">Role-Based Access Control</div>
                         <div style="font-size:.8rem;color:var(--text-muted)">Admin, doctor, and staff roles with granular permission controls.</div>
                     </div>
@@ -403,7 +403,7 @@
 </section>
 
 <!-- SECTION 4: AI RESOLUTION METRICS (LIVE) -->
-<section id="metrics" style="background:rgba(255,255,255,0.008)">
+<section id="metrics" style="background:#FAFAFA">
     <div class="container">
         <div style="text-align:center;margin-bottom:3rem">
             <div class="section-label">Metrics</div>
@@ -486,7 +486,7 @@
 </section>
 
 <!-- SECTION 6: CONTINUOUS IMPROVEMENT -->
-<section id="improvement" style="background:rgba(255,255,255,0.008)">
+<section id="improvement" style="background:#FAFAFA">
     <div class="container">
         <div style="text-align:center;margin-bottom:3rem">
             <div class="section-label">Evolution</div>
@@ -511,21 +511,21 @@
             <div style="display:flex;flex-direction:column;gap:1.25rem">
                 <div class="glass-card" style="padding:1.5rem">
                     <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">
-                        <div style="width:40px;height:40px;border-radius:12px;background:rgba(139,92,246,0.1);display:flex;align-items:center;justify-content:center;font-size:1.1rem">&#128202;</div>
+                        <div style="width:40px;height:40px;border-radius:12px;background:#F3F4F6;display:flex;align-items:center;justify-content:center;font-size:1.1rem">&#128202;</div>
                         <div style="font-size:1rem;font-weight:700">Model Retraining</div>
                     </div>
                     <p style="color:var(--text-muted);font-size:.88rem;line-height:1.7">Our TinyLlama model is retrained monthly on new dental conversation patterns, continuously improving intent classification accuracy.</p>
                 </div>
                 <div class="glass-card" style="padding:1.5rem">
                     <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">
-                        <div style="width:40px;height:40px;border-radius:12px;background:rgba(52,211,153,0.1);display:flex;align-items:center;justify-content:center;font-size:1.1rem">&#128736;</div>
+                        <div style="width:40px;height:40px;border-radius:12px;background:#F3F4F6;display:flex;align-items:center;justify-content:center;font-size:1.1rem">&#128736;</div>
                         <div style="font-size:1rem;font-weight:700">Knowledge Base Updates</div>
                     </div>
                     <p style="color:var(--text-muted);font-size:.88rem;line-height:1.7">Our RAG knowledge base is regularly expanded with new dental procedures, insurance changes, and treatment protocols.</p>
                 </div>
                 <div class="glass-card" style="padding:1.5rem">
                     <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">
-                        <div style="width:40px;height:40px;border-radius:12px;background:rgba(59,130,246,0.1);display:flex;align-items:center;justify-content:center;font-size:1.1rem">&#128640;</div>
+                        <div style="width:40px;height:40px;border-radius:12px;background:#F3F4F6;display:flex;align-items:center;justify-content:center;font-size:1.1rem">&#128640;</div>
                         <div style="font-size:1rem;font-weight:700">Feature Velocity</div>
                     </div>
                     <p style="color:var(--text-muted);font-size:.88rem;line-height:1.7">We ship AI improvements weekly, with major feature releases monthly. Every update is backward-compatible with zero downtime.</p>

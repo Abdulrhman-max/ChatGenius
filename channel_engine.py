@@ -130,6 +130,7 @@ def process_whatsapp_webhook(payload, admin_id):
                     "message_id": msg_id,
                     "text": text,
                     "sender": sender_name,
+                    "phone": sender_id,
                     "channel": CHANNEL_WHATSAPP,
                 })
 
@@ -186,12 +187,10 @@ def process_meta_webhook(payload, admin_id, channel_type=CHANNEL_FACEBOOK):
 
 def send_whatsapp_message(phone_number, text, admin_id):
     """Send a WhatsApp message via WhatsApp Business API."""
-    # Check for Twilio/WhatsApp config
-    wa_token = os.getenv("WHATSAPP_TOKEN", "")
-    wa_phone_id = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
+    wa_token, wa_phone_id = _get_whatsapp_credentials(admin_id)
 
     if not wa_token or not wa_phone_id:
-        print(f"[channel_engine] WhatsApp not configured. Would send to ***{phone_number[-4:] if phone_number else ''}: {text}")
+        print(f"[channel_engine] WhatsApp not configured for admin {admin_id}. Would send to ***{phone_number[-4:] if phone_number else ''}: {text}")
         return False
 
     try:
@@ -210,6 +209,99 @@ def send_whatsapp_message(phone_number, text, admin_id):
         return response.status_code == 200
     except Exception as e:
         print(f"[channel_engine] WhatsApp send error: {e}")
+        return False
+
+
+def _get_whatsapp_credentials(admin_id):
+    """Get WhatsApp credentials for an admin from DB, falling back to env vars."""
+    wa_token = ""
+    wa_phone_id = ""
+    try:
+        conn = db.get_db()
+        row = conn.execute("SELECT access_token, phone_number_id FROM whatsapp_config WHERE admin_id=%s AND connected=1", (admin_id,)).fetchone()
+        conn.close()
+        if row:
+            wa_token = row["access_token"]
+            wa_phone_id = row["phone_number_id"]
+    except Exception:
+        pass
+    if not wa_token or not wa_phone_id:
+        wa_token = os.getenv("WHATSAPP_TOKEN", "")
+        wa_phone_id = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
+    return wa_token, wa_phone_id
+
+
+def _get_instagram_credentials(admin_id):
+    """Get Instagram page token for an admin from DB, falling back to env vars."""
+    page_token = ""
+    try:
+        conn = db.get_db()
+        row = conn.execute("SELECT page_access_token, page_id FROM instagram_config WHERE admin_id=%s AND connected=1", (admin_id,)).fetchone()
+        conn.close()
+        if row:
+            page_token = row["page_access_token"]
+    except Exception:
+        pass
+    if not page_token:
+        page_token = os.getenv("META_PAGE_TOKEN", "")
+    return page_token
+
+
+def send_whatsapp_interactive(phone_number, body_text, options, admin_id):
+    """Send a WhatsApp interactive list/button message with dropdown options."""
+    wa_token, wa_phone_id = _get_whatsapp_credentials(admin_id)
+    if not wa_token or not wa_phone_id:
+        print(f"[channel_engine] WhatsApp not configured for admin {admin_id}. Would send interactive to ***{phone_number[-4:] if phone_number else ''}")
+        return False
+
+    # WhatsApp supports max 3 buttons or a list with up to 10 rows
+    try:
+        import httpx
+        if len(options) <= 3:
+            # Use reply buttons
+            buttons = []
+            for i, opt in enumerate(options[:3]):
+                label = opt if isinstance(opt, str) else opt.get("label", opt.get("text", f"Option {i+1}"))
+                buttons.append({"type": "reply", "reply": {"id": f"btn_{i}", "title": label[:20]}})
+            payload = {
+                "messaging_product": "whatsapp",
+                "to": phone_number,
+                "type": "interactive",
+                "interactive": {
+                    "type": "button",
+                    "body": {"text": body_text[:1024]},
+                    "action": {"buttons": buttons}
+                }
+            }
+        else:
+            # Use list message for more options
+            rows = []
+            for i, opt in enumerate(options[:10]):
+                label = opt if isinstance(opt, str) else opt.get("label", opt.get("text", f"Option {i+1}"))
+                rows.append({"id": f"row_{i}", "title": label[:24]})
+            payload = {
+                "messaging_product": "whatsapp",
+                "to": phone_number,
+                "type": "interactive",
+                "interactive": {
+                    "type": "list",
+                    "body": {"text": body_text[:1024]},
+                    "action": {
+                        "button": "Choose an option",
+                        "sections": [{"title": "Options", "rows": rows}]
+                    }
+                }
+            }
+
+        response = httpx.post(
+            f"https://graph.facebook.com/v18.0/{wa_phone_id}/messages",
+            headers={"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"},
+            json=payload,
+            timeout=10
+        )
+        return response.status_code == 200
+    except Exception as e:
+        print(f"[channel_engine] WhatsApp interactive send error: {e}")
         return False
 
 
@@ -271,7 +363,10 @@ def send_reply(conversation_id, text, staff_name="Staff", admin_id=None):
 
 def _send_meta_message(recipient_id, text, admin_id, channel_type):
     """Send message via Facebook/Instagram Messaging API."""
-    page_token = os.getenv("META_PAGE_TOKEN", "")
+    if channel_type == CHANNEL_INSTAGRAM:
+        page_token = _get_instagram_credentials(admin_id)
+    else:
+        page_token = os.getenv("META_PAGE_TOKEN", "")
     if not page_token:
         print(f"[channel_engine] Meta API not configured. Would send to {recipient_id}: {text}")
         return False
@@ -442,6 +537,21 @@ def get_conversations(admin_id, channel_type=None, unread_only=False,
         conversations.append(conv)
 
     return conversations
+
+
+def get_conversation(conversation_id):
+    """Get a single conversation by ID."""
+    conn = db.get_db()
+    try:
+        row = conn.execute("SELECT * FROM channel_conversations WHERE id = %s", (conversation_id,)).fetchone()
+        if row:
+            return dict(row)
+        return None
+    except Exception as e:
+        print(f"[channel_engine] get_conversation error: {e}")
+        return None
+    finally:
+        conn.close()
 
 
 def get_conversation_messages(conversation_id, limit=50, offset=0, admin_id=None):

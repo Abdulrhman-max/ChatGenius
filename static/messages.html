@@ -10,13 +10,13 @@
         html { font-size: 90%; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --primary: #8b5cf6;
-            --bg-dark: #0f0f1a;
-            --bg-sidebar: rgba(255,255,255,0.02);
-            --border: rgba(255,255,255,0.08);
-            --text: #f1f5f9;
-            --text-muted: #64748b;
-            --success: #34d399;
+            --primary: #8B5CF6;
+            --bg-dark: #F9FAFB;
+            --bg-sidebar: rgba(255,255,255,1);
+            --border: rgba(229,231,235,1);
+            --text: #1A1A2E;
+            --text-muted: #6B7280;
+            --success: #10b981;
             --danger: #ef4444;
         }
         body {
@@ -57,7 +57,7 @@
         .search-input {
             width: 100%;
             padding: 0.6rem 1rem;
-            background: rgba(0,0,0,0.3);
+            background: rgba(0,0,0,0.04);
             border: 1px solid var(--border);
             border-radius: 8px;
             color: var(--text);
@@ -70,12 +70,12 @@
         }
         .conversation {
             padding: 0.75rem 1rem;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
+            border-bottom: 1px solid rgba(249,250,251,1);
             cursor: pointer;
             transition: background 0.2s;
         }
-        .conversation:hover { background: rgba(255,255,255,0.03); }
-        .conversation.active { background: rgba(139,92,246,0.1); border-left: 3px solid var(--primary); }
+        .conversation:hover { background: rgba(249,250,251,1); }
+        .conversation.active { background: rgba(243,244,246,1); border-left: 3px solid var(--primary); }
         .conversation-name {
             font-weight: 600;
             font-size: 0.9rem;
@@ -95,7 +95,7 @@
             color: #fff;
             font-size: 0.7rem;
             padding: 0.15rem 0.5rem;
-            border-radius: 10px;
+            border-radius: 8px;
             font-weight: 600;
         }
         .main-chat {
@@ -114,7 +114,7 @@
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: linear-gradient(135deg, var(--primary), #6366f1);
+            background: linear-gradient(135deg, var(--primary), #C4B5FD);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -133,7 +133,7 @@
         .message {
             max-width: 70%;
             padding: 0.75rem 1rem;
-            border-radius: 16px;
+            border-radius: 8px;
             font-size: 0.9rem;
             line-height: 1.4;
         }
@@ -144,7 +144,7 @@
             border-bottom-right-radius: 4px;
         }
         .message.received {
-            background: rgba(255,255,255,0.08);
+            background: rgba(229,231,235,1);
             align-self: flex-start;
             border-bottom-left-radius: 4px;
         }
@@ -163,9 +163,9 @@
         .message-input {
             flex: 1;
             padding: 0.75rem 1rem;
-            background: rgba(0,0,0,0.3);
+            background: rgba(0,0,0,0.04);
             border: 1px solid var(--border);
-            border-radius: 24px;
+            border-radius: 8px;
             color: var(--text);
             font-size: 0.9rem;
         }
@@ -183,7 +183,7 @@
             align-items: center;
             justify-content: center;
         }
-        .send-btn:hover { background: #7c3aed; }
+        .send-btn:hover { background: #d4d4d8; color: #374151; }
         .empty-state {
             flex: 1;
             display: flex;
@@ -194,7 +194,7 @@
         }
         .empty-state-icon { font-size: 4rem; margin-bottom: 1rem; }
         .auto-reply-badge {
-            background: rgba(52,211,153,0.15);
+            background: rgba(229,231,235,1);
             color: var(--success);
             font-size: 0.7rem;
             padding: 0.2rem 0.5rem;

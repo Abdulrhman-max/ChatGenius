@@ -9,58 +9,58 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Outfit','Inter',sans-serif;background:#06080d;color:#f1f5f9;min-height:100vh;}
-body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.022;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-.navbar{background:rgba(255,255,255,0.035);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,0.05);color:#f1f5f9;padding:16px 32px;display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1;}
-.navbar h1{font-size:20px;font-weight:700;background:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-.navbar .user-info{display:flex;align-items:center;gap:12px;color:#8b95a8;}
-.navbar button{background:rgba(255,255,255,0.06);color:#f1f5f9;border:1px solid rgba(255,255,255,0.06);padding:8px 16px;border-radius:50px;cursor:pointer;font-family:'Outfit','Inter',sans-serif;font-size:13px;transition:all 0.2s;}
-.navbar button:hover{background:rgba(139,92,246,0.15);border-color:rgba(139,92,246,0.3);}
+body{font-family:'Outfit','Inter',sans-serif;background:#F9FAFB;color:#1A1A2E;min-height:100vh;}
+body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.navbar{background:#F9FAFB;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid rgba(243,244,246,1);color:#1A1A2E;padding:16px 32px;display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1;}
+.navbar h1{font-size:20px;font-weight:700;background:linear-gradient(135deg,#8B5CF6,#7C3AED,#6D28D9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.navbar .user-info{display:flex;align-items:center;gap:12px;color:#6B7280;}
+.navbar button{background:#F3F4F6;color:#1A1A2E;border:1px solid #E5E7EB;padding:8px 16px;border-radius: 6px;cursor:pointer;font-family:'Outfit','Inter',sans-serif;font-size:13px;transition:all 0.2s;}
+.navbar button:hover{background:#E5E7EB;border-color:#D1D5DB;}
 .container{max-width:1100px;margin:24px auto;padding:0 20px;position:relative;z-index:1;}
-.tabs{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;background:rgba(255,255,255,0.035);border-radius:50px;padding:6px;border:1px solid rgba(255,255,255,0.05);}
-.tab{padding:10px 20px;border-radius:50px;background:transparent;border:none;cursor:pointer;font-family:'Outfit','Inter',sans-serif;font-size:14px;color:#8b95a8;transition:all 0.2s;font-weight:500;}
-.tab.active{background:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);color:#fff;box-shadow:0 4px 25px rgba(139,92,246,0.3);}
-.tab:hover:not(.active){color:#f1f5f9;background:rgba(255,255,255,0.05);}
+.tabs{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;background:#F9FAFB;border-radius: 6px;padding:6px;border:1px solid #E5E7EB;}
+.tab{padding:10px 20px;border-radius: 6px;background:transparent;border:none;cursor:pointer;font-family:'Outfit','Inter',sans-serif;font-size:14px;color:#6B7280;transition:all 0.2s;font-weight:500;}
+.tab.active{background:#8B5CF6;color:#FFFFFF;box-shadow:0 4px 25px rgba(139,92,246,0.3);}
+.tab:hover:not(.active){color:#1A1A2E;background:#F9FAFB;}
 .panel{display:none;}
 .panel.active{display:block;}
-.card{background:rgba(255,255,255,0.035);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:20px;padding:24px;margin-bottom:20px;border:1px solid rgba(255,255,255,0.05);box-shadow:0 8px 32px rgba(0,0,0,0.2);}
-.card h2{font-size:18px;margin-bottom:16px;color:#f1f5f9;font-weight:700;}
+.card{background:#F9FAFB;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius: 8px;padding:24px;margin-bottom:20px;border:1px solid #E5E7EB;box-shadow:0 8px 32px rgba(0,0,0,0.2);}
+.card h2{font-size:18px;margin-bottom:16px;color:#1A1A2E;font-weight:700;}
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;}
-.stat-card{background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.05);border-radius:16px;padding:20px;text-align:center;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);}
-.stat-card .value{font-size:28px;font-weight:700;background:linear-gradient(135deg,#8b5cf6,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-.stat-card .label{font-size:12px;color:#8b95a8;text-transform:uppercase;letter-spacing:0.5px;margin-top:4px;}
-table{width:100%;border-collapse:collapse;background:rgba(255,255,255,0.02);border-radius:16px;overflow:hidden;}
-th{background:rgba(139,92,246,0.08);padding:10px 12px;text-align:left;font-size:12px;color:#8b95a8;text-transform:uppercase;letter-spacing:0.5px;}
-td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:14px;color:#f1f5f9;}
-tr:hover{background:rgba(139,92,246,0.04);}
+.stat-card{background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:20px;text-align:center;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.stat-card .value{font-size:28px;font-weight:700;background:linear-gradient(135deg,#8B5CF6,#6D28D9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.stat-card .label{font-size:12px;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;margin-top:4px;}
+table{width:100%;border-collapse:collapse;background:#FFFFFF;border-radius:8px;overflow:hidden;}
+th{background:#F3F4F6;padding:10px 12px;text-align:left;font-size:12px;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;}
+td{padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:14px;color:#1A1A2E;}
+tr:hover{background:#FFFFFF;}
 .badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;}
-.badge-green{background:rgba(52,211,153,0.15);color:#34d399;}
-.badge-red{background:rgba(248,113,113,0.15);color:#f87171;}
-.badge-yellow{background:rgba(251,191,36,0.15);color:#fbbf24;}
-.badge-blue{background:rgba(59,130,246,0.15);color:#3b82f6;}
+.badge-green{background:rgba(16,185,129,0.1);color:#10b981;}
+.badge-red{background:rgba(239,68,68,0.1);color:#ef4444;}
+.badge-yellow{background:rgba(245,158,11,0.1);color:#f59e0b;}
+.badge-blue{background:rgba(59,130,246,0.1);color:#3b82f6;}
 .form-group{margin-bottom:16px;}
-.form-group label{display:block;font-size:13px;color:#8b95a8;margin-bottom:4px;font-weight:600;}
-.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,0.06);border-radius:12px;font-size:14px;font-family:'Outfit','Inter',sans-serif;background:rgba(255,255,255,0.04);color:#f1f5f9;outline:none;transition:border-color 0.2s,box-shadow 0.2s;}
-.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:rgba(139,92,246,0.3);box-shadow:0 0 0 4px rgba(139,92,246,0.06);}
-.form-group select option{background:#0f1118;color:#f1f5f9;}
-.btn{padding:10px 24px;border:none;border-radius:50px;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;font-family:'Outfit','Inter',sans-serif;}
-.btn-primary{background:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);color:#fff;box-shadow:0 4px 25px rgba(139,92,246,0.3);}
-.btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 35px rgba(139,92,246,0.4);}
-.btn-danger{background:rgba(248,113,113,0.12);color:#f87171;border:1px solid rgba(248,113,113,0.2);}
-.btn-danger:hover{background:rgba(248,113,113,0.2);}
-.toggle-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:12px;border:2px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.04);cursor:pointer;font-family:'Outfit','Inter',sans-serif;font-size:14px;font-weight:600;color:#8b95a8;transition:all 0.2s;}
-.toggle-btn.active{border-color:#34d399;background:rgba(52,211,153,0.1);color:#34d399;}
+.form-group label{display:block;font-size:13px;color:#6B7280;margin-bottom:4px;font-weight:600;}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:12px;font-size:14px;font-family:'Outfit','Inter',sans-serif;background:#FFFFFF;color:#1A1A2E;outline:none;transition:border-color 0.2s,box-shadow 0.2s;}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:#D1D5DB;box-shadow:0 0 0 4px rgba(139,92,246,0.1);}
+.form-group select option{background:#F9FAFB;color:#1A1A2E;}
+.btn{padding:10px 24px;border:none;border-radius: 6px;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;font-family:'Outfit','Inter',sans-serif;}
+.btn-primary{background:#8B5CF6;color:#FFFFFF;box-shadow:0 0 20px rgba(139,92,246,0.3);}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 0 35px rgba(139,92,246,0.45);}
+.btn-danger{background:#E5E7EB;color:#6B7280;border:1px solid #D1D5DB;}
+.btn-danger:hover{background:#E5E7EB;}
+.toggle-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:12px;border:2px solid #E5E7EB;background:#FFFFFF;cursor:pointer;font-family:'Outfit','Inter',sans-serif;font-size:14px;font-weight:600;color:#6B7280;transition:all 0.2s;}
+.toggle-btn.active{border-color:#1A1A2E;background:#F3F4F6;color:#1A1A2E;}
 .off-day-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
-.off-day-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;font-size:13px;color:#f1f5f9;}
-.off-day-chip button{background:none;border:none;color:#f87171;cursor:pointer;font-size:16px;}
-.empty{text-align:center;color:#8b95a8;padding:40px;font-size:15px;}
-.login-box{max-width:400px;margin:80px auto;background:rgba(255,255,255,0.035);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:40px;border-radius:24px;border:1px solid rgba(255,255,255,0.05);box-shadow:0 20px 60px rgba(0,0,0,0.4);text-align:center;position:relative;z-index:1;}
-.login-box h2{margin-bottom:24px;color:#f1f5f9;}
-#loginError{color:#f87171;margin-top:12px;font-size:13px;}
+.off-day-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1A1A2E;}
+.off-day-chip button{background:none;border:none;color:#6B7280;cursor:pointer;font-size:16px;}
+.empty{text-align:center;color:#6B7280;padding:40px;font-size:15px;}
+.login-box{max-width:400px;margin:80px auto;background:#F9FAFB;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:40px;border-radius: 8px;border:1px solid #E5E7EB;box-shadow:0 4px 16px rgba(0,0,0,0.06);text-align:center;position:relative;z-index:1;}
+.login-box h2{margin-bottom:24px;color:#1A1A2E;}
+#loginError{color:#6B7280;margin-top:12px;font-size:13px;}
 </style>
 </head>
 <body>
-<div style="position:fixed;inset:0;z-index:-1;overflow:hidden"><div style="position:absolute;width:55vw;height:55vw;top:-15%;left:-10%;border-radius:50%;filter:blur(100px);opacity:0.1;background:conic-gradient(from 0deg,#8b5cf6,#6366f1,#3b82f6,#8b5cf6);animation:aur 22s ease-in-out infinite"></div><div style="position:absolute;width:40vw;height:40vw;bottom:-10%;right:-5%;border-radius:50%;filter:blur(100px);opacity:0.1;background:conic-gradient(from 180deg,#3b82f6,#06b6d4,#8b5cf6);animation:aur 28s ease-in-out infinite;animation-delay:-7s"></div></div>
+<div style="position:fixed;inset:0;z-index:-1;overflow:hidden"><div style="position:absolute;width:55vw;height:55vw;top:-15%;left:-10%;border-radius:50%;filter:blur(100px);opacity:0.1;background:conic-gradient(from 0deg,#E0E7FF,#DDD6FE,#C7D2FE,#E0E7FF);animation:aur 22s ease-in-out infinite"></div><div style="position:absolute;width:40vw;height:40vw;bottom:-10%;right:-5%;border-radius:50%;filter:blur(100px);opacity:0.1;background:conic-gradient(from 180deg,#d4d4d8,#a1a1aa,#ffffff);animation:aur 28s ease-in-out infinite;animation-delay:-7s"></div></div>
 <style>@keyframes aur{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(3%,5%) scale(1.05)}66%{transform:translate(-3%,-3%) scale(0.97)}}</style>
 
 <!-- Login Screen -->
@@ -136,28 +136,28 @@ tr:hover{background:rgba(139,92,246,0.04);}
     <div id="tab-calendly" class="panel">
         <div class="card">
             <h2>Calendly Integration</h2>
-            <p style="color:#8b95a8;font-size:0.85rem;margin-bottom:1rem">Connect your personal Calendly account so that bookings assigned to you automatically sync to your Calendly calendar.</p>
+            <p style="color:#6B7280;font-size:0.85rem;margin-bottom:1rem">Connect your personal Calendly account so that bookings assigned to you automatically sync to your Calendly calendar.</p>
             <div id="doctorCalendlyStatus">
-                <span style="color:#8b95a8;font-size:0.85rem">Loading...</span>
+                <span style="color:#6B7280;font-size:0.85rem">Loading...</span>
             </div>
             <!-- Connected state -->
             <div id="doctorCalendlyConnected" style="display:none">
                 <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem">
-                    <span style="width:10px;height:10px;border-radius:50%;background:#22c55e;display:inline-block"></span>
-                    <span style="font-size:0.85rem;color:#f1f5f9">Connected</span>
+                    <span style="width:10px;height:10px;border-radius:50%;background:#ffffff;display:inline-block"></span>
+                    <span style="font-size:0.85rem;color:#1A1A2E">Connected</span>
                 </div>
-                <div style="font-size:0.85rem;color:#8b95a8;margin-bottom:0.5rem">
-                    <span id="doctorCalendlyName" style="color:#8b5cf6;font-weight:600"></span>
+                <div style="font-size:0.85rem;color:#6B7280;margin-bottom:0.5rem">
+                    <span id="doctorCalendlyName" style="color:#1A1A2E;font-weight:600"></span>
                     <span id="doctorCalendlyEmail" style="margin-left:0.5rem"></span>
                 </div>
-                <div style="font-size:0.8rem;color:#8b95a8;margin-bottom:1rem">
-                    Last synced: <span id="doctorCalendlyLastSync" style="color:#f1f5f9">Never</span>
+                <div style="font-size:0.8rem;color:#6B7280;margin-bottom:1rem">
+                    Last synced: <span id="doctorCalendlyLastSync" style="color:#1A1A2E">Never</span>
                 </div>
                 <button class="btn btn-danger" onclick="doctorDisconnectCalendly()">Disconnect Calendly</button>
             </div>
             <!-- Not connected state -->
             <div id="doctorCalendlySetup" style="display:none">
-                <p style="font-size:0.85rem;color:#8b95a8;margin-bottom:1rem">Get your Personal Access Token at <a href="https://calendly.com/integrations/api_webhooks" target="_blank" style="color:#8b5cf6">calendly.com/integrations/api_webhooks</a></p>
+                <p style="font-size:0.85rem;color:#6B7280;margin-bottom:1rem">Get your Personal Access Token at <a href="https://calendly.com/integrations/api_webhooks" target="_blank" style="color:#ffffff">calendly.com/integrations/api_webhooks</a></p>
                 <div class="form-group">
                     <label>Calendly Personal Access Token</label>
                     <input type="password" id="doctorCalendlyToken" placeholder="eyJhbGciOiJI...">
@@ -193,9 +193,9 @@ tr:hover{background:rgba(139,92,246,0.04);}
 </div>
 
 <!-- Booking Detail Modal -->
-<div id="bookingDetailModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;justify-content:center;align-items:center">
-    <div style="background:#1e293b;border-radius:12px;padding:2rem;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
-        <button onclick="closeBookingDetail()" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:1.4rem;color:#94a3b8;cursor:pointer">&times;</button>
+<div id="bookingDetailModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.04);z-index:9999;justify-content:center;align-items:center">
+    <div style="background:#222222;border-radius:12px;padding:2rem;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+        <button onclick="closeBookingDetail()" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:1.4rem;color:#6B7280;cursor:pointer">&times;</button>
         <div id="bookingDetailContent">Loading...</div>
     </div>
 </div>
@@ -265,9 +265,9 @@ async function loadStats() {
     document.getElementById('statsGrid').innerHTML = `
         <div class="stat-card"><div class="value">${s.bookings_this_month || 0}</div><div class="label">Bookings</div></div>
         <div class="stat-card"><div class="value">${s.completed_this_month || 0}</div><div class="label">Completed</div></div>
-        <div class="stat-card"><div class="value" style="color:#dc2626;">${s.noshow_this_month || 0}</div><div class="label">No-Shows</div></div>
+        <div class="stat-card"><div class="value" style="color:#6B7280;">${s.noshow_this_month || 0}</div><div class="label">No-Shows</div></div>
         <div class="stat-card"><div class="value">${s.noshow_rate || 0}%</div><div class="label">No-Show Rate</div></div>
-        <div class="stat-card"><div class="value" style="color:#d97706;">${s.avg_satisfaction || 'N/A'}</div><div class="label">Avg Rating</div></div>`;
+        <div class="stat-card"><div class="value" style="color:#6B7280;">${s.avg_satisfaction || 'N/A'}</div><div class="label">Avg Rating</div></div>`;
 }
 
 async function loadTodayBookings() {
@@ -309,8 +309,8 @@ async function loadBookings() {
     bookings.forEach(b => {
         const isDone = b.status === 'cancelled' || b.status === 'no_show' || b.status === 'completed';
         const badge = b.status === 'confirmed' ? 'badge-green' : b.status === 'completed' ? 'badge-blue' : b.status === 'no_show' ? 'badge-red' : 'badge-yellow';
-        const bType = b.service_id ? '<span class="badge" style="background:#06b6d4;color:#fff">Service</span>' : '<span class="badge" style="background:#3b82f6;color:#fff">Appointment</span>';
-        const noshowBtn = isDone ? '<span style="color:#64748b">—</span>' : `<button style="padding:5px 10px;font-size:12px;background:#f59e0b;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600" onclick="event.stopPropagation();markNoShow(${b.id})">Non-Attended</button>`;
+        const bType = b.service_id ? '<span class="badge" style="background:#52525b;color:#fff">Service</span>' : '<span class="badge" style="background:#8B5CF6;color:#fff">Appointment</span>';
+        const noshowBtn = isDone ? '<span style="color:#6B7280">—</span>' : `<button style="padding:5px 10px;font-size:12px;background:#52525b;color:#FFFFFF;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600" onclick="event.stopPropagation();markNoShow(${b.id})">Non-Attended</button>`;
         html += `<tr style="cursor:pointer${isDone ? ';opacity:0.5' : ''}" onclick="openBookingDetail(${b.id})"><td>${esc(b.date)}</td><td>${esc(b.time)}</td><td>${esc(b.customer_name)}</td>
             <td>${bType}</td><td>${esc(b.service)}</td><td><span class="badge ${badge}">${esc(b.status)}</span></td><td>${noshowBtn}</td></tr>`;
     });
@@ -385,22 +385,22 @@ async function openBookingDetail(bid) {
     const modal = document.getElementById('bookingDetailModal');
     const content = document.getElementById('bookingDetailContent');
     modal.style.display = 'flex';
-    content.innerHTML = '<p style="text-align:center;color:#94a3b8">Loading...</p>';
+    content.innerHTML = '<p style="text-align:center;color:#6B7280">Loading...</p>';
     try {
         const d = await api(`/api/bookings/${bid}/full`);
         if (d.error) throw new Error(d.error);
         const typeBadge = d.booking_type === 'Service'
-            ? `<span class="badge" style="background:#06b6d4;color:#fff">${esc(d.service_name)}</span>`
-            : `<span class="badge" style="background:#3b82f6;color:#fff">Appointment</span>`;
+            ? `<span class="badge" style="background:#52525b;color:#fff">${esc(d.service_name)}</span>`
+            : `<span class="badge" style="background:#8B5CF6;color:#fff">Appointment</span>`;
         const statusBadge = d.status === 'cancelled' ? 'badge-red' : d.status === 'confirmed' ? 'badge-green' : 'badge-yellow';
         const formBadge = d.form_status === 'submitted' ? '<span class="badge badge-green">Form Submitted</span>'
             : d.form_status === 'pending' ? '<span class="badge badge-yellow">Form Pending</span>'
-            : '<span style="color:#94a3b8">No Form</span>';
+            : '<span style="color:#6B7280">No Form</span>';
 
         let formHtml = '';
         if (d.form_data && d.form_data.submitted_at) {
             const f = d.form_data;
-            formHtml = `<div style="background:#0f172a;padding:12px;border-radius:8px;margin:8px 0">
+            formHtml = `<div style="background:#F9FAFB;padding:12px;border-radius:8px;margin:8px 0">
                 <strong>Pre-Visit Form</strong><br>
                 ${f.date_of_birth ? `DOB: ${esc(f.date_of_birth)} &nbsp;` : ''}
                 ${f.gender ? `Gender: ${esc(f.gender)}<br>` : ''}
@@ -410,14 +410,14 @@ async function openBookingDetail(bid) {
                 ${f.insurance_provider ? `Insurance: ${esc(f.insurance_provider)}<br>` : ''}
             </div>`;
         } else if (d.form_status === 'pending') {
-            formHtml = '<div style="background:#0f172a;padding:12px;border-radius:8px;margin:8px 0;color:#94a3b8"><strong>Pre-Visit Form</strong><br>Sent but not yet filled.</div>';
+            formHtml = '<div style="background:#F9FAFB;padding:12px;border-radius:8px;margin:8px 0;color:#6B7280"><strong>Pre-Visit Form</strong><br>Sent but not yet filled.</div>';
         }
 
         let profileHtml = '';
         if (d.patient_profile) {
             const p = d.patient_profile;
             if (p.medical_history || p.allergies || p.medications) {
-                profileHtml = `<div style="background:#0f172a;padding:12px;border-radius:8px;margin:8px 0">
+                profileHtml = `<div style="background:#F9FAFB;padding:12px;border-radius:8px;margin:8px 0">
                     <strong>Medical Profile</strong><br>
                     ${p.medical_history ? `History: ${esc(p.medical_history)}<br>` : ''}
                     ${p.allergies ? `Allergies: ${esc(p.allergies)}<br>` : ''}
@@ -427,24 +427,24 @@ async function openBookingDetail(bid) {
         }
 
         content.innerHTML = `
-            <h2 style="margin:0 0 4px;color:#f8fafc">${esc(d.customer_name)}</h2>
+            <h2 style="margin:0 0 4px;color:#1A1A2E">${esc(d.customer_name)}</h2>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
                 ${typeBadge} <span class="badge ${statusBadge}">${esc(d.status)}</span>
                 ${d.visit_count > 1 ? `<span class="badge badge-blue">${d.visit_count} visits</span>` : d.visit_count === 1 ? '<span class="badge badge-yellow">First visit</span>' : ''}
                 ${formBadge}
             </div>
-            <table style="width:100%;border-collapse:collapse;font-size:0.9rem;color:#e2e8f0">
-                <tr><td style="padding:6px 0;color:#94a3b8;width:120px">Email</td><td>${esc(d.customer_email) || '—'}</td></tr>
-                <tr><td style="padding:6px 0;color:#94a3b8">Phone</td><td>${esc(d.customer_phone) || '—'}</td></tr>
-                <tr><td style="padding:6px 0;color:#94a3b8">Date & Time</td><td>${esc(d.date)} at ${esc(d.time)}</td></tr>
-                ${d.patient_type ? `<tr><td style="padding:6px 0;color:#94a3b8">Patient Type</td><td>${esc(d.patient_type)}</td></tr>` : ''}
-                ${d.notes ? `<tr><td style="padding:6px 0;color:#94a3b8">Notes</td><td>${esc(d.notes)}</td></tr>` : ''}
+            <table style="width:100%;border-collapse:collapse;font-size:0.9rem;color:#374151">
+                <tr><td style="padding:6px 0;color:#6B7280;width:120px">Email</td><td>${esc(d.customer_email) || '—'}</td></tr>
+                <tr><td style="padding:6px 0;color:#6B7280">Phone</td><td>${esc(d.customer_phone) || '—'}</td></tr>
+                <tr><td style="padding:6px 0;color:#6B7280">Date & Time</td><td>${esc(d.date)} at ${esc(d.time)}</td></tr>
+                ${d.patient_type ? `<tr><td style="padding:6px 0;color:#6B7280">Patient Type</td><td>${esc(d.patient_type)}</td></tr>` : ''}
+                ${d.notes ? `<tr><td style="padding:6px 0;color:#6B7280">Notes</td><td>${esc(d.notes)}</td></tr>` : ''}
             </table>
             ${formHtml}${profileHtml}
-            <p style="color:#94a3b8;font-size:0.8rem;margin-top:12px">Booked on ${new Date(d.created_at).toLocaleString()}</p>
+            <p style="color:#6B7280;font-size:0.8rem;margin-top:12px">Booked on ${new Date(d.created_at).toLocaleString()}</p>
         `;
     } catch (e) {
-        content.innerHTML = '<p style="color:#ef4444">Failed to load booking details.</p>';
+        content.innerHTML = '<p style="color:#6B7280">Failed to load booking details.</p>';
     }
 }
 function closeBookingDetail() { document.getElementById('bookingDetailModal').style.display = 'none'; }
@@ -467,7 +467,7 @@ async function loadDoctorCalendly() {
             document.getElementById('doctorCalendlySetup').style.display = '';
         }
     } catch(e) {
-        document.getElementById('doctorCalendlyStatus').innerHTML = '<span style="color:#f87171;font-size:0.85rem">Failed to load Calendly status</span>';
+        document.getElementById('doctorCalendlyStatus').innerHTML = '<span style="color:#6B7280;font-size:0.85rem">Failed to load Calendly status</span>';
     }
 }
 
@@ -483,12 +483,12 @@ async function doctorConnectCalendly() {
             body: JSON.stringify({api_token: token})
         });
         const data = await res.json();
-        if (data.error) { msg.style.color = '#f87171'; msg.textContent = data.error; return; }
-        msg.style.color = '#22c55e'; msg.textContent = 'Connected!';
+        if (data.error) { msg.style.color = '#EF4444'; msg.textContent = data.error; return; }
+        msg.style.color = '#10B981'; msg.textContent = 'Connected!';
         document.getElementById('doctorCalendlyToken').value = '';
         loadDoctorCalendly();
     } catch(e) {
-        msg.style.color = '#f87171'; msg.textContent = 'Connection failed';
+        msg.style.color = '#EF4444'; msg.textContent = 'Connection failed';
     }
 }
 

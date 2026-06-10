@@ -13,60 +13,60 @@
     <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
     <style>
         *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-        :root{--bg:#050710;--card:rgba(255,255,255,0.028);--card-border:rgba(255,255,255,0.06);--primary:#8b5cf6;--gradient:linear-gradient(135deg,#8b5cf6,#6366f1,#3b82f6);--gradient2:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);--text:#f1f5f9;--text-muted:#8b95a8;--text-dim:#64748b;--success:#34d399;--warning:#fbbf24;--danger:#f87171;--glow:0 4px 25px rgba(139,92,246,0.3);--gray:#8b95a8;--white:#f1f5f9}
-        ::selection{background:rgba(139,92,246,0.35)}
+        :root{--bg:#F9FAFB;--card:#FFFFFF;--card-border:#E5E7EB;--primary:#8B5CF6;--gradient:linear-gradient(135deg,#8B5CF6,#7C3AED,#6D28D9);--gradient2:linear-gradient(135deg,#8B5CF6,#7C3AED,#6D28D9);--text:#1A1A2E;--text-muted:#6B7280;--text-dim:#6B7280;--success:#10b981;--warning:#f59e0b;--danger:#ef4444;--glow:0 4px 12px rgba(0,0,0,0.05);--gray:#6B7280;--white:#1A1A2E}
+        ::selection{background:rgba(139,92,246,0.15)}
         html{scroll-behavior:smooth}
         body{font-family:'Outfit','Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem;-webkit-font-smoothing:antialiased}
-        body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.022;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+        body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
         @keyframes aur{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(3%,5%) scale(1.05)}66%{transform:translate(-3%,-3%) scale(0.97)}}
 
-        .auth-container{display:grid;grid-template-columns:1fr 1fr;gap:0;width:100%;max-width:920px;position:relative;z-index:1;border-radius:28px;overflow:hidden;border:1px solid rgba(255,255,255,0.05);box-shadow:0 20px 60px rgba(0,0,0,0.4)}
-        .auth-features{background:linear-gradient(135deg,rgba(139,92,246,0.06),rgba(99,102,241,0.03));padding:3rem 2.5rem;display:flex;flex-direction:column;justify-content:center;border-right:1px solid rgba(255,255,255,0.04)}
+        .auth-container{display:grid;grid-template-columns:1fr 1fr;gap:0;width:100%;max-width:920px;position:relative;z-index:1;border-radius:8px;overflow:hidden;border:1px solid #E5E7EB;box-shadow:0 4px 16px rgba(0,0,0,0.06)}
+        .auth-features{background:linear-gradient(135deg,#F9FAFB,#F3F4F6);padding:3rem 2.5rem;display:flex;flex-direction:column;justify-content:center;border-right:1px solid #E5E7EB}
         .auth-features h3{font-size:1.3rem;font-weight:800;margin-bottom:1.5rem}
         .auth-feat-list{list-style:none;margin-bottom:2rem}
         .auth-feat-list li{padding:.6rem 0;font-size:.9rem;color:var(--text-muted);display:flex;align-items:center;gap:.75rem}
         .auth-feat-list li span{font-size:1.2rem}
-        .auth-feat-social{margin-top:auto;padding-top:1.5rem;border-top:1px solid rgba(255,255,255,0.06)}
+        .auth-feat-social{margin-top:auto;padding-top:1.5rem;border-top:1px solid #E5E7EB}
         .auth-feat-social p{font-size:.82rem;color:var(--text-dim);margin-bottom:.5rem}
         .auth-feat-logos{display:flex;gap:1rem;opacity:.5}
         .auth-feat-logos span{font-size:.78rem;font-weight:700;color:var(--text-dim);letter-spacing:.5px}
-        .auth-feat-badge{display:inline-flex;align-items:center;gap:.4rem;background:rgba(52,211,153,0.08);color:var(--success);font-size:.78rem;font-weight:600;padding:.3rem .8rem;border-radius:50px;margin-top:1rem}
+        .auth-feat-badge{display:inline-flex;align-items:center;gap:.4rem;background:#F3F4F6;color:var(--success);font-size:.78rem;font-weight:600;padding:.3rem .8rem;border-radius: 6px;margin-top:1rem}
         .auth-feat-demo{margin-top:1rem}
         .auth-feat-demo a{color:var(--primary);font-size:.85rem;text-decoration:none;font-weight:600}
         .auth-feat-demo a:hover{text-decoration:underline}
-        @media(max-width:700px){.auth-container{grid-template-columns:1fr;max-width:440px}.auth-features{padding:2rem;border-right:none;border-bottom:1px solid rgba(255,255,255,0.04)}}
+        @media(max-width:700px){.auth-container{grid-template-columns:1fr;max-width:440px}.auth-features{padding:2rem;border-right:none;border-bottom:1px solid #E5E7EB}}
         .auth-wrapper{width:100%;max-width:440px;position:relative;z-index:1}
         .auth-logo{text-align:center;margin-bottom:2rem;font-size:1.8rem;font-weight:800;letter-spacing:-0.5px}
         .auth-logo span{background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-        .auth-card{background:var(--card);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:28px;padding:2.5rem;border:1px solid var(--card-border);box-shadow:0 20px 60px rgba(0,0,0,0.4);position:relative;overflow:hidden}
+        .auth-card{background:var(--card);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:8px;padding:2.5rem;border:1px solid var(--card-border);box-shadow:0 4px 16px rgba(0,0,0,0.06);position:relative;overflow:hidden}
         .auth-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--gradient)}
         .auth-card h2{font-size:1.5rem;font-weight:800;margin-bottom:0.5rem;text-align:center;color:var(--text)}
         .auth-card .subtitle{color:var(--text-muted);text-align:center;margin-bottom:2rem;font-size:0.92rem}
 
         .social-btns{display:flex;flex-direction:column;gap:0.75rem;margin-bottom:1.75rem}
-        .social-btn{display:flex;align-items:center;justify-content:center;gap:0.75rem;width:100%;padding:0.8rem;border-radius:12px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.04);backdrop-filter:blur(10px);color:var(--text);font-family:'Outfit','Inter',sans-serif;font-size:0.95rem;font-weight:600;cursor:pointer;transition:background .2s,border-color .2s}
-        .social-btn:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.15)}
+        .social-btn{display:flex;align-items:center;justify-content:center;gap:0.75rem;width:100%;padding:0.8rem;border-radius:12px;border:1px solid #E5E7EB;background:#FFFFFF;backdrop-filter:blur(10px);color:var(--text);font-family:'Outfit','Inter',sans-serif;font-size:0.95rem;font-weight:600;cursor:pointer;transition:background .2s,border-color .2s}
+        .social-btn:hover{background:#E5E7EB;border-color:#D1D5DB}
         .social-btn svg{width:20px;height:20px;flex-shrink:0}
         .social-btn.google:hover{border-color:rgba(234,67,53,0.4)}
         .social-btn.facebook:hover{border-color:rgba(24,119,242,0.4)}
         .social-btn:disabled{opacity:0.6;cursor:wait}
 
         .divider{display:flex;align-items:center;gap:1rem;margin-bottom:1.75rem}
-        .divider::before,.divider::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.06)}
+        .divider::before,.divider::after{content:'';flex:1;height:1px;background:#E5E7EB}
         .divider span{color:var(--text-dim);font-size:0.82rem;text-transform:uppercase;letter-spacing:1px}
 
         .form-group{margin-bottom:1.25rem}
         .form-group label{display:block;font-size:0.85rem;font-weight:600;margin-bottom:0.5rem;color:var(--text-muted)}
-        .form-group input,.form-group select{width:100%;padding:0.8rem 1rem;border-radius:12px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.04);color:var(--text);font-family:'Outfit','Inter',sans-serif;font-size:0.95rem;outline:none;transition:border-color .2s,box-shadow .2s}
-        .form-group input::placeholder{color:rgba(139,149,168,0.5)}
-        .form-group input:focus,.form-group select:focus{border-color:rgba(139,92,246,0.3);box-shadow:0 0 0 4px rgba(139,92,246,0.06)}
-        .form-group select option{background:#0f1118;color:var(--text)}
+        .form-group input,.form-group select{width:100%;padding:0.8rem 1rem;border-radius:12px;border:1px solid #E5E7EB;background:#FFFFFF;color:var(--text);font-family:'Outfit','Inter',sans-serif;font-size:0.95rem;outline:none;transition:border-color .2s,box-shadow .2s}
+        .form-group input::placeholder{color:#6B7280}
+        .form-group input:focus,.form-group select:focus{border-color:#D1D5DB;box-shadow:0 0 0 4px rgba(139,92,246,0.1)}
+        .form-group select option{background:#F9FAFB;color:var(--text)}
 
         /* Role selector */
         .role-selector{display:flex;gap:0.75rem;margin-bottom:1.75rem}
-        .role-option{flex:1;padding:1rem;border-radius:14px;border:2px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);cursor:pointer;text-align:center;transition:all .2s}
-        .role-option:hover{border-color:rgba(139,92,246,0.3);background:rgba(139,92,246,0.05)}
-        .role-option.selected{border-color:var(--primary);background:rgba(139,92,246,0.1);box-shadow:0 0 20px rgba(139,92,246,0.1)}
+        .role-option{flex:1;padding:1rem;border-radius:8px;border:2px solid #E5E7EB;background:#FFFFFF;cursor:pointer;text-align:center;transition:all .2s}
+        .role-option:hover{border-color:#D1D5DB;background:#F9FAFB}
+        .role-option.selected{border-color:var(--primary);background:#F3F4F6;box-shadow:0 0 20px rgba(139,92,246,0.15)}
         .role-option .role-icon{font-size:1.5rem;margin-bottom:0.4rem}
         .role-option .role-name{font-weight:700;font-size:0.95rem;color:var(--text)}
         .role-option .role-desc{font-size:0.78rem;color:var(--text-muted);margin-top:0.25rem}
@@ -75,24 +75,24 @@
         .forgot a{color:var(--primary);font-size:0.85rem;text-decoration:none}
         .forgot a:hover{text-decoration:underline}
 
-        .submit-btn{width:100%;padding:0.85rem;border-radius:50px;border:none;background:var(--gradient);color:#fff;font-family:'Outfit','Inter',sans-serif;font-size:1rem;font-weight:700;cursor:pointer;transition:transform .2s,box-shadow .2s;box-shadow:var(--glow)}
-        .submit-btn:hover{transform:translateY(-1px);box-shadow:0 8px 35px rgba(139,92,246,0.4)}
+        .submit-btn{width:100%;padding:0.85rem;border-radius: 6px;border:none;background:#8B5CF6;color:#FFFFFF;font-family:'Outfit','Inter',sans-serif;font-size:1rem;font-weight:700;cursor:pointer;transition:transform .2s,box-shadow .2s;box-shadow:0 0 20px rgba(139,92,246,0.3)}
+        .submit-btn:hover{transform:translateY(-1px);box-shadow:0 8px 25px rgba(139,92,246,0.3)}
         .submit-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none;box-shadow:none}
 
         .auth-footer{text-align:center;margin-top:1.5rem;font-size:0.9rem;color:var(--text-muted)}
         .auth-footer a{color:var(--primary);text-decoration:none;font-weight:600}
         .auth-footer a:hover{text-decoration:underline}
 
-        .alert{padding:0.75rem 1rem;border-radius:10px;margin-bottom:1.25rem;font-size:0.88rem;display:none}
-        .alert-error{background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.2);color:var(--danger)}
-        .alert-success{background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.2);color:var(--success)}
-        .alert-info{background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);color:var(--primary)}
+        .alert{padding:0.75rem 1rem;border-radius:8px;margin-bottom:1.25rem;font-size:0.88rem;display:none}
+        .alert-error{background:#F3F4F6;border:1px solid #D1D5DB;color:var(--danger)}
+        .alert-success{background:#F3F4F6;border:1px solid #D1D5DB;color:var(--success)}
+        .alert-info{background:#F3F4F6;border:1px solid #D1D5DB;color:var(--primary)}
 
         .back-link{display:block;text-align:center;margin-top:1.5rem}
         .back-link a{color:var(--text-muted);text-decoration:none;font-size:0.85rem}
         .back-link a:hover{color:var(--primary)}
 
-        .pw-strength{height:4px;border-radius:2px;margin-top:0.5rem;background:rgba(255,255,255,0.06);overflow:hidden}
+        .pw-strength{height:4px;border-radius:2px;margin-top:0.5rem;background:#F3F4F6;overflow:hidden}
         .pw-strength-bar{height:100%;width:0;border-radius:2px;transition:width .3s,background .3s}
 
         @media(max-width:480px){.auth-card{padding:1.75rem 1.25rem}.role-selector{flex-direction:column}}
@@ -101,12 +101,12 @@
 <body>
 
 
-<div style="position:fixed;inset:0;z-index:-1;overflow:hidden"><div style="position:absolute;width:55vw;height:55vw;top:-15%;left:-10%;border-radius:50%;filter:blur(120px);opacity:0.1;background:conic-gradient(from 0deg,#8b5cf6,#6366f1,#3b82f6,#8b5cf6);animation:aur 22s ease-in-out infinite"></div><div style="position:absolute;width:40vw;height:40vw;bottom:-10%;right:-5%;border-radius:50%;filter:blur(120px);opacity:0.1;background:conic-gradient(from 180deg,#3b82f6,#06b6d4,#8b5cf6);animation:aur 28s ease-in-out infinite;animation-delay:-7s"></div><div style="position:absolute;width:45vw;height:45vw;bottom:-15%;left:20%;border-radius:50%;filter:blur(120px);opacity:0.1;background:conic-gradient(from 240deg,#ec4899,#8b5cf6,#6366f1);animation:aur 26s ease-in-out infinite;animation-delay:-15s"></div></div>
+<div style="position:fixed;inset:0;z-index:-1;overflow:hidden"><div style="position:absolute;width:55vw;height:55vw;top:-15%;left:-10%;border-radius:50%;filter:blur(120px);opacity:0.04;background:conic-gradient(from 0deg,#E0E7FF,#DDD6FE,#C7D2FE,#E0E7FF);animation:aur 22s ease-in-out infinite"></div><div style="position:absolute;width:40vw;height:40vw;bottom:-10%;right:-5%;border-radius:50%;filter:blur(120px);opacity:0.04;background:conic-gradient(from 180deg,#d4d4d8,#a1a1aa,#ffffff);animation:aur 28s ease-in-out infinite;animation-delay:-7s"></div><div style="position:absolute;width:45vw;height:45vw;bottom:-15%;left:20%;border-radius:50%;filter:blur(120px);opacity:0.04;background:conic-gradient(from 240deg,#A5B4FC,#E0E7FF,#DDD6FE);animation:aur 26s ease-in-out infinite;animation-delay:-15s"></div></div>
 
 <div class="auth-container">
     <!-- Feature Preview Side -->
     <div class="auth-features">
-        <div class="auth-logo" style="text-align:left;margin-bottom:2rem">Chat<span>Genius</span></div>
+        <a href="/" class="auth-logo" style="text-align:left;margin-bottom:2rem;text-decoration:none;display:block">Chat<span>Genius</span></a>
         <h3>What you get with ChatGeniusX:</h3>
         <ul class="auth-feat-list">
             <li><span>&#129302;</span> AI chatbot — 24/7 automated booking</li>
@@ -129,7 +129,7 @@
 
     <!-- Form Side -->
     <div class="auth-wrapper" style="max-width:none;padding:2.5rem">
-    <div style="text-align:center;margin-bottom:1.5rem;display:none" class="auth-logo-mobile">Chat<span>Genius</span></div>
+    <a href="/" style="text-align:center;margin-bottom:1.5rem;display:none;text-decoration:none" class="auth-logo-mobile auth-logo">Chat<span>Genius</span></a>
 
     <div class="auth-card" style="border:none;box-shadow:none;padding:0;background:transparent">
         <!-- LOGIN FORM (default) -->
@@ -142,7 +142,7 @@
 
             <div class="social-btns">
                 <button class="social-btn google" id="googleLoginBtn" onclick="googleSignIn()">
-                    <svg viewBox="0 0 24 24"><path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.27 0 3.198 2.698 1.24 6.65l4.026 3.115Z"/><path fill="#34A853" d="M16.04 18.013C14.95 18.71 13.56 19.09 12 19.09c-3.09 0-5.712-2.09-6.65-4.91L1.24 17.35C3.198 21.302 7.27 24 12 24c2.933 0 5.735-1.043 7.834-3l-3.793-2.987Z"/><path fill="#4A90D9" d="M19.834 21c2.195-2.048 3.62-5.096 3.62-9 0-.71-.109-1.473-.272-2.182H12v4.637h6.436c-.317 1.559-1.17 2.766-2.395 3.558L19.834 21Z"/><path fill="#FBBC05" d="M5.35 14.18A7.15 7.15 0 0 1 4.909 12c0-.758.13-1.49.357-2.18L1.24 6.65A11.95 11.95 0 0 0 0 12c0 1.936.464 3.77 1.24 5.35l4.11-3.17Z"/></svg>
+                    <svg viewBox="0 0 24 24"><path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.27 0 3.198 2.698 1.24 6.65l4.026 3.115Z"/><path fill="#EA4335" d="M16.04 18.013C14.95 18.71 13.56 19.09 12 19.09c-3.09 0-5.712-2.09-6.65-4.91L1.24 17.35C3.198 21.302 7.27 24 12 24c2.933 0 5.735-1.043 7.834-3l-3.793-2.987Z"/><path fill="#4285F4" d="M19.834 21c2.195-2.048 3.62-5.096 3.62-9 0-.71-.109-1.473-.272-2.182H12v4.637h6.436c-.317 1.559-1.17 2.766-2.395 3.558L19.834 21Z"/><path fill="#EA4335" d="M5.35 14.18A7.15 7.15 0 0 1 4.909 12c0-.758.13-1.49.357-2.18L1.24 6.65A11.95 11.95 0 0 0 0 12c0 1.936.464 3.77 1.24 5.35l4.11-3.17Z"/></svg>
                     Continue with Google
                 </button>
                 <button class="social-btn facebook" id="fbLoginBtn" onclick="facebookSignIn()">
@@ -179,7 +179,7 @@
 
             <div class="social-btns">
                 <button class="social-btn google" onclick="googleSignIn()">
-                    <svg viewBox="0 0 24 24"><path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.27 0 3.198 2.698 1.24 6.65l4.026 3.115Z"/><path fill="#34A853" d="M16.04 18.013C14.95 18.71 13.56 19.09 12 19.09c-3.09 0-5.712-2.09-6.65-4.91L1.24 17.35C3.198 21.302 7.27 24 12 24c2.933 0 5.735-1.043 7.834-3l-3.793-2.987Z"/><path fill="#4A90D9" d="M19.834 21c2.195-2.048 3.62-5.096 3.62-9 0-.71-.109-1.473-.272-2.182H12v4.637h6.436c-.317 1.559-1.17 2.766-2.395 3.558L19.834 21Z"/><path fill="#FBBC05" d="M5.35 14.18A7.15 7.15 0 0 1 4.909 12c0-.758.13-1.49.357-2.18L1.24 6.65A11.95 11.95 0 0 0 0 12c0 1.936.464 3.77 1.24 5.35l4.11-3.17Z"/></svg>
+                    <svg viewBox="0 0 24 24"><path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.27 0 3.198 2.698 1.24 6.65l4.026 3.115Z"/><path fill="#EA4335" d="M16.04 18.013C14.95 18.71 13.56 19.09 12 19.09c-3.09 0-5.712-2.09-6.65-4.91L1.24 17.35C3.198 21.302 7.27 24 12 24c2.933 0 5.735-1.043 7.834-3l-3.793-2.987Z"/><path fill="#4285F4" d="M19.834 21c2.195-2.048 3.62-5.096 3.62-9 0-.71-.109-1.473-.272-2.182H12v4.637h6.436c-.317 1.559-1.17 2.766-2.395 3.558L19.834 21Z"/><path fill="#EA4335" d="M5.35 14.18A7.15 7.15 0 0 1 4.909 12c0-.758.13-1.49.357-2.18L1.24 6.65A11.95 11.95 0 0 0 0 12c0 1.936.464 3.77 1.24 5.35l4.11-3.17Z"/></svg>
                     Sign up with Google
                 </button>
                 <button class="social-btn facebook" onclick="facebookSignIn()">
@@ -190,7 +190,7 @@
 
             <div class="divider"><span>or</span></div>
 
-            <form onsubmit="goToRoleStep(event)">
+            <form onsubmit="handleSignup(event)">
                 <div class="form-group">
                     <label>Full name</label>
                     <input type="text" id="signupName" placeholder="John Smith" required>
@@ -204,58 +204,15 @@
                     <input type="password" id="signupPassword" placeholder="At least 8 characters" required minlength="8" oninput="checkPwStrength(this.value)">
                     <div class="pw-strength"><div class="pw-strength-bar" id="pwBar"></div></div>
                 </div>
-                <button type="submit" class="submit-btn">Next</button>
+                <div class="form-group">
+                    <label>Company / Business name <span style="color:var(--gray);font-weight:400">(optional)</span></label>
+                    <input type="text" id="signupCompany" placeholder="Your business name">
+                </div>
+                <div class="alert alert-error" id="roleError"></div>
+                <button type="submit" class="submit-btn" id="signupBtn">Create Account</button>
             </form>
 
             <p class="auth-footer">Already have an account? <a href="#" onclick="showLogin()">Log in</a></p>
-        </div>
-
-        <!-- SIGNUP FORM — Step 2: Role Selection -->
-        <div id="roleForm" style="display:none">
-            <h2>How will you use ChatGenius?</h2>
-            <p class="subtitle">Select your role to continue</p>
-
-            <div class="alert alert-error" id="roleError"></div>
-
-            <div class="role-selector" style="flex-wrap:wrap">
-                <div class="role-option selected" id="roleHeadAdmin" onclick="selectRole('head_admin')" style="flex:1 1 100%">
-                    <div class="role-icon">&#128081;</div>
-                    <div class="role-name">Head Administrator</div>
-                    <div class="role-desc">Own a practice, invite admins & doctors, full control</div>
-                </div>
-                <div class="role-option" id="roleAdmin" onclick="selectRole('admin')">
-                    <div class="role-icon">&#128188;</div>
-                    <div class="role-name">Administrator</div>
-                    <div class="role-desc">Join a practice as admin, manage doctors & bookings</div>
-                </div>
-                <div class="role-option" id="roleDoctor" onclick="selectRole('doctor')">
-                    <div class="role-icon">&#129657;</div>
-                    <div class="role-name">Doctor</div>
-                    <div class="role-desc">Join a practice, view your appointments</div>
-                </div>
-            </div>
-
-            <div class="form-group" id="companyGroup" style="margin-top:0.5rem">
-                <label>Company name <span style="color:var(--gray);font-weight:400">(optional)</span></label>
-                <input type="text" id="signupCompany" placeholder="Your dental practice name">
-            </div>
-            <div class="form-group" id="specialtyGroup" style="display:none">
-                <label>Your Specialty</label>
-                <select id="signupSpecialty" class="form-input">
-                    <option value="">Select your specialty...</option>
-                    <option>General Dentist</option><option>Pediatric Dentist</option>
-                    <option>Orthodontist</option><option>Endodontist</option>
-                    <option>Periodontist</option><option>Oral &amp; Maxillofacial Surgeon</option>
-                    <option>Prosthodontist</option><option>Oral Pathologist</option>
-                    <option>Oral Radiologist</option><option>Dental Anesthesiologist</option>
-                    <option>Orofacial Pain Specialist</option><option>Dental Public Health Specialist</option>
-                    <option>Cosmetic Dentist</option><option>Family Dentist</option>
-                </select>
-            </div>
-
-            <button class="submit-btn" id="signupBtn" onclick="handleSignup()">Create Account</button>
-
-            <p class="auth-footer" style="margin-top:1rem"><a href="#" onclick="backToSignupStep1()">&larr; Back</a></p>
         </div>
 
         <!-- SIGNUP FORM — Step 3: Email Verification -->
@@ -267,12 +224,12 @@
             <div class="alert alert-success" id="verifySuccess"></div>
 
             <div style="display:flex;gap:8px;justify-content:center;margin:2rem 0">
-                <input type="text" maxlength="1" class="otp-input" data-otp="0" oninput="otpMove(this,1)" onkeydown="otpBack(event,this,-1)" style="width:48px;height:56px;text-align:center;font-size:1.5rem;font-weight:700;border-radius:10px;border:2px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);color:#fff;outline:none;transition:border .2s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'">
-                <input type="text" maxlength="1" class="otp-input" data-otp="1" oninput="otpMove(this,2)" onkeydown="otpBack(event,this,0)" style="width:48px;height:56px;text-align:center;font-size:1.5rem;font-weight:700;border-radius:10px;border:2px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);color:#fff;outline:none;transition:border .2s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'">
-                <input type="text" maxlength="1" class="otp-input" data-otp="2" oninput="otpMove(this,3)" onkeydown="otpBack(event,this,1)" style="width:48px;height:56px;text-align:center;font-size:1.5rem;font-weight:700;border-radius:10px;border:2px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);color:#fff;outline:none;transition:border .2s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'">
-                <input type="text" maxlength="1" class="otp-input" data-otp="3" oninput="otpMove(this,4)" onkeydown="otpBack(event,this,2)" style="width:48px;height:56px;text-align:center;font-size:1.5rem;font-weight:700;border-radius:10px;border:2px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);color:#fff;outline:none;transition:border .2s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'">
-                <input type="text" maxlength="1" class="otp-input" data-otp="4" oninput="otpMove(this,5)" onkeydown="otpBack(event,this,3)" style="width:48px;height:56px;text-align:center;font-size:1.5rem;font-weight:700;border-radius:10px;border:2px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);color:#fff;outline:none;transition:border .2s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'">
-                <input type="text" maxlength="1" class="otp-input" data-otp="5" oninput="otpMove(this,-1)" onkeydown="otpBack(event,this,4)" style="width:48px;height:56px;text-align:center;font-size:1.5rem;font-weight:700;border-radius:10px;border:2px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);color:#fff;outline:none;transition:border .2s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'">
+                <input type="text" maxlength="1" class="otp-input" data-otp="0" oninput="otpMove(this,1)" onkeydown="otpBack(event,this,-1)" style="width:48px;height:56px;text-align:center;font-size:1.5rem;font-weight:700;border-radius:8px;border:2px solid #D1D5DB;background:#FFFFFF;color:#1A1A2E;outline:none;transition:border .2s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(229,231,235,1)'">
+                <input type="text" maxlength="1" class="otp-input" data-otp="1" oninput="otpMove(this,2)" onkeydown="otpBack(event,this,0)" style="width:48px;height:56px;text-align:center;font-size:1.5rem;font-weight:700;border-radius:8px;border:2px solid #D1D5DB;background:#FFFFFF;color:#1A1A2E;outline:none;transition:border .2s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(229,231,235,1)'">
+                <input type="text" maxlength="1" class="otp-input" data-otp="2" oninput="otpMove(this,3)" onkeydown="otpBack(event,this,1)" style="width:48px;height:56px;text-align:center;font-size:1.5rem;font-weight:700;border-radius:8px;border:2px solid #D1D5DB;background:#FFFFFF;color:#1A1A2E;outline:none;transition:border .2s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(229,231,235,1)'">
+                <input type="text" maxlength="1" class="otp-input" data-otp="3" oninput="otpMove(this,4)" onkeydown="otpBack(event,this,2)" style="width:48px;height:56px;text-align:center;font-size:1.5rem;font-weight:700;border-radius:8px;border:2px solid #D1D5DB;background:#FFFFFF;color:#1A1A2E;outline:none;transition:border .2s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(229,231,235,1)'">
+                <input type="text" maxlength="1" class="otp-input" data-otp="4" oninput="otpMove(this,5)" onkeydown="otpBack(event,this,3)" style="width:48px;height:56px;text-align:center;font-size:1.5rem;font-weight:700;border-radius:8px;border:2px solid #D1D5DB;background:#FFFFFF;color:#1A1A2E;outline:none;transition:border .2s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(229,231,235,1)'">
+                <input type="text" maxlength="1" class="otp-input" data-otp="5" oninput="otpMove(this,-1)" onkeydown="otpBack(event,this,4)" style="width:48px;height:56px;text-align:center;font-size:1.5rem;font-weight:700;border-radius:8px;border:2px solid #D1D5DB;background:#FFFFFF;color:#1A1A2E;outline:none;transition:border .2s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='rgba(229,231,235,1)'">
             </div>
 
             <button class="submit-btn" id="verifyBtn" onclick="handleVerify()">Verify & Continue</button>
@@ -317,49 +274,19 @@
 </div><!-- end auth-container -->
 
 <!-- Role Picker Overlay (shown when new user logs in via social without an account) -->
-<div id="rolePickerOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:1000;align-items:center;justify-content:center">
-    <div style="background:#0f1118;border-radius:20px;padding:2.5rem;width:90%;max-width:440px;border:1px solid rgba(139,92,246,0.15);box-shadow:0 20px 60px rgba(0,0,0,0.6),0 0 40px rgba(139,92,246,0.05)">
-        <h2 style="font-size:1.4rem;font-weight:800;text-align:center;margin-bottom:0.5rem">Welcome! Choose your role</h2>
-        <p style="color:var(--gray);text-align:center;margin-bottom:1.75rem;font-size:0.9rem">It looks like you don't have an account yet. How will you use ChatGenius?</p>
-        <div class="role-selector" style="flex-wrap:wrap">
-            <div class="role-option selected" id="pickerRoleHeadAdmin" onclick="selectPickerRole('head_admin')" style="flex:1 1 100%">
-                <div class="role-icon">&#128081;</div>
-                <div class="role-name">Head Administrator</div>
-                <div class="role-desc">Own a practice, invite admins & doctors, full control</div>
-            </div>
-            <div class="role-option" id="pickerRoleAdmin" onclick="selectPickerRole('admin')">
-                <div class="role-icon">&#128188;</div>
-                <div class="role-name">Administrator</div>
-                <div class="role-desc">Join a practice as admin, manage doctors & bookings</div>
-            </div>
-            <div class="role-option" id="pickerRoleDoctor" onclick="selectPickerRole('doctor')">
-                <div class="role-icon">&#129657;</div>
-                <div class="role-name">Doctor</div>
-                <div class="role-desc">Join a practice, view your appointments</div>
-            </div>
-        </div>
-        <div class="form-group" id="pickerSpecialtyGroup" style="display:none;margin-top:1rem">
-            <label style="display:block;font-size:0.85rem;font-weight:600;margin-bottom:0.5rem;color:var(--gray)">Your Specialty</label>
-            <select id="pickerSpecialty" style="width:100%;padding:0.8rem 1rem;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--white);font-size:0.95rem;outline:none">
-                <option value="">Select your specialty...</option>
-                <option>General Dentist</option><option>Pediatric Dentist</option>
-                <option>Orthodontist</option><option>Endodontist</option>
-                <option>Periodontist</option><option>Oral &amp; Maxillofacial Surgeon</option>
-                <option>Prosthodontist</option><option>Oral Pathologist</option>
-                <option>Oral Radiologist</option><option>Dental Anesthesiologist</option>
-                <option>Orofacial Pain Specialist</option><option>Dental Public Health Specialist</option>
-                <option>Cosmetic Dentist</option><option>Family Dentist</option>
-            </select>
-        </div>
-        <button class="submit-btn" onclick="confirmRolePicker()" style="margin-top:0.5rem">Continue</button>
-    </div>
-</div>
+<!-- Role picker overlay removed — signup defaults to account owner -->
 
 <script>
+    function _getCookie(n){var m=document.cookie.match(new RegExp('(?:^|; )'+n+'=([^;]*)'));return m?decodeURIComponent(m[1]):null;}
+    function _setCookie(n,v){document.cookie=n+'='+encodeURIComponent(v)+';path=/;max-age=28800;SameSite=Lax';}
+    function _saveAuth(tok,usr){
+        try{localStorage.setItem('token',tok);localStorage.setItem('user',JSON.stringify(usr));}catch(e){}
+        _setCookie('cg_token',tok);_setCookie('cg_user',JSON.stringify(usr));
+    }
     // Redirect if already logged in
     var _redir = new URLSearchParams(window.location.search).get('redirect');
     var _loginDest = _redir === 'demo' ? '/user-dashboard#demo' : _redir === 'pricing' ? '/pricing-plans' : '/user-dashboard';
-    if (localStorage.getItem('token') && localStorage.getItem('user')) {
+    if ((localStorage.getItem('token') || _getCookie('cg_token')) && (localStorage.getItem('user') || _getCookie('cg_user'))) {
         window.location.href = _loginDest;
     }
 
@@ -371,71 +298,7 @@
     let pendingSocialData = null;  // Stores social data while waiting for role pick
 
     // Role selector (signup only)
-    function selectRole(role) {
-        selectedRole = role;
-        document.getElementById('roleHeadAdmin').classList.toggle('selected', role === 'head_admin');
-        document.getElementById('roleAdmin').classList.toggle('selected', role === 'admin');
-        document.getElementById('roleDoctor').classList.toggle('selected', role === 'doctor');
-        document.getElementById('companyGroup').style.display = role === 'doctor' ? 'none' : 'block';
-        document.getElementById('specialtyGroup').style.display = role === 'doctor' ? 'block' : 'none';
-    }
-
-    // Role picker overlay (for new social login users)
-    function selectPickerRole(role) {
-        pickerRole = role;
-        document.getElementById('pickerRoleHeadAdmin').classList.toggle('selected', role === 'head_admin');
-        document.getElementById('pickerRoleAdmin').classList.toggle('selected', role === 'admin');
-        document.getElementById('pickerRoleDoctor').classList.toggle('selected', role === 'doctor');
-        document.getElementById('pickerSpecialtyGroup').style.display = role === 'doctor' ? 'block' : 'none';
-    }
-
-    function showRolePicker(socialData) {
-        pendingSocialData = socialData;
-        pickerRole = 'head_admin';
-        document.getElementById('pickerRoleHeadAdmin').classList.add('selected');
-        document.getElementById('pickerRoleAdmin').classList.remove('selected');
-        document.getElementById('pickerRoleDoctor').classList.remove('selected');
-        document.getElementById('rolePickerOverlay').style.display = 'flex';
-    }
-
-    async function confirmRolePicker() {
-        if (!pendingSocialData) return;
-        const pickerSpecialty = document.getElementById('pickerSpecialty').value;
-        if (pickerRole === 'doctor' && !pickerSpecialty) {
-            alert('Please select your specialty.');
-            return;
-        }
-        document.getElementById('rolePickerOverlay').style.display = 'none';
-        // Re-send the social token with the chosen role + role_confirmed flag
-        const d = pendingSocialData;
-        pendingSocialData = null;
-        try {
-            const res = await fetch('/auth/social-token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    provider: d.provider,
-                    token: d.token,
-                    name: d.name,
-                    email: d.email,
-                    avatar_url: d.avatar_url,
-                    role: pickerRole,
-                    specialty: pickerSpecialty,
-                    role_confirmed: true,
-                })
-            });
-            const data = await res.json();
-            if (data.error) {
-                showAlert('loginError', data.error);
-            } else {
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('user', JSON.stringify(data.user));
-                window.location.href = _loginDest;
-            }
-        } catch (err) {
-            showAlert('loginError', 'Login failed. Please try again.');
-        }
-    }
+    // Role picker functions removed — signup now defaults to head_admin
 
     async function loadSocialConfig() {
         try {
@@ -455,7 +318,6 @@
     function showLogin() {
         document.getElementById('loginForm').style.display = 'block';
         document.getElementById('signupForm').style.display = 'none';
-        document.getElementById('roleForm').style.display = 'none';
         document.getElementById('verifyForm').style.display = 'none';
         document.getElementById('forgotForm').style.display = 'none';
         clearAlerts();
@@ -463,7 +325,6 @@
     function showSignup() {
         document.getElementById('loginForm').style.display = 'none';
         document.getElementById('signupForm').style.display = 'block';
-        document.getElementById('roleForm').style.display = 'none';
         document.getElementById('verifyForm').style.display = 'none';
         document.getElementById('forgotForm').style.display = 'none';
         clearAlerts();
@@ -471,43 +332,8 @@
     function showForgot() {
         document.getElementById('loginForm').style.display = 'none';
         document.getElementById('signupForm').style.display = 'none';
-        document.getElementById('roleForm').style.display = 'none';
         document.getElementById('verifyForm').style.display = 'none';
         document.getElementById('forgotForm').style.display = 'block';
-        clearAlerts();
-    }
-
-    // Step 1 → Step 2 transition
-    function goToRoleStep(e) {
-        e.preventDefault();
-        clearAlerts();
-        const name = document.getElementById('signupName').value.trim();
-        const email = document.getElementById('signupEmail').value.trim();
-        const password = document.getElementById('signupPassword').value;
-        if (!name || !email || !password) {
-            showAlert('signupError', 'Please fill in all fields.');
-            return;
-        }
-        if (password.length < 8) {
-            showAlert('signupError', 'Password must be at least 8 characters.');
-            return;
-        }
-        if (password.length > 128) {
-            showAlert('signupError', 'Password is too long (max 128 characters).');
-            return;
-        }
-        if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
-            showAlert('signupError', 'Password must contain at least one uppercase letter, one lowercase letter, and one number.');
-            return;
-        }
-        document.getElementById('signupForm').style.display = 'none';
-        document.getElementById('roleForm').style.display = 'block';
-    }
-
-    // Step 2 → Step 1 (back)
-    function backToSignupStep1() {
-        document.getElementById('roleForm').style.display = 'none';
-        document.getElementById('signupForm').style.display = 'block';
         clearAlerts();
     }
     function clearAlerts() {
@@ -521,32 +347,20 @@
 
     if (new URLSearchParams(window.location.search).get('signup') === '1') showSignup();
 
-    // Send social token to backend with role
     async function sendSocialToken(provider, token, name, email, avatarUrl) {
         document.querySelectorAll('.social-btn').forEach(b => b.disabled = true);
-        // Role is only confirmed if we're on the roleForm step (step 2 of signup)
-        const isFromSignup = document.getElementById('roleForm').style.display !== 'none';
         try {
             const res = await fetch('/auth/social-token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    provider, token, name, email, avatar_url: avatarUrl,
-                    role: selectedRole,
-                    specialty: isFromSignup ? (document.getElementById('signupSpecialty').value || '') : '',
-                    role_confirmed: isFromSignup,
-                })
+                body: JSON.stringify({ provider, token, name, email, avatar_url: avatarUrl })
             });
             const data = await res.json();
-            if (data.needs_role) {
-                // New user from login form — show role picker
-                showRolePicker(data);
-            } else if (data.error) {
+            if (data.error) {
                 showAlert('loginError', data.error);
                 showAlert('signupError', data.error);
             } else {
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('user', JSON.stringify(data.user));
+                _saveAuth(data.token, data.user);
                 window.location.href = _loginDest;
             }
         } catch (err) {
@@ -645,8 +459,7 @@
                 pendingVerificationEmail = data.email;
                 showVerifyStep(data.email);
             } else {
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('user', JSON.stringify(data.user));
+                _saveAuth(data.token, data.user);
                 window.location.href = _loginDest;
             }
         } catch (err) {
@@ -666,20 +479,16 @@
         if (/[^A-Za-z0-9]/.test(pw)) score++;
         const pct = (score / 5) * 100;
         bar.style.width = pct + '%';
-        bar.style.background = pct <= 40 ? '#ef4444' : pct <= 70 ? '#f5a623' : '#22c55e';
+        bar.style.background = pct <= 40 ? '#ef4444' : pct <= 70 ? '#f59e0b' : '#10b981';
     }
 
     let pendingVerificationEmail = '';
 
-    async function handleSignup() {
+    async function handleSignup(e) {
+        if (e) e.preventDefault();
         clearAlerts();
         const btn = document.getElementById('signupBtn');
         btn.disabled = true; btn.textContent = 'Creating account...';
-        if (selectedRole === 'doctor' && !document.getElementById('signupSpecialty').value) {
-            showAlert('roleError', 'Please select your specialty.');
-            btn.disabled = false; btn.textContent = 'Create Account';
-            return;
-        }
         try {
             const res = await fetch('/auth/signup', {
                 method: 'POST',
@@ -689,8 +498,6 @@
                     email: document.getElementById('signupEmail').value,
                     password: document.getElementById('signupPassword').value,
                     company: document.getElementById('signupCompany').value,
-                    role: selectedRole,
-                    specialty: document.getElementById('signupSpecialty').value || '',
                 })
             });
             const data = await res.json();
@@ -700,8 +507,7 @@
                 pendingVerificationEmail = data.email;
                 showVerifyStep(data.email);
             } else {
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('user', JSON.stringify(data.user));
+                _saveAuth(data.token, data.user);
                 window.location.href = _loginDest;
             }
         } catch (err) {
@@ -711,7 +517,6 @@
     }
 
     function showVerifyStep(email) {
-        document.getElementById('roleForm').style.display = 'none';
         document.getElementById('signupForm').style.display = 'none';
         document.getElementById('loginForm').style.display = 'none';
         document.getElementById('verifyForm').style.display = 'block';
@@ -767,8 +572,7 @@
             if (data.error) {
                 showAlert('verifyError', data.error);
             } else {
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('user', JSON.stringify(data.user));
+                _saveAuth(data.token, data.user);
                 window.location.href = _loginDest;
             }
         } catch (err) {

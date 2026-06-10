@@ -10,75 +10,174 @@
   "pricing": {
     "plans": [
       {
-        "name": "Basic",
-        "price": "$149/month",
-        "annual_price": "$119/month (billed annually)",
-        "conversations": "700/month",
+        "name": "Free",
+        "price": "$0/month",
+        "annual_price": "$0/month",
+        "conversations": "50/month",
         "chatbots": 1,
+        "doctors": 1,
+        "locations": 1,
+        "staff": 1,
+        "patients_max": 20,
         "features": [
-          "700 conversations per month",
-          "1 chatbot",
-          "Basic lead capture (name, email)",
-          "Email support (24-48 hour response)",
-          "Website chat widget",
-          "Basic analytics dashboard",
-          "ChatGenius branding on widget"
+          "50 conversations/month",
+          "1 chatbot (with Powered by ChatGenius branding, non-removable)",
+          "Basic FAQ (5 questions): hours, location, phone",
+          "1 doctor profile",
+          "Basic appointment booking (date + time only, no doctor choice)",
+          "Email reminders only",
+          "1 location",
+          "Patient database (max 20 patients)",
+          "Basic analytics (chat count only)",
+          "No AI, no SMS, no custom colors"
         ],
-        "best_for": "Solo businesses, freelancers, and small shops just getting started with AI customer support"
+        "hard_limits": "20 patients, 50 chats, 1 doctor, no AI, no SMS, no custom colors",
+        "upgrade_trigger": "Add 21st patient or hit 50 chats",
+        "best_for": "Trying out the chatbot — embed on site, basic FAQ, no AI brain"
+      },
+      {
+        "name": "Basic",
+        "price": "$23/month",
+        "annual_price": "$18/month (billed annually)",
+        "conversations": "Unlimited",
+        "chatbots": 1,
+        "doctors": 1,
+        "locations": 1,
+        "staff": 2,
+        "features": [
+          "Unlimited conversations",
+          "1 chatbot (with branding), multi-language (3)",
+          "Natural language understanding, canned responses, AI guardrails",
+          "Proactive engagement (1 trigger), treatment education (15 topics)",
+          "Smart booking (service → date → time), conflict detection, reschedule, cancellation",
+          "Doctor schedule (weekly only), 1 appointment length",
+          "Email reminders (24h + 2h only), quiet hours",
+          "Unlimited patients, basic profiles (name, phone, email), visit history (last 3 visits)",
+          "Lead capture: auto extraction from chat, basic scoring (hot/cold), hot lead alerts",
+          "Pre-visit forms (standard fields only), in-chat rendering",
+          "3 email templates, merge variables, ChatGenius sender domain",
+          "Doctor portal: today's patient list, availability on/off",
+          "1 doctor, 2 staff (Admin + Doctor roles)",
+          "Live chat handoff to human, basic queue",
+          "Customization: colors only (3 presets), 1 widget style (Default), default avatar",
+          "Basic analytics: conversation count, booking count",
+          "Security: AES-256, TLS 1.3, basic login"
+        ],
+        "missing": "No SMS, no AI confidence scoring, no custom training, no WhatsApp",
+        "upgrade_trigger": "Add 2nd doctor, request SMS, or want custom colors",
+        "best_for": "Solo dentist who needs a chatbot + simple scheduling"
+      },
+      {
+        "name": "Growth",
+        "price": "$79/month",
+        "annual_price": "$63/month (billed annually)",
+        "conversations": "Unlimited",
+        "chatbots": 1,
+        "doctors": 3,
+        "locations": 1,
+        "staff": 5,
+        "most_popular": true,
+        "features": [
+          "Everything in Basic PLUS:",
+          "Multi-language (10), smart patient recognition, AI confidence scoring",
+          "Sentiment analysis, upsell detection, treatment education (61 topics)",
+          "Before/after gallery, celebration animation",
+          "Service-based + appointment-based booking, doctor breaks, off-days, schedule blocks",
+          "Flexible appointment lengths, daily overrides, waitlist, check-in, revenue tracking",
+          "SMS reminders (Twilio), 48h + 24h + 2h, one-click confirm/cancel",
+          "No-show: auto-flagging, recovery email, reason collection, policy config",
+          "Full patient profiles (DOB, gender, address, language), medical history, insurance, notes",
+          "Lead scoring with multipliers, auto follow-ups (Day 1, 3, 7), pipeline, CSV export, routing",
+          "Custom form fields (10), one-time form option, digital signatures",
+          "Treatment follow-ups (basic), recall rules, automatic campaigns, birthday greetings",
+          "Loyalty program (basic points), referral program (basic tracking)",
+          "Promo codes (10 active), basic validation",
+          "Full analytics dashboard, booking analytics, conversion rate, peak hours, monthly reports",
+          "Post-visit surveys, star ratings, Google review redirect",
+          "Invoicing: auto-generation, line items, tax calc, email send, mark paid/void",
+          "10 email templates, WYSIWYG preview, image upload, custom styling",
+          "Doctor portal: full dashboard, personal stats, specialization, profile",
+          "3 roles, granular permissions, 5 staff accounts",
+          "Handoff queue with assignment, typing indicators, unified inbox (Web + WhatsApp)",
+          "Integrations: Google Calendar, Calendly, Twilio SMS, Stripe, Zapier, REST API",
+          "All widget styles (Default, Pill, Glassmorphic), custom avatar, font size, colors",
+          "2FA optional, audit log (90 days)"
+        ],
+        "limits": "3 doctors, 1 location, 10 promo codes, 10 custom form fields, ChatGenius branding on widget",
+        "upgrade_trigger": "Add 4th doctor, open 2nd location, or want white-label",
+        "best_for": "Growing clinic, 2-3 dentists, needs automation"
       },
       {
         "name": "Pro",
-        "price": "$349/month",
-        "annual_price": "$279/month (billed annually)",
-        "conversations": "5,000/month",
+        "price": "$299/month",
+        "annual_price": "$239/month (billed annually)",
+        "conversations": "Unlimited",
         "chatbots": 3,
+        "doctors": 10,
+        "locations": 3,
+        "staff": 15,
         "features": [
-          "5,000 conversations per month",
-          "3 chatbots",
-          "Advanced lead capture (name, email, phone, custom fields)",
-          "Automated appointment booking",
-          "CRM integration (HubSpot, Salesforce, Zoho)",
-          "Calendar sync (Google Calendar, Calendly, Outlook)",
-          "Priority support (under 4 hours response)",
-          "Advanced analytics and reporting",
-          "Remove ChatGenius branding",
-          "Custom chatbot personality",
-          "Multi-language support (10 languages)",
-          "Conversation transcripts and exports"
+          "Everything in Growth PLUS:",
+          "Custom AI training (clinic-specific data), voice input, copilot suggestions for agents",
+          "Booking type choice, require login (configurable), appointment API",
+          "High-risk patient extra reminders, patient response tracking",
+          "No-show deposit requirement, AI no-show prediction, predictive extra reminders",
+          "Unlimited custom form fields",
+          "Treatment packages, package redemption, upsell engine, upsell tracking",
+          "Customizable loyalty points, points redemption, referral conversion tracking",
+          "Unlimited active promo codes, treatment-specific promos, promotion analytics & ROI",
+          "Real-time SSE notifications, ROI dashboard, handoff/survey/upsell analytics, benchmarking",
+          "Open-ended survey feedback, survey delay configuration, review collection tracking",
+          "Multi-currency invoicing, bilingual (Arabic + English), custom logo on invoices",
+          "Own email sender domain, unlimited templates",
+          "4 roles (Head Admin, Admin, Doctor, Staff), 2FA enforcement, session timeout",
+          "Handoff timeout escalation, conversation assignment & tagging",
+          "Unified inbox (Web + WhatsApp + Facebook + Instagram)",
+          "Google My Business, Mailchimp, external customer database API, full webhook system",
+          "White-label (custom domain + remove all ChatGenius branding)",
+          "Cross-tenant isolation, audit log (1 year), failed login protection",
+          "Missed call detection, auto-reply with booking link, logging & analytics",
+          "A/B testing: opening message, booking flow, custom traffic split, metric tracking"
         ],
-        "best_for": "Growing businesses that need appointment booking, CRM integration, and higher volume"
+        "limits": "10 doctors, 3 locations, 15 staff",
+        "upgrade_trigger": "Add 11th doctor, open 4th location, or need SOC 2/HIPAA",
+        "best_for": "Multi-location clinic or clinic that wants full control"
       },
       {
-        "name": "Agency",
-        "price": "$799/month",
-        "annual_price": "$639/month (billed annually)",
+        "name": "Enterprise",
+        "price": "$699/month",
+        "annual_price": "$559/month (billed annually, 12-month contract, $6,708/yr)",
         "conversations": "Unlimited",
         "chatbots": "Unlimited",
+        "doctors": "Unlimited",
+        "locations": "Unlimited",
+        "staff": "Unlimited",
+        "contract": "12-month",
         "features": [
-          "Unlimited conversations",
-          "Unlimited chatbots",
-          "Everything in Pro",
-          "White-label branding (your logo, your colors)",
-          "Full API access",
-          "Dedicated account manager",
-          "Custom integrations",
-          "Team management (up to 10 users)",
-          "Advanced security (SOC 2 compliant)",
-          "Custom AI training on your data",
-          "Webhook support",
-          "Priority onboarding call",
-          "Quarterly business review",
-          "SLA guarantee (99.9% uptime)"
+          "Everything in Pro PLUS:",
+          "Dedicated exclusive account manager",
+          "Custom AI training (dedicated model)",
+          "Voice input (advanced)",
+          "PMS integration (Dentrix, Open Dental, Eaglesoft)",
+          "EMR/EHR integration",
+          "Full appointment API, full chatbot customization",
+          "SOC 2 Type II compliance, GDPR/CCPA ready, HIPAA readiness",
+          "SLA guarantee",
+          "Quarterly business reviews",
+          "Priority feature requests",
+          "Custom development (10 hours/quarter)",
+          "Executive sponsor",
+          "Unlimited doctors, locations, staff — no limits"
         ],
-        "best_for": "Agencies managing multiple clients, larger businesses, and enterprises needing full customization"
+        "best_for": "DSO or clinic chain — custom everything"
       }
     ],
     "free_trial": {
       "duration": "14 days",
-      "plan_access": "Full Pro features",
+      "plan_access": "Full Growth features",
       "credit_card_required": false,
       "auto_renew": false,
-      "what_happens_after": "After 14 days, you can choose a paid plan or your account switches to a limited free tier with 200 conversations/month"
+      "what_happens_after": "After 14 days, you can choose a paid plan or continue on the free plan with 50 conversations/month, 1 doctor, and 20 patients max"
     },
     "refund_policy": "30-day money-back guarantee on all plans. No questions asked.",
     "discounts": "20% off with annual billing. Non-profit organizations get 30% off any plan. Contact sales for custom enterprise pricing."
@@ -119,7 +218,7 @@
     "advanced": [
       {
         "name": "Multi-Language Support",
-        "description": "Available on Pro and Agency plans. Supports English, Spanish, French, German, Portuguese, Italian, Dutch, Japanese, Korean, and Chinese. Auto-detects visitor language.",
+        "description": "Available on Growth, Pro, and Enterprise plans. Supports English, Spanish, French, German, Portuguese, Italian, Dutch, Japanese, Korean, and Chinese. Auto-detects visitor language.",
         "detail": "The chatbot automatically detects the visitor's language and responds in kind."
       },
       {
@@ -140,7 +239,7 @@
       {
         "name": "Custom AI Training",
         "description": "Upload your FAQs, product catalogs, service descriptions, policies, and any business documents. The AI learns from your data to give accurate, brand-consistent answers.",
-        "detail": "Supports PDF, DOCX, TXT, CSV uploads. Agency plan includes assisted training by our team."
+        "detail": "Supports PDF, DOCX, TXT, CSV uploads. Enterprise plan includes assisted training by our team."
       },
       {
         "name": "Conversation Flows",
@@ -219,8 +318,9 @@
   "support": {
     "channels": {
       "basic": "Email support — 24-48 hour response time",
-      "pro": "Priority email and chat support — under 4 hour response time",
-      "agency": "Dedicated account manager, priority support, Slack channel, phone support during business hours"
+      "growth": "Priority email and chat support — under 4 hour response time",
+      "pro": "Priority support with advanced SLA",
+      "enterprise": "Dedicated account manager, priority support, Slack channel, phone support during business hours"
     },
     "resources": [
       "Knowledge base with 100+ articles at help.chatgenius.ai",
@@ -229,16 +329,16 @@
       "Community forum for tips and best practices",
       "Developer documentation for API users"
     ],
-    "onboarding": "All new Pro and Agency customers get a free 30-minute onboarding call to help configure their chatbot."
+    "onboarding": "All new Growth, Pro, and Enterprise customers get a free 30-minute onboarding call to help configure their chatbot."
   },
   "security": {
-    "compliance": ["SOC 2 Type II (Agency plan)", "GDPR compliant", "CCPA compliant"],
+    "compliance": ["SOC 2 Type II (Enterprise plan)", "GDPR compliant", "CCPA compliant"],
     "data": "All data is encrypted at rest (AES-256) and in transit (TLS 1.3). Hosted on AWS with 99.9% uptime SLA.",
     "privacy": "We never sell customer data. Conversation data is owned by you and can be exported or deleted at any time.",
-    "data_retention": "Conversation data is retained for 12 months by default. Custom retention periods available on Agency plan."
+    "data_retention": "Conversation data is retained for 12 months by default. Custom retention periods available on Enterprise plan."
   },
   "competitors": {
-    "vs_intercom": "Intercom starts at $74/month and is built for large teams. ChatGenius is purpose-built for SMBs at a fraction of the cost, with AI-first design rather than bolted-on AI.",
+    "vs_intercom": "Intercom starts at $74/month and is built for large teams. ChatGenius is purpose-built for SMBs with a free plan available and paid plans starting at just $23/month, with AI-first design rather than bolted-on AI.",
     "vs_drift": "Drift focuses on enterprise B2B. ChatGenius serves all industries and business sizes with simpler setup and pricing.",
     "vs_tidio": "Tidio offers basic chatbots with limited AI. ChatGenius uses advanced AI that truly understands context, handles complex questions, and learns from your specific business data.",
     "vs_zendesk": "Zendesk is a full helpdesk suite that's overkill for most SMBs. ChatGenius is focused on the #1 thing small businesses need: converting website visitors into customers.",
@@ -271,11 +371,11 @@
     },
     {
       "q": "How does the free trial work?",
-      "a": "Sign up with just your email — no credit card needed. You get full access to all Pro features for 14 days. After the trial, choose a paid plan or continue with our limited free tier (200 conversations/month)."
+      "a": "Sign up with just your email — no credit card needed. You get full access to all Growth features for 14 days. After the trial, choose a paid plan or continue on the free plan (50 conversations/month, 1 doctor, 20 patients max)."
     },
     {
       "q": "Can the chatbot handle multiple languages?",
-      "a": "Yes, on Pro and Agency plans. ChatGenius supports 10 languages including English, Spanish, French, German, Portuguese, Italian, Dutch, Japanese, Korean, and Chinese. It auto-detects the visitor's language."
+      "a": "Yes, on Growth, Pro, and Enterprise plans. ChatGenius supports 10 languages including English, Spanish, French, German, Portuguese, Italian, Dutch, Japanese, Korean, and Chinese. It auto-detects the visitor's language."
     },
     {
       "q": "How do I train the chatbot on my business information?",

@@ -15,6 +15,13 @@ import uuid
 import secrets
 from datetime import datetime, timedelta
 
+try:
+    import stripe as _stripe_lib
+    _STRIPE_AVAILABLE = True
+except ImportError:
+    _stripe_lib = None
+    _STRIPE_AVAILABLE = False
+
 import database as db
 import calendar_service as cal
 import email_service as email
@@ -42,12 +49,14 @@ import missed_call_engine
 import gallery_engine
 import promotions_engine as promo
 import lead_engine
+import lead_scoring
 import loyalty_engine as loyalty
 import ab_testing
 import two_factor_auth as tfa
 import referral_engine
 import patient_profile_engine as patient_profile
 import realtime_engine as realtime
+import sentiment_engine
 import benchmarking_engine as benchmarks
 import gmb_engine as gmb
 import calendly_engine as calendly
@@ -80,10 +89,11 @@ def _get_whisper_model():
 
 app = Flask(__name__, static_folder="static")
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max upload
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable static file caching in dev
 
 # ── CORS for embedded chatbot ──
 from flask_cors import CORS
-CORS(app, resources={r"/chat": {"origins": "*"}, r"/static/chatbot-embed.js": {"origins": "*"}, r"/api/chatbot-customization/public/*": {"origins": "*"}, r"/api/proactive-config/public/*": {"origins": "*"}, r"/api/voice/*": {"origins": "*"}})
+CORS(app, resources={r"/chat": {"origins": "*"}, r"/static/chatbot-embed.js": {"origins": "*"}, r"/api/chatbot-customization/public/*": {"origins": "*"}, r"/api/proactive-config/public/*": {"origins": "*"}, r"/api/voice/*": {"origins": "*"}, r"/api/chat/poll": {"origins": "*"}, r"/api/chat/history": {"origins": "*"}, r"/api/webhooks/instagram": {"origins": "*"}, r"/api/track-visit": {"origins": "*"}})
 
 # ── Rate limiting ──
 from flask_limiter import Limiter
@@ -143,6 +153,20 @@ def reset_session(sid):
     sessions[sid] = {"flow": None, "data": {}, "step": None, "history": []}
 
 
+def _resolve_numbered_reply(session_id, text):
+    """If user sent a number (e.g. '1', '2') and we previously sent numbered options,
+    resolve to the actual option label so the chatbot processes it correctly."""
+    stripped = text.strip()
+    if stripped.isdigit():
+        session = get_session(session_id)
+        options = session.get("_last_numbered_options")
+        if options:
+            idx = int(stripped) - 1
+            if 0 <= idx < len(options):
+                return options[idx]
+    return text
+
+
 def is_admin_role(user):
     """Check if user is any type of admin (head_admin or admin)."""
     return user.get("role") in ("admin", "head_admin")
@@ -154,6 +178,198 @@ def get_effective_admin_id(user):
     if user.get("role") == "head_admin":
         return user["id"]
     return user.get("admin_id", 0) or user["id"]
+
+
+def require_feature(admin_id, feature_key):
+    """Check if feature is allowed by plan. Returns None if ok, or error response if blocked."""
+    allowed, req_plan = db.can_use_feature(admin_id, feature_key)
+    if not allowed:
+        return jsonify({"error": f"This feature requires the {req_plan.capitalize()} plan or above. Please upgrade."}), 403
+    return None
+
+
+# ── Plan enforcement via before_request hook ──
+# Maps URL prefixes to required feature keys from PLAN_FEATURE_ACCESS
+ROUTE_FEATURE_GATES = {
+    # Growth+ features (level 2)
+    "/api/waitlist": "waitlist",
+    "/api/noshow": "noshow_detection",
+    "/api/recall": "recall_campaigns",
+    "/api/gallery": "gallery",
+    "/api/treatment-followups": "treatment_followups",
+    "/api/followup": "treatment_followups",
+    "/api/referral": "referral_program",
+    "/api/loyalty": "loyalty_program",
+    "/api/gmb": "google_reviews",
+    "/api/calendly": "calendly",
+    "/api/surveys": "surveys",
+    "/api/survey": "surveys",
+    "/api/feedback": "surveys",
+    "/api/inbox": "unified_inbox",
+    "/api/invoices": "invoicing",
+    "/api/invoice": "invoicing",
+    "/api/promotions": "promotions",
+    "/api/twilio": "twilio_sms",
+    "/api/sms": "twilio_sms",
+    "/api/zapier": "zapier",
+    "/api/schedule-blocks": "schedule_blocks",
+    "/api/form-config/custom-field": "custom_form_fields",
+    "/api/chatbot-flows": "chatbot_customization",
+    "/api/chatbot-customization": "chatbot_customization",
+    "/api/email-template": "email_templates",
+    "/api/integrations/google-calendar": "google_calendar",
+    "/api/integrations/whatsapp": "whatsapp",
+    "/api/integrations/instagram": "whatsapp",  # Same tier as WhatsApp (Growth)
+    "/api/roi": "roi_dashboard",
+    "/api/reports": "monthly_reports",
+    "/api/analytics/conversation-insights": "full_analytics",
+    "/api/analytics/revenue-attribution": "full_analytics",
+    "/api/analytics/customer-interests": "full_analytics",
+    "/api/analytics/merchant-copilot": "copilot_suggestions",
+    "/api/analytics/doctor-revenue": "revenue_tracking",
+    "/api/benchmarks": "full_analytics",
+    # Pro+ features (level 3)
+    "/api/missed-calls": "missed_call_handling",
+    "/api/settings/missed-calls": "missed_call_handling",
+    "/api/ab-test": "ab_testing",
+    "/api/upsell": "upsell_engine",
+    "/api/voice": "voice_input",
+    # Pro+ features (proactive)
+    "/api/proactive-config": "voice_input",  # Pro+ (same tier as voice/AI features)
+    # E-commerce features
+    "/api/store-settings": "smart_booking",   # Basic+
+    "/api/products": "smart_booking",         # Basic+
+    "/api/cart-recovery": "noshow_detection",  # Growth+ (recovery feature)
+    "/api/store-discounts": "promotions",     # Growth+
+    # Real estate features
+    "/api/agency-settings": "smart_booking",  # Basic+
+    "/api/listings": "smart_booking",         # Basic+
+    "/api/re-agents": "smart_booking",        # Basic+
+    "/api/re-leads": "lead_scoring_advanced", # Growth+
+    "/api/re-showings": "lead_scoring_advanced", # Growth+
+    # Enterprise features (level 4)
+    "/api/emr": "emr_integration",
+    "/api/pms": "pms_integration",
+}
+
+# Routes that are public/webhook and should skip plan enforcement
+PLAN_GATE_SKIP_ROUTES = {
+    "/api/referral/track",          # Public signup tracking
+    "/api/track-visit",             # Public visitor tracking pixel
+    "/api/survey/submit",           # Public survey submission
+    "/api/survey/",                 # Public survey page (token-based, e.g. /api/survey/<token>)
+    "/api/calendly/webhook",        # External webhook
+    "/api/missed-calls/webhook",    # External webhook
+    "/api/sms/webhook",             # External webhook
+    "/api/zapier/webhook",          # External webhook
+    "/api/gallery/public",          # Public gallery view
+    "/api/chatbot-customization/public",  # Public chatbot config read
+    "/api/recall-book",              # Public booking (token-based)
+    "/api/followup-book",            # Public booking (token-based)
+    "/api/noshow-recovery/reschedule",  # Public rebooking (token-based)
+    "/api/noshow-recovery/cancel",      # Public cancel (token-based)
+    "/api/noshow-reason/",              # Public reason submission (token-based)
+    "/api/voice/transcribe",        # Chatbot voice (checked separately in chat flow)
+    "/api/voice/process",           # Chatbot voice (checked separately in chat flow)
+}
+
+
+@app.before_request
+def enforce_plan_features():
+    """Automatically enforce plan-based feature gating on API routes."""
+    path = request.path
+
+    # Only gate /api/ routes
+    if not path.startswith("/api/"):
+        return None
+
+    # Skip public/webhook routes
+    for skip_path in PLAN_GATE_SKIP_ROUTES:
+        if path.startswith(skip_path):
+            return None
+
+    # Find matching feature gate
+    feature_key = None
+    for prefix, fkey in ROUTE_FEATURE_GATES.items():
+        if path.startswith(prefix):
+            feature_key = fkey
+            break
+
+    # Dynamic path patterns (doctor breaks, off days, noshow on bookings)
+    if not feature_key:
+        if "/breaks" in path and path.startswith("/api/doctors/"):
+            feature_key = "doctor_breaks"
+        elif "/off-days" in path and path.startswith("/api/doctors/"):
+            feature_key = "doctor_off_days"
+        elif path.endswith("/noshow") and path.startswith("/api/bookings/"):
+            feature_key = "noshow_detection"
+        elif path.endswith("/copilot") and path.startswith("/api/handoffs/"):
+            feature_key = "copilot_suggestions"
+
+    if not feature_key:
+        return None  # No gate for this route
+
+    # Try to get admin_id from auth token
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    if not token:
+        # Some routes use admin_id in body/args — skip enforcement here,
+        # those routes should check inline
+        return None
+
+    user = db.get_user_by_token(token)
+    if not user:
+        return None  # Let the route handle auth errors
+
+    admin_id = get_effective_admin_id(user)
+    allowed, req_plan = db.can_use_feature(admin_id, feature_key)
+    if not allowed:
+        return jsonify({
+            "error": f"This feature requires the {req_plan.capitalize()} plan or above. Please upgrade."
+        }), 403
+
+    return None
+
+
+@app.route("/api/plan-features", methods=["GET"])
+def api_plan_features():
+    """Return what the current plan allows — features, limits, and level."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+    plan = db.get_admin_plan(admin_id)
+    level = db.get_plan_level(plan)
+    # Build feature access map
+    features = {}
+    for fkey, min_level in db.PLAN_FEATURE_ACCESS.items():
+        features[fkey] = level >= min_level
+    # Build limits
+    limits = {
+        "doctors": {"max": db.PLAN_MAX_DOCTORS.get(plan, 1)},
+        "staff": {"max": db.PLAN_MAX_STAFF.get(plan, 1)},
+        "patients": {"max": db.PLAN_MAX_PATIENTS.get(plan, 20)},
+        "promo_codes": {"max": db.PLAN_MAX_PROMO_CODES.get(plan, 0)},
+        "custom_fields": {"max": db.PLAN_MAX_CUSTOM_FIELDS.get(plan, 0)},
+        "email_templates": {"max": db.PLAN_MAX_EMAIL_TEMPLATES.get(plan, 0)},
+        "languages": {"max": db.PLAN_MAX_LANGUAGES.get(plan, 1)},
+        "chatbots": {"max": db.PLAN_MAX_CHATBOTS.get(plan, 1)},
+        "locations": {"max": db.PLAN_MAX_LOCATIONS.get(plan, 1)},
+        "conversations_per_month": {"max": db.PLAN_MONTHLY_CONVERSATIONS.get(plan, 50)},
+    }
+    return jsonify({"plan": plan, "level": level, "features": features, "limits": limits})
+
+
+def _check_ecom_permission(user, admin_id, permission_key):
+    """Check if a staff user has a specific ecommerce permission.
+    Returns True if user is head_admin or has the permission enabled.
+    Returns False if user is staff without that permission."""
+    if user.get("role") == "head_admin":
+        return True
+    if user.get("role") != "admin":
+        return False
+    perms = db.get_staff_permissions(admin_id, user["id"])
+    return bool(perms.get(permission_key, False))
 
 
 import requests as http_requests  # for external API calls
@@ -256,7 +472,7 @@ def load_model():
 # ══════════════════════════════════════════════
 
 KEYWORD_MAP = {
-    "pricing": ["price", "pricing", "cost", "how much", "plan", "basic", "pro", "agency", "pay", "afford", "cheap", "expensive", "dollar", "month", "subscription", "tier", "billing"],
+    "pricing": ["price", "pricing", "cost", "how much", "plan", "basic", "growth", "pro", "enterprise", "pay", "afford", "cheap", "expensive", "dollar", "month", "subscription", "tier", "billing"],
     "features": ["feature", "what can", "what does", "capabilit", "offer", "include", "do for me", "functionality"],
     "setup": ["setup", "set up", "install", "get started", "begin", "onboard", "configure", "implement", "how long", "how do i"],
     "trial": ["trial", "free", "try", "test", "credit card", "cancel", "risk", "money back", "refund", "guarantee"],
@@ -270,17 +486,17 @@ KEYWORD_MAP = {
 }
 
 KB_RESPONSES = {
-    "pricing": "We have three plans: **Basic** at $79/month (700 conversations, 1 chatbot, smart booking, calendar scheduling, email reminders, patient profiles, pre-visit forms, basic analytics), **Pro** at $239/month (5,000 conversations, 4 chatbots, everything in Basic + advanced reminders, no-show recovery, ROI dashboard, lead capture, waitlist, promotions, multi-language, AI PDF extraction), and **Enterprise** at $699/month (unlimited conversations, everything in Pro + AI no-show prediction, advanced analytics, API access, PMS/CRM integration, full doctor portal, chatbot customization, white-label, dedicated account manager, SOC 2 compliance). All include a 14-day free trial — no credit card required!",
+    "pricing": "We have 5 plans: **Free** ($0 — 50 chats, 1 doctor, basic FAQ, try it out), **Basic** at $23/month (unlimited chats, 1 chatbot, smart booking, email reminders, basic patient profiles), **Growth** at $79/month ⭐ Most Popular (everything in Basic + SMS reminders, no-show recovery, waitlist, loyalty, invoicing, full analytics, WhatsApp, Google Calendar, up to 3 doctors), **Pro** at $299/month (everything in Growth + custom AI training, voice input, white-label, A/B testing, missed call handling, up to 10 doctors, 3 locations), **Enterprise** at $699/month (everything in Pro + PMS integration, SOC 2/HIPAA, dedicated account manager, SLA, unlimited everything, 12-month contract). Free plan available — no credit card required!",
     "features": "ChatGenius includes: 24/7 instant AI replies (under 2 seconds), automated appointment booking with calendar sync, smart lead capture with CRM integration, one-line website integration, a no-code dashboard, and templates for 20+ industries. Pro adds multi-language support, analytics, and human handoff.",
     "setup": "Setup takes under 5 minutes: 1) Sign up free, 2) Enter your business info, 3) Upload your knowledge base or let AI learn from your website, 4) Customize the look, 5) Paste one line of code on your site. No coding or technical skills needed!",
-    "trial": "We offer a 14-day free trial with full Pro features — no credit card required. After the trial, choose a paid plan or continue with a limited free tier (200 conversations/month). We also have a 30-day money-back guarantee on all paid plans. Zero risk!",
+    "trial": "We offer a 14-day free trial with full Growth features — no credit card required. After the trial, choose a paid plan or continue on the free plan (50 conversations/month, 1 doctor, 20 patients max, basic FAQ only). We also have a 30-day money-back guarantee on all paid plans. Zero risk!",
     "industries": "ChatGenius works for any industry! Popular verticals: dental clinics, law firms, real estate, restaurants, e-commerce, fitness studios, salons, automotive, professional services, and education. We have pre-built templates for 20+ industries, and the AI adapts to your specific business.",
     "integration": "We integrate with HubSpot, Salesforce, Zoho, Pipedrive (CRM), Google Calendar, Calendly, Outlook (scheduling), Slack, Teams (communication), Zapier, Make (automation), and Google Analytics. Works on WordPress, Shopify, Wix, Squarespace, Webflow, and any custom website.",
     "security": "All data is encrypted with AES-256 at rest and TLS 1.3 in transit. We're GDPR and CCPA compliant, hosted on AWS with 99.9% uptime. Enterprise plan includes SOC 2 Type II compliance. We never sell your data — you own everything and can export or delete anytime.",
-    "support": "Basic: email support. Pro: priority email + chat support. Enterprise: dedicated account manager, priority support, full doctor portal access. All users get access to our knowledge base and tutorials.",
+    "support": "Free & Basic: email support. Growth: priority email + chat support. Pro: priority support + dedicated shared account manager. Enterprise: exclusive dedicated account manager, SLA guarantee, quarterly business reviews. All users get access to our knowledge base and tutorials.",
     "comparison": "Unlike scripted chatbots, ChatGenius uses real AI that understands context and intent. Compared to Intercom ($74+/mo, built for enterprise), we're purpose-built for SMBs at lower cost. Compared to Tidio, our AI handles unexpected questions and maintains conversation flow.",
     "how_it_works": "ChatGenius uses AI trained on your business data to understand and respond to customer questions naturally. Visitors get instant answers, can book appointments, and share their contact info — all automatically. You manage everything from a simple dashboard.",
-    "languages": "On Pro and Enterprise plans, ChatGenius supports 10 languages: English, Spanish, French, German, Portuguese, Italian, Dutch, Japanese, Korean, and Chinese. The chatbot auto-detects the visitor's language and responds accordingly.",
+    "languages": "Multi-language support varies by plan: Basic supports 3 languages, Growth/Pro/Enterprise support 10 languages. Supported languages include English, Arabic, Spanish, French, Chinese, Urdu, and Tagalog. The chatbot auto-detects the visitor's language and responds accordingly.",
 }
 
 
@@ -290,7 +506,7 @@ DENTAL_KEYWORD_MAP = {
     "services": ["service", "offer", "provide", "do you do", "treatment", "cleaning", "filling", "whitening", "implant", "crown", "braces", "invisalign", "root canal", "extraction", "cosmetic", "veneer", "pediatric", "orthodont", "x-ray", "xray", "check-up", "checkup", "emergency"],
     "pricing": ["price", "cost", "how much", "fee", "charge", "expensive", "afford", "cheap", "pay", "dollar", "rate"],
     "insurance": ["insurance", "accept insurance", "dental plan", "delta", "cigna", "aetna", "metlife", "bluecross", "coverage", "in-network", "out of network"],
-    "payment": ["payment", "pay", "credit card", "cash", "financing", "carecredit", "payment plan", "installment"],
+    "payment": ["payment", "pay", "credit card", "cash", "payment plan", "installment", "tabby", "tamara"],
     "emergency": ["emergency", "urgent", "pain", "broken tooth", "knocked out", "bleeding", "swollen", "abscess", "after hours", "walk-in", "walk in", "same day"],
     "about": ["about", "who are you", "tell me about", "experience", "years", "credential", "certified", "accredit", "award", "team", "doctor", "dentist", "staff", "why choose", "special", "different", "unique", "reputation", "review"],
     "contact": ["phone", "call", "contact", "reach", "number", "email"],
@@ -381,7 +597,7 @@ def _fix_spelling_general(text):
         "veneers", "root", "canal", "checkup", "consultation", "surgery",
         "orthodontics", "pediatric", "cosmetic", "emergency", "general",
         "insurance", "accepted", "payment", "plans", "cash", "credit", "card",
-        "financing", "price", "pricing", "cost", "free", "consultation",
+        "installment", "price", "pricing", "cost", "free", "consultation",
         "located", "location", "address", "street", "avenue", "road", "drive",
         "main", "north", "south", "east", "west", "center", "central", "park",
         "suite", "floor", "building", "parking", "phone", "call", "email",
@@ -647,6 +863,7 @@ _VOCABULARY = {
     "book": ["bok", "bkoo", "boook", "boo", "bokk", "buk"],
     "appointment": ["appoitmnet", "appointmnt", "apointment", "appointmet", "appoitment", "appoint", "appoinment", "appointemnt", "appointmnet"],
     "schedule": ["shedule", "scedule", "scheduel", "schedul", "shcedule"],
+    "reschedule": ["reshedule", "reschedul", "reschdeule", "reshcedule", "rescheudle", "reschdule"],
     "reserve": ["reserv", "resrve", "resereve"],
     "available": ["availble", "avialable", "avalable", "availabe", "avaliable"],
     "meeting": ["meating", "meetin", "meting", "meetng"],
@@ -1834,26 +2051,16 @@ def handle_booking(session, user_message, corrected_message=None):
             if services and doctors:
                 data["_all_doctors"] = doctors
                 data["_services"] = services
-                # Show services directly as clickable options (skip booking_type step)
-                active_services = [s for s in services if s.get("is_active", 1)]
-                if active_services:
-                    session["step"] = "get_service"
-                    session["_ui_options"] = {
-                        "type": "services",
-                        "items": [{"name": s["name"], "id": s["id"]} for s in active_services]
-                    }
-                    return f"Hi {data['name']}! Which service would you like to book?"
-                else:
-                    # No active services — fall through to doctor selection
-                    session["step"] = "get_booking_type"
-                    session["_ui_options"] = {
-                        "type": "booking_type",
-                        "items": [
-                            {"name": "Book a Service", "value": "service"},
-                            {"name": "Book an Appointment", "value": "appointment"},
-                        ]
-                    }
-                    return f"Hi {data['name']}! How would you like to book?"
+                # Ask user whether they want a service or appointment
+                session["step"] = "get_booking_type"
+                session["_ui_options"] = {
+                    "type": "booking_type",
+                    "items": [
+                        {"name": "Book a Service", "value": "service", "subtitle": "Choose from available services"},
+                        {"name": "Book an Appointment", "value": "appointment", "subtitle": "Schedule a regular visit"},
+                    ]
+                }
+                return f"Hi {data['name']}! Would you like to book a service or an appointment?"
             elif doctors:
                 cat_set = set()
                 for d in doctors:
@@ -1916,25 +2123,16 @@ def handle_booking(session, user_message, corrected_message=None):
         if services and doctors:
             data["_all_doctors"] = doctors
             data["_services"] = services
-            # Show services directly as clickable options (skip booking_type step)
-            active_services = [s for s in services if s.get("is_active", 1)]
-            if active_services:
-                session["step"] = "get_service"
-                session["_ui_options"] = {
-                    "type": "services",
-                    "items": [{"name": s["name"], "id": s["id"]} for s in active_services]
-                }
-                return f"Nice to meet you, {data['name']}! Which service would you like to book?"
-            else:
-                session["step"] = "get_booking_type"
-                session["_ui_options"] = {
-                    "type": "booking_type",
-                    "items": [
-                        {"name": "Book a Service", "value": "service"},
-                        {"name": "Book an Appointment", "value": "appointment"},
-                    ]
-                }
-                return f"Nice to meet you, {data['name']}! How would you like to book?"
+            # Ask user whether they want a service or appointment
+            session["step"] = "get_booking_type"
+            session["_ui_options"] = {
+                "type": "booking_type",
+                "items": [
+                    {"name": "Book a Service", "value": "service", "subtitle": "Choose from available services"},
+                    {"name": "Book an Appointment", "value": "appointment", "subtitle": "Schedule a regular visit"},
+                ]
+            }
+            return f"Nice to meet you, {data['name']}! Would you like to book a service or an appointment?"
         elif doctors:
             # No services configured — go straight to doctor selection
             cat_set = set()
@@ -1978,7 +2176,7 @@ def handle_booking(session, user_message, corrected_message=None):
             chosen = "appointment"
         else:
             # Try matching by item name
-            for item in [{"name": "Book a Service", "value": "service"}, {"name": "Book an Appointment", "value": "appointment"}]:
+            for item in [{"name": "Book a Service", "value": "service", "subtitle": "Choose from available services"}, {"name": "Book an Appointment", "value": "appointment", "subtitle": "Schedule a regular visit"}]:
                 if item["name"].lower() in lower or lower in item["name"].lower():
                     chosen = item["value"]
                     break
@@ -2043,7 +2241,7 @@ def handle_booking(session, user_message, corrected_message=None):
                 session["step"] = "get_service"
                 session["_ui_options"] = {
                     "type": "services",
-                    "items": [{"name": s["name"], "id": s["id"]} for s in services]
+                    "items": [{"name": s["name"], "id": s["id"], "subtitle": "Tap to select"} for s in services]
                 }
                 return "Which service are you interested in?"
 
@@ -2079,8 +2277,8 @@ def handle_booking(session, user_message, corrected_message=None):
         session["_ui_options"] = {
             "type": "booking_type",
             "items": [
-                {"name": "Book a Service", "value": "service"},
-                {"name": "Book an Appointment", "value": "appointment"},
+                {"name": "Book a Service", "value": "service", "subtitle": "Choose from available services"},
+                {"name": "Book an Appointment", "value": "appointment", "subtitle": "Schedule a regular visit"},
             ]
         }
         return "Please choose one of the options:"
@@ -2113,9 +2311,20 @@ def handle_booking(session, user_message, corrected_message=None):
                     break
 
         if not chosen_svc:
+            # Check if user wants to switch to appointment flow instead
+            if any(kw in lower for kw in ["appointment", "doctor", "back", "cancel", "nevermind", "never mind", "stop", "quit", "exit", "abort", "end", "forget", "don't want", "no thanks", "leave", "close"]):
+                session["step"] = "get_booking_type"
+                session["_ui_options"] = {
+                    "type": "booking_type",
+                    "items": [
+                        {"name": "Book a Service", "value": "service", "subtitle": "Choose from available services"},
+                        {"name": "Book an Appointment", "value": "appointment", "subtitle": "Schedule a regular visit"},
+                    ]
+                }
+                return "No problem! Would you like to book a service or an appointment?"
             session["_ui_options"] = {
                 "type": "services",
-                "items": [{"name": s["name"], "id": s["id"]} for s in services]
+                "items": [{"name": s["name"], "id": s["id"], "subtitle": "Tap to select"} for s in services]
             }
             return "I didn't recognize that service. Please pick one from the list:"
 
@@ -2192,7 +2401,7 @@ def handle_booking(session, user_message, corrected_message=None):
             session["step"] = "get_service"
             session["_ui_options"] = {
                 "type": "services",
-                "items": [{"name": s["name"], "id": s["id"]} for s in services]
+                "items": [{"name": s["name"], "id": s["id"], "subtitle": "Tap to select"} for s in services]
             }
             return "No problem! Which service would you like instead?"
 
@@ -2228,7 +2437,7 @@ def handle_booking(session, user_message, corrected_message=None):
                 session["step"] = "get_service"
                 session["_ui_options"] = {
                     "type": "services",
-                    "items": [{"name": s["name"], "id": s["id"]} for s in remaining]
+                    "items": [{"name": s["name"], "id": s["id"], "subtitle": "Tap to select"} for s in remaining]
                 }
                 return "No problem! Would you like to choose a different service?"
             else:
@@ -2426,6 +2635,17 @@ def handle_booking(session, user_message, corrected_message=None):
     # Step 2b: Got doctor choice, ask for email
     if step == "get_doctor":
         doctors = data.get("_doctors", [])
+        # Free plan: auto-select first doctor (no doctor choice)
+        _bk_admin_id = data.get("_admin_id", 1)
+        _plan_level = db.get_plan_level(db.get_admin_plan(_bk_admin_id))
+        if _plan_level < 1 and doctors:
+            auto_doc = doctors[0]
+            data["doctor_name"] = auto_doc["name"]
+            data["doctor_id"] = auto_doc["id"]
+            session["step"] = "get_date"
+            off_dates = _get_off_dates_with_blocks(auto_doc["id"], _bk_admin_id)
+            session["_ui_options"] = {"type": "calendar", "doctor_id": auto_doc["id"], "off_dates": off_dates}
+            return f"You'll be seeing **Dr. {auto_doc['name']}**.\n\nWhen would you like to come in?"
         chosen = None
         raw_lower = user_message.lower().strip()
 
@@ -2952,6 +3172,12 @@ def handle_booking(session, user_message, corrected_message=None):
             patient_type=data.get("patient_type", ""),
         )
 
+        # ── PMS auto-sync: push booking to configured dental PMS ──
+        try:
+            sync_booking_to_pms(data.get("_admin_id", 0), booking_id)
+        except Exception:
+            pass
+
         # ── Zapier webhook: new booking (chatbot flow) ──
         try:
             zapier_engine.trigger_new_booking(data.get("_admin_id", 0), {
@@ -2995,6 +3221,7 @@ def handle_booking(session, user_message, corrected_message=None):
                         date_display=data.get("date_display", booking_result["date"]),
                         time_display=data.get("chosen_time", booking_result["time"]),
                         patient_notes=data.get("patient_notes", ""),
+                        admin_id=data.get("_admin_id"),
                     )
             except Exception as e:
                 print(f"[booking] Failed to send doctor notification: {e}", flush=True)
@@ -3026,6 +3253,7 @@ def handle_booking(session, user_message, corrected_message=None):
                 data.get("_admin_id", 0),
                 name=data["name"], email=data.get("email", ""), phone=data.get("phone", ""))
             if patient:
+                session["patient_id"] = patient["id"]
                 # Mailchimp auto-sync hook
                 try:
                     mailchimp.auto_sync_if_enabled(patient, data.get("_admin_id", 0))
@@ -3098,6 +3326,35 @@ def handle_booking(session, user_message, corrected_message=None):
                 print(f"[booking] Pre-visit form email sent to {data['email']}", flush=True)
             except Exception as e:
                 print(f"[booking] ERROR sending form email: {e}", flush=True)
+            # Send welcome email for new patients
+            try:
+                rc = db.get_reminder_config(_bk_admin)
+                if rc.get("welcome_enabled", 1) and data.get("email"):
+                    welcome_delay = rc.get("welcome_delay_minutes", 5)
+                    def _send_welcome(_email=data["email"], _name=data["name"], _admin=_bk_admin):
+                        try:
+                            email.send_welcome_email(_email, _name, admin_id=_admin)
+                            print(f"[booking] Welcome email sent to {_email}", flush=True)
+                        except Exception as we:
+                            print(f"[booking] Welcome email failed: {we}", flush=True)
+                    if welcome_delay and welcome_delay > 0:
+                        try:
+                            import background_tasks as _bt
+                            if _bt._scheduler:
+                                from datetime import timedelta as _td
+                                _bt._scheduler.add_job(
+                                    _send_welcome, "date",
+                                    run_date=datetime.now() + _td(minutes=welcome_delay),
+                                    id=f"welcome_{data['email']}_{_bk_admin}",
+                                    replace_existing=True)
+                            else:
+                                _send_welcome()
+                        except Exception:
+                            _send_welcome()
+                    else:
+                        _send_welcome()
+            except Exception as e:
+                print(f"[booking] Welcome email error: {e}", flush=True)
         elif _auto_confirmed and data.get("email"):
             # Send confirmation email for auto-confirmed returning patients
             try:
@@ -3255,6 +3512,12 @@ def handle_booking(session, user_message, corrected_message=None):
             patient_type=data.get("patient_type", ""),
         )
 
+        # ── PMS auto-sync: push booking to configured dental PMS ──
+        try:
+            sync_booking_to_pms(data.get("_admin_id", 0), booking_id)
+        except Exception:
+            pass
+
         # ── Zapier webhook: new booking (chatbot service flow) ──
         try:
             zapier_engine.trigger_new_booking(data.get("_admin_id", 0), {
@@ -3298,6 +3561,7 @@ def handle_booking(session, user_message, corrected_message=None):
                         date_display=data.get("date_display", booking_result["date"]),
                         time_display=data.get("chosen_time", booking_result["time"]),
                         patient_notes=data.get("patient_notes", ""),
+                        admin_id=data.get("_admin_id"),
                     )
             except Exception as e:
                 print(f"[booking] Failed to send doctor notification: {e}", flush=True)
@@ -3317,6 +3581,7 @@ def handle_booking(session, user_message, corrected_message=None):
                 data.get("_admin_id", 0),
                 name=data["name"], email=data.get("email", ""), phone=data["phone"])
             if patient:
+                session["patient_id"] = patient["id"]
                 # Mailchimp auto-sync hook
                 try:
                     mailchimp.auto_sync_if_enabled(patient, data.get("_admin_id", 0))
@@ -3421,6 +3686,35 @@ def handle_booking(session, user_message, corrected_message=None):
                 print(f"[booking-svc] Pre-visit form email sent to {data['email']}", flush=True)
             except Exception as e:
                 print(f"[booking-svc] ERROR sending form email: {e}", flush=True)
+            # Send welcome email for new patients
+            try:
+                rc = db.get_reminder_config(_bks_admin)
+                if rc.get("welcome_enabled", 1) and data.get("email"):
+                    welcome_delay = rc.get("welcome_delay_minutes", 5)
+                    def _send_welcome_svc(_email=data["email"], _name=data["name"], _admin=_bks_admin):
+                        try:
+                            email.send_welcome_email(_email, _name, admin_id=_admin)
+                            print(f"[booking-svc] Welcome email sent to {_email}", flush=True)
+                        except Exception as we:
+                            print(f"[booking-svc] Welcome email failed: {we}", flush=True)
+                    if welcome_delay and welcome_delay > 0:
+                        try:
+                            import background_tasks as _bt
+                            if _bt._scheduler:
+                                from datetime import timedelta as _td
+                                _bt._scheduler.add_job(
+                                    _send_welcome_svc, "date",
+                                    run_date=datetime.now() + _td(minutes=welcome_delay),
+                                    id=f"welcome_{data['email']}_{_bks_admin}",
+                                    replace_existing=True)
+                            else:
+                                _send_welcome_svc()
+                        except Exception:
+                            _send_welcome_svc()
+                    else:
+                        _send_welcome_svc()
+            except Exception as e:
+                print(f"[booking-svc] Welcome email error: {e}", flush=True)
         elif _auto_confirmed and data.get("email"):
             # Send confirmation email for auto-confirmed returning patients
             try:
@@ -4058,6 +4352,9 @@ def handle_reschedule(session, user_message, admin_id):
                 return "An error occurred while rescheduling. Please try again or contact the clinic."
             conn.close()
 
+            # Sync reschedule to PMS
+            reschedule_booking_in_pms(admin_id, booking["id"], new_date, new_time, new_doctor_name)
+
             # Keep original status — if was confirmed, stays confirmed
             # If was pending, stays pending (user needs to confirm via form)
 
@@ -4230,7 +4527,8 @@ def _ask_ai_during_booking(user_message, session, admin_id=1):
                 doctor_slots[doc["name"]] = [s["time"] for s in slots]
         result = message_interpreter.think_and_respond(
             user_message, company_info, active_doctors,
-            doctor_slots=doctor_slots, history=history
+            doctor_slots=doctor_slots, history=history,
+            language=session.get("language", "en")
         )
         if result and result.get("reply"):
             return result["reply"]
@@ -4247,6 +4545,4063 @@ def _ask_ai_during_booking(user_message, session, admin_id=1):
 
 
 # ══════════════════════════════════════════════
+#  E-Commerce & Real Estate Chat Helpers
+# ══════════════════════════════════════════════
+
+def _track_product_views(admin_id, session_id, products, customer_email=""):
+    """Record product views for abandoned browse recovery and interest scoring."""
+    try:
+        customer_key = (customer_email or session_id or "").lower()
+        for p in products[:6]:
+            db.record_product_view(
+                admin_id=admin_id,
+                session_id=session_id,
+                product_id=p.get("id", 0),
+                product_name=p.get("product_name", ""),
+                product_price=float(p.get("product_price", 0) or 0),
+                product_image=(p.get("product_images", "[]") if isinstance(p.get("product_images"), str) else "[]"),
+                customer_email=customer_email,
+            )
+            # Track interest scoring
+            cat = p.get("product_category", "")
+            if cat and customer_key:
+                db.update_customer_interest(admin_id, customer_key, cat, "view")
+            # Track revenue event
+            db.record_revenue_event(admin_id, session_id, "product_view",
+                                    0, p.get("id", 0), p.get("product_name", ""),
+                                    customer_email=customer_email)
+    except Exception:
+        pass
+
+
+def _build_product_cards(products, currency="$"):
+    """Build product card data for the chatbot widget."""
+    cards = []
+    for p in products:
+        images = p.get("product_images", "[]")
+        if isinstance(images, str):
+            try:
+                images = json.loads(images)
+            except Exception:
+                images = []
+        card = {
+            "id": p.get("id"),
+            "name": p.get("product_name", ""),
+            "price": float(p.get("product_price", 0)),
+            "compare_price": float(p.get("compare_at_price", 0)),
+            "image": images[0] if images else "",
+            "rating": float(p.get("product_rating", 0)),
+            "review_count": p.get("product_review_count", 0),
+            "stock": p.get("inventory_quantity", 0),
+            "category": p.get("product_category", ""),
+            "description": (p.get("product_short_description") or p.get("product_description", ""))[:100],
+            "url": (p.get("product_url") or ""),
+        }
+        cards.append(card)
+    return cards
+
+
+def _build_property_cards(listings):
+    """Build property card data for the chatbot widget."""
+    cards = []
+    for l in listings:
+        photos = l.get("listing_photos", "[]")
+        if isinstance(photos, str):
+            try:
+                photos = json.loads(photos)
+            except Exception:
+                photos = []
+        features = []
+        if l.get("has_pool"): features.append("Pool")
+        if l.get("has_garage"): features.append("Garage")
+        if l.get("has_fireplace"): features.append("Fireplace")
+        if l.get("has_yard"): features.append("Yard")
+        if l.get("has_basement"): features.append("Basement")
+        if l.get("updated_kitchen"): features.append("Updated Kitchen")
+        if l.get("pet_friendly"): features.append("Pet Friendly")
+        if l.get("has_waterfront"): features.append("Waterfront")
+        sqft = l.get("square_footage", 0) or 0
+        price = float(l.get("listing_price", 0) or 0)
+        card = {
+            "id": l.get("id"),
+            "address": f"{l.get('listing_address', '')}, {l.get('listing_city', '')}",
+            "price": price,
+            "price_per_sqft": round(price / sqft) if sqft > 0 else None,
+            "beds": l.get("bedrooms", 0),
+            "baths": float(l.get("bathrooms", 0)),
+            "sqft": sqft,
+            "status": l.get("listing_status", "active"),
+            "image": photos[0] if photos else "",
+            "features": features,
+            "walk_score": l.get("walk_score", 0),
+            "school_rating": None,
+            "type": l.get("listing_type", ""),
+            "hoa": float(l.get("hoa_fee", 0) or 0),
+            "year_built": l.get("year_built", 0),
+        }
+        # School rating from school_district field
+        if l.get("school_district"):
+            card["school_rating"] = l.get("school_district")
+        cards.append(card)
+    return cards
+
+
+def _extract_preferences(message, admin_id, customer_key):
+    """Extract zero-party preference data from user messages and save to DB."""
+    if not message or not customer_key:
+        return
+    try:
+        import re as _re
+        msg = message.lower().strip()
+
+        # Budget mentions: "under $100", "budget is 50-100", "$50 to $100"
+        budget_match = _re.search(r'(?:budget|spend|under|less than|up to|around|about)\s*\$?\s*(\d+(?:\.\d+)?)', msg)
+        if not budget_match:
+            budget_match = _re.search(r'\$(\d+)\s*(?:to|-)\s*\$?(\d+)', msg)
+        if budget_match:
+            db.save_customer_preference(admin_id, customer_key, "budget", "range", budget_match.group(0).strip())
+
+        # Style preferences: "I like casual", "prefer minimalist", "modern style"
+        style_match = _re.search(r'(?:i\s+(?:like|love|prefer|want)|my\s+style\s+is|prefer)\s+(casual|formal|minimalist|modern|classic|vintage|sporty|elegant|bohemian|streetwear|preppy|rustic|luxury|contemporary)', msg)
+        if style_match:
+            db.save_customer_preference(admin_id, customer_key, "style", style_match.group(1), style_match.group(1))
+
+        # Size mentions: "I'm a medium", "size 10", "XL", "I wear large"
+        size_match = _re.search(r'(?:i(?:\'?m| am| wear)\s+(?:a\s+)?|(?:my\s+)?size\s+(?:is\s+)?)(xs|s|m|l|xl|xxl|xxxl|small|medium|large|extra\s*large|\d{1,2}(?:\.\d)?)', msg)
+        if size_match:
+            db.save_customer_preference(admin_id, customer_key, "size", "size", size_match.group(1).strip())
+
+        # Color preferences: "I love blue", "prefer dark colors", "favorite color is red"
+        color_match = _re.search(r'(?:i\s+(?:like|love|prefer|want)|prefer|favorite\s+color\s+is)\s+(red|blue|green|black|white|pink|purple|yellow|orange|brown|grey|gray|navy|beige|dark|light|pastel|neutral|bright|earth\s*tone)', msg)
+        if color_match:
+            db.save_customer_preference(admin_id, customer_key, "color", color_match.group(1), color_match.group(1))
+
+        # Category preferences: "I'm into electronics", "looking for shoes", "interested in"
+        cat_match = _re.search(r'(?:i(?:\'?m| am)\s+(?:into|interested in|looking for)|i\s+(?:like|love|need|want)\s+)(\w+(?:\s+\w+)?)', msg)
+        if cat_match:
+            val = cat_match.group(1).strip()
+            # Filter out non-category words
+            skip_words = {"a", "an", "the", "some", "something", "anything", "it", "that", "this", "to", "your", "more"}
+            if val and val not in skip_words and len(val) > 2:
+                db.save_customer_preference(admin_id, customer_key, "category_interest", val, val)
+
+        # Brand preferences: "I like Nike", "prefer Apple", "fan of Adidas"
+        brand_match = _re.search(r'(?:i\s+(?:like|love|prefer|use|wear|buy)|prefer|fan\s+of)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?)', message)
+        if brand_match:
+            brand = brand_match.group(1).strip()
+            if len(brand) > 1 and brand.lower() not in {"the", "this", "that", "some", "my", "your"}:
+                db.save_customer_preference(admin_id, customer_key, "brand", brand.lower(), brand)
+    except Exception:
+        pass
+
+
+def _validate_ecommerce_response(ai_reply, admin_id, session=None):
+    """FIX 3: Guardrails — validate AI response against real product data.
+    Catches hallucinated products, wrong prices, fake policies, and wrong cart totals."""
+    try:
+        products = db.get_products(admin_id, "active") or []
+
+        # Build lookup of real product names and prices
+        real_products = {}
+        for p in products:
+            name = (p.get("product_name") or "").strip()
+            if name:
+                real_products[name.lower()] = {
+                    "name": name,
+                    "price": float(p.get("product_price", 0) or 0),
+                    "stock": int(p.get("inventory_quantity", 0) or 0),
+                }
+
+        # Check for price mentions that don't match real data
+        # Pattern: $XX.XX or $XXX
+        import re as _re
+        price_mentions = _re.findall(r'\$(\d+(?:\.\d{2})?)', ai_reply)
+        real_prices = {f"{v['price']:.2f}" for v in real_products.values()}
+        real_prices.update({f"{v['price']:.0f}" for v in real_products.values()})
+
+        # Check if any mentioned product name exists in our catalog
+        reply_lower = ai_reply.lower()
+        mentioned_products = []
+        for pname_lower, pdata in real_products.items():
+            # Check if product name (or significant part) appears in reply
+            name_words = pname_lower.split()
+            # Match if 2+ consecutive words match, or full name matches
+            if pname_lower in reply_lower:
+                mentioned_products.append(pdata)
+            elif len(name_words) >= 2:
+                # Check 2-word combos
+                for i in range(len(name_words) - 1):
+                    bigram = f"{name_words[i]} {name_words[i+1]}"
+                    if bigram in reply_lower:
+                        mentioned_products.append(pdata)
+                        break
+
+        # Validate prices for mentioned products
+        for mp in mentioned_products:
+            real_price = mp["price"]
+            # Look for the product name near a price in the reply
+            name_pos = reply_lower.find(mp["name"].lower())
+            if name_pos == -1:
+                # Try partial match
+                for word in mp["name"].lower().split():
+                    if len(word) >= 4:
+                        name_pos = reply_lower.find(word)
+                        if name_pos >= 0:
+                            break
+            if name_pos >= 0:
+                # Check prices within 200 chars of the product name
+                region_start = max(0, name_pos - 50)
+                region_end = min(len(ai_reply), name_pos + 200)
+                region = ai_reply[region_start:region_end]
+                # Find the CLOSEST wrong price to the product name and fix it positionally
+                for price_match in _re.finditer(r'\$(\d+(?:\.\d{2})?)', region):
+                    try:
+                        mentioned_price = float(price_match.group(1))
+                        if abs(mentioned_price - real_price) > 0.01:
+                            # Positional replacement: compute absolute position in ai_reply
+                            abs_start = region_start + price_match.start()
+                            abs_end = region_start + price_match.end()
+                            old_text = ai_reply[abs_start:abs_end]
+                            ai_reply = ai_reply[:abs_start] + f"${real_price:.2f}" + ai_reply[abs_end:]
+                            break  # Fix only the closest wrong price per product
+                    except ValueError:
+                        pass
+
+        # Check for product names that don't exist in catalog (hallucination)
+        # Look for patterns like "**Product Name**" that aren't real products
+        bold_names = _re.findall(r'\*\*([^*]+)\*\*', ai_reply)
+        for bn in bold_names:
+            bn_lower = bn.lower().strip()
+            # Skip non-product bold text (prices, categories, etc.)
+            if bn_lower.startswith("$") or bn_lower in ("free shipping", "out of stock", "in stock"):
+                continue
+            if any(c in bn_lower for c in ["%", "off", "shipping", "return", "cart"]):
+                continue
+            # Check if this could be a product name
+            if len(bn) > 5 and bn_lower not in real_products:
+                # Check partial match before flagging
+                is_real = False
+                for rp in real_products:
+                    if rp in bn_lower or bn_lower in rp:
+                        is_real = True
+                        break
+                    # Check word overlap
+                    bn_words = set(bn_lower.split())
+                    rp_words = set(rp.split())
+                    if len(bn_words & rp_words) >= 2:
+                        is_real = True
+                        break
+                # Also skip if it matches a category name
+                cats = set((p.get("product_category") or "").lower() for p in products)
+                if bn_lower in cats:
+                    is_real = True
+                if not is_real and len(bn_words) >= 2:
+                    # Likely a hallucinated product — remove the bold formatting
+                    # but don't remove the text (AI might be describing something)
+                    pass  # Soft guardrail: log but don't modify text aggressively
+
+        # Check stock claims — if AI says "in stock" but product is actually out
+        for mp in mentioned_products:
+            if mp["stock"] <= 0:
+                name_lower = mp["name"].lower()
+                if name_lower in reply_lower:
+                    # If reply doesn't already mention out of stock, add warning
+                    name_idx = reply_lower.find(name_lower)
+                    nearby_text = reply_lower[name_idx:name_idx + 200]
+                    if "out of stock" not in nearby_text and "unavailable" not in nearby_text:
+                        if "in stock" in nearby_text or "available" in nearby_text:
+                            ai_reply = ai_reply + f"\n\n*Note: **{mp['name']}** is currently out of stock.*"
+
+    except Exception as e:
+        print(f"[guardrails] Error validating response: {e}", flush=True)
+
+    # ── Cart total validation ──
+    # If the AI mentions a cart total, make sure it matches the real cart
+    try:
+        if session is not None:
+            cart = session.get("_cart", [])
+            if cart and len(cart) > 0:
+                real_total = sum(i["price"] * i["qty"] for i in cart)
+                import re as _re2
+                reply_lower = ai_reply.lower()
+                # Find dollar amounts that appear near cart/total words (within ~30 chars)
+                # This catches: "cart total is $189.99", "totaling $189.99", "$189.99 total"
+                cart_total_patterns = [
+                    r'(?:cart|subtotal)\s*(?:total|:)?\s*(?:is|of|:)?\s*\$(\d+(?:\.\d{2})?)',
+                    r'(?:total(?:ing)?|totals?)\s*(?:is|of|:)?\s*\$(\d+(?:\.\d{2})?)',
+                    r'\$(\d+(?:\.\d{2})?)\s*(?:total|in (?:your|the) cart)',
+                ]
+                for pattern in cart_total_patterns:
+                    for match in _re2.finditer(pattern, reply_lower):
+                        try:
+                            mentioned = float(match.group(1))
+                            if abs(mentioned - real_total) > 0.01:
+                                # Find the exact text in original reply and replace
+                                orig_match = _re2.search(pattern, ai_reply, _re2.IGNORECASE)
+                                if orig_match:
+                                    old_text = orig_match.group(0)
+                                    new_text = old_text.replace(f"${orig_match.group(1)}", f"${real_total:.2f}")
+                                    ai_reply = ai_reply.replace(old_text, new_text, 1)
+                        except (ValueError, IndexError):
+                            pass
+    except Exception as _cart_err:
+        print(f"[guardrails] Cart total validation error: {_cart_err}", flush=True)
+
+    # ── Discount code validation ──
+    # Strip fake discount codes the AI may have invented
+    try:
+        import re as _re3
+        promo_data = db.get_promotions(admin_id) if hasattr(db, 'get_promotions') else []
+        real_codes = set()
+        if promo_data:
+            for promo in promo_data:
+                code = (promo.get("code") or promo.get("promo_code") or "").upper()
+                if code:
+                    real_codes.add(code)
+        # Check for code mentions like "code SAVE15" or "use SAVE15"
+        code_mentions = _re3.findall(r'(?:code|coupon|promo)\s+["\']?([A-Z0-9_]{3,20})["\']?', ai_reply, _re3.IGNORECASE)
+        for cm in code_mentions:
+            if cm.upper() not in real_codes and real_codes:
+                # AI invented a code — remove the sentence
+                ai_reply = _re3.sub(r'[^.!?]*\b' + re.escape(cm) + r'\b[^.!?]*[.!?]?', '', ai_reply)
+                ai_reply = ai_reply.strip()
+    except Exception:
+        pass
+
+    # ── Custom guardrails enforcement ──
+    try:
+        guardrails = db.get_guardrails(admin_id)
+        for rule in guardrails:
+            rule_type = rule.get("rule_type", "")
+            rule_value = (rule.get("rule_value") or "").lower()
+            replacement = rule.get("replacement_response", "")
+
+            if rule_type == "block_topic" and rule_value:
+                # Block responses that mention a specific topic
+                if rule_value in ai_reply.lower():
+                    ai_reply = replacement or "I'm not able to help with that topic. Is there something else I can assist you with?"
+                    break
+            elif rule_type == "block_word" and rule_value:
+                # Remove specific words from response
+                import re as _re_g
+                ai_reply = _re_g.sub(r'\b' + re.escape(rule_value) + r'\b', '***', ai_reply, flags=re.IGNORECASE)
+            elif rule_type == "require_disclaimer" and rule_value:
+                # Add disclaimer if topic is mentioned
+                if rule_value in ai_reply.lower() and replacement:
+                    ai_reply += f"\n\n*{replacement}*"
+    except Exception:
+        pass
+
+    # ── Meta-instruction leak filter ──
+    # Strip leaked internal tags and instructions that the AI should never expose
+    try:
+        import re as _re_meta
+        # Remove any remaining [LEAD_SCORE:X] tags
+        ai_reply = _re_meta.sub(r'\s*\[LEAD_SCORE:\d+\]', '', ai_reply)
+        # Remove leaked internal metadata markers
+        ai_reply = _re_meta.sub(r'---\s*(?:INTERNAL METADATA|END METADATA|LEAD_STATE|SCORING_TAG).*?---', '', ai_reply, flags=_re_meta.DOTALL)
+        # Remove references to internal scoring concepts
+        ai_reply = _re_meta.sub(r'\b(?:lead[_ ]?scor(?:e|ing)|LEAD_STATE|SCORING_TAG|lead[_ ]?temperature)\b', '', ai_reply, flags=_re_meta.IGNORECASE)
+        ai_reply = ai_reply.strip()
+    except Exception:
+        pass
+
+    return ai_reply
+
+
+def _search_products(admin_id, query, max_price=None):
+    """Search products by keyword matching against name, category, tags, description.
+    Enforces: category filter (shoes query → only shoes), brand filter (nike query → only nike),
+    and price filter (max_price → only products under that price)."""
+    products = db.get_products(admin_id, "active")
+    if not products:
+        return []
+    # Strip punctuation and normalize
+    query_lower = re.sub(r'[,.:;!?\'\"()\[\]{}]', ' ', query.lower()).strip()
+    query_lower = re.sub(r'\s+', ' ', query_lower)
+    # Remove very generic words that won't help with search
+    generic_words = {"product", "products", "item", "items", "thing", "things", "stuff",
+                     "your", "me", "show", "all", "new", "good", "best", "get", "some",
+                     "looking", "for", "need", "want", "buy", "any", "have", "do", "you",
+                     "am", "is", "are", "the", "a", "an", "i", "it", "to", "in", "on",
+                     "or", "and", "like", "please", "can", "of"}
+    query_words = [w for w in query_lower.split() if len(w) >= 2 and w not in generic_words]
+
+    # If query is too generic (no specific keywords), return all products
+    if not query_words:
+        return products[:6]
+
+    # Detect category intent from query
+    _category_hints = {
+        "shoe": "shoes", "shoes": "shoes", "sneaker": "shoes", "sneakers": "shoes",
+        "boot": "shoes", "boots": "shoes", "sandal": "shoes", "sandals": "shoes",
+        "runner": "shoes", "runners": "shoes", "trainer": "shoes", "trainers": "shoes",
+        "shirt": "clothing", "shirts": "clothing", "tshirt": "clothing", "t-shirt": "clothing",
+        "dress": "clothing", "dresses": "clothing", "jacket": "clothing", "jackets": "clothing",
+        "pants": "clothing", "jeans": "clothing", "hoodie": "clothing", "sweater": "clothing",
+        "top": "clothing", "tops": "clothing", "outfit": "clothing", "apparel": "clothing",
+        "sock": "accessories", "socks": "accessories", "hat": "accessories", "hats": "accessories",
+        "bag": "accessories", "bags": "accessories", "watch": "accessories", "watches": "accessories",
+        "accessory": "accessories", "accessories": "accessories", "belt": "accessories",
+        "bottle": "accessories", "bottles": "accessories",
+        "phone": "electronics", "laptop": "electronics", "headphone": "electronics",
+        "earphone": "electronics", "camera": "electronics", "tablet": "electronics",
+        "electronic": "electronics", "electronics": "electronics", "gadget": "electronics",
+    }
+    _adjective_words = {"running", "walking", "hiking", "training", "casual", "formal",
+                        "sport", "sports", "athletic", "outdoor", "indoor", "winter", "summer",
+                        "men", "mens", "women", "womens", "kids", "baby", "new", "best",
+                        "cheap", "affordable", "premium", "luxury", "lightweight", "heavy",
+                        "comfortable", "comfy", "stylish", "cool", "warm", "waterproof"}
+
+    intended_category = None
+    for word in query_words:
+        if word in _category_hints:
+            intended_category = _category_hints[word]
+            break
+
+    # Detect brand intent — collect all known brands from product catalog
+    product_brands = set()
+    for p in products:
+        b = (p.get("product_brand") or "").lower().strip()
+        if b:
+            product_brands.add(b)
+    intended_brand = None
+    for word in query_words:
+        if word in product_brands:
+            intended_brand = word
+            break
+        # Also try two-word brands like "new balance"
+        for b in product_brands:
+            if b in query_lower:
+                intended_brand = b
+                break
+        if intended_brand:
+            break
+
+    scored = []
+    for p in products:
+        name = (p.get("product_name") or "").lower()
+        cat = (p.get("product_category") or "").lower()
+        tags = (p.get("product_tags") or "").lower()
+        desc = (p.get("product_description") or "").lower()
+        brand = (p.get("product_brand") or "").lower()
+        price = float(p.get("product_price", 0) or 0)
+
+        # ── Hard filters: category, brand, price ──
+        # If user specified a category, EXCLUDE products not in that category
+        if intended_category:
+            if intended_category not in cat and intended_category.rstrip("s") not in cat:
+                continue  # Wrong category — skip entirely
+
+        # If user specified a brand, EXCLUDE products not matching that brand
+        if intended_brand:
+            if intended_brand not in brand and intended_brand not in name.lower():
+                continue  # Wrong brand — skip entirely
+
+        # Price filter
+        if max_price and price > max_price:
+            continue
+
+        # ── Scoring for relevance ranking ──
+        score = 1  # Base score for passing filters
+        for word in query_words:
+            if word in _category_hints or word in _adjective_words:
+                continue  # Don't score category/adjective words — they're filters not differentiators
+            if word in name: score += 10
+            if word in brand: score += 7
+            if word in tags: score += 3
+            if word in desc: score += 1
+
+        scored.append((score, p))
+
+    scored.sort(key=lambda x: -x[0])
+    if not scored:
+        return []  # No matches — don't return random products
+    return [p for _, p in scored[:6]]
+
+
+def _search_listings(admin_id, query, filters=None):
+    """Search property listings by keyword and optional filters."""
+    listings = db.get_property_listings(admin_id, "active")
+    if not listings:
+        return []
+    query_lower = query.lower()
+
+    scored = []
+    for l in listings:
+        score = 0
+        addr = (l.get("listing_address") or "").lower()
+        city = (l.get("listing_city") or "").lower()
+        desc = (l.get("property_description") or "").lower()
+        ltype = (l.get("listing_type") or "").lower()
+        district = (l.get("school_district") or "").lower()
+        amenities = (l.get("nearby_amenities") or "").lower()
+
+        words = query_lower.split()
+        for word in words:
+            if len(word) < 2:
+                continue
+            if word in addr: score += 10
+            if word in city: score += 8
+            if word in ltype: score += 5
+            if word in desc: score += 1
+            if word in district: score += 3
+            if word in amenities: score += 2
+
+        # Filter matching
+        if filters:
+            if filters.get("min_beds") and (l.get("bedrooms", 0) or 0) < filters["min_beds"]:
+                continue
+            if filters.get("max_price") and float(l.get("listing_price", 0) or 0) > filters["max_price"]:
+                continue
+            if filters.get("min_price") and float(l.get("listing_price", 0) or 0) < filters["min_price"]:
+                continue
+            if filters.get("pool") and not l.get("has_pool"):
+                continue
+
+        # If no word match but query is generic, include all
+        if score == 0 and any(w in query_lower for w in ["house", "home", "property", "listing", "condo", "apartment", "show me", "what do you have"]):
+            score = 1
+
+        if score > 0:
+            scored.append((score, l))
+
+    scored.sort(key=lambda x: -x[0])
+    return [l for _, l in scored[:5]]
+
+
+def _handle_product_discovery_step(session, user_message, raw_lower, admin_id, session_id, _reply):
+    """Multi-turn preference elicitation for product discovery.
+    Steps: use_case → budget → show personalized results with comparative framing."""
+    data = session.get("data", {})
+    step = session.get("step", "")
+
+    if re.search(r'\b(cancel|nevermind|never mind|skip|no thanks)\b', raw_lower):
+        session["flow"] = None
+        session["step"] = None
+        return _reply("No problem! Just tell me what you're looking for anytime.")
+
+    if step == "d_use_case":
+        # Extract use case from response
+        data["use_case"] = user_message.strip()
+        session["data"] = data
+        session["step"] = "d_preference"
+        # Ask about style/preference
+        products = db.get_products(admin_id, "active") or []
+        categories = list(set(p.get("product_category", "").strip() for p in products if p.get("product_category", "").strip()))
+        if categories and len(categories) > 1:
+            items = [{"label": c.title(), "value": c} for c in categories[:6]]
+            items.append({"label": "No preference", "value": "no preference"})
+            session["_ui_options"] = {"type": "quick_replies", "items": items}
+            return _reply("Got it! Any particular category or style you prefer?")
+        else:
+            # Skip to budget
+            session["step"] = "d_budget"
+            session["_ui_options"] = {
+                "type": "quick_replies",
+                "items": [
+                    {"label": "Under $50", "value": "under 50"},
+                    {"label": "$50-$100", "value": "50 to 100"},
+                    {"label": "$100-$200", "value": "100 to 200"},
+                    {"label": "No limit", "value": "no limit"},
+                ]
+            }
+            return _reply("What's your budget range?")
+
+    elif step == "d_preference":
+        if "no preference" not in raw_lower:
+            data["preference"] = user_message.strip()
+        session["data"] = data
+        session["step"] = "d_budget"
+        session["_ui_options"] = {
+            "type": "quick_replies",
+            "items": [
+                {"label": "Under $50", "value": "under 50"},
+                {"label": "$50-$100", "value": "50 to 100"},
+                {"label": "$100-$200", "value": "100 to 200"},
+                {"label": "No limit", "value": "no limit"},
+            ]
+        }
+        return _reply("And what's your budget range?")
+
+    elif step == "d_budget":
+        # Parse budget
+        max_price = None
+        min_price = None
+        budget_lower = raw_lower.strip()
+        m = re.search(r'under\s*\$?(\d+)', budget_lower)
+        if m:
+            max_price = float(m.group(1))
+        m = re.search(r'(\d+)\s*(?:to|-)\s*\$?(\d+)', budget_lower)
+        if m:
+            min_price = float(m.group(1))
+            max_price = float(m.group(2))
+        m = re.search(r'over\s*\$?(\d+)', budget_lower)
+        if m:
+            min_price = float(m.group(1))
+        if not max_price and not min_price:
+            m = re.search(r'\$?(\d+)', budget_lower)
+            if m and "no" not in budget_lower and "limit" not in budget_lower:
+                target = float(m.group(1))
+                min_price = target * 0.5
+                max_price = target * 1.3
+
+        # Build search query from collected preferences
+        search_parts = []
+        if data.get("initial_query"):
+            search_parts.append(data["initial_query"])
+        if data.get("use_case"):
+            search_parts.append(data["use_case"])
+        if data.get("preference"):
+            search_parts.append(data["preference"])
+        search_query = " ".join(search_parts) if search_parts else ""
+
+        results = _search_products(admin_id, search_query, max_price=max_price)
+        if min_price and results:
+            results = [p for p in results if float(p.get("product_price", 0) or 0) >= min_price]
+
+        session["flow"] = None
+        session["step"] = None
+
+        if results:
+            store_settings = db.get_store_settings(admin_id)
+            currency = "$"
+            if store_settings and store_settings.get("store_currency"):
+                _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                currency = _cm.get(store_settings["store_currency"], "$")
+            cards = _build_product_cards(results, currency)
+            session["_ui_options"] = {"type": "product_cards", "items": cards, "currency": currency}
+            session["_last_shown_products"] = results
+            session.pop("_scarcity_shown", None)
+            _track_product_views(admin_id, session_id, results, session.get("_prefill_email", ""))
+
+            # Comparative framing — highlight differences between top picks
+            reply = f"Based on your preferences, here are my top **{len(results)}** picks:\n\n"
+            if len(results) >= 2:
+                p1, p2 = results[0], results[1]
+                p1_price = float(p1.get("product_price", 0) or 0)
+                p2_price = float(p2.get("product_price", 0) or 0)
+                p1_rating = float(p1.get("product_rating", 0) or 0)
+                p2_rating = float(p2.get("product_rating", 0) or 0)
+                if p1_rating >= 4.0 and p1_rating > p2_rating:
+                    reply += f"**{p1['product_name']}** ({currency}{p1_price:.2f}) — highest rated at {p1_rating} stars\n"
+                if p2_price < p1_price:
+                    reply += f"**{p2['product_name']}** ({currency}{p2_price:.2f}) — best value option\n"
+                elif p2_price > p1_price:
+                    reply += f"**{p2['product_name']}** ({currency}{p2_price:.2f}) — premium choice\n"
+            reply += "\nTap any product to see details or add to cart!"
+            return _reply(reply)
+        else:
+            session["_ui_options"] = {
+                "type": "quick_replies",
+                "items": [
+                    {"label": "Show All Products", "value": "show me all products"},
+                    {"label": "Try Different Criteria", "value": "help me find a product"},
+                ]
+            }
+            return _reply("I couldn't find products matching all your criteria. Would you like to see all our products or try different preferences?")
+
+    # Fallback — clear flow
+    session["flow"] = None
+    session["step"] = None
+    return None
+
+
+def _handle_product_qualification(session, user_message, raw_lower, admin_id, _reply):
+    """Multi-step product qualification: budget → show filtered results."""
+    data = session.get("data", {})
+    step = session.get("step", "")
+    search_query = data.get("search_query", "")
+    product_type = data.get("product_type", "product")
+
+    if step == "get_budget":
+        # Parse budget from response
+        max_price = None
+        min_price = None
+
+        # Quick reply values: "under 30", "30 to 75", "75 to 150", "over 150", "no limit"
+        budget_lower = raw_lower.strip()
+        m = re.search(r'under\s*\$?(\d+)', budget_lower)
+        if m:
+            max_price = float(m.group(1))
+        m = re.search(r'(\d+)\s*(?:to|-)\s*\$?(\d+)', budget_lower)
+        if m:
+            min_price = float(m.group(1))
+            max_price = float(m.group(2))
+        m = re.search(r'over\s*\$?(\d+)', budget_lower)
+        if m:
+            min_price = float(m.group(1))
+        m = re.search(r'(?:around|about|roughly)\s*\$?(\d+)', budget_lower)
+        if m:
+            target = float(m.group(1))
+            min_price = target * 0.7
+            max_price = target * 1.3
+        # Direct number: "$80", "80", "80 dollars"
+        if not max_price and not min_price:
+            m = re.search(r'\$?(\d+)', budget_lower)
+            if m and "no" not in budget_lower and "limit" not in budget_lower:
+                target = float(m.group(1))
+                min_price = target * 0.5
+                max_price = target * 1.3
+
+        data["max_price"] = max_price
+        data["min_price"] = min_price
+
+        # Search with budget filter
+        results = _search_products(admin_id, search_query, max_price=max_price)
+        if min_price and results:
+            results = [p for p in results if float(p.get("product_price", 0) or 0) >= min_price]
+
+        # Clear flow
+        session["flow"] = None
+        session["step"] = None
+        session["_skip_qualify"] = True  # Don't re-qualify on next search
+
+        if results:
+            store_settings = db.get_store_settings(admin_id)
+            currency = "$"
+            if store_settings and store_settings.get("store_currency"):
+                currency_map = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                currency = currency_map.get(store_settings["store_currency"], "$")
+            cards = _build_product_cards(results, currency)
+            session["_ui_options"] = {"type": "product_cards", "items": cards, "currency": currency}
+
+            # Contextual reply
+            budget_desc = ""
+            if max_price and not min_price:
+                budget_desc = f" under **{currency}{max_price:.0f}**"
+            elif min_price and max_price:
+                budget_desc = f" between **{currency}{min_price:.0f}-{currency}{max_price:.0f}**"
+
+            best_rated = max(results, key=lambda p: float(p.get("product_rating", 0) or 0))
+            low_stock = [r for r in results if int(r.get("inventory_quantity", 99) or 99) <= 5]
+
+            reply = f"Here are **{len(results)} {product_type}** options{budget_desc}:"
+            if float(best_rated.get("product_rating", 0) or 0) >= 4.0:
+                reply += f"\n⭐ **{best_rated['product_name']}** is our top-rated pick ({best_rated.get('product_rating')} stars, {best_rated.get('product_review_count', 0)} reviews)!"
+            if low_stock:
+                reply += f"\n⚡ **{low_stock[0]['product_name']}** — only {int(low_stock[0].get('inventory_quantity', 0) or 0)} left!"
+            reply += "\nTap a product to see details or add to cart."
+            return _reply(reply)
+        else:
+            # No results — differentiate "not in catalog" vs "budget too low"
+            all_products = db.get_products(admin_id, "active")
+            if all_products:
+                prices = sorted([float(p.get("product_price", 0) or 0) for p in all_products if float(p.get("product_price", 0) or 0) > 0])
+                # If no budget was set (user said "no limit" or no price constraint), the product simply doesn't exist
+                if not max_price and not min_price:
+                    session["_ui_options"] = {
+                        "type": "quick_replies",
+                        "items": [
+                            {"label": "Show All Products", "value": "show me all products"},
+                            {"label": "Browse Categories", "value": "what categories do you have"},
+                        ]
+                    }
+                    return _reply(f"We don't currently carry **{product_type}** in our store. Would you like to see what we do have?")
+                else:
+                    price_hint = ""
+                    if prices:
+                        price_hint = f" Our products range from ${prices[0]:.0f} to ${prices[-1]:.0f}."
+                    session["_ui_options"] = {
+                        "type": "quick_replies",
+                        "items": [
+                            {"label": "Show All Products", "value": "show me all products"},
+                            {"label": "Try Without Budget", "value": f"show me {product_type} no budget limit"},
+                        ]
+                    }
+                    return _reply(f"No {product_type} found in that price range.{price_hint} Would you like to see all products or try without a budget limit?")
+            return _reply(f"We don't have any {product_type} right now.")
+
+    # Fallback: clear flow
+    session["flow"] = None
+    session["step"] = None
+    return None
+
+
+def _handle_ecommerce_intents(session, user_message, raw_lower, lower, admin_id, session_id, _reply):
+    """Handle e-commerce-specific intents: ONLY cart/checkout actions.
+    All conversation and product discovery is handled by Groq AI."""
+
+    # ── Ongoing checkout collection flow ──
+    if session.get("flow") == "checkout_collect":
+        data = session.get("data", {})
+        step = session.get("step", "")
+
+        if re.search(r'\b(cancel|nevermind|never mind)\b', raw_lower):
+            session["flow"] = None
+            session["step"] = None
+            return _reply("Checkout cancelled. Your cart is still saved — just say 'checkout' when you're ready!")
+
+        if step == "c_name":
+            name = user_message.strip()
+            if len(name) < 2:
+                return _reply("Please enter your full name.")
+            session["_prefill_name"] = name
+            data["name"] = name
+            session["data"] = data
+            if session.get("_prefill_email"):
+                session["step"] = "c_address"
+                return _reply(f"Thanks, {name}! What's your **shipping address**?")
+            else:
+                session["step"] = "c_email"
+                return _reply(f"Thanks, {name}! What's the best **email** for your order confirmation?")
+
+        elif step == "c_email":
+            email_match = re.search(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', user_message)
+            if not email_match:
+                return _reply("Please enter a valid email address.")
+            email = email_match.group()
+            session["_prefill_email"] = email
+            data["email"] = email
+            session["data"] = data
+            session["step"] = "c_address"
+            return _reply(f"Got it! What's your **shipping address**?")
+
+        elif step == "c_address":
+            address = user_message.strip()
+            if len(address) < 5:
+                return _reply("Please enter your full shipping address.")
+            data["shipping_address"] = address
+            session["data"] = data
+
+            # All info collected — create the order
+            cart = session.get("_cart", [])
+            if not cart:
+                session["flow"] = None
+                session["step"] = None
+                return _reply("It looks like your cart is empty. Let me help you find something!")
+
+            name = session.get("_prefill_name", data.get("name", ""))
+            email = session.get("_prefill_email", data.get("email", ""))
+            phone = session.get("_prefill_phone", data.get("phone", ""))
+            final_total = data.get("_checkout_total", sum(i["price"] * i["qty"] for i in cart))
+            currency = data.get("_checkout_currency", "$")
+
+            try:
+                import secrets as _secrets
+                order_num = f"CG-{_secrets.token_hex(4).upper()}"
+                db.create_ecom_order(
+                    admin_id=admin_id,
+                    order_number=order_num,
+                    customer_name=name,
+                    customer_email=email,
+                    customer_phone=phone,
+                    order_status="pending",
+                    order_total=final_total,
+                    items_json=__import__("json").dumps(cart),
+                    shipping_address=address,
+                    payment_method="manual",
+                    payment_status="pending",
+                    notes="Chatbot checkout",
+                )
+                db.upsert_ecom_customer(admin_id, email, name, phone, final_total)
+
+                # ── Revenue attribution: track chatbot-influenced purchase ──
+                try:
+                    touchpoints = []
+                    history = session.get("history", [])
+                    for h in history[-10:]:
+                        touchpoints.append({"type": "message", "ts": str(datetime.now())})
+                    for item in cart:
+                        db.record_revenue_event(
+                            admin_id=admin_id, session_id=session_id,
+                            event_type="purchase", event_value=item["price"] * item["qty"],
+                            product_id=item.get("id", 0), product_name=item.get("name", ""),
+                            order_number=order_num, customer_email=email,
+                            touchpoints=touchpoints
+                        )
+                        # Update interest scoring
+                        db.update_customer_interest(admin_id, email, item.get("category", ""), "purchase")
+                        # Record purchase for replenishment tracking
+                        db.record_purchase(
+                            admin_id, email,
+                            product_id=item.get("id", 0),
+                            product_name=item.get("name", ""),
+                            product_category=item.get("category", ""),
+                            quantity=item.get("qty", 1)
+                        )
+                except Exception as _rev_err:
+                    print(f"[revenue] Attribution error: {_rev_err}", flush=True)
+
+                # Save purchased items for size fit feedback collection
+                if session.get("_size_fit_profile_exists"):
+                    session["_pending_fit_feedback"] = [
+                        {"id": i.get("id", 0), "name": i.get("name", ""), "category": i.get("category", "")}
+                        for i in cart if i.get("category", "").lower() in ("clothing", "shoes", "apparel", "fashion", "accessories")
+                    ]
+
+                # Increment discount usage on successful order
+                if session.get("_discount_id"):
+                    try:
+                        db.increment_discount_usage(session["_discount_id"])
+                    except Exception:
+                        pass
+                    session.pop("_discount_id", None)
+
+                session["_cart"] = []
+                session.pop("_bundle_offered", None)
+                session["flow"] = None
+                session["step"] = None
+
+                reply = (
+                    f"Order **#{order_num}** placed successfully!\n\n"
+                    f"**Name:** {name}\n"
+                    f"**Email:** {email}\n"
+                    f"**Ship to:** {address}\n"
+                    f"**Total:** {currency}{final_total:.2f}\n\n"
+                    "You'll receive a confirmation email shortly. Thank you!"
+                )
+                return _reply(reply)
+            except Exception as e:
+                print(f"[ecom] Checkout order failed: {e}", flush=True)
+                session["flow"] = None
+                session["step"] = None
+                return _reply("Something went wrong placing your order. Please try again or contact support.")
+
+    # ── Clear any legacy flows — AI handles everything now ──
+    if session.get("flow") in ("product_discover", "product_qualify"):
+        session["flow"] = None
+        session["step"] = None
+
+    # ── Cross-session memory: welcome back returning customers ──
+    if not session.get("_welcomed_back"):
+        customer_key = (session.get("_prefill_email") or "").strip().lower()
+        if customer_key:
+            try:
+                prev_memory = db.get_chat_memory(admin_id, customer_key)
+                session["_welcomed_back"] = True  # Always set to prevent repeat DB queries
+                if prev_memory and prev_memory.get("message_count", 0) > 2:
+                    welcome_parts = []
+                    if prev_memory.get("last_products_viewed"):
+                        viewed = prev_memory["last_products_viewed"]
+                        welcome_parts.append(f"Last time you were looking at: **{viewed}**")
+                    if prev_memory.get("preferences"):
+                        welcome_parts.append(f"Your preferences: {prev_memory['preferences']}")
+                    # Only show welcome-back on greeting-like messages
+                    if re.search(r'\b(hi|hello|hey|good\s+(morning|afternoon|evening)|what\'s up)\b', raw_lower):
+                        wb_msg = "Welcome back! Great to see you again."
+                        if welcome_parts:
+                            wb_msg += "\n\n" + "\n".join(welcome_parts)
+                        wb_msg += "\n\nHow can I help you today?"
+                        return _reply(wb_msg)
+            except Exception:
+                session["_welcomed_back"] = True  # Prevent retry on error too
+
+    # ── Pending variant selection (size/color pick) ──
+    if session.get("_pending_variant_product"):
+        pending = session["_pending_variant_product"]
+        steps = session.get("_pending_variant_step", [])
+        selected = session.get("_pending_variant_selected", {})
+        options_map = session.get("_pending_variant_options", {})
+
+        # Cancel detection
+        if re.search(r'\b(cancel|nevermind|never mind|no thanks|nah)\b', raw_lower):
+            session.pop("_pending_variant_product", None)
+            session.pop("_pending_variant_step", None)
+            session.pop("_pending_variant_selected", None)
+            session.pop("_pending_variant_options", None)
+            return _reply("No problem! Let me know if you'd like anything else.")
+
+        # Find which option we're currently asking for
+        current_option = None
+        for step_name in steps:
+            if step_name not in selected:
+                current_option = step_name
+                break
+
+        if current_option:
+            # User's reply is the value for this option
+            user_val = user_message.strip()
+            # Try to match against valid values (case-insensitive)
+            valid_values = options_map.get(current_option, [])
+            matched_val = None
+            for v in valid_values:
+                if v.lower() == user_val.lower():
+                    matched_val = v
+                    break
+            if not matched_val:
+                # Partial match
+                for v in valid_values:
+                    if user_val.lower() in v.lower() or v.lower() in user_val.lower():
+                        matched_val = v
+                        break
+            if not matched_val:
+                session["_ui_options"] = {
+                    "type": "quick_replies",
+                    "items": [{"label": v, "value": v} for v in valid_values]
+                }
+                return _reply(f"Please pick a valid **{current_option}**: {', '.join(valid_values)}")
+
+            selected[current_option] = matched_val
+            session["_pending_variant_selected"] = selected
+
+            # Check if there are more options to ask
+            next_option = None
+            for step_name in steps:
+                if step_name not in selected:
+                    next_option = step_name
+                    break
+
+            if next_option:
+                values = options_map[next_option]
+                session["_ui_options"] = {
+                    "type": "quick_replies",
+                    "items": [{"label": v, "value": v} for v in values]
+                }
+                return _reply(f"Got it, **{current_option}: {matched_val}**! Which **{next_option}** would you like?")
+
+            # All options selected — find the matching variant and add to cart
+            variants = db.get_product_variants(pending["id"])
+            matched_variant = None
+            for v in variants:
+                match = True
+                for opt_name, opt_val in selected.items():
+                    found_in_variant = False
+                    for i in range(1, 4):
+                        vname = (v.get(f"option_{i}_name") or "").strip()
+                        vval = (v.get(f"option_{i}_value") or "").strip()
+                        if vname.lower() == opt_name.lower() and vval.lower() == opt_val.lower():
+                            found_in_variant = True
+                            break
+                    if not found_in_variant:
+                        match = False
+                        break
+                if match:
+                    matched_variant = v
+                    break
+
+            # Clear pending state
+            session.pop("_pending_variant_product", None)
+            session.pop("_pending_variant_step", None)
+            session.pop("_pending_variant_selected", None)
+            session.pop("_pending_variant_options", None)
+
+            variant_label = ", ".join(f"{k}: {v}" for k, v in selected.items())
+            if not matched_variant:
+                return _reply(f"Sorry, the combination **{variant_label}** isn't available for **{pending['product_name']}**. Want to try a different option?")
+            price = float(matched_variant.get("variant_price", 0)) if float(matched_variant.get("variant_price", 0)) > 0 else float(pending.get("product_price", 0))
+            ext_id = (matched_variant.get("variant_sku") or matched_variant.get("variant_barcode") if matched_variant else None) or pending.get("product_id") or pending.get("product_barcode") or str(pending.get("id", ""))
+
+            cart = session.get("_cart", [])
+            cart_key = f"{pending['id']}_{variant_label}"
+            found = False
+            for item in cart:
+                if item.get("_cart_key") == cart_key:
+                    item["qty"] += 1
+                    found = True
+                    break
+            if not found:
+                cart.append({
+                    "id": pending["id"],
+                    "_cart_key": cart_key,
+                    "name": f"{pending['product_name']} ({variant_label})",
+                    "price": price,
+                    "qty": 1,
+                    "external_id": ext_id,
+                    "url": pending.get("product_url") or "",
+                    "category": pending.get("product_category") or "",
+                    "variant_options": selected,
+                })
+            session["_cart"] = cart
+            cart_total = sum(i["price"] * i["qty"] for i in cart)
+
+            store_settings = db.get_store_settings(admin_id)
+            currency = "$"
+            if store_settings and store_settings.get("store_currency"):
+                currency_map = {"USD": "$", "EUR": "€", "GBP": "£", "SAR": "SAR ", "AED": "AED "}
+                currency = currency_map.get(store_settings["store_currency"], "$")
+
+            reply_text = f"Added **{pending['product_name']}** ({variant_label}) to your cart! Cart total: **{currency}{cart_total:.2f}**"
+
+            session["_ui_options"] = {
+                "type": "quick_replies",
+                "items": [
+                    {"label": "View Cart", "value": "View my cart"},
+                    {"label": "Checkout", "value": "I want to checkout"},
+                    {"label": "Continue Shopping", "value": "Show me more products"}
+                ]
+            }
+            return _reply(reply_text)
+
+    # ── Proactive payment failure detection ──
+    # Check if the user's most recent checkout failed (set by Stripe webhook)
+    if not session.get("_payment_failed_checked"):
+        try:
+            recent_checkout = db.get_stripe_checkout_by_session(session_id)
+            if recent_checkout and recent_checkout.get("status") == "failed":
+                session["_payment_failed"] = True
+                session["_payment_failed_checked"] = True
+        except Exception:
+            pass
+
+    # ── Add to cart ──
+    add_to_cart_match = re.search(r'\b(add|put)\b.*\b(cart|basket)\b', raw_lower)
+    # Also detect implicit add-to-cart: "add the coffee", "can I also add it" when cart exists
+    if not add_to_cart_match and re.search(r'\b(add|put)\b\s+(?:the|this|that|it|some|a)\b', raw_lower):
+        add_to_cart_match = True
+    if add_to_cart_match:
+        # Try to identify which product
+        products = db.get_products(admin_id, "active")
+        if products:
+            # Try matching product name from message
+            matched = None
+            for p in products:
+                pname = (p.get("product_name") or "").lower()
+                if pname and pname in raw_lower:
+                    matched = p
+                    break
+            if not matched:
+                # Fuzzy: match any word overlap
+                _stop = {"to", "the", "a", "an", "my", "add", "put", "cart", "basket",
+                         "in", "it", "this", "that", "i", "can", "also", "please",
+                         "some", "one", "get", "want", "like", "of", "and", "or", "for"}
+                best_overlap = 0
+                for p in products:
+                    pname = (p.get("product_name") or "").lower()
+                    pdesc = (p.get("product_description") or "").lower()
+                    ptext_words = set(pname.split()) | set(pdesc.split())
+                    # Expand product words with stems
+                    ptext_stems = set()
+                    for w in ptext_words:
+                        ptext_stems.add(w)
+                        if w.endswith("s") and len(w) > 3:
+                            ptext_stems.add(w[:-1])
+                        if not w.endswith("s"):
+                            ptext_stems.add(w + "s")
+                    msg_words = set(raw_lower.split())
+                    # Expand message words with stems
+                    msg_stems = set()
+                    for w in msg_words:
+                        msg_stems.add(w)
+                        if w.endswith("s") and len(w) > 3:
+                            msg_stems.add(w[:-1])
+                        if w.endswith("es") and len(w) > 4:
+                            msg_stems.add(w[:-2])
+                        if w.endswith("ing") and len(w) > 5:
+                            msg_stems.add(w[:-3])
+                        if not w.endswith("s"):
+                            msg_stems.add(w + "s")
+                    overlap = ptext_stems & msg_stems - _stop
+                    pname_words = set((p.get("product_name") or "").lower().split())
+                    if len(overlap) >= 2 or (len(pname_words) <= 2 and overlap) or (len(overlap) >= 1 and len(overlap) > best_overlap):
+                        if len(overlap) > best_overlap:
+                            best_overlap = len(overlap)
+                            matched = p
+
+            # Fallback 1: check session's last discussed product
+            if not matched:
+                last_pid = session.get("_last_discussed_product_id")
+                if last_pid:
+                    matched = next((p for p in products if p.get("id") == last_pid), None)
+
+            # Fallback 2: scan recent conversation history for product mentions
+            if not matched:
+                history = session.get("history", [])
+                recent = history[-6:] if len(history) > 6 else history
+                for msg in reversed(recent):
+                    msg_text = (str(msg.get("content", "") if isinstance(msg, dict) else msg)).lower()
+                    for p in products:
+                        pname = (p.get("product_name") or "").lower()
+                        if pname and pname in msg_text:
+                            matched = p
+                            break
+                    if matched:
+                        break
+
+            if matched:
+                product_page_url = (matched.get("product_url") or "").strip()
+                store_settings = db.get_store_settings(admin_id)
+                currency = "$"
+                if store_settings and store_settings.get("store_currency"):
+                    currency_map = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                    currency = currency_map.get(store_settings["store_currency"], "$")
+                price = float(matched.get("product_price", 0))
+
+                # Track interest + revenue event
+                try:
+                    customer_key = (session.get("_prefill_email") or session_id or "").lower()
+                    db.update_customer_interest(admin_id, customer_key, matched.get("product_category", ""), "cart")
+                    db.record_revenue_event(admin_id, session_id, "add_to_cart",
+                                            float(matched.get("product_price", 0)),
+                                            matched["id"], matched["product_name"],
+                                            customer_email=session.get("_prefill_email", ""))
+                except Exception:
+                    pass
+
+                # Determine cart integration mode
+                cart_mode = (store_settings.get("cart_integration_mode") or "product_link") if store_settings else "product_link"
+                # Fall back to product_link if native_cart integration not completed
+                if cart_mode == "native_cart" and store_settings and not store_settings.get("cart_integration_done"):
+                    cart_mode = "product_link"
+
+                # ── Mode: native_cart (enterprise) — add to in-chat cart, postMessage syncs to store ──
+                if cart_mode == "native_cart":
+                    # Check if product has variants — ask before adding
+                    variants = db.get_product_variants(matched["id"])
+                    if variants and not session.get("_pending_variant_product"):
+                        option_groups = {}
+                        for v in variants:
+                            for i in range(1, 4):
+                                oname = (v.get(f"option_{i}_name") or "").strip()
+                                oval = (v.get(f"option_{i}_value") or "").strip()
+                                if oname and oval:
+                                    option_groups.setdefault(oname, set()).add(oval)
+                        if option_groups:
+                            session["_pending_variant_product"] = matched
+                            session["_pending_variant_options"] = {k: sorted(v) for k, v in option_groups.items()}
+                            session["_pending_variant_step"] = list(option_groups.keys())
+                            session["_pending_variant_selected"] = {}
+                            first_option = session["_pending_variant_step"][0]
+                            values = session["_pending_variant_options"][first_option]
+                            session["_ui_options"] = {
+                                "type": "quick_replies",
+                                "items": [{"label": v, "value": v} for v in values]
+                            }
+                            return _reply(f"Great choice! **{matched['product_name']}** — which **{first_option}** would you like?")
+
+                    cart = session.get("_cart", [])
+                    found = False
+                    for item in cart:
+                        if item["id"] == matched["id"]:
+                            item["qty"] += 1
+                            found = True
+                            break
+                    if not found:
+                        cart.append({
+                            "id": matched["id"],
+                            "name": matched["product_name"],
+                            "price": float(matched.get("product_price", 0)),
+                            "qty": 1,
+                            "external_id": matched.get("product_id") or matched.get("product_barcode") or str(matched.get("id", "")),
+                            "url": matched.get("product_url") or "",
+                            "category": matched.get("product_category") or "",
+                        })
+                    session["_cart"] = cart
+                    cart_total = sum(i["price"] * i["qty"] for i in cart)
+                    reply_text = f"Added **{matched['product_name']}** to your cart! Cart total: **{currency}{cart_total:.2f}**"
+
+                    # Free shipping threshold
+                    free_threshold = 0
+                    if store_settings:
+                        try:
+                            free_threshold = float(store_settings.get("free_shipping_threshold", 0) or 0)
+                        except Exception:
+                            pass
+                    if free_threshold > 0:
+                        if cart_total >= free_threshold:
+                            reply_text += f"\nYou qualify for **FREE shipping**!"
+                        else:
+                            remaining = free_threshold - cart_total
+                            reply_text += f"\nYou're **{currency}{remaining:.2f}** away from **FREE shipping**!"
+
+                    session["_ui_options"] = {
+                        "type": "quick_replies",
+                        "items": [
+                            {"label": "View Cart", "value": "View my cart"},
+                            {"label": "Checkout", "value": "I want to checkout"},
+                            {"label": "Continue Shopping", "value": "Show me more products"}
+                        ]
+                    }
+                    return _reply(reply_text)
+
+                # ── Mode: product_link (default) — redirect to product page ──
+                if product_page_url:
+                    reply_text = f"Great choice! **{matched['product_name']}** — **{currency}{price:.2f}**\n\nYou can view the product and add it to your cart here:"
+                    session["_ui_options"] = {
+                        "type": "quick_replies",
+                        "items": [
+                            {"label": "View Product Page", "value": product_page_url, "url": product_page_url},
+                            {"label": "Browse More", "value": "Show me more products"}
+                        ]
+                    }
+                    return _reply(reply_text)
+                else:
+                    return _reply(f"Great choice! **{matched['product_name']}** — **{currency}{price:.2f}**\n\nPlease visit our store to add this item to your cart and complete your purchase. You can ask me about any other products!")
+
+            else:
+                return _reply("Which product would you like to add? Let me show you our available products.")
+
+    # ── View cart ──
+    _cart_view = (
+        re.search(r'\b(view|show|see|what.s|check)\b.*\b(cart|basket)\b', raw_lower) or
+        re.search(r'\b(cart|basket)\s*(total|summary|items)\b', raw_lower) or
+        (re.search(r'\b(my|the|cart)\b.*\btotal\b', raw_lower) and "cart" in raw_lower) or
+        raw_lower in ("cart", "my cart", "basket")
+    )
+    if _cart_view:
+        cart = session.get("_cart", [])
+        if cart:
+            store_settings = db.get_store_settings(admin_id)
+            currency = "$"
+            if store_settings and store_settings.get("store_currency"):
+                _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                currency = _cm.get(store_settings["store_currency"], "$")
+            session["_ui_options"] = {"type": "cart_summary", "items": cart, "currency": currency}
+            cart_total = sum(i["price"] * i["qty"] for i in cart)
+            cart_lines = [f"- **{i['name']}** x{i['qty']} — {currency}{i['price']*i['qty']:.2f}" for i in cart]
+            cart_text = "Here's what's in your cart:\n" + "\n".join(cart_lines) + f"\n\n**Total: {currency}{cart_total:.2f}**"
+
+            # ── Bundle offer: only if configured by store owner ──
+            _bundle_enabled = False
+            bundle_discount_pct = 10
+            bundle_min_items = 3
+            if store_settings and store_settings.get("bundle_enabled"):
+                _bundle_enabled = True
+                bundle_discount_pct = float(store_settings.get("bundle_discount_pct", 10) or 10)
+                bundle_min_items = int(store_settings.get("bundle_min_items", 3) or 3)
+            if _bundle_enabled and len(cart) >= 2 and not session.get("_bundle_offered"):
+                if len(cart) >= bundle_min_items:
+                    bundle_savings = cart_total * bundle_discount_pct / 100
+                    bundle_total = cart_total - bundle_savings
+                    cart_text += f"\n\n**Bundle Deal!** Buy all {len(cart)} items together and save **{int(bundle_discount_pct)}%** — pay only **{currency}{bundle_total:.2f}** (save {currency}{bundle_savings:.2f})!"
+                    session["_bundle_offered"] = True
+                else:
+                    # Suggest adding one more for bundle
+                    cart_ids = {i["id"] for i in cart}
+                    products = db.get_products(admin_id, "active") or []
+                    extras = [p for p in products if p["id"] not in cart_ids]
+                    if extras:
+                        # Pick cheapest extra to complete bundle
+                        extras.sort(key=lambda p: float(p.get("product_price", 0) or 0))
+                        cheapest = extras[0]
+                        cp = float(cheapest.get("product_price", 0))
+                        new_total = cart_total + cp
+                        bundle_savings = new_total * bundle_discount_pct / 100
+                        cart_text += f"\n\nAdd **{cheapest['product_name']}** ({currency}{cp:.2f}) and get **{bundle_discount_pct}% off** your entire order — save {currency}{bundle_savings:.2f}!"
+
+            return _reply(cart_text)
+        else:
+            session["_ui_options"] = {
+                "type": "quick_replies",
+                "items": [
+                    {"label": "Browse Products", "value": "Show me your products"},
+                    {"label": "New Arrivals", "value": "Show me new arrivals"},
+                    {"label": "Best Sellers", "value": "What are your best sellers"}
+                ]
+            }
+            return _reply("Your cart is empty! Would you like to browse our products?")
+
+    # ── Remove from cart ──
+    remove_cart_match = re.search(
+        r'\b(remove|delete|take out|drop)\b.*\b(from\s+(?:my\s+)?(?:cart|basket)|cart|basket)\b', raw_lower
+    )
+    if not remove_cart_match:
+        remove_cart_match = re.search(r'\b(?:cart|basket)\b.*\b(remove|delete|take out|drop)\b', raw_lower)
+    if remove_cart_match:
+        cart = session.get("_cart", [])
+        if cart:
+            # Try to find which product to remove
+            removed = None
+            for i, item in enumerate(cart):
+                iname = (item.get("name") or "").lower()
+                if iname and iname in raw_lower:
+                    removed = cart.pop(i)
+                    break
+            if not removed:
+                # Check last shown products
+                last_shown = session.get("_last_shown_products", [])
+                for ls in last_shown:
+                    lsname = (ls.get("product_name") or "").lower()
+                    if lsname:
+                        for i, item in enumerate(cart):
+                            if (item.get("name") or "").lower() == lsname or item.get("id") == ls.get("id"):
+                                removed = cart.pop(i)
+                                break
+                    if removed:
+                        break
+            if not removed and len(cart) == 1:
+                # Only one item — remove it
+                removed = cart.pop(0)
+            session["_cart"] = cart
+            if removed:
+                store_settings = db.get_store_settings(admin_id)
+                currency = "$"
+                if store_settings and store_settings.get("store_currency"):
+                    _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                    currency = _cm.get(store_settings["store_currency"], "$")
+                cart_total = sum(i["price"] * i["qty"] for i in cart)
+                if cart:
+                    return _reply(f"Removed **{removed['name']}** from your cart. Cart total: **{currency}{cart_total:.2f}**")
+                else:
+                    return _reply(f"Removed **{removed['name']}**. Your cart is now empty.")
+            else:
+                items_list = "\n".join(f"{i+1}. {item['name']}" for i, item in enumerate(cart))
+                return _reply(f"Which item would you like to remove?\n{items_list}")
+        else:
+            return _reply("Your cart is already empty!")
+
+    # ── Clear / empty cart ──
+    if re.search(r'\b(clear|empty|reset)\b.*\b(cart|basket)\b', raw_lower):
+        cart = session.get("_cart", [])
+        if cart:
+            count = len(cart)
+            session["_cart"] = []
+            session.pop("_bundle_offered", None)
+            session.pop("_discount_code", None)
+            return _reply(f"Cart cleared! Removed {count} item(s). Ready to start fresh?")
+        return _reply("Your cart is already empty!")
+
+    # ── Update cart quantity ──
+    qty_match = re.search(
+        r'\b(?:change|update|set)\b.*\b(?:quantity|qty)\b.*\b(\d+)\b', raw_lower
+    )
+    if not qty_match:
+        qty_match = re.search(r'\b(?:i want|make it|change to)\s+(\d+)\b.*\b(?:cart|basket|of)\b', raw_lower)
+    if qty_match:
+        new_qty = int(qty_match.group(1))
+        cart = session.get("_cart", [])
+        if cart:
+            # Find target item
+            target = None
+            for item in cart:
+                iname = (item.get("name") or "").lower()
+                if iname and iname in raw_lower:
+                    target = item
+                    break
+            if not target and len(cart) == 1:
+                target = cart[0]
+            if target:
+                if new_qty <= 0:
+                    cart = [i for i in cart if i is not target]
+                    session["_cart"] = cart
+                    return _reply(f"Removed **{target['name']}** from your cart.")
+                target["qty"] = new_qty
+                session["_cart"] = cart
+                store_settings = db.get_store_settings(admin_id)
+                currency = "$"
+                if store_settings and store_settings.get("store_currency"):
+                    _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                    currency = _cm.get(store_settings["store_currency"], "$")
+                cart_total = sum(i["price"] * i["qty"] for i in cart)
+                return _reply(f"Updated **{target['name']}** to qty {new_qty}. Cart total: **{currency}{cart_total:.2f}**")
+
+    # ── Payment Failure Recovery ──
+    is_payment_retry = re.search(r'\b(payment failed|card declined|try again|retry payment|different card|another card|payment issue|pay again)\b', raw_lower)
+    if is_payment_retry or session.get("_payment_failed"):
+        cart = session.get("_cart", [])
+        # Check if there's a recent failed checkout for this session
+        failed_checkout = db.get_stripe_checkout_by_session(session_id)
+        if failed_checkout and failed_checkout.get("status") == "failed":
+            failure_reason = failed_checkout.get("failure_reason", "Payment could not be processed")
+            failure_code = failed_checkout.get("failure_code", "")
+            session.pop("_payment_failed", None)
+
+            if not cart:
+                # Restore cart from failed checkout
+                try:
+                    import json as _json
+                    cart = _json.loads(failed_checkout.get("cart_items") or "[]")
+                    if cart:
+                        session["_cart"] = cart
+                except Exception:
+                    pass
+
+            if cart:
+                # Offer recovery options based on failure type
+                store_settings = db.get_store_settings(admin_id)
+                currency = "$"
+                if store_settings and store_settings.get("store_currency"):
+                    _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                    currency = _cm.get(store_settings["store_currency"], "$")
+                cart_total = sum(i["price"] * i["qty"] for i in cart)
+
+                recovery_msg = f"It looks like your previous payment didn't go through. **{failure_reason}.**\n\n"
+                recovery_msg += f"Your cart (**{currency}{cart_total:.2f}**) is still saved. "
+
+                if failure_code in ("insufficient_funds",):
+                    recovery_msg += "You could try a different card or payment method."
+                elif failure_code in ("incorrect_cvc", "incorrect_number"):
+                    recovery_msg += "Please double-check your card details and try again."
+                elif failure_code in ("expired_card",):
+                    recovery_msg += "Please use a different card that hasn't expired."
+                else:
+                    recovery_msg += "Would you like to try again with the same or a different payment method?"
+
+                session["_ui_options"] = {
+                    "type": "quick_replies",
+                    "items": [
+                        {"label": "Try Again", "value": "checkout"},
+                        {"label": "Use Different Card", "value": "checkout"},
+                        {"label": "View My Cart", "value": "show my cart"},
+                    ]
+                }
+                return _reply(recovery_msg)
+            else:
+                return _reply("It seems your previous payment didn't go through, but your cart is empty now. Would you like to browse our products?")
+        elif is_payment_retry and cart:
+            # No failed checkout record but user mentions payment issues — redirect to checkout
+            pass  # Fall through to normal checkout handler below
+
+    # ── Checkout ──
+    if re.search(r'\b(checkout|check out|place order|complete purchase|buy now|ready to pay|try again|retry payment)\b', raw_lower):
+        session["_checkout_attempts"] = session.get("_checkout_attempts", 0) + 1
+        # Inline fraud check: flag rapid checkout attempts immediately
+        if session.get("_checkout_attempts", 0) > 3 and not session.get("_fraud_rapid_flagged"):
+            session["_fraud_rapid_flagged"] = True
+            session["_fraud_score"] = session.get("_fraud_score", 0) + 30
+            try:
+                db.record_fraud_signal(admin_id, session_id, "rapid_checkout",
+                                       f"Attempted checkout {session['_checkout_attempts']} times",
+                                       30, session.get("_prefill_email", ""))
+            except Exception:
+                pass
+            if session["_fraud_score"] >= 70:
+                session["_fraud_blocked"] = True
+        # Fraud check: block if fraud score is too high
+        if session.get("_fraud_blocked"):
+            return _reply(
+                "For security purposes, we need to verify your identity before proceeding. "
+                "Please contact our support team directly to complete your purchase."
+            )
+        cart = session.get("_cart", [])
+        if cart:
+            store_settings = db.get_store_settings(admin_id)
+            currency = "$"
+            if store_settings and store_settings.get("store_currency"):
+                _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                currency = _cm.get(store_settings["store_currency"], "$")
+            cart_total = sum(i["price"] * i["qty"] for i in cart)
+            session["_ui_options"] = {"type": "cart_summary", "items": cart, "currency": currency}
+
+            # Check for bundle discount (only if configured and offered)
+            bundle_text = ""
+            original_cart_total = cart_total  # Save for subtotal display
+            _bundle_on = store_settings and store_settings.get("bundle_enabled")
+            _bundle_min = int(store_settings.get("bundle_min_items", 3) or 3) if store_settings else 3
+            _bundle_pct = float(store_settings.get("bundle_discount_pct", 10) or 10) if store_settings else 10
+            if _bundle_on and len(cart) >= _bundle_min and session.get("_bundle_offered"):
+                bundle_savings = original_cart_total * _bundle_pct / 100
+                cart_total = original_cart_total - bundle_savings
+                bundle_text = f"\nBundle discount ({int(_bundle_pct)}% off): **-{currency}{bundle_savings:.2f}**"
+
+            # Check for discount code in session
+            discount_text = ""
+            final_total = cart_total
+            if session.get("_discount_code"):
+                # First check session-stored discount (from store_discounts table)
+                dtype = session.get("_discount_type")
+                dval = float(session.get("_discount_value", 0) or 0)
+                # Fallback to cart_recovery_settings if no session discount type
+                if not dtype:
+                    cr_settings = db.get_cart_recovery_settings(admin_id)
+                    if cr_settings and cr_settings.get("discount_enabled"):
+                        dtype = cr_settings.get("discount_type", "percentage")
+                        dval = float(cr_settings.get("discount_value", 0) or 0)
+                if dtype and dval > 0:
+                    if dtype == "percentage":
+                        discount_amt = cart_total * dval / 100
+                        discount_text = f"\nDiscount **{session['_discount_code']}**: -{int(dval)}% (**-{currency}{discount_amt:.2f}**)"
+                    elif dtype == "free_shipping":
+                        discount_amt = 0
+                        discount_text = f"\nDiscount **{session['_discount_code']}**: Free Shipping"
+                    else:
+                        discount_amt = min(dval, cart_total)
+                        discount_text = f"\nDiscount **{session['_discount_code']}**: **-{currency}{discount_amt:.2f}**"
+                    final_total = cart_total - discount_amt
+                elif not dtype:
+                    discount_text = f"\nDiscount code **{session['_discount_code']}** applied!"
+
+            # ── VIP / CLV perk application ──
+            vip_text = ""
+            vip_perks = session.get("_vip_perks", {})
+            if vip_perks:
+                vip_discount = vip_perks.get("exclusive_discount", 0)
+                if vip_discount > 0:
+                    vip_amt = final_total * vip_discount / 100
+                    final_total -= vip_amt
+                    tier_label = session.get("_customer_tier", "VIP").upper()
+                    vip_text = f"\n{tier_label} discount ({vip_discount}%): **-{currency}{vip_amt:.2f}**"
+                if vip_perks.get("free_shipping"):
+                    vip_text += "\nFree express shipping: **included**"
+
+            price_line = f"Subtotal: **{currency}{original_cart_total:.2f}**"
+            if bundle_text or discount_text or vip_text:
+                price_line += bundle_text + discount_text + vip_text
+                price_line += f"\n**Total: {currency}{final_total:.2f}**"
+            else:
+                price_line = f"Your cart total is **{currency}{cart_total:.2f}**"
+
+            # ── Try Stripe in-chat checkout ──
+            stripe_checkout_url = None
+            stripe_keys = db.get_stripe_keys(admin_id)
+            if stripe_keys and stripe_keys.get("secret_key") and _STRIPE_AVAILABLE:
+                try:
+                    import json as _json
+                    _stripe_lib.api_key = stripe_keys["secret_key"]
+
+                    store_settings = db.get_store_settings(admin_id)
+                    store_currency = "usd"
+                    if store_settings and store_settings.get("store_currency"):
+                        store_currency = store_settings["store_currency"].lower()
+
+                    # Calculate discount ratio to apply to each line item
+                    cart_undiscounted = sum(i["price"] * i["qty"] for i in cart)
+                    discount_ratio = final_total / cart_undiscounted if cart_undiscounted > 0 else 1.0
+
+                    line_items = []
+                    for item in cart:
+                        discounted_price = item["price"] * discount_ratio
+                        line_items.append({
+                            "price_data": {
+                                "currency": store_currency,
+                                "product_data": {"name": item["name"]},
+                                "unit_amount": max(int(round(discounted_price * 100)), 1),
+                            },
+                            "quantity": item["qty"],
+                        })
+
+                    checkout_params = {
+                        "mode": "payment",
+                        "line_items": line_items,
+                        "metadata": {"admin_id": str(admin_id), "session_id": session_id},
+                        "payment_intent_data": {"metadata": {"admin_id": str(admin_id), "session_id": session_id}},
+                    }
+
+                    stripe_session = _stripe_lib.checkout.Session.create(**checkout_params)
+                    stripe_checkout_url = stripe_session.url
+
+                    db.create_stripe_checkout(
+                        admin_id=admin_id,
+                        session_id=session_id,
+                        stripe_session_id=stripe_session.id,
+                        customer_email="",
+                        cart_items=_json.dumps(cart),
+                        cart_total=final_total,
+                        currency=store_currency,
+                        checkout_url=stripe_checkout_url or "",
+                    )
+                    # Clear payment failure flags on new checkout
+                    session.pop("_payment_failed", None)
+                    session.pop("_payment_failed_checked", None)
+                except Exception as e:
+                    print(f"[stripe] Checkout session creation error: {e}", flush=True)
+                    stripe_checkout_url = None
+
+            # ── Try external platform order (Shopify / WooCommerce) ──
+            external_checkout_url = None
+            try:
+                ext_result = _create_external_order(
+                    admin_id, cart,
+                    customer_email=session.get("_prefill_email") or session.get("data", {}).get("email") or "",
+                    customer_name=session.get("_prefill_name") or session.get("data", {}).get("name") or "",
+                )
+                if ext_result and ext_result.get("ok") and ext_result.get("checkout_url"):
+                    external_checkout_url = ext_result["checkout_url"]
+                    # Store external order reference in session
+                    session["_external_order_id"] = ext_result.get("order_id") or ""
+            except Exception:
+                pass
+
+            if stripe_checkout_url:
+                reply = (
+                    f"{price_line}\n\n"
+                    f"Click below to complete your purchase securely:\n\n"
+                    f"[Complete Payment]({stripe_checkout_url})"
+                )
+            elif external_checkout_url:
+                reply = (
+                    f"{price_line}\n\n"
+                    f"Your order has been created! Complete your purchase here:\n\n"
+                    f"[Complete Checkout]({external_checkout_url})"
+                )
+            else:
+                # ── Progressive checkout: collect info step by step with pre-fill ──
+                prefill_name = session.get("_prefill_name") or session.get("data", {}).get("name") or ""
+                prefill_email = session.get("_prefill_email") or session.get("data", {}).get("email") or ""
+                prefill_phone = session.get("_prefill_phone") or session.get("data", {}).get("phone") or ""
+
+                # If we already have all info, create the order directly
+                prefill_address = session.get("data", {}).get("shipping_address") or session.get("_prefill_address") or ""
+                if prefill_name and prefill_email and prefill_address:
+                    try:
+                        import secrets as _secrets
+                        order_num = f"CG-{_secrets.token_hex(4).upper()}"
+                        db.create_ecom_order(
+                            admin_id=admin_id,
+                            order_number=order_num,
+                            customer_name=prefill_name,
+                            customer_email=prefill_email,
+                            customer_phone=prefill_phone,
+                            order_status="pending",
+                            order_total=final_total,
+                            items_json=__import__("json").dumps(cart),
+                            shipping_address=prefill_address,
+                            payment_method="manual",
+                            payment_status="pending",
+                            notes="Chatbot checkout",
+                        )
+                        db.upsert_ecom_customer(admin_id, prefill_email, prefill_name, prefill_phone, final_total)
+
+                        # Revenue attribution tracking
+                        try:
+                            for item in cart:
+                                db.record_revenue_event(
+                                    admin_id=admin_id, session_id=session_id,
+                                    event_type="purchase", event_value=item["price"] * item["qty"],
+                                    product_id=item.get("id", 0), product_name=item.get("name", ""),
+                                    order_number=order_num, customer_email=prefill_email,
+                                )
+                                db.update_customer_interest(admin_id, prefill_email, item.get("category", ""), "purchase")
+                                # Record purchase for replenishment tracking
+                                db.record_purchase(
+                                    admin_id, prefill_email,
+                                    product_id=item.get("id", 0),
+                                    product_name=item.get("name", ""),
+                                    product_category=item.get("category", ""),
+                                    quantity=item.get("qty", 1)
+                                )
+                        except Exception:
+                            pass
+
+                        # Save purchased items for size fit feedback collection
+                        if session.get("_size_fit_profile_exists"):
+                            session["_pending_fit_feedback"] = [
+                                {"id": i.get("id", 0), "name": i.get("name", ""), "category": i.get("category", "")}
+                                for i in cart if i.get("category", "").lower() in ("clothing", "shoes", "apparel", "fashion", "accessories")
+                            ]
+
+                        # Increment discount usage on successful order
+                        if session.get("_discount_id"):
+                            try:
+                                db.increment_discount_usage(session["_discount_id"])
+                            except Exception:
+                                pass
+                            session.pop("_discount_id", None)
+
+                        session["_cart"] = []
+                        session.pop("_bundle_offered", None)
+                        reply = (
+                            f"{price_line}\n\n"
+                            f"Order **#{order_num}** placed successfully!\n"
+                            f"**Name:** {prefill_name}\n"
+                            f"**Email:** {prefill_email}\n\n"
+                            "You'll receive a confirmation email shortly. Thank you for your purchase!"
+                        )
+                        return _reply(reply)
+                    except Exception as e:
+                        print(f"[ecom] Checkout order creation failed: {e}", flush=True)
+                        return _reply("Something went wrong placing your order. Please try again or contact support.")
+
+                # Start progressive checkout flow
+                session["flow"] = "checkout_collect"
+                session["step"] = "c_name" if not prefill_name else ("c_email" if not prefill_email else "c_address")
+                session["data"] = session.get("data", {})
+                session["data"]["_checkout_total"] = final_total
+                session["data"]["_checkout_currency"] = currency
+
+                if not prefill_name:
+                    return _reply(f"{price_line}\n\nLet's complete your order! What's your **full name**?")
+                elif not prefill_email:
+                    return _reply(f"{price_line}\n\nHi {prefill_name}! What's the best **email** for your order confirmation?")
+                else:
+                    return _reply(f"{price_line}\n\nWhat's your **shipping address**?")
+            return _reply(reply)
+        else:
+            return _reply("Your cart is empty! Let me help you find something.")
+
+    # ── Order tracking ──
+    # Match order numbers like ORD-C13BBD0A, #12345, etc.
+    order_match = re.search(r'#\s*([\w\-]{4,25})', raw_lower)
+    if not order_match:
+        order_match = re.search(r'\b(?:order|tracking)\s*(?:number|num|no\.?|#)?\s*[:\-]?\s*((?:ord[\-])?[\w\-]{4,25})', raw_lower)
+
+    is_order_query = re.search(r'\b(order|tracking|track|where\'?s?\s*my|status|shipped|delivery|deliver|my order|my package)\b', raw_lower)
+
+    if order_match and is_order_query:
+        order_num = order_match.group(1).upper()
+        try:
+            order = db.get_ecom_order(admin_id, order_num)
+            if order:
+                session["_ui_options"] = {
+                    "type": "order_tracking",
+                    "order_number": order.get("order_number", ""),
+                    "status": order.get("order_status", "Processing").title(),
+                    "tracking_number": order.get("tracking_number", ""),
+                    "carrier": order.get("carrier", ""),
+                    "estimated_delivery": order.get("estimated_delivery", ""),
+                }
+                return _reply(f"Here's the status of your order **#{order['order_number']}**:")
+            else:
+                return _reply(f"I couldn't find order **#{order_num}**. Please double-check your order number or contact our support team.")
+        except Exception as e:
+            print(f"[ecom] Order lookup error: {e}", flush=True)
+
+    # ── Order lookup by customer email (no order number given) ──
+    if not order_match and is_order_query:
+        customer_email = (session.get("_prefill_email") or "").strip().lower()
+        if customer_email:
+            try:
+                orders = db.get_ecom_orders_by_customer(admin_id, customer_email)
+                if orders:
+                    if len(orders) == 1:
+                        order = orders[0]
+                        session["_ui_options"] = {
+                            "type": "order_tracking",
+                            "order_number": order.get("order_number", ""),
+                            "status": order.get("order_status", "Processing").title(),
+                            "tracking_number": order.get("tracking_number", ""),
+                            "carrier": order.get("carrier", ""),
+                            "estimated_delivery": order.get("estimated_delivery", ""),
+                        }
+                        return _reply(f"Here's the status of your order **#{order['order_number']}**:")
+                    else:
+                        # Multiple orders — show latest with a list
+                        latest = orders[0]
+                        session["_ui_options"] = {
+                            "type": "order_tracking",
+                            "order_number": latest.get("order_number", ""),
+                            "status": latest.get("order_status", "Processing").title(),
+                            "tracking_number": latest.get("tracking_number", ""),
+                            "carrier": latest.get("carrier", ""),
+                            "estimated_delivery": latest.get("estimated_delivery", ""),
+                        }
+                        other_lines = []
+                        for o in orders[1:5]:
+                            s = (o.get("order_status") or "pending").title()
+                            other_lines.append(f"- **#{o['order_number']}** — {s}")
+                        msg = f"Here's your most recent order **#{latest['order_number']}**:"
+                        if other_lines:
+                            msg += f"\n\nYou also have {len(orders)-1} other order(s):\n" + "\n".join(other_lines)
+                            msg += "\n\nJust tell me the order number to check any of them!"
+                        return _reply(msg)
+                else:
+                    return _reply("I don't see any orders linked to your account. Could you share your **order number** so I can look it up?")
+            except Exception as e:
+                print(f"[ecom] Customer order lookup error: {e}", flush=True)
+                return _reply("I'm having trouble looking up your orders right now. Could you share your **order number** (e.g. #ORD-10042) so I can look it up directly?")
+        else:
+            # No email known — ask for order number or email
+            return _reply("I'd love to help track your order! Could you share your **order number** (e.g. #ORD-10042) or the **email address** you used when ordering?")
+
+    # ── In-chat review submission ──
+    if session.get("_pending_review_order"):
+        pending_review = session["_pending_review_order"]
+        # Check for star rating (1-5)
+        rating_match = re.search(r'\b([1-5])\s*(?:star|stars|/5|out of 5)\b', raw_lower)
+        if not rating_match:
+            # Match standalone single digit only if the entire message is just the number
+            rating_match = re.match(r'^\s*([1-5])\s*$', raw_lower)
+        if not rating_match:
+            # Check for text ratings
+            text_ratings = {"terrible": 1, "bad": 2, "okay": 3, "ok": 3, "good": 4, "great": 5, "amazing": 5, "excellent": 5, "perfect": 5, "love": 5, "awful": 1, "horrible": 1}
+            for word, val in text_ratings.items():
+                if word in raw_lower:
+                    rating_match = type('Match', (), {'group': lambda self, n: str(val)})()
+                    break
+
+        if rating_match:
+            rating = int(rating_match.group(1))
+            # Check if there's additional text beyond just the rating
+            review_text = re.sub(r'\b[1-5]\s*(?:star|stars|/5|out of 5)?\b', '', user_message).strip()
+            review_text = re.sub(r'\b(terrible|bad|okay|ok|good|great|amazing|excellent|perfect|love|awful|horrible)\b', '', review_text, flags=re.IGNORECASE).strip()
+            review_text = review_text.strip(".,! ")
+
+            try:
+                import json as _json
+                items = _json.loads(pending_review.get("items_json") or "[]")
+                product_name = items[0]["name"] if items else "your purchase"
+                product_id = items[0].get("id", 0) if items else 0
+            except Exception:
+                product_name = "your purchase"
+                product_id = 0
+
+            # Generate incentive code for reviewers
+            incentive_code = ""
+            try:
+                cr_settings = db.get_cart_recovery_settings(admin_id)
+                if cr_settings and cr_settings.get("discount_enabled"):
+                    import secrets as _secrets
+                    incentive_code = f"THANKS{_secrets.token_hex(3).upper()}"
+            except Exception:
+                pass
+
+            try:
+                db.submit_product_review(
+                    admin_id=admin_id,
+                    order_id=pending_review.get("id", 0),
+                    order_number=pending_review.get("order_number", ""),
+                    product_name=product_name,
+                    customer_email=pending_review.get("customer_email", ""),
+                    customer_name=pending_review.get("customer_name", ""),
+                    rating=rating,
+                    review_text=review_text,
+                    incentive_code=incentive_code,
+                    product_id=product_id,
+                )
+            except Exception as e:
+                print(f"[ecom] Review submission error: {e}", flush=True)
+
+            session.pop("_pending_review_order", None)
+
+            stars = "\u2b50" * rating
+            thank_msg = f"Thank you for your {stars} review"
+            if review_text:
+                thank_msg += f" and feedback"
+            thank_msg += "! Your review helps other customers."
+            if incentive_code:
+                thank_msg += f"\n\nAs a thank you, here's **{incentive_code}** for a discount on your next order!"
+
+            return _reply(thank_msg)
+        elif re.search(r'\b(skip|no thanks|not now|later|nah|no)\b', raw_lower):
+            session.pop("_pending_review_order", None)
+            return _reply("No problem! You can always leave a review later. How can I help you today?")
+
+    # ── Post-delivery review prompt (proactive) ──
+    is_review_query = re.search(r'\b(review|rate|rating|feedback|how was)\b', raw_lower)
+    if is_review_query or (not session.get("_review_prompt_sent") and not session.get("_pending_review_order")):
+        customer_email = (session.get("_prefill_email") or "").strip().lower()
+        if customer_email:
+            try:
+                reviewable = db.get_delivered_orders_for_review(admin_id, customer_email)
+                if reviewable:
+                    order = reviewable[0]
+                    if not db.has_review_prompt_been_sent(admin_id, order["id"]) or is_review_query:
+                        db.record_review_prompt(admin_id, order["id"], customer_email)
+                        session["_pending_review_order"] = order
+                        session["_review_prompt_sent"] = True
+
+                        try:
+                            import json as _json
+                            items = _json.loads(order.get("items_json") or "[]")
+                            product_name = items[0]["name"] if items else "your recent purchase"
+                        except Exception:
+                            product_name = "your recent purchase"
+
+                        review_msg = f"We hope you're enjoying **{product_name}** from order **#{order['order_number']}**! "
+                        review_msg += "We'd love to hear your thoughts.\n\n"
+                        review_msg += "How would you rate it? (1-5 stars)"
+
+                        session["_ui_options"] = {
+                            "type": "quick_replies",
+                            "items": [
+                                {"label": "\u2b50\u2b50\u2b50\u2b50\u2b50 (5)", "value": "5 stars"},
+                                {"label": "\u2b50\u2b50\u2b50\u2b50 (4)", "value": "4 stars"},
+                                {"label": "\u2b50\u2b50\u2b50 (3)", "value": "3 stars"},
+                                {"label": "\u2b50\u2b50 (2)", "value": "2 stars"},
+                                {"label": "\u2b50 (1)", "value": "1 star"},
+                                {"label": "Skip", "value": "skip review"},
+                            ]
+                        }
+                        if is_review_query:
+                            return _reply(review_msg)
+                        # For proactive: store as a nudge message to append, don't set _pending_review_order yet
+                        session.pop("_pending_review_order", None)
+                        session["_proactive_review_order"] = order
+                        session["_review_nudge_msg"] = review_msg
+            except Exception as e:
+                print(f"[ecom] Review prompt error: {e}", flush=True)
+        session["_review_prompt_sent"] = True  # Don't re-check every message
+
+    # ── Return / Exchange request ──
+    if re.search(r'\b(return|exchange|refund|send back|send it back|return policy|return window)\b', raw_lower):
+        store_settings = db.get_store_settings(admin_id)
+        return_days = 30
+        if store_settings:
+            return_days = int(store_settings.get("return_window_days", 30) or 30)
+
+        # Check if they mentioned an order number (look for # prefix or ORD-/CG- pattern)
+        ret_order_match = re.search(r'#\s*([\w\-]{4,25})', raw_lower)
+        if not ret_order_match:
+            ret_order_match = re.search(r'\b((?:ORD|CG)[\-][\w\-]{4,25})\b', raw_lower, re.IGNORECASE)
+        if ret_order_match:
+            order_num = ret_order_match.group(1).upper()
+            try:
+                order = db.get_ecom_order(admin_id, order_num)
+                if order:
+                    session["_return_order"] = order
+                    session["_ui_options"] = {
+                        "type": "quick_replies",
+                        "items": [
+                            {"label": "Wrong size/fit", "value": "return reason: wrong size"},
+                            {"label": "Damaged/defective", "value": "return reason: damaged"},
+                            {"label": "Not as described", "value": "return reason: not as described"},
+                            {"label": "Changed my mind", "value": "return reason: changed mind"},
+                            {"label": "Exchange instead", "value": "I want to exchange"}
+                        ]
+                    }
+                    return _reply(f"I can help with your return for order **#{order['order_number']}**. You're within our **{return_days}-day** return window. What's the reason for the return?")
+            except Exception:
+                pass
+
+        # General return policy inquiry
+        if re.search(r'\b(return policy|return window|can i return|how to return)\b', raw_lower):
+            return _reply(f"We offer a **{return_days}-day** return window on most items. To start a return, just share your order number and I'll guide you through it!")
+
+        # If they just say "I want to return" without order number
+        if re.search(r'\b(i want to return|need to return|can i return|send .* back)\b', raw_lower):
+            return _reply(f"I'd be happy to help with your return! We have a **{return_days}-day** return policy. Can you share your **order number** so I can look it up?")
+
+    # ── Handle return reason (follow-up) ──
+    if session.get("_return_order") and re.search(r'\breturn reason:|wrong size|damaged|not as described|changed mind|exchange\b', raw_lower):
+        order = session["_return_order"]
+        reason = user_message.replace("return reason:", "").strip()
+        is_exchange = "exchange" in raw_lower
+
+        if is_exchange:
+            # Check if user already selected an exchange type (e.g. "exchange for different size")
+            exchange_type_match = re.search(r'exchange\s+for\s+different\s+(size|color|product)', raw_lower)
+            if exchange_type_match:
+                exchange_type = exchange_type_match.group(1)
+                session.pop("_return_order", None)
+                customer_email = order.get("customer_email") or session.get("_prefill_email", "")
+                reply = f"Exchange request for order **#{order.get('order_number', '')}** initiated!\n\n"
+                reply += f"**Exchange for:** Different {exchange_type}\n"
+                reply += f"**Next steps:**\n"
+                reply += f"1. Return the original item using the label we'll send to **{customer_email}**\n"
+                reply += f"2. Once received, we'll ship the replacement\n\n"
+                reply += f"Need help picking the new {exchange_type}? Just let me know!"
+                return _reply(reply)
+            # First time — show exchange options
+            session["_ui_options"] = {
+                "type": "quick_replies",
+                "items": [
+                    {"label": "Different size", "value": "exchange for different size"},
+                    {"label": "Different color", "value": "exchange for different color"},
+                    {"label": "Different product", "value": "exchange for different product"},
+                ]
+            }
+            return _reply(f"No problem! We can exchange your order **#{order.get('order_number', '')}**. What would you like to exchange for?")
+
+        # Process return — persist to database
+        session.pop("_return_order", None)
+        customer_email = order.get("customer_email") or session.get("_prefill_email", "")
+        try:
+            db.update_ecom_order(order["id"], order_status="return_requested", notes=f"Return reason: {reason}")
+        except Exception:
+            pass
+        reply = f"Your return for order **#{order.get('order_number', '')}** has been initiated!\n\n"
+        reply += f"**Reason:** {reason}\n"
+        reply += f"**Next steps:**\n"
+        reply += f"1. You'll receive a return shipping label via email"
+        if customer_email:
+            reply += f" at **{customer_email}**"
+        reply += f"\n2. Pack the item(s) in original packaging\n"
+        reply += f"3. Drop off at your nearest shipping location\n"
+        reply += f"4. Refund will be processed within 3-5 business days after we receive the item\n\n"
+        reply += f"Is there anything else I can help with?"
+
+        session["_ui_options"] = {
+            "type": "quick_replies",
+            "items": [
+                {"label": "Track my return", "value": "track my return"},
+                {"label": "Continue shopping", "value": "show me products"},
+            ]
+        }
+        return _reply(reply)
+
+    # ── Apply a specific discount / coupon code ──
+    apply_match = re.search(r'\b(?:apply|use|enter|redeem)\b.*\b(?:code|coupon|promo)\b\s*[:\-]?\s*([A-Z0-9_]{3,25})\b', user_message)
+    if not apply_match:
+        apply_match = re.search(r'\b(?:code|coupon|promo)\s*[:\-]\s*([A-Za-z0-9_]{3,25})\b', raw_lower)
+    if not apply_match:
+        # Match ALL-CAPS codes after code/coupon keyword (e.g., "coupon SAVE20")
+        apply_match = re.search(r'\b(?:code|coupon|promo)\s+([A-Z0-9_]{3,25})\b', user_message)
+    if apply_match:
+        entered_code = apply_match.group(1).upper()
+        # Check store_discounts table first
+        store_discounts = db.get_store_discounts(admin_id)
+        matched_disc = None
+        for sd in store_discounts:
+            if sd.get("discount_code", "").upper() == entered_code and sd.get("is_active"):
+                matched_disc = sd
+                break
+        if matched_disc:
+            # Validate conditions
+            import json as _json
+            import datetime as _dt_mod
+            dval = float(matched_disc.get("discount_value", 0))
+            dtype = matched_disc["discount_type"]
+            # Check expiry
+            if matched_disc.get("end_date"):
+                try:
+                    if _dt_mod.datetime.strptime(matched_disc["end_date"], "%Y-%m-%d").date() < _dt_mod.datetime.now().date():
+                        return _reply(f"Sorry, code **{entered_code}** has expired.")
+                except Exception:
+                    pass
+            # Check max uses
+            if int(matched_disc.get("max_uses", 0)) > 0 and int(matched_disc.get("current_uses", 0)) >= int(matched_disc["max_uses"]):
+                return _reply(f"Sorry, code **{entered_code}** has reached its maximum uses.")
+            # Check min order
+            cart = session.get("_cart", [])
+            cart_total = sum(i["price"] * i["qty"] for i in cart) if cart else 0
+            min_order = float(matched_disc.get("min_order_amount", 0))
+            if min_order > 0 and cart_total < min_order:
+                store_settings = db.get_store_settings(admin_id)
+                currency = "$"
+                if store_settings and store_settings.get("store_currency"):
+                    currency_map = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                    currency = currency_map.get(store_settings["store_currency"], "$")
+                return _reply(f"Code **{entered_code}** requires a minimum order of **{currency}{min_order:.2f}**. Your cart is at **{currency}{cart_total:.2f}**. Add more items to use this code!")
+            # Check product applicability
+            applies_to = matched_disc.get("applies_to", "all")
+            if applies_to == "specific_products" and cart:
+                try:
+                    allowed_ids = set(str(x) for x in (_json.loads(matched_disc["product_ids"]) if isinstance(matched_disc["product_ids"], str) else matched_disc["product_ids"]))
+                except Exception:
+                    allowed_ids = set()
+                applicable_items = [i for i in cart if str(i["id"]) in allowed_ids]
+                if not applicable_items:
+                    return _reply(f"Code **{entered_code}** doesn't apply to the items in your cart.")
+            # Apply discount
+            _ss = db.get_store_settings(admin_id)
+            _cur = "$"
+            if _ss and _ss.get("store_currency"):
+                _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                _cur = _cm.get(_ss["store_currency"], "$")
+            if dtype == "percentage":
+                desc = f"{int(dval)}% off"
+            elif dtype == "fixed":
+                desc = f"{_cur}{dval:.2f} off"
+            elif dtype == "free_shipping":
+                desc = "Free Shipping"
+            else:
+                desc = f"Buy {int(dval)} get 1 free"
+            session["_discount_code"] = entered_code
+            session["_discount_id"] = matched_disc["id"]
+            session["_discount_type"] = dtype
+            session["_discount_value"] = dval
+            # Usage will be incremented at checkout completion, not at apply time
+            return _reply(f"Code **{entered_code}** applied! You'll get **{desc}**. Ready to checkout?")
+        else:
+            # Fallback: check cart_recovery codes
+            cart_recovery = db.get_cart_recovery_settings(admin_id)
+            if cart_recovery and cart_recovery.get("discount_enabled"):
+                prefix = (cart_recovery.get("discount_code_prefix") or "CHAT").upper()
+                if entered_code.startswith(prefix):
+                    conn = db.get_db()
+                    valid = conn.execute(
+                        "SELECT id FROM abandoned_carts WHERE admin_id=%s AND discount_code_sent=%s AND recovery_status='abandoned'",
+                        (admin_id, entered_code)
+                    ).fetchone()
+                    conn.close()
+                    if valid or entered_code == prefix + "10":
+                        crtype = cart_recovery.get("discount_type", "percentage")
+                        crval = float(cart_recovery.get("discount_value", 0) or 0)
+                        session["_discount_code"] = entered_code
+                        _ss2 = db.get_store_settings(admin_id)
+                        _cur2 = "$"
+                        if _ss2 and _ss2.get("store_currency"):
+                            _cm2 = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                            _cur2 = _cm2.get(_ss2["store_currency"], "$")
+                        desc = f"{int(crval)}% off" if crtype == "percentage" else f"{_cur2}{crval:.2f} off"
+                        return _reply(f"Code **{entered_code}** applied! You'll get **{desc}** your order. Ready to checkout?")
+            return _reply(f"Sorry, the code **{entered_code}** is not valid or has expired. Please check and try again.")
+
+    # ── Discount / coupon code (general ask) ──
+    if re.search(r'\b(discount|coupon|promo code|promo|deal|sale|offer|save money|any codes|got a code|discount code|coupon code)\b', raw_lower):
+        # Check store_discounts first
+        store_discounts = db.get_store_discounts(admin_id)
+        active_discs = [d for d in store_discounts if d.get("is_active")]
+        if active_discs:
+            # Get currency
+            _ss3 = db.get_store_settings(admin_id)
+            _cur3 = "$"
+            if _ss3 and _ss3.get("store_currency"):
+                _cm3 = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                _cur3 = _cm3.get(_ss3["store_currency"], "$")
+            # Show available discounts
+            lines = []
+            for d in active_discs[:3]:
+                dval = float(d.get("discount_value", 0))
+                dtype = d["discount_type"]
+                if dtype == "percentage":
+                    desc = f"{int(dval)}% off"
+                elif dtype == "fixed":
+                    desc = f"{_cur3}{dval:.2f} off"
+                elif dtype == "free_shipping":
+                    desc = "Free Shipping"
+                else:
+                    desc = f"Buy {int(dval)} get 1 free"
+                line = f"**{d['discount_code']}** — {desc}"
+                min_amt = float(d.get("min_order_amount", 0))
+                if min_amt > 0:
+                    line += f" (orders over {_cur3}{min_amt:.0f})"
+                lines.append(line)
+            return _reply("Here are our active promotions:\n" + "\n".join(f"- {l}" for l in lines) + "\n\nJust say 'apply code [CODE]' to use one!")
+        # Fallback to cart recovery discount
+        cart_recovery = db.get_cart_recovery_settings(admin_id)
+        if cart_recovery and cart_recovery.get("discount_enabled"):
+            code = (cart_recovery.get("discount_code_prefix") or "CHAT") + "10"
+            crtype = cart_recovery.get("discount_type", "percentage")
+            crval = float(cart_recovery.get("discount_value", 0) or 0)
+            _ss4 = db.get_store_settings(admin_id)
+            _cur4 = "$"
+            if _ss4 and _ss4.get("store_currency"):
+                _cm4 = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                _cur4 = _cm4.get(_ss4["store_currency"], "$")
+            desc = f"{int(crval)}% off" if crtype == "percentage" else f"{_cur4}{crval:.2f} off"
+            session["_discount_code"] = code
+            return _reply(f"Great news! Use code **{code}** for **{desc}** your order! This code is valid for a limited time.")
+        # Fall through to AI if no discount configured
+
+    # Product discovery is handled entirely by AI — no guided flows
+
+    # ── Contextual email capture (value exchange) ──
+    # Trigger when customer has browsed 2+ times but hasn't shared email
+    if not session.get("_prefill_email") and not session.get("_email_capture_asked"):
+        msg_count = len(session.get("history", []))
+        if msg_count >= 4:  # After a few interactions
+            session["_email_capture_asked"] = True
+            # Check if discount is available for value exchange
+            cr_settings = db.get_cart_recovery_settings(admin_id)
+            if cr_settings and cr_settings.get("discount_enabled"):
+                dtype = cr_settings.get("discount_type", "percentage")
+                dval = float(cr_settings.get("discount_value", 0) or 0)
+                store_settings = db.get_store_settings(admin_id)
+                currency = "$"
+                if store_settings and store_settings.get("store_currency"):
+                    _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                    currency = _cm.get(store_settings["store_currency"], "$")
+                if dtype == "percentage":
+                    offer = f"**{int(dval)}% off** your first order"
+                else:
+                    offer = f"**{currency}{dval:.2f} off** your first order"
+
+                session["_ui_options"] = {
+                    "type": "quick_replies",
+                    "items": [
+                        {"label": "Yes, send my code!", "value": "yes send discount code"},
+                        {"label": "No thanks", "value": "no thanks"},
+                    ]
+                }
+                session["_email_capture_pending"] = True
+                return _reply(f"I have a special offer for you! Get {offer} when you share your email. Want me to send you the code?")
+
+    # Handle email capture response
+    if session.get("_email_capture_pending"):
+        email_match = re.search(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', user_message)
+        if email_match:
+            email = email_match.group()
+            session["_prefill_email"] = email
+            session.pop("_email_capture_pending", None)
+            # Generate discount code
+            cr_settings = db.get_cart_recovery_settings(admin_id)
+            if cr_settings and cr_settings.get("discount_enabled"):
+                import secrets as _secrets
+                prefix = (cr_settings.get("discount_code_prefix") or "WELCOME").upper()
+                code = f"{prefix}{_secrets.token_hex(2).upper()}"
+                session["_discount_code"] = code
+                dtype = cr_settings.get("discount_type", "percentage")
+                dval = float(cr_settings.get("discount_value", 0) or 0)
+                store_settings_dc = db.get_store_settings(admin_id)
+                currency_dc = "$"
+                if store_settings_dc and store_settings_dc.get("store_currency"):
+                    _cm_dc = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                    currency_dc = _cm_dc.get(store_settings_dc["store_currency"], "$")
+                desc = f"{int(dval)}% off" if dtype == "percentage" else f"{currency_dc}{dval:.2f} off"
+                return _reply(f"Awesome! Here's your exclusive code: **{code}** for **{desc}**! Happy shopping!")
+            return _reply(f"Thanks! I've saved your email. I'll keep you updated on any deals!")
+        elif re.search(r'\b(yes|sure|ok|send|want|give)\b', raw_lower):
+            return _reply("Just share your **email address** and I'll send you the code right away!")
+        elif re.search(r'\b(no|nah|skip|later|not now)\b', raw_lower):
+            session.pop("_email_capture_pending", None)
+            # Don't return — let the message fall through to other handlers
+
+    # ── Show all products / categories ──
+    if re.search(r'\b(all products|your products|what do you sell|what do you have|menu|catalog|categories|browse|shop)\b', raw_lower):
+        products = db.get_products(admin_id, "active")
+        if products:
+            store_settings = db.get_store_settings(admin_id)
+            currency = "$"
+            if store_settings and store_settings.get("store_currency"):
+                currency_map = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                currency = currency_map.get(store_settings["store_currency"], "$")
+            shown = products[:6]
+            cards = _build_product_cards(shown, currency)
+            session["_ui_options"] = {"type": "product_cards", "items": cards, "currency": currency}
+            session["_last_shown_products"] = shown
+            session.pop("_scarcity_shown", None)
+            # Get categories
+            cats = list(set(p.get("product_category", "") for p in products if p.get("product_category")))
+            if cats:
+                return _reply(f"Here are our products! We have **{len(products)}** items across categories: {', '.join(cats)}")
+            return _reply(f"Here are our products ({len(products)} items):")
+        return None  # Fall through to AI
+
+    # ── Wishlist / Save-for-Later ──
+    wishlist_add = re.search(r'\b(save for later|add to wishlist|wishlist|bookmark|save this|save it|save that)\b', raw_lower)
+    if wishlist_add and not re.search(r'\b(cart|basket)\b', raw_lower):
+        customer_email = (session.get("_prefill_email") or "").strip().lower()
+        if not customer_email:
+            session["_wishlist_pending"] = True
+            return _reply("I'd love to save that for you! What's your **email address** so I can remember your wishlist?")
+
+        # Find the product they want to save
+        last_products = session.get("_last_shown_products", [])
+        product = None
+        if last_products:
+            # Try to match by name mention
+            for p in last_products:
+                pname = (p.get("product_name") or p.get("name", "")).lower()
+                if pname and pname in raw_lower:
+                    product = p
+                    break
+            if not product:
+                product = last_products[0]  # Default to first shown
+
+        if product:
+            pid = product.get("id", 0)
+            pname = product.get("product_name") or product.get("name", "")
+            pprice = float(product.get("product_price") or product.get("price", 0))
+            pimage = product.get("product_image") or product.get("image", "")
+            result = db.add_to_wishlist(admin_id, customer_email, pid, pname, pprice, pimage, session_id)
+            if result.get("ok"):
+                db.update_customer_interest(admin_id, customer_email, product.get("product_category", ""), "wishlist")
+                session["_ui_options"] = {
+                    "type": "quick_replies",
+                    "items": [
+                        {"label": "View Wishlist", "value": "show my wishlist"},
+                        {"label": "Continue Shopping", "value": "show me products"},
+                    ]
+                }
+                return _reply(f"**{pname}** saved to your wishlist! I'll let you know if the price drops.")
+            else:
+                return _reply(f"**{pname}** is already in your wishlist!")
+        return _reply("Which product would you like to save? You can browse our products first.")
+
+    # Handle wishlist email capture
+    if session.get("_wishlist_pending"):
+        email_match = re.search(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', user_message)
+        if email_match:
+            session["_prefill_email"] = email_match.group().lower()
+            session.pop("_wishlist_pending", None)
+            return _reply("Got it! Now which product would you like to save to your wishlist?")
+
+    # ── View wishlist ──
+    if re.search(r'\b(my wishlist|show wishlist|view wishlist|saved items|saved products|my saves)\b', raw_lower):
+        customer_email = (session.get("_prefill_email") or "").strip().lower()
+        if not customer_email:
+            return _reply("Please share your **email address** so I can find your wishlist.")
+        items = db.get_wishlist(admin_id, customer_email)
+        if items:
+            store_settings = db.get_store_settings(admin_id)
+            currency = "$"
+            if store_settings and store_settings.get("store_currency"):
+                _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                currency = _cm.get(store_settings["store_currency"], "$")
+
+            lines = []
+            price_drops = []
+            for item in items:
+                saved_price = float(item.get("product_price", 0))
+                current_price = float(item.get("current_price") or saved_price)
+                line = f"- **{item['product_name']}** — {currency}{current_price:.2f}"
+                if current_price < saved_price and saved_price > 0:
+                    drop_pct = int((saved_price - current_price) / saved_price * 100)
+                    line += f" ~~{currency}{saved_price:.2f}~~ (**{drop_pct}% off!**)"
+                    price_drops.append(item['product_name'])
+                lines.append(line)
+
+            reply = f"Your wishlist ({len(items)} items):\n" + "\n".join(lines)
+            if price_drops:
+                reply += f"\n\nPrice dropped on: {', '.join(price_drops)}!"
+
+            session["_ui_options"] = {
+                "type": "quick_replies",
+                "items": [
+                    {"label": "Add All to Cart", "value": "add wishlist to cart"},
+                    {"label": "Continue Shopping", "value": "show me products"},
+                ]
+            }
+            return _reply(reply)
+        return _reply("Your wishlist is empty! Browse our products and say 'save for later' to add items.")
+
+    # ── Add all wishlist items to cart ──
+    if re.search(r'\b(add wishlist to cart|move wishlist to cart|buy wishlist|buy saved)\b', raw_lower):
+        customer_email = (session.get("_prefill_email") or "").strip().lower()
+        if customer_email:
+            items = db.get_wishlist(admin_id, customer_email)
+            if items:
+                cart = session.get("_cart", [])
+                added = 0
+                for item in items:
+                    cart_ids = {i["id"] for i in cart}
+                    pid = item["product_id"]
+                    if pid not in cart_ids:
+                        cart.append({
+                            "id": pid,
+                            "name": item["product_name"],
+                            "price": float(item.get("current_price") or item.get("product_price", 0)),
+                            "qty": 1,
+                            "image": item.get("product_image", ""),
+                            "external_id": item.get("product_id") or item.get("product_barcode") or str(pid),
+                        })
+                        added += 1
+                        db.remove_from_wishlist(admin_id, customer_email, pid)
+                session["_cart"] = cart
+                return _reply(f"Added **{added}** item(s) from your wishlist to cart! Say 'view cart' to see your cart.")
+            return _reply("Your wishlist is empty!")
+        return _reply("Please share your email so I can find your wishlist.")
+
+    # ── Remove from wishlist ──
+    remove_wishlist = re.search(r'\b(remove from wishlist|delete from wishlist|unsave)\b', raw_lower)
+    if remove_wishlist:
+        customer_email = (session.get("_prefill_email") or "").strip().lower()
+        if customer_email:
+            last_products = session.get("_last_shown_products", [])
+            if last_products:
+                # Try to match a product name mentioned in the message
+                product = None
+                for p in last_products:
+                    pname = (p.get("product_name") or "").lower()
+                    if pname and pname in raw_lower:
+                        product = p
+                        break
+                if not product:
+                    product = last_products[0]  # Default to first shown
+                pid = product.get("id", 0)
+                db.remove_from_wishlist(admin_id, customer_email, pid)
+                return _reply(f"Removed **{product.get('product_name', 'item')}** from your wishlist.")
+        return _reply("Which product would you like to remove from your wishlist?")
+
+    # ── Product Comparison (side-by-side) ──
+    compare_match = re.search(r'\b(compare|versus|vs\.?|side by side|difference between|which is better)\b', raw_lower)
+    if compare_match:
+        products = db.get_products(admin_id, "active")
+        if products:
+            # Try to find 2 products mentioned by name
+            mentioned = []
+            for p in products:
+                pname = (p.get("product_name") or "").lower()
+                if pname and (pname in raw_lower or any(w in raw_lower for w in pname.split() if len(w) > 3)):
+                    mentioned.append(p)
+                    if len(mentioned) >= 2:
+                        break
+
+            # Fallback to last shown products
+            if len(mentioned) < 2:
+                last_shown = session.get("_last_shown_products", [])
+                for p in last_shown:
+                    pid = p.get("id", 0)
+                    if pid not in {m.get("id", -1) for m in mentioned}:
+                        # Get full product data
+                        full = next((fp for fp in products if fp["id"] == pid), p)
+                        mentioned.append(full)
+                        if len(mentioned) >= 2:
+                            break
+
+            if len(mentioned) >= 2:
+                p1, p2 = mentioned[0], mentioned[1]
+                store_settings = db.get_store_settings(admin_id)
+                currency = "$"
+                if store_settings and store_settings.get("store_currency"):
+                    _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                    currency = _cm.get(store_settings["store_currency"], "$")
+
+                price1 = float(p1.get("product_price", 0))
+                price2 = float(p2.get("product_price", 0))
+
+                compare_text = f"**Product Comparison**\n\n"
+                compare_text += f"| Feature | {p1['product_name']} | {p2['product_name']} |\n"
+                compare_text += f"|---------|---------|----------|\n"
+                compare_text += f"| **Price** | {currency}{price1:.2f} | {currency}{price2:.2f} |\n"
+
+                cat1 = p1.get("product_category", "—")
+                cat2 = p2.get("product_category", "—")
+                compare_text += f"| **Category** | {cat1} | {cat2} |\n"
+
+                stock1 = p1.get("inventory_quantity", 0)
+                stock2 = p2.get("inventory_quantity", 0)
+                avail1 = "In Stock" if int(stock1 or 0) > 0 else "Out of Stock"
+                avail2 = "In Stock" if int(stock2 or 0) > 0 else "Out of Stock"
+                compare_text += f"| **Availability** | {avail1} | {avail2} |\n"
+
+                # Check for ratings
+                try:
+                    stats1 = db.get_product_review_stats(admin_id, p1["id"])
+                    stats2 = db.get_product_review_stats(admin_id, p2["id"])
+                    r1 = f"{stats1['avg_rating']:.1f}/5 ({stats1['total_reviews']} reviews)" if stats1["total_reviews"] > 0 else "No reviews"
+                    r2 = f"{stats2['avg_rating']:.1f}/5 ({stats2['total_reviews']} reviews)" if stats2["total_reviews"] > 0 else "No reviews"
+                    compare_text += f"| **Rating** | {r1} | {r2} |\n"
+                except Exception:
+                    pass
+
+                desc1 = (p1.get("product_description") or "")[:80]
+                desc2 = (p2.get("product_description") or "")[:80]
+                if desc1 or desc2:
+                    compare_text += f"| **Description** | {desc1 or '—'} | {desc2 or '—'} |\n"
+
+                # Price advantage
+                if price1 < price2:
+                    savings = price2 - price1
+                    compare_text += f"\n**{p1['product_name']}** is **{currency}{savings:.2f} cheaper**."
+                elif price2 < price1:
+                    savings = price1 - price2
+                    compare_text += f"\n**{p2['product_name']}** is **{currency}{savings:.2f} cheaper**."
+
+                session["_ui_options"] = {
+                    "type": "quick_replies",
+                    "items": [
+                        {"label": f"Add {p1['product_name'][:20]}", "value": f"add {p1['product_name']} to cart"},
+                        {"label": f"Add {p2['product_name'][:20]}", "value": f"add {p2['product_name']} to cart"},
+                        {"label": "Add Both", "value": f"add {p1['product_name']} and {p2['product_name']} to cart"},
+                    ]
+                }
+                return _reply(compare_text)
+            elif len(mentioned) == 1:
+                return _reply(f"I found **{mentioned[0]['product_name']}**. Which other product would you like to compare it with?")
+            else:
+                return _reply("Which two products would you like to compare? You can browse our catalog first.")
+
+    # ── Personalized recommendations (for returning customers) ──
+    if re.search(r'\b(recommend(?:ed|ations?)?\s+for\s+me|personalized\s+(?:recommendations?|suggestions?)|my\s+recommendations?|suggestions?\s+for\s+me|what\s+do\s+you\s+recommend\s+for\s+me|picks?\s+for\s+me)\b', raw_lower):
+        customer_key = (session.get("_prefill_email") or session_id or "").lower()
+        if customer_key:
+            personalized = db.get_personalized_products(admin_id, customer_key)
+            if personalized:
+                store_settings = db.get_store_settings(admin_id)
+                currency = "$"
+                if store_settings and store_settings.get("store_currency"):
+                    _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                    currency = _cm.get(store_settings["store_currency"], "$")
+                cards = _build_product_cards(personalized, currency)
+                session["_ui_options"] = {"type": "product_cards", "items": cards, "currency": currency}
+                session["_last_shown_products"] = personalized
+                session.pop("_scarcity_shown", None)
+                interests = db.get_customer_interests(admin_id, customer_key, limit=2)
+                cats = [i["category"] for i in interests if i["category"]]
+                if cats:
+                    return _reply(f"Based on your interest in **{', '.join(cats)}**, here are some picks for you:")
+                return _reply("Here are some products picked just for you:")
+
+    # ── Proactive wishlist price drop notification ──
+    if not session.get("_price_drop_notified"):
+        customer_email = (session.get("_prefill_email") or "").strip().lower()
+        if customer_email:
+            try:
+                drops = db.get_wishlist_price_drops(admin_id, customer_email)
+                if drops:
+                    session["_price_drop_notified"] = True
+                    store_settings = db.get_store_settings(admin_id)
+                    currency = "$"
+                    if store_settings and store_settings.get("store_currency"):
+                        _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                        currency = _cm.get(store_settings["store_currency"], "$")
+                    drop_lines = []
+                    for d in drops[:3]:
+                        old = float(d["product_price"])
+                        new = float(d["current_price"])
+                        pct = int((old - new) / old * 100) if old > 0 else 0
+                        drop_lines.append(f"- **{d['product_name']}**: ~~{currency}{old:.2f}~~ → **{currency}{new:.2f}** ({pct}% off!)")
+                    msg = "Great news! Some items on your wishlist are now on sale:\n" + "\n".join(drop_lines)
+                    session["_wishlist_drop_msg"] = msg
+                    session["_wishlist_drop_ui"] = {
+                        "type": "quick_replies",
+                        "items": [
+                            {"label": "Add to Cart", "value": "add wishlist to cart"},
+                            {"label": "View Wishlist", "value": "show my wishlist"},
+                        ]
+                    }
+            except Exception:
+                pass
+
+    # ── Compatibility & Use-Case Validation ──
+    compat_match = re.search(
+        r'\b(will\s+(?:this|it)\s+(?:fit|work|be compatible)|is\s+(?:this|it)\s+compatible|'
+        r'does\s+(?:this|it)\s+(?:fit|work\s+with)|compatible\s+with|fit\s+(?:my|a|the)|'
+        r'work\s+with\s+(?:my|a|the)|support\s+(?:my|a|the)|match\s+(?:my|a|the))\b',
+        raw_lower
+    )
+    if compat_match:
+        products = db.get_products(admin_id, "active") or []
+        if products:
+            # Find which product the user is asking about
+            target_product = None
+            last_shown = session.get("_last_shown_products", [])
+            if last_shown:
+                target_product = last_shown[0]
+            else:
+                for p in products:
+                    pname = (p.get("product_name") or "").lower()
+                    if len(pname) > 2 and pname in raw_lower:
+                        target_product = p
+                        break
+
+            if target_product:
+                pname = target_product.get("product_name", "this product")
+                # Gather all spec/compatibility data
+                specs_raw = target_product.get("product_specs", "[]")
+                try:
+                    specs = json.loads(specs_raw) if isinstance(specs_raw, str) else specs_raw
+                except Exception:
+                    specs = []
+                dimensions = target_product.get("product_dimensions", "")
+                material = target_product.get("product_material", "")
+                tags = target_product.get("product_tags", "")
+                desc = target_product.get("product_description", "")
+                highlights = target_product.get("product_highlights", "")
+                benefits = target_product.get("product_benefits", "")
+                target_cust = target_product.get("target_customer", "")
+
+                # Extract what the user wants compatibility with
+                compat_query = raw_lower[compat_match.end():].strip()
+                if not compat_query:
+                    compat_query = raw_lower
+
+                # Build spec info text
+                spec_lines = []
+                if specs and isinstance(specs, list):
+                    for s in specs:
+                        if isinstance(s, dict):
+                            spec_lines.append(f"- **{s.get('name', s.get('key', ''))}**: {s.get('value', '')}")
+                        elif isinstance(s, str):
+                            spec_lines.append(f"- {s}")
+                if dimensions:
+                    spec_lines.append(f"- **Dimensions**: {dimensions}")
+                if material:
+                    spec_lines.append(f"- **Material**: {material}")
+
+                # Check compatibility by searching specs, tags, description for user's query terms
+                query_terms = [w for w in compat_query.split() if len(w) > 2 and w not in {
+                    "my", "the", "this", "that", "with", "for", "and", "will", "does", "can"
+                }]
+                searchable = f"{desc} {tags} {highlights} {benefits} {target_cust} {' '.join(str(s) for s in specs)}".lower()
+
+                matches_found = [t for t in query_terms if t in searchable]
+                match_ratio = len(matches_found) / max(len(query_terms), 1)
+
+                reply_text = f"**Compatibility Check: {pname}**\n\n"
+
+                if spec_lines:
+                    reply_text += "**Product Specifications:**\n" + "\n".join(spec_lines[:8]) + "\n\n"
+
+                if match_ratio >= 0.5:
+                    reply_text += (
+                        f"Based on the product specifications, **{pname}** appears to be "
+                        f"compatible with what you described. "
+                    )
+                    if target_cust:
+                        reply_text += f"\n\n**Designed for**: {target_cust}"
+                elif spec_lines:
+                    reply_text += (
+                        f"I couldn't confirm full compatibility from the available specs. "
+                        f"Please review the specifications above to verify it meets your needs. "
+                    )
+                else:
+                    reply_text += (
+                        f"This product doesn't have detailed compatibility specs listed. "
+                        f"I'd recommend contacting our support team to confirm compatibility."
+                    )
+
+                reply_text += (
+                    "\n\n*Note: For critical compatibility requirements, we recommend "
+                    "verifying with the manufacturer's specifications.*"
+                )
+
+                session["_ui_options"] = {
+                    "type": "quick_replies",
+                    "items": [
+                        {"label": "Add to Cart", "value": f"add {pname} to cart"},
+                        {"label": "View Details", "value": f"tell me about {pname}"},
+                        {"label": "Ask Support", "value": "I need to speak to someone"},
+                    ]
+                }
+                return _reply(reply_text)
+            else:
+                return _reply(
+                    "Which product are you checking compatibility for? "
+                    "You can browse our catalog and then ask about compatibility."
+                )
+
+    # ══════════════════════════════════════════════════════════════
+    #  FEATURE 1: AI Size & Fit Predictor
+    # ══════════════════════════════════════════════════════════════
+
+    # Ongoing size-fit flow
+    if session.get("flow") == "size_fit":
+        data = session.get("data", {})
+        step = session.get("step", "")
+        customer_key = (session.get("_prefill_email") or session_id or "").lower()
+
+        if re.search(r'\b(cancel|nevermind|skip)\b', raw_lower):
+            session["flow"] = None
+            session["step"] = None
+            return _reply("No problem! You can ask for size help anytime.")
+
+        if step == "sf_body_type":
+            data["body_type"] = user_message.strip()
+            session["data"] = data
+            session["step"] = "sf_fit_pref"
+            session["_ui_options"] = {
+                "type": "quick_replies",
+                "items": [
+                    {"label": "Slim / Fitted", "value": "slim fitted"},
+                    {"label": "Regular", "value": "regular"},
+                    {"label": "Relaxed / Loose", "value": "relaxed loose"},
+                ]
+            }
+            return _reply("Got it! What's your **preferred fit**?")
+
+        if step == "sf_fit_pref":
+            data["preferred_fit"] = user_message.strip()
+            session["data"] = data
+            session["step"] = "sf_usual_size"
+            session["_ui_options"] = {
+                "type": "quick_replies",
+                "items": [{"label": s, "value": s} for s in ["XS", "S", "M", "L", "XL", "XXL"]]
+            }
+            return _reply("What size do you **usually wear** in most brands?")
+
+        if step == "sf_usual_size":
+            data["typical_size"] = user_message.strip().upper()
+            session["data"] = data
+            session["flow"] = None
+            session["step"] = None
+
+            # Save profile
+            try:
+                db.upsert_size_fit_profile(
+                    admin_id, customer_key,
+                    body_type=data.get("body_type", ""),
+                    preferred_fit=data.get("preferred_fit", ""),
+                    typical_size=data.get("typical_size", ""),
+                )
+                session["_size_fit_profile_exists"] = True
+            except Exception:
+                pass
+
+            # Make recommendation
+            target_product = data.get("_target_product")
+            typical = data["typical_size"]
+            rec_size = typical  # default
+
+            if target_product:
+                brand = (target_product.get("product_brand") or "").strip()
+                category = (target_product.get("product_category") or "").strip()
+                # Check aggregate fit data
+                try:
+                    stats = db.get_size_fit_stats(admin_id, product_id=target_product.get("id"),
+                                                  brand=brand, category=category)
+                    if stats["total"] >= 3:
+                        # Find size with best fit ratio
+                        best_size = typical
+                        best_ratio = 0
+                        for size, sdata in stats["sizes"].items():
+                            ratio = sdata["fits_well"] / sdata["total"] if sdata["total"] > 0 else 0
+                            if ratio > best_ratio:
+                                best_ratio = ratio
+                                best_size = size
+                        if best_ratio > 0.5 and best_size != typical:
+                            rec_size = best_size
+                except Exception:
+                    pass
+
+                pname = target_product.get("product_name", "this product")
+                fit_pref = data.get("preferred_fit", "regular")
+                reply = f"**Size Recommendation for {pname}**\n\n"
+                reply += f"Based on your profile ({data.get('body_type', 'your build')}, {fit_pref} fit, usually {typical}):\n\n"
+                reply += f"**Recommended size: {rec_size}**\n\n"
+                if rec_size != typical:
+                    reply += f"Customers with your build usually prefer **{rec_size}** in this product — it tends to run {'small' if rec_size > typical else 'large'}.\n"
+                else:
+                    reply += "This product is true to size based on customer feedback.\n"
+                session["_ui_options"] = {
+                    "type": "quick_replies",
+                    "items": [
+                        {"label": f"Add {rec_size} to Cart", "value": f"add {pname} to cart"},
+                        {"label": "Try Different Size", "value": f"I want size {typical} of {pname}"},
+                        {"label": "See Size Chart", "value": f"size chart for {pname}"},
+                    ]
+                }
+                return _reply(reply)
+            else:
+                reply = f"Your size profile has been saved (usually **{typical}**, {data.get('preferred_fit', 'regular')} fit). "
+                reply += "I'll use this for future recommendations! Which product would you like sized?"
+                return _reply(reply)
+
+    # Trigger size-fit flow
+    size_fit_trigger = re.search(
+        r'\b(what size|size.?help|size.?recommend|fit.?predictor|will.?(?:this|it).?fit.?me|'
+        r'size.?guide|which size|size.?advice|help.?with.?siz|find my size)\b', raw_lower
+    )
+    if size_fit_trigger:
+        customer_key = (session.get("_prefill_email") or session_id or "").lower()
+        # Check if we already have a profile
+        existing_profile = None
+        try:
+            existing_profile = db.get_size_fit_profile(admin_id, customer_key)
+        except Exception:
+            pass
+
+        target_product = None
+        last_shown = session.get("_last_shown_products", [])
+        if last_shown:
+            target_product = last_shown[0]
+        else:
+            products = db.get_products(admin_id, "active") or []
+            for p in products:
+                pname = (p.get("product_name") or "").lower()
+                if pname and pname in raw_lower:
+                    target_product = p
+                    break
+
+        if existing_profile and existing_profile.get("typical_size"):
+            session["_size_fit_profile_exists"] = True
+            # Already have profile — give instant recommendation
+            typical = existing_profile["typical_size"]
+            fit_pref = existing_profile.get("preferred_fit", "regular")
+            if target_product:
+                pname = target_product.get("product_name", "this product")
+                rec_size = typical
+                try:
+                    brand = (target_product.get("product_brand") or "").strip()
+                    stats = db.get_size_fit_stats(admin_id, product_id=target_product.get("id"), brand=brand)
+                    if stats["total"] >= 3:
+                        best_size = typical
+                        best_ratio = 0
+                        for size, sdata in stats["sizes"].items():
+                            ratio = sdata["fits_well"] / sdata["total"] if sdata["total"] > 0 else 0
+                            if ratio > best_ratio:
+                                best_ratio = ratio
+                                best_size = size
+                        if best_ratio > 0.5:
+                            rec_size = best_size
+                except Exception:
+                    pass
+                session["_ui_options"] = {
+                    "type": "quick_replies",
+                    "items": [
+                        {"label": f"Add {rec_size} to Cart", "value": f"add {pname} to cart"},
+                        {"label": "Update My Profile", "value": "update my size profile"},
+                    ]
+                }
+                return _reply(f"Based on your profile ({fit_pref} fit, usually {typical}), I recommend **size {rec_size}** for **{pname}**.")
+            return _reply(f"Your size profile: **{typical}** ({fit_pref} fit). Which product do you need sized?")
+
+        # Start size-fit flow
+        session["flow"] = "size_fit"
+        session["step"] = "sf_body_type"
+        session["data"] = {"_target_product": target_product}
+        session["_ui_options"] = {
+            "type": "quick_replies",
+            "items": [
+                {"label": "Slim / Lean", "value": "slim lean"},
+                {"label": "Average", "value": "average"},
+                {"label": "Athletic", "value": "athletic muscular"},
+                {"label": "Plus Size", "value": "plus size"},
+            ]
+        }
+        return _reply("Let me find your perfect size! First, how would you describe your **body type**?")
+
+    # ── Size Fit Feedback Collection (post-purchase) ──
+    if session.get("_pending_fit_feedback") and not session.get("flow"):
+        fit_feedback_match = re.search(
+            r'\b(fit.?(?:perfectly|great|well|good|fine)|too.?(?:small|big|large|tight|loose)|'
+            r'size.?(?:was|is).?(?:right|wrong|off|perfect)|(?:had to|need to).?(?:return|exchange)|'
+            r'(?:runs?\s+)?(?:small|big|large|true to size))\b', raw_lower
+        )
+        if fit_feedback_match:
+            customer_key = (session.get("_prefill_email") or session_id or "").lower()
+            feedback_items = session.pop("_pending_fit_feedback", [])
+            fit_text = fit_feedback_match.group(0).lower()
+            actual_fit = "true_to_size"
+            returned = False
+            if "too small" in fit_text or "too tight" in fit_text or "runs small" in fit_text:
+                actual_fit = "too_small"
+            elif "too big" in fit_text or "too large" in fit_text or "too loose" in fit_text or "runs big" in fit_text or "runs large" in fit_text:
+                actual_fit = "too_large"
+            if "return" in fit_text or "exchange" in fit_text:
+                returned = True
+            for item in feedback_items:
+                try:
+                    profile = db.get_size_fit_profile(admin_id, customer_key)
+                    rec_size = profile.get("typical_size", "") if profile else ""
+                    db.save_size_fit_feedback(
+                        admin_id, customer_key,
+                        product_id=item.get("id", 0),
+                        product_name=item.get("name", ""),
+                        recommended_size=rec_size,
+                        actual_fit=actual_fit,
+                        returned=returned,
+                    )
+                except Exception:
+                    pass
+            return _reply("Thanks for the fit feedback! This helps us improve size recommendations for everyone.")
+
+    # Proactive fit feedback prompt after checkout
+    if session.get("_pending_fit_feedback") and not session.get("_fit_feedback_prompted"):
+        session["_fit_feedback_prompted"] = True
+        items = session["_pending_fit_feedback"]
+        if items:
+            names = ", ".join(i["name"] for i in items[:2] if i.get("name"))
+            if names:
+                session["_fit_feedback_nudge"] = f"Once you receive your order ({names}), let me know how the fit was! Just say something like 'fit perfectly' or 'runs small'."
+
+    # ══════════════════════════════════════════════════════════════
+    #  FEATURE 2: Dynamic Price Drop Alerts
+    # ══════════════════════════════════════════════════════════════
+
+    price_watch_trigger = re.search(
+        r'\b(will.?(?:this|it)\s+go\s+on\s+sale|price\s+drop|notify.?me.?when.?(?:cheaper|sale|price)|'
+        r'alert.?me.?(?:if|when)|let me know.?(?:if|when).?(?:price|sale|cheaper)|'
+        r'watch.?(?:this|the)?\s*price|price.?alert|wait for.?(?:a\s+)?sale)\b', raw_lower
+    )
+    if price_watch_trigger:
+        customer_email = (session.get("_prefill_email") or "").strip().lower()
+        if not customer_email:
+            session["_price_watch_pending"] = True
+            return _reply("I can watch prices for you! Share your **email address** so I can notify you when the price drops.")
+
+        target_product = None
+        last_shown = session.get("_last_shown_products", [])
+        if last_shown:
+            target_product = last_shown[0]
+        else:
+            products = db.get_products(admin_id, "active") or []
+            for p in products:
+                pname = (p.get("product_name") or "").lower()
+                if pname and pname in raw_lower:
+                    target_product = p
+                    break
+
+        if target_product:
+            price = float(target_product.get("product_price", 0))
+            # Check for target price
+            target_price = 0
+            tp_match = re.search(r'(?:under|below|less than|drops? to)\s*\$?([\d.]+)', raw_lower)
+            if tp_match:
+                target_price = float(tp_match.group(1))
+
+            db.add_price_watch(
+                admin_id, customer_email, target_product["id"],
+                target_product.get("product_name", ""), price, target_price, session_id
+            )
+            store_settings = db.get_store_settings(admin_id)
+            currency = "$"
+            if store_settings and store_settings.get("store_currency"):
+                _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                currency = _cm.get(store_settings["store_currency"], "$")
+            pname = target_product.get("product_name", "this product")
+            reply = f"Price watch set for **{pname}** (currently {currency}{price:.2f})."
+            if target_price > 0:
+                reply += f" I'll alert you when it drops to **{currency}{target_price:.2f}** or lower."
+            else:
+                reply += " I'll email you as soon as the price drops!"
+            session["_ui_options"] = {
+                "type": "quick_replies",
+                "items": [
+                    {"label": "Buy Now Instead", "value": f"add {pname} to cart"},
+                    {"label": "Browse More", "value": "show me products"},
+                ]
+            }
+            return _reply(reply)
+        return _reply("Which product would you like me to watch? Browse our catalog first!")
+
+    # Handle price watch email capture
+    if session.get("_price_watch_pending"):
+        email_match = re.search(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', user_message)
+        if email_match:
+            session["_prefill_email"] = email_match.group().lower()
+            session.pop("_price_watch_pending", None)
+            # Auto-watch if we have a product context from before the email capture
+            last_shown = session.get("_last_shown_products", [])
+            if last_shown:
+                target_product = last_shown[0]
+                price = float(target_product.get("product_price", 0))
+                db.add_price_watch(
+                    admin_id, session["_prefill_email"], target_product["id"],
+                    target_product.get("product_name", ""), price, 0, session_id
+                )
+                pname = target_product.get("product_name", "this product")
+                store_settings = db.get_store_settings(admin_id)
+                currency = "$"
+                if store_settings and store_settings.get("store_currency"):
+                    _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                    currency = _cm.get(store_settings["store_currency"], "$")
+                return _reply(f"Got it! Price watch set for **{pname}** (currently {currency}{price:.2f}). I'll email you when the price drops!")
+            return _reply("Got it! Now which product's price would you like me to watch?")
+
+    # Proactive price watch alerts (check once per session, deferred to AI response path)
+    if not session.get("_price_alert_msg") and not session.get("_price_watch_checked"):
+        customer_email = (session.get("_prefill_email") or "").strip().lower()
+        if customer_email:
+            session["_price_watch_checked"] = True
+            try:
+                alerts = db.check_price_drops_for_watches(admin_id)
+                customer_alerts = [a for a in alerts if a["customer_email"].lower() == customer_email]
+                if customer_alerts:
+                    store_settings = db.get_store_settings(admin_id)
+                    currency = "$"
+                    if store_settings and store_settings.get("store_currency"):
+                        _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                        currency = _cm.get(store_settings["store_currency"], "$")
+                    lines = []
+                    for a in customer_alerts[:3]:
+                        old_p = float(a["watched_price"])
+                        new_p = float(a["current_price"])
+                        pct = int((old_p - new_p) / old_p * 100) if old_p > 0 else 0
+                        lines.append(f"- **{a['product_name']}**: ~~{currency}{old_p:.2f}~~ → **{currency}{new_p:.2f}** ({pct}% off!)")
+                        db.mark_price_watch_notified(a["id"])
+                    # Don't return — just set the notification to show alongside the response
+                    session["_price_alert_msg"] = "Price drop alert! Products you're watching:\n" + "\n".join(lines)
+            except Exception:
+                pass
+
+    # ══════════════════════════════════════════════════════════════
+    #  FEATURE 3: Gift Concierge Mode
+    # ══════════════════════════════════════════════════════════════
+
+    gift_mode_trigger = re.search(
+        r'\b(gift mode|gift concierge|buying.?a.?gift|shopping.?for.?(?:a\s+)?gift|'
+        r'gift.?for.?(?:my|a|someone|him|her|them|mom|dad|wife|husband|friend|kid|child)|'
+        r'help.?(?:me\s+)?(?:find|pick|choose).?a.?gift|gift.?idea|present.?for)\b', raw_lower
+    )
+    if gift_mode_trigger and not session.get("flow"):
+        session["_gift_mode"] = True
+        session["flow"] = "gift_concierge"
+        session["step"] = "gc_recipient"
+        session["data"] = {}
+        session["_ui_options"] = {
+            "type": "quick_replies",
+            "items": [
+                {"label": "Partner", "value": "partner spouse"},
+                {"label": "Parent", "value": "parent mom dad"},
+                {"label": "Friend", "value": "friend"},
+                {"label": "Child / Teen", "value": "child teen kid"},
+                {"label": "Colleague", "value": "colleague coworker"},
+            ]
+        }
+        return _reply("Gift concierge activated! I'll help you find the perfect gift.\n\nWho is the gift for?")
+
+    if session.get("flow") == "gift_concierge":
+        data = session.get("data", {})
+        step = session.get("step", "")
+
+        if re.search(r'\b(cancel|exit|done|nevermind|stop gift)\b', raw_lower):
+            session["flow"] = None
+            session["step"] = None
+            session.pop("_gift_mode", None)
+            return _reply("Gift mode deactivated! Back to regular shopping.")
+
+        if step == "gc_recipient":
+            data["recipient"] = user_message.strip()
+            session["data"] = data
+            session["step"] = "gc_occasion"
+            session["_ui_options"] = {
+                "type": "quick_replies",
+                "items": [
+                    {"label": "Birthday", "value": "birthday"},
+                    {"label": "Anniversary", "value": "anniversary"},
+                    {"label": "Holiday", "value": "holiday celebration"},
+                    {"label": "Thank You", "value": "thank you appreciation"},
+                    {"label": "Just Because", "value": "just because no occasion"},
+                ]
+            }
+            return _reply("What's the **occasion**?")
+
+        if step == "gc_occasion":
+            data["occasion"] = user_message.strip()
+            session["data"] = data
+            session["step"] = "gc_budget"
+            store_settings = db.get_store_settings(admin_id)
+            currency = "$"
+            if store_settings and store_settings.get("store_currency"):
+                _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                currency = _cm.get(store_settings["store_currency"], "$")
+            session["_ui_options"] = {
+                "type": "quick_replies",
+                "items": [
+                    {"label": f"Under {currency}25", "value": "under 25"},
+                    {"label": f"{currency}25-{currency}50", "value": "25 to 50"},
+                    {"label": f"{currency}50-{currency}100", "value": "50 to 100"},
+                    {"label": f"Over {currency}100", "value": "over 100"},
+                    {"label": "No limit", "value": "no limit"},
+                ]
+            }
+            return _reply("What's your **budget** for this gift?")
+
+        if step == "gc_budget":
+            # Parse budget
+            max_price = None
+            m = re.search(r'under\s*\$?(\d+)', raw_lower)
+            if m: max_price = float(m.group(1))
+            m = re.search(r'(\d+)\s*(?:to|-)\s*\$?(\d+)', raw_lower)
+            if m: max_price = float(m.group(2))
+            m = re.search(r'over\s*\$?(\d+)', raw_lower)
+            if m: max_price = None  # No upper limit
+
+            data["budget"] = user_message.strip()
+            session["data"] = data
+            session["flow"] = None
+            session["step"] = None
+
+            # Search products within budget
+            recipient = data.get("recipient", "someone")
+            occasion = data.get("occasion", "")
+            search_q = f"gift {recipient} {occasion}"
+            results = _search_products(admin_id, search_q, max_price=max_price)
+            if not results:
+                results = _search_products(admin_id, "", max_price=max_price)
+
+            if results:
+                store_settings = db.get_store_settings(admin_id)
+                currency = "$"
+                if store_settings and store_settings.get("store_currency"):
+                    _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                    currency = _cm.get(store_settings["store_currency"], "$")
+                cards = _build_product_cards(results, currency)
+                # Hide prices in gift mode display
+                for card in cards:
+                    card["_gift_mode"] = True
+                session["_ui_options"] = {"type": "product_cards", "items": cards, "currency": currency}
+                session["_last_shown_products"] = results
+                session.pop("_scarcity_shown", None)
+                reply = f"Here are gift ideas for **{recipient}** ({occasion}):\n\n"
+                for i, p in enumerate(results[:4], 1):
+                    reply += f"{i}. **{p['product_name']}**\n"
+                reply += "\nWould you like to add gift wrapping to any of these? Or tell me to refine the search!"
+                # Keep _gift_mode active so gift wrapping handler works
+                return _reply(reply)
+            session.pop("_gift_mode", None)
+            return _reply("I couldn't find products in that range. Let me show you our full catalog!")
+
+    # Gift wrapping add-on
+    if re.search(r'\b(gift.?wrap|wrapping|wrap.?it|add.?wrap|gift.?message|include.?a.?(?:note|message|card))\b', raw_lower):
+        cart = session.get("_cart", [])
+        if cart:
+            # Add wrapping to last item or all
+            msg_match = re.search(r'(?:message|note|card)\s*[:\-]?\s*["\']?(.+?)["\']?\s*$', user_message, re.IGNORECASE)
+            gift_msg = msg_match.group(1).strip() if msg_match else ""
+            for item in cart:
+                item["gift_wrap"] = True
+                if gift_msg:
+                    item["gift_message"] = gift_msg
+            session["_cart"] = cart
+            reply = "Gift wrapping added to your cart items!"
+            if gift_msg:
+                reply += f"\nGift message: *\"{gift_msg}\"*"
+            reply += "\nReady to checkout?"
+            return _reply(reply)
+        return _reply("Your cart is empty — add some products first, then I can gift wrap them!")
+
+    # ══════════════════════════════════════════════════════════════
+    #  FEATURE 4: Inventory Scarcity Intelligence
+    # ══════════════════════════════════════════════════════════════
+
+    # Proactive scarcity signals when showing products
+    if session.get("_last_shown_products") and not session.get("_scarcity_shown"):
+        session["_scarcity_shown"] = True
+        try:
+            scarcity_msgs = []
+            for p in session["_last_shown_products"][:3]:
+                pid = p.get("id", 0)
+                stock = int(p.get("inventory_quantity", 0) or 0)
+                if stock > 0 and stock <= 5:
+                    viewers = db.get_product_view_velocity(admin_id, pid, hours=1)
+                    purchases_24h = db.get_product_purchase_velocity(admin_id, pid, hours=24)
+                    pname = p.get("product_name", "")
+                    parts = []
+                    if stock <= 3:
+                        parts.append(f"Only **{stock} left** in stock")
+                    if viewers >= 3:
+                        parts.append(f"**{viewers} people** viewing this now")
+                    if purchases_24h >= 2:
+                        parts.append(f"**{purchases_24h} sold** in the last 24h")
+                    if parts:
+                        scarcity_msgs.append(f"**{pname}**: {' — '.join(parts)}")
+            if scarcity_msgs:
+                session["_scarcity_alert"] = "\n".join(scarcity_msgs)
+        except Exception:
+            pass
+
+    # ══════════════════════════════════════════════════════════════
+    #  FEATURE 5: Competitor Price Awareness
+    # ══════════════════════════════════════════════════════════════
+
+    competitor_trigger = re.search(
+        r'\b(cheaper.?(?:on|at|from)|found.?(?:it\s+)?cheaper|price.?match|'
+        r'(?:amazon|walmart|target|ebay)\s+has|competitor|better.?price|'
+        r'lower.?price.?(?:on|at|from)|seen.?it.?(?:for\s+)?(?:less|cheaper))\b', raw_lower
+    )
+    if competitor_trigger:
+        target_product = None
+        last_shown = session.get("_last_shown_products", [])
+        if last_shown:
+            target_product = last_shown[0]
+        else:
+            products = db.get_products(admin_id, "active") or []
+            for p in products:
+                pname = (p.get("product_name") or "").lower()
+                if pname and pname in raw_lower:
+                    target_product = p
+                    break
+
+        if target_product:
+            pid = target_product["id"]
+            pname = target_product.get("product_name", "this product")
+            our_price = float(target_product.get("product_price", 0))
+            store_settings = db.get_store_settings(admin_id)
+            currency = "$"
+            if store_settings and store_settings.get("store_currency"):
+                _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                currency = _cm.get(store_settings["store_currency"], "$")
+
+            competitors = db.get_competitor_prices(admin_id, pid)
+            if competitors:
+                reply = f"**Price Comparison for {pname}**\n\n"
+                reply += f"**Our price: {currency}{our_price:.2f}**\n\n"
+                for c in competitors:
+                    cp = float(c["competitor_price"])
+                    diff = our_price - cp
+                    if diff > 0:
+                        reply += f"- {c['competitor_name']}: {currency}{cp:.2f} ({currency}{diff:.2f} less)"
+                        if c.get("our_advantages"):
+                            reply += f"\n  *But with us you get: {c['our_advantages']}*"
+                    elif diff < 0:
+                        reply += f"- {c['competitor_name']}: {currency}{cp:.2f} ({currency}{abs(diff):.2f} more)"
+                    else:
+                        reply += f"- {c['competitor_name']}: {currency}{cp:.2f} (same price)"
+                    reply += "\n"
+
+                # Value differentiation
+                highlights = target_product.get("product_highlights", "")
+                benefits = target_product.get("product_benefits", "")
+                if highlights or benefits:
+                    reply += f"\n**Why buy from us:**\n{highlights or benefits}"
+
+                session["_ui_options"] = {
+                    "type": "quick_replies",
+                    "items": [
+                        {"label": "Add to Cart", "value": f"add {pname} to cart"},
+                        {"label": "Price Watch", "value": f"notify me when {pname} price drops"},
+                    ]
+                }
+                return _reply(reply)
+            else:
+                return _reply(
+                    f"I don't have competitor pricing data for **{pname}** right now. "
+                    f"Our price is **{currency}{our_price:.2f}**. We stand behind our pricing with "
+                    f"quality guarantees and customer support!"
+                )
+
+    # ══════════════════════════════════════════════════════════════
+    #  FEATURE 6: Subscription & Replenishment Agent
+    # ══════════════════════════════════════════════════════════════
+
+    reorder_trigger = re.search(
+        r'\b(reorder|re-order|buy again|order again|same order|repeat order|'
+        r'need more|running low|running out|almost out|subscribe|subscription|'
+        r'auto.?ship|auto.?refill|replenish)\b', raw_lower
+    )
+    if reorder_trigger:
+        customer_key = (session.get("_prefill_email") or "").strip().lower()
+        if customer_key:
+            try:
+                candidates = db.get_replenishment_candidates(admin_id, customer_key)
+                if candidates:
+                    store_settings = db.get_store_settings(admin_id)
+                    currency = "$"
+                    if store_settings and store_settings.get("store_currency"):
+                        _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                        currency = _cm.get(store_settings["store_currency"], "$")
+
+                    # Find the actual products for pricing
+                    products = db.get_products(admin_id, "active") or []
+                    product_map = {p["id"]: p for p in products}
+
+                    lines = []
+                    quick_items = []
+                    for c in candidates[:5]:
+                        pid = c["product_id"]
+                        pname = c["product_name"]
+                        days_since = int(c["days_since"])
+                        avg_days = int(c["avg_days"])
+                        prod = product_map.get(pid)
+                        price = float(prod.get("product_price", 0)) if prod else 0
+                        line = f"- **{pname}**"
+                        if price > 0:
+                            line += f" — {currency}{price:.2f}"
+                        line += f" (last ordered {days_since} days ago, avg every {avg_days} days)"
+                        lines.append(line)
+                        quick_items.append({"label": f"Reorder {pname[:20]}", "value": f"add {pname} to cart"})
+
+                    reply = "Ready to restock? Based on your purchase history:\n\n" + "\n".join(lines)
+                    reply += "\n\nWould you like to reorder any of these?"
+                    quick_items.append({"label": "Reorder All", "value": "reorder all previous items"})
+                    session["_ui_options"] = {"type": "quick_replies", "items": quick_items[:5]}
+                    session["_replenishment_candidates"] = candidates
+                    return _reply(reply)
+            except Exception:
+                pass
+
+        return _reply("I can help you reorder! Could you share the **email** you used for previous orders?")
+
+    # Handle "reorder all"
+    if re.search(r'\breorder all\b', raw_lower) and session.get("_replenishment_candidates"):
+        candidates = session["_replenishment_candidates"]
+        products = db.get_products(admin_id, "active") or []
+        product_map = {p["id"]: p for p in products}
+        cart = session.get("_cart", [])
+        added = 0
+        for c in candidates:
+            pid = c["product_id"]
+            prod = product_map.get(pid)
+            if prod and pid not in {i["id"] for i in cart}:
+                cart.append({
+                    "id": pid,
+                    "name": c["product_name"],
+                    "price": float(prod.get("product_price", 0)),
+                    "qty": 1,
+                    "external_id": prod.get("product_id") or prod.get("product_barcode") or str(pid),
+                })
+                added += 1
+        session["_cart"] = cart
+        session.pop("_replenishment_candidates", None)
+        if added:
+            return _reply(f"Added **{added}** item(s) to your cart for reorder! Say 'checkout' when ready.")
+        return _reply("Those items are already in your cart!")
+
+    # Proactive replenishment nudge (once per session)
+    if not session.get("_replenishment_nudged"):
+        customer_key = (session.get("_prefill_email") or "").strip().lower()
+        if customer_key:
+            session["_replenishment_nudged"] = True
+            try:
+                candidates = db.get_replenishment_candidates(admin_id, customer_key)
+                due = [c for c in candidates if c["days_since"] >= c["avg_days"]]
+                if due:
+                    top = due[0]
+                    session["_replenishment_nudge_msg"] = (
+                        f"It's been **{int(top['days_since'])} days** since you last ordered "
+                        f"**{top['product_name']}** (you usually reorder every {int(top['avg_days'])} days). "
+                        f"Ready for your next order?"
+                    )
+            except Exception:
+                pass
+
+    # ══════════════════════════════════════════════════════════════
+    #  FEATURE 7: Visual Product Search (photo upload)
+    # ══════════════════════════════════════════════════════════════
+
+    visual_search_trigger = re.search(
+        r'\b(search by.?(?:photo|image|picture)|upload.?(?:a\s+)?(?:photo|image|picture)|'
+        r'find.?(?:something\s+)?like.?(?:this|that).?(?:photo|image|picture)|'
+        r'similar.?(?:to\s+)?(?:this|that).?(?:photo|image|picture)|'
+        r'visual.?search|image.?search|photo.?search|'
+        r'i.?(?:have|got|took|found).?a.?(?:photo|picture|image|screenshot))\b', raw_lower
+    )
+    if visual_search_trigger:
+        session["_visual_search_pending"] = True
+        return _reply(
+            "I'd love to help you find matching products! "
+            "Please **upload a photo** and I'll search our catalog for similar items.\n\n"
+            "*Tip: Photos from Pinterest, Instagram, or your camera all work!*"
+        )
+
+    # Handle uploaded image OR text description when visual search is pending
+    if session.get("_visual_search_pending"):
+        image_data = session.pop("_uploaded_image", None)
+        # Accept either uploaded image data or a text description as search input
+        search_query = ""
+        if image_data:
+            search_query = (image_data.get("description", "") if isinstance(image_data, dict) else str(image_data)).lower()
+        elif not visual_search_trigger:
+            # User typed a text description instead of uploading — use it as search query
+            search_query = raw_lower
+
+        if search_query:
+            session.pop("_visual_search_pending", None)
+            results = _search_products(admin_id, search_query)
+            if results:
+                store_settings = db.get_store_settings(admin_id)
+                currency = "$"
+                if store_settings and store_settings.get("store_currency"):
+                    _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                    currency = _cm.get(store_settings["store_currency"], "$")
+                cards = _build_product_cards(results, currency)
+                session["_ui_options"] = {"type": "product_cards", "items": cards, "currency": currency}
+                session["_last_shown_products"] = results
+                session.pop("_scarcity_shown", None)
+                return _reply(f"I found **{len(results)}** similar items in our catalog! Here are the closest matches:")
+            return _reply("I couldn't find matching products. Try describing what you're looking for in different words!")
+
+    # ══════════════════════════════════════════════════════════════
+    #  FEATURE 8: CLV Scoring & VIP Treatment
+    # ══════════════════════════════════════════════════════════════
+
+    if not session.get("_vip_checked"):
+        customer_email = (session.get("_prefill_email") or "").strip().lower()
+        if customer_email:
+            session["_vip_checked"] = True
+            try:
+                ltv = db.get_customer_ltv_score(admin_id, customer_email)
+                if ltv and ltv["tier"] in ("vip", "gold"):
+                    session["_customer_tier"] = ltv["tier"]
+                    session["_customer_ltv"] = ltv
+                    if ltv["tier"] == "vip":
+                        session["_vip_perks"] = {
+                            "free_shipping": True,
+                            "priority_support": True,
+                            "exclusive_discount": 10,
+                        }
+                        session["_vip_welcome"] = (
+                            f"Welcome back, valued VIP customer! "
+                            f"You've placed **{ltv['total_orders']} orders** with us. "
+                            f"As a VIP, you enjoy **free express shipping** and **10% exclusive discount** on all orders."
+                        )
+                    elif ltv["tier"] == "gold":
+                        session["_vip_perks"] = {"free_shipping": True, "exclusive_discount": 5}
+                        session["_vip_welcome"] = (
+                            f"Welcome back! You're one of our top Gold-tier customers. "
+                            f"Enjoy **free shipping** and **5% off** today!"
+                        )
+            except Exception:
+                pass
+
+    # Apply VIP perks at checkout (modify cart total)
+    if session.get("_customer_tier") == "vip" and re.search(r'\b(checkout|check out)\b', raw_lower):
+        # VIP perk will be applied in checkout handler — just ensure free shipping is noted
+        pass
+
+    # ══════════════════════════════════════════════════════════════
+    #  FEATURE 9: Fraud Detection Conversation Shield
+    # ══════════════════════════════════════════════════════════════
+
+    try:
+        _fraud_score = session.get("_fraud_score", 0)
+
+        # Signal: rapid checkout attempts (already handled inline in checkout handler above)
+
+        # Signal: multiple different email addresses in same session
+        emails_seen = session.get("_emails_seen", set())
+        current_email = (session.get("_prefill_email") or "").lower()
+        if current_email:
+            if isinstance(emails_seen, set):
+                emails_seen.add(current_email)
+            else:
+                emails_seen = {current_email}
+            session["_emails_seen"] = emails_seen
+            if len(emails_seen) >= 3 and not session.get("_fraud_multi_email_flagged"):
+                session["_fraud_multi_email_flagged"] = True
+                _fraud_score += 25
+                db.record_fraud_signal(admin_id, session_id, "multiple_emails",
+                                       f"Used {len(emails_seen)} different emails",
+                                       25, current_email)
+
+        # Signal: high value cart with no browsing history
+        cart = session.get("_cart", [])
+        cart_total = sum(i.get("price", 0) * i.get("qty", 1) for i in cart)
+        msg_count = len(session.get("history", []))
+        if cart_total > 500 and msg_count < 5 and not session.get("_fraud_highval_flagged"):
+            session["_fraud_highval_flagged"] = True
+            _fraud_score += 20
+            db.record_fraud_signal(admin_id, session_id, "high_value_rapid",
+                                   f"Cart ${cart_total:.2f} with only {msg_count} messages",
+                                   20, session.get("_prefill_email", ""))
+
+        # Signal: mismatched shipping address patterns
+        if session.get("data", {}).get("shipping_address"):
+            addr = session["data"]["shipping_address"].lower()
+            name = (session.get("_prefill_name") or "").lower()
+            if name and len(name) > 2 and name.split()[0] not in addr and "po box" in addr:
+                if not session.get("_fraud_addr_flagged"):
+                    session["_fraud_addr_flagged"] = True
+                    _fraud_score += 15
+                    db.record_fraud_signal(admin_id, session_id, "address_mismatch",
+                                           "PO Box + name not in address", 15,
+                                           session.get("_prefill_email", ""))
+
+        session["_fraud_score"] = _fraud_score
+
+        # Block if score is too high
+        if _fraud_score >= 70 and not session.get("_fraud_blocked"):
+            session["_fraud_blocked"] = True
+            return _reply(
+                "For security purposes, we need to verify your identity before proceeding. "
+                "Please contact our support team directly to complete your purchase."
+            )
+    except Exception:
+        pass
+
+    # ══════════════════════════════════════════════════════════════
+    #  Append proactive messages (scarcity, VIP, replenishment, price alerts)
+    # ══════════════════════════════════════════════════════════════
+    # These are appended to whatever response follows, not standalone
+
+    # ── Knowledge base lookup (before falling through to AI) ──
+    try:
+        kb_results = db.search_knowledge_base(admin_id, user_message)
+        if kb_results:
+            best = kb_results[0]
+            return _reply(best["answer"])
+    except Exception:
+        pass
+
+    return None  # No e-commerce intent matched — fall through to AI
+
+
+def _handle_real_estate_intents(session, user_message, raw_lower, lower, admin_id, session_id, _reply):
+    """Handle real estate-specific intents: property search, lead qualification, showing."""
+
+    # ── Handle ongoing RE flows ──
+    if session.get("flow") == "re_qualification":
+        return _handle_re_qualification_step(session, user_message, raw_lower, admin_id, _reply)
+
+    if session.get("flow") == "re_showing":
+        return _handle_re_showing_step(session, user_message, raw_lower, admin_id, _reply)
+
+    # ── Start lead qualification (BANT) — check BEFORE property search ──
+    qualification_triggers = [
+        r'\b(interested|want to|looking to|thinking about|considering)\b.*(buy|purchase|rent|invest|sell|move)',
+        r'\b(buy|purchase|rent|invest|sell)\b.*(house|home|property|condo|apartment)',
+        r'\b(first.?time buyer|relocating|moving|downsizing|upgrading)',
+        r'\b(help me find|find me|i need help)\b',
+    ]
+    if any(re.search(pat, raw_lower) for pat in qualification_triggers):
+        session["flow"] = "re_qualification"
+        session["step"] = "q_type"
+        session["data"] = {"_admin_id": admin_id, "_session_id": session_id, "_qualification_score": 0, "_answers": {}}
+        session["_ui_options"] = {
+            "type": "quick_replies",
+            "items": [
+                {"label": "Buy", "value": "Buy"},
+                {"label": "Rent", "value": "Rent"},
+                {"label": "Sell", "value": "Sell"},
+                {"label": "Invest", "value": "Invest"},
+                {"label": "Just Browsing", "value": "Just browsing"}
+            ]
+        }
+        return _reply("I'd be happy to help! Are you looking to **buy**, **rent**, **sell**, or **invest**?")
+
+    # ── Property search ──
+    property_search_patterns = [
+        r'\b(show|find|search|looking for|browse|any|available)\b.*(house|home|property|listing|condo|apartment|townhome|townhouse|studio|duplex|multi.?family|single.?family|land|lot)',
+        r'\b(house|home|property|listing|condo|apartment)\b.*(show|find|search|available|for sale|for rent|under|near|in )',
+        r'\b(\d+)\s*(?:bed|br|bedroom)',
+        r'\b(what|which)\b.*(property|listing|house|home)s?\b.*(you have|available|for sale|for rent)',
+        r'\b(properties|listings|homes|houses)\b.*(under|near|in |below|around|within)',
+    ]
+
+    is_property_search = any(re.search(pat, raw_lower) for pat in property_search_patterns)
+
+    if is_property_search:
+        # Extract search filters from message
+        filters = {}
+        bed_match = re.search(r'(\d+)\s*(?:bed|br|bedroom)', raw_lower)
+        if bed_match:
+            filters["min_beds"] = int(bed_match.group(1))
+        price_match = re.search(r'(?:under|below|less than|max|budget)\s*\$?([\d,]+)(?:k|K)?', raw_lower)
+        if price_match:
+            price_val = float(price_match.group(1).replace(",", ""))
+            if price_val < 10000:  # probably in K
+                price_val *= 1000
+            filters["max_price"] = price_val
+        if re.search(r'\bpool\b', raw_lower):
+            filters["pool"] = True
+
+        results = _search_listings(admin_id, raw_lower, filters)
+        if results:
+            cards = _build_property_cards(results)
+            session["_ui_options"] = {"type": "property_cards", "items": cards}
+            if len(results) == 1:
+                return _reply(f"I found a property matching your criteria:")
+            return _reply(f"I found {len(results)} properties matching your criteria:")
+        else:
+            # Start qualification flow since no listings match
+            return _reply("I don't have exact matches right now, but I can help you find your perfect home. Are you looking to **buy**, **rent**, or **invest**?")
+
+    # ── Showing request ──
+    if re.search(r'\b(schedule|book|arrange|set up|want)\b.*(showing|viewing|tour|visit|see the|see this|walk.?through|open house)', raw_lower):
+        session["flow"] = "re_showing"
+        session["step"] = "get_listing"
+        session["data"] = {"_admin_id": admin_id, "_session_id": session_id}
+        listings = db.get_property_listings(admin_id, "active")
+        if listings:
+            cards = _build_property_cards(listings[:5])
+            session["_ui_options"] = {"type": "property_cards", "items": cards}
+            return _reply("I'd love to schedule a viewing for you! Which property are you interested in?")
+        return _reply("I'd love to schedule a viewing! Could you tell me the address or describe the property you're interested in?")
+
+    # ── Agent request ──
+    if re.search(r'\b(talk to|speak to|connect|contact|who is)\b.*(agent|realtor|broker|representative)', raw_lower):
+        agents = db.get_re_agents(admin_id)
+        active_agents = [a for a in agents if a.get("agent_status") == "active"]
+        if active_agents:
+            agent = active_agents[0]
+            session["_ui_options"] = {
+                "type": "agent_card",
+                "agent": {
+                    "name": f"{agent.get('first_name', '')} {agent.get('last_name', '')}",
+                    "title": agent.get("title", "Agent"),
+                    "specializations": agent.get("specializations", ""),
+                    "phone": agent.get("phone", ""),
+                    "photo": agent.get("photo", ""),
+                }
+            }
+            return _reply(f"I'll connect you with our agent **{agent.get('first_name', '')} {agent.get('last_name', '')}**:")
+        return None  # Fall through to AI
+
+    # ── All listings ──
+    if re.search(r'\b(all listings|your listings|what.s available|show me everything|all properties|what do you have)\b', raw_lower):
+        listings = db.get_property_listings(admin_id, "active")
+        if listings:
+            cards = _build_property_cards(listings[:6])
+            session["_ui_options"] = {"type": "property_cards", "items": cards}
+            return _reply(f"Here are our current listings ({len(listings)} properties):")
+        return None
+
+    return None  # No real estate intent matched — fall through to AI
+
+
+def _handle_re_qualification_step(session, user_message, raw_lower, admin_id, _reply):
+    """Handle the multi-step BANT lead qualification flow for real estate."""
+    step = session.get("step")
+    data = session.get("data", {})
+    score = data.get("_qualification_score", 0)
+    answers = data.get("_answers", {})
+
+    if step == "q_type":
+        # Q1: Buy/Rent/Sell/Invest
+        lead_type = "buyer"
+        if "buy" in raw_lower: lead_type = "buyer"; score += 15
+        elif "rent" in raw_lower: lead_type = "renter"; score += 10
+        elif "sell" in raw_lower: lead_type = "seller"; score += 15
+        elif "invest" in raw_lower: lead_type = "investor"; score += 15
+        elif "brows" in raw_lower: lead_type = "browser"; score += 0
+        answers["type"] = lead_type
+        data["_lead_type"] = lead_type
+        data["_qualification_score"] = score
+        data["_answers"] = answers
+        session["step"] = "q_area"
+        return _reply("Which area or neighborhood are you interested in?")
+
+    elif step == "q_area":
+        answers["area"] = user_message.strip()
+        if len(user_message.strip()) > 2:
+            score += 10  # Area specificity
+        data["_qualification_score"] = score
+        data["_answers"] = answers
+        session["step"] = "q_budget"
+        session["_ui_options"] = {
+            "type": "quick_replies",
+            "items": [
+                {"label": "Under $300K", "value": "Under $300K"},
+                {"label": "$300K-$500K", "value": "$300K-$500K"},
+                {"label": "$500K-$750K", "value": "$500K-$750K"},
+                {"label": "$750K-$1M", "value": "$750K-$1M"},
+                {"label": "$1M+", "value": "$1M+"}
+            ]
+        }
+        return _reply("What's your budget range?")
+
+    elif step == "q_budget":
+        answers["budget"] = user_message.strip()
+        score += 20  # Budget clarity
+        # Parse budget for lead data
+        budget_min = 0
+        budget_max = 0
+        if "under" in raw_lower and "300" in raw_lower:
+            budget_max = 300000
+        elif "300" in raw_lower and "500" in raw_lower:
+            budget_min = 300000; budget_max = 500000
+        elif "500" in raw_lower and "750" in raw_lower:
+            budget_min = 500000; budget_max = 750000
+        elif "750" in raw_lower and "1m" in raw_lower.replace(",", "").replace("$", ""):
+            budget_min = 750000; budget_max = 1000000
+        elif "1m" in raw_lower.replace(",", "").replace("$", "") or "1000" in raw_lower.replace(",", ""):
+            budget_min = 1000000; budget_max = 0
+        data["_budget_min"] = budget_min
+        data["_budget_max"] = budget_max
+        data["_qualification_score"] = score
+        data["_answers"] = answers
+        session["step"] = "q_timeline"
+        session["_ui_options"] = {
+            "type": "quick_replies",
+            "items": [
+                {"label": "ASAP (0-30 days)", "value": "ASAP"},
+                {"label": "1-3 months", "value": "1-3 months"},
+                {"label": "3-6 months", "value": "3-6 months"},
+                {"label": "6+ months", "value": "6+ months"},
+                {"label": "Just exploring", "value": "Just exploring"}
+            ]
+        }
+        return _reply("When are you looking to move or close?")
+
+    elif step == "q_timeline":
+        answers["timeline"] = user_message.strip()
+        if "asap" in raw_lower or "0-30" in raw_lower or "immediately" in raw_lower or "soon" in raw_lower:
+            score += 25  # HOT
+            data["_timeline"] = "0-30 days"
+        elif "1-3" in raw_lower or "1 to 3" in raw_lower:
+            score += 15
+            data["_timeline"] = "1-3 months"
+        elif "3-6" in raw_lower or "3 to 6" in raw_lower:
+            score += 8
+            data["_timeline"] = "3-6 months"
+        elif "6" in raw_lower or "year" in raw_lower or "explor" in raw_lower:
+            score += 3
+            data["_timeline"] = "6+ months"
+        data["_qualification_score"] = score
+        data["_answers"] = answers
+        session["step"] = "q_property_type"
+        session["_ui_options"] = {
+            "type": "quick_replies",
+            "items": [
+                {"label": "Single Family", "value": "Single Family"},
+                {"label": "Condo", "value": "Condo"},
+                {"label": "Townhome", "value": "Townhome"},
+                {"label": "Multi-Family", "value": "Multi-Family"},
+                {"label": "Any", "value": "Any type"}
+            ]
+        }
+        return _reply("What type of property are you looking for?")
+
+    elif step == "q_property_type":
+        answers["property_type"] = user_message.strip()
+        score += 10  # Property type clarity
+        data["_qualification_score"] = score
+        data["_answers"] = answers
+        session["step"] = "q_bedrooms"
+        session["_ui_options"] = {
+            "type": "quick_replies",
+            "items": [
+                {"label": "1 bed", "value": "1 bedroom"},
+                {"label": "2 beds", "value": "2 bedrooms"},
+                {"label": "3 beds", "value": "3 bedrooms"},
+                {"label": "4+ beds", "value": "4+ bedrooms"},
+                {"label": "Flexible", "value": "Flexible"}
+            ]
+        }
+        return _reply("How many bedrooms do you need?")
+
+    elif step == "q_bedrooms":
+        answers["bedrooms"] = user_message.strip()
+        bed_match = re.search(r'(\d+)', raw_lower)
+        data["_bedrooms"] = int(bed_match.group(1)) if bed_match else 0
+        data["_qualification_score"] = score
+        data["_answers"] = answers
+        session["step"] = "q_features"
+        session["_ui_options"] = {
+            "type": "quick_replies",
+            "items": [
+                {"label": "Pool", "value": "Pool"},
+                {"label": "Garage", "value": "Garage"},
+                {"label": "Yard", "value": "Yard"},
+                {"label": "Updated Kitchen", "value": "Updated Kitchen"},
+                {"label": "Home Office", "value": "Home Office"},
+                {"label": "No Preference", "value": "No specific features"}
+            ]
+        }
+        return _reply("Any must-have features?")
+
+    elif step == "q_features":
+        answers["features"] = user_message.strip()
+        data["_qualification_score"] = score
+        data["_answers"] = answers
+        session["step"] = "q_contact"
+        return _reply("Great! What's the best way to reach you? Please share your **name**, **email**, and **phone number**.")
+
+    elif step == "q_contact":
+        # Extract contact info
+        answers["contact"] = user_message.strip()
+        # Parse name, email, phone
+        email_match = re.search(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', user_message)
+        phone_match = re.search(r'[\+]?[\d\s\-\(\)]{7,15}', user_message)
+        name_parts = re.sub(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', '', user_message)
+        name_parts = re.sub(r'[\+]?[\d\s\-\(\)]{7,15}', '', name_parts).strip()
+        # Clean up name
+        name_parts = re.sub(r'\b(my name is|i am|name|email|phone|call me|reach me)\b', '', name_parts, flags=re.IGNORECASE).strip()
+        name_parts = re.sub(r'[,;:\-\|]+', ' ', name_parts).strip()
+
+        if phone_match:
+            score += 10  # Contact willingness
+        data["_qualification_score"] = score
+
+        # Determine lead temperature
+        if score >= 80:
+            lead_temp = "HOT"
+        elif score >= 60:
+            lead_temp = "WARM"
+        elif score >= 40:
+            lead_temp = "LUKEWARM"
+        else:
+            lead_temp = "COLD"
+
+        # Create the lead in DB
+        try:
+            first_name = name_parts.split()[0] if name_parts else ""
+            last_name = " ".join(name_parts.split()[1:]) if name_parts and len(name_parts.split()) > 1 else ""
+            lead_id = db.create_re_lead(admin_id,
+                first_name=first_name,
+                last_name=last_name,
+                email=email_match.group() if email_match else "",
+                phone=phone_match.group().strip() if phone_match else "",
+                lead_type=data.get("_lead_type", "buyer"),
+                lead_score=score,
+                lead_status="new",
+                source="chatbot",
+                budget_min=data.get("_budget_min", 0),
+                budget_max=data.get("_budget_max", 0),
+                preferred_areas=answers.get("area", ""),
+                property_type_pref=answers.get("property_type", ""),
+                bedrooms_pref=data.get("_bedrooms", 0),
+                must_have_features=answers.get("features", ""),
+                timeline=data.get("_timeline", ""),
+                qualification_answers=json.dumps(answers),
+            )
+            print(f"[re_lead] Created lead #{lead_id} score={score} temp={lead_temp}", flush=True)
+
+            # Route to agent
+            _route_re_lead_to_agent(admin_id, lead_id, score)
+        except Exception as e:
+            print(f"[re_lead] Error creating lead: {e}", flush=True)
+
+        # Reset flow
+        session["flow"] = None
+        session["step"] = None
+
+        # Show matching properties
+        listings = db.get_property_listings(admin_id, "active")
+        if listings:
+            # Filter by criteria
+            filtered = listings
+            if data.get("_budget_max"):
+                filtered = [l for l in filtered if float(l.get("listing_price", 0) or 0) <= data["_budget_max"]]
+            if data.get("_bedrooms"):
+                filtered = [l for l in filtered if (l.get("bedrooms", 0) or 0) >= data["_bedrooms"]]
+            if not filtered:
+                filtered = listings[:3]
+            cards = _build_property_cards(filtered[:3])
+            if cards:
+                session["_ui_options"] = {"type": "property_cards", "items": cards}
+
+        if lead_temp == "HOT":
+            return _reply(
+                f"Thank you, {first_name or 'there'}! Based on your preferences, you're a priority client.\n\n"
+                f"**Lead Score: {score}/100 ({lead_temp})**\n\n"
+                "An agent will contact you very soon. In the meantime, here are some properties that match your criteria:"
+            )
+        elif lead_temp == "WARM":
+            return _reply(
+                f"Thank you, {first_name or 'there'}! I've noted your preferences.\n\n"
+                "An agent will reach out within 24 hours. Here are some properties you might like:"
+            )
+        else:
+            return _reply(
+                f"Thank you, {first_name or 'there'}! I've saved your preferences.\n\n"
+                "We'll keep you updated with new listings that match your criteria. Here are some properties to explore:"
+            )
+
+    return None
+
+
+def _handle_re_showing_step(session, user_message, raw_lower, admin_id, _reply):
+    """Handle the showing scheduling flow for real estate."""
+    step = session.get("step")
+    data = session.get("data", {})
+
+    if step == "get_listing":
+        # Try to match a listing from message
+        listings = db.get_property_listings(admin_id, "active")
+        matched = None
+        for l in listings:
+            addr = (l.get("listing_address") or "").lower()
+            if addr and addr in raw_lower:
+                matched = l
+                break
+        if not matched:
+            # Try partial match
+            for l in listings:
+                addr = (l.get("listing_address") or "").lower()
+                addr_words = set(addr.split())
+                msg_words = set(raw_lower.split())
+                overlap = addr_words & msg_words - {"the", "at", "in", "on", "for", "a", "i", "want", "to", "see", "schedule", "viewing", "showing"}
+                if len(overlap) >= 2:
+                    matched = l
+                    break
+        if not matched and listings:
+            # Try by number (user may say "1", "first one", etc.)
+            num_match = re.search(r'\b(\d+)\b', raw_lower)
+            if num_match:
+                idx = int(num_match.group(1)) - 1
+                if 0 <= idx < len(listings):
+                    matched = listings[idx]
+
+        if matched:
+            data["listing_id"] = matched["id"]
+            data["listing_address"] = matched.get("listing_address", "")
+            session["step"] = "get_date"
+            session["_ui_options"] = {"type": "calendar", "off_dates": []}
+            return _reply(f"Great choice! **{matched.get('listing_address', '')}**. When would you like to visit? Pick a date:")
+        else:
+            return _reply("I couldn't identify which property. Could you provide the address or pick from the list above?")
+
+    elif step == "get_date":
+        # Parse date
+        date_iso = None
+        date_match = re.search(r'(\d{4}-\d{2}-\d{2})', user_message)
+        if date_match:
+            date_iso = date_match.group(1)
+        else:
+            # Try natural language date
+            today = datetime.now()
+            if "today" in raw_lower:
+                date_iso = today.strftime("%Y-%m-%d")
+            elif "tomorrow" in raw_lower:
+                date_iso = (today + timedelta(days=1)).strftime("%Y-%m-%d")
+
+        if date_iso:
+            data["showing_date"] = date_iso
+            session["step"] = "get_time"
+            session["_ui_options"] = {
+                "type": "quick_replies",
+                "items": [
+                    {"label": "9:00 AM", "value": "9:00 AM"},
+                    {"label": "10:00 AM", "value": "10:00 AM"},
+                    {"label": "11:00 AM", "value": "11:00 AM"},
+                    {"label": "1:00 PM", "value": "1:00 PM"},
+                    {"label": "2:00 PM", "value": "2:00 PM"},
+                    {"label": "3:00 PM", "value": "3:00 PM"},
+                    {"label": "4:00 PM", "value": "4:00 PM"},
+                    {"label": "5:00 PM", "value": "5:00 PM"}
+                ]
+            }
+            return _reply(f"What time works best for you on **{date_iso}**?")
+        else:
+            return _reply("I didn't catch the date. Please pick a date from the calendar or type it (e.g., 2026-05-10).")
+
+    elif step == "get_time":
+        data["showing_time"] = user_message.strip()
+        session["step"] = "get_contact"
+        # If we already have prefill data, skip contact
+        if session.get("_prefill_name") and (session.get("_prefill_email") or session.get("_prefill_phone")):
+            data["lead_name"] = session["_prefill_name"]
+            data["lead_email"] = session.get("_prefill_email", "")
+            data["lead_phone"] = session.get("_prefill_phone", "")
+            session["step"] = "confirm"
+            session["_ui_options"] = {
+                "type": "confirm_yesno",
+                "items": [
+                    {"name": "Confirm", "value": "yes"},
+                    {"name": "Cancel", "value": "cancel"}
+                ]
+            }
+            return _reply(
+                f"Please confirm your showing:\n\n"
+                f"**Property:** {data.get('listing_address', '')}\n"
+                f"**Date:** {data.get('showing_date', '')}\n"
+                f"**Time:** {data.get('showing_time', '')}\n"
+                f"**Name:** {data['lead_name']}\n\n"
+                f"Confirm?"
+            )
+        return _reply("Please provide your **name**, **email**, and **phone number** so we can confirm your viewing:")
+
+    elif step == "get_contact":
+        email_match = re.search(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', user_message)
+        phone_match = re.search(r'[\+]?[\d\s\-\(\)]{7,15}', user_message)
+        name_parts = re.sub(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', '', user_message)
+        name_parts = re.sub(r'[\+]?[\d\s\-\(\)]{7,15}', '', name_parts).strip()
+        name_parts = re.sub(r'\b(my name is|i am|name|email|phone|call me)\b', '', name_parts, flags=re.IGNORECASE).strip()
+        name_parts = re.sub(r'[,;:\-\|]+', ' ', name_parts).strip()
+
+        data["lead_name"] = name_parts or session.get("_greeting_name", "")
+        data["lead_email"] = email_match.group() if email_match else ""
+        data["lead_phone"] = phone_match.group().strip() if phone_match else ""
+        session["step"] = "confirm"
+        session["_ui_options"] = {
+            "type": "confirm_yesno",
+            "items": [
+                {"name": "Confirm", "value": "yes"},
+                {"name": "Cancel", "value": "cancel"}
+            ]
+        }
+        return _reply(
+            f"Please confirm your showing:\n\n"
+            f"**Property:** {data.get('listing_address', '')}\n"
+            f"**Date:** {data.get('showing_date', '')}\n"
+            f"**Time:** {data.get('showing_time', '')}\n"
+            f"**Name:** {data.get('lead_name', '')}\n\n"
+            f"Confirm?"
+        )
+
+    elif step == "confirm":
+        if raw_lower in ("yes", "confirm", "yeah", "yep", "sure", "ok", "okay"):
+            # Create the showing
+            try:
+                # Find an agent to assign
+                agents = db.get_re_agents(admin_id)
+                active_agents = [a for a in agents if a.get("agent_status") == "active"]
+                agent_id = active_agents[0]["id"] if active_agents else 0
+
+                showing_id = db.create_re_showing(admin_id,
+                    listing_id=data.get("listing_id", 0),
+                    agent_id=agent_id,
+                    lead_name=data.get("lead_name", ""),
+                    lead_email=data.get("lead_email", ""),
+                    lead_phone=data.get("lead_phone", ""),
+                    showing_date=data.get("showing_date", ""),
+                    showing_time=data.get("showing_time", ""),
+                    showing_status="confirmed",
+                )
+                print(f"[re_showing] Created showing #{showing_id}", flush=True)
+
+                agent_name = ""
+                if active_agents:
+                    agent = active_agents[0]
+                    agent_name = f"{agent.get('first_name', '')} {agent.get('last_name', '')}".strip()
+                    session["_ui_options"] = {
+                        "type": "agent_card",
+                        "agent": {
+                            "name": agent_name,
+                            "title": agent.get("title", "Agent"),
+                            "specializations": agent.get("specializations", ""),
+                            "phone": agent.get("phone", ""),
+                            "photo": agent.get("photo", ""),
+                        }
+                    }
+            except Exception as e:
+                print(f"[re_showing] Error: {e}", flush=True)
+
+            session["flow"] = None
+            session["step"] = None
+            reply = (
+                f"Your showing is confirmed!\n\n"
+                f"**Property:** {data.get('listing_address', '')}\n"
+                f"**Date:** {data.get('showing_date', '')}\n"
+                f"**Time:** {data.get('showing_time', '')}\n"
+            )
+            if agent_name:
+                reply += f"**Agent:** {agent_name}\n"
+            reply += "\nYou'll receive a confirmation and reminders. See you there!"
+            return _reply(reply)
+        else:
+            session["flow"] = None
+            session["step"] = None
+            return _reply("No problem, the showing has been cancelled. How else can I help?")
+
+    return None
+
+
+def _route_re_lead_to_agent(admin_id, lead_id, score):
+    """Route a real estate lead to the best available agent."""
+    try:
+        agents = db.get_re_agents(admin_id)
+        active_agents = [a for a in agents if a.get("agent_status") == "active"]
+        if not active_agents:
+            return
+
+        # Simple round-robin: assign to agent with fewest leads
+        conn = db.get_db()
+        for agent in active_agents:
+            count = conn.execute(
+                "SELECT COUNT(*) as cnt FROM re_leads WHERE admin_id=%s AND assigned_agent_id=%s",
+                (admin_id, agent["id"])
+            ).fetchone()
+            agent["_lead_count"] = count["cnt"] if count else 0
+        conn.close()
+
+        # Sort by lead count (fewest first) — VIP leads ($1M+) go to senior agent
+        active_agents.sort(key=lambda a: a["_lead_count"])
+        chosen = active_agents[0]
+
+        db.update_re_lead(lead_id, assigned_agent_id=chosen["id"])
+        print(f"[re_routing] Lead #{lead_id} assigned to agent #{chosen['id']} ({chosen.get('first_name', '')})", flush=True)
+    except Exception as e:
+        print(f"[re_routing] Error: {e}", flush=True)
+
+
+# ══════════════════════════════════════════════
 #  Main Chat Handler
 # ══════════════════════════════════════════════
 
@@ -4255,7 +8610,11 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
                     user_name="", user_email="", user_phone=""):
     session = get_session(session_id)
     session["admin_id"] = admin_id
+    session["_session_id"] = session_id
     session["last_message_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    company_type = db.get_company_type(admin_id) or "dental"
+    session["_company_type"] = company_type
 
     # ── Pre-fill from signed-in dashboard user ──
     if user_name and not session.get("_patient_prefilled"):
@@ -4276,24 +8635,40 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
             except Exception:
                 pass
 
-    # ── Pre-fill from external customers API (embedded widget only, NOT demo) ──
+    # ── Pre-fill from customer identification (embedded widget only, NOT demo) ──
     is_demo = session_id.startswith("demo_")
     is_embedded = session_id.startswith("web_")
     if is_embedded and not is_demo:
         session["_is_embedded"] = True
-        # If customer_id is now provided (user just logged in), always process it
         if customer_id and not session.get("_customer_logged_in"):
-            session["_customer_api_prefilled"] = True
             session["_customer_logged_in"] = True
-            customer = fetch_customer_by_id(admin_id, customer_id, api_url_override=customer_api_url)
-            # Fallback: if external API fails, try local DB lookup by public_id
+            customer = None
+
+            # 1) If customer_id is numeric, look up directly in patients table
+            try:
+                cid_int = int(customer_id)
+                patient = db.get_patient(cid_int)
+                if patient and patient.get("admin_id") == admin_id:
+                    customer = {"name": patient.get("name", ""), "email": patient.get("email", ""), "phone": patient.get("phone", "")}
+                    session["patient_id"] = patient["id"]
+            except (ValueError, TypeError):
+                pass
+
+            # 2) If external customers API is configured, try that
+            if not customer and customer_api_url:
+                customer = fetch_customer_by_id(admin_id, customer_id, api_url_override=customer_api_url)
+
+            # 3) Fallback: try matching by email in patients table
             if not customer:
                 try:
-                    _local_user = db.get_user_by_public_id(customer_id)
-                    if _local_user:
-                        customer = {"name": _local_user.get("name", ""), "email": _local_user.get("email", ""), "phone": ""}
+                    patients = db.get_patients(admin_id, search=customer_id)
+                    if patients and len(patients) == 1:
+                        patient = patients[0]
+                        customer = {"name": patient.get("name", ""), "email": patient.get("email", ""), "phone": patient.get("phone", "")}
+                        session["patient_id"] = patient["id"]
                 except Exception:
                     pass
+
             if customer:
                 cname = customer.get("name", "")
                 cemail = customer.get("email", "")
@@ -4335,6 +8710,12 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
         except Exception:
             session["language"] = detect_language(user_message)
             session["language_detected"] = True
+
+    # ── Conversation topic extraction for insights ──
+    try:
+        _extract_and_save_topic(admin_id, session_id, user_message, company_type)
+    except Exception:
+        pass
 
     # ── Feature 16: Emit chat activity in real-time ──
     try:
@@ -4472,7 +8853,7 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
         if handoff and handoff["status"] == "assigned":
             handoff_engine.send_handoff_message(handoff["id"], "patient", session.get("_greeting_name", "Patient"), user_message)
             session["history"].append({"role": "user", "content": user_message})
-            return "Message received. Our staff member is reviewing your message."
+            return "__HANDOFF_SILENT__"
     except Exception:
         pass
     # Fallback: check via db (skip stale handoffs older than 30 min)
@@ -4486,7 +8867,7 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
                 _handoff_stale = True
                 try:
                     conn = db.get_db()
-                    conn.execute("UPDATE live_chat_handoffs SET status='resolved', resolution_notes='auto-expired after 30min' WHERE id=?", (handoff["id"],))
+                    conn.execute("UPDATE live_chat_handoffs SET status='resolved', resolution_notes='auto-expired after 30min' WHERE id=%s", (handoff["id"],))
                     conn.commit()
                     conn.close()
                 except Exception:
@@ -4495,9 +8876,7 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
             pass
         if not _handoff_stale:
             session["history"].append({"role": "user", "content": user_message})
-            if handoff["status"] == "queued":
-                return "Your conversation has been transferred to our staff. A team member will be with you shortly. Please hold on."
-            return "Message received. Our staff member is reviewing your message."
+            return "__HANDOFF_SILENT__"
 
     # ── Feature 8: Doctor comparison request (engine) ──
     if session.get("flow") != "booking":
@@ -4579,27 +8958,146 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
         except Exception:
             pass
 
+    # Step 0: Translate non-English messages to English for flow/keyword matching
+    _user_lang = session.get("language", "en")
+    _english_input = user_message
+    # Quick lookup for common action words in other languages (avoids unreliable AI translation)
+    # Only multi-word phrases and words that are safe from substring collisions
+    # Short words like "لا" (no) are EXCLUDED — they match inside other Arabic words
+    _MULTILANG_EXACT = {
+        # Exact-match only (entire message must be this word)
+        "لا": "no", "نعم": "yes", "أجل": "yes", "قف": "stop",
+        "تمام": "okay", "حسنا": "okay", "حسناً": "okay", "اوكي": "okay", "موافق": "okay",
+    }
+    _MULTILANG_PHRASES = {
+        # These are safe for word-boundary matching in longer messages
+        # Arabic
+        "إلغاء": "cancel", "يلغي": "cancel", "الغاء": "cancel", "الغي": "cancel",
+        "توقف": "stop", "كفى": "stop",
+        "لا تهتم": "never mind", "مش مهم": "never mind", "خلاص": "never mind",
+        "رجوع": "go back", "ارجع": "go back",
+        "أريد حجز": "I want to book", "حجز موعد": "book appointment",
+        "حجز خدمة": "book a service",
+        "إعادة جدولة": "reschedule", "اعادة جدولة": "reschedule",
+        "إلغاء موعد": "cancel appointment",
+        "أريد إعادة جدولة موعد": "reschedule appointment",
+        "أريد إلغاء موعد": "cancel appointment",
+        "أريد حجز موعد": "book appointment",
+        # Spanish — full sentences first (longest match wins)
+        "quiero reservar una cita": "book appointment",
+        "quiero cancelar mi cita": "cancel appointment",
+        "quiero reprogramar mi cita": "reschedule appointment",
+        "reservar una cita": "book appointment",
+        "cancelar mi cita": "cancel appointment",
+        "reservar cita": "book appointment",
+        "cancelar": "cancel", "parar": "stop", "detener": "stop",
+        "no importa": "never mind", "volver": "go back",
+        "reprogramar": "reschedule", "cita": "appointment",
+        # French — full sentences first
+        "je veux prendre un rendez-vous": "book appointment",
+        "je veux annuler mon rendez-vous": "cancel appointment",
+        "je veux reprogrammer mon rendez-vous": "reschedule appointment",
+        "prendre un rendez-vous": "book appointment",
+        "annuler mon rendez-vous": "cancel appointment",
+        "annuler": "cancel", "arrêter": "stop", "arreter": "stop",
+        "pas grave": "never mind", "retour": "go back",
+        "réserver": "book", "rendez-vous": "appointment",
+        "reprogrammer": "reschedule",
+        # Chinese
+        "我想预约": "book appointment",
+        "我想取消我的预约": "cancel appointment",
+        "我想重新安排我的预约": "reschedule appointment",
+        "预约": "appointment", "取消": "cancel", "重新安排": "reschedule",
+        # Urdu — full sentences first
+        "میں اپنی اپائنٹمنٹ منسوخ کرنا چاہتا ہوں": "cancel appointment",
+        "میں اپائنٹمنٹ بک کرنا چاہتا ہوں": "book appointment",
+        "میں اپنی اپائنٹمنٹ دوبارہ شیڈول کرنا چاہتا ہوں": "reschedule appointment",
+        "اپائنٹمنٹ بک": "book appointment",
+        "اپائنٹمنٹ منسوخ": "cancel appointment",
+        "منسوخ": "cancel", "اپائنٹمنٹ": "appointment",
+        "دوبارہ شیڈول": "reschedule",
+        # Tagalog
+        "gusto kong mag-book ng appointment": "book appointment",
+        "gusto kong i-cancel ang appointment ko": "cancel appointment",
+        "gusto kong i-reschedule ang appointment ko": "reschedule appointment",
+        "mag-book": "book", "i-cancel": "cancel", "i-reschedule": "reschedule",
+    }
+    _raw_lower = user_message.strip().lower()
+    _dict_matched = False  # Flag: multilingual dict produced clean English, skip spell-correction
+    # Check exact match first (short words that are unsafe for substring matching)
+    if _raw_lower in _MULTILANG_EXACT:
+        _english_input = _MULTILANG_EXACT[_raw_lower]
+        _dict_matched = True
+    elif _raw_lower in _MULTILANG_PHRASES:
+        _english_input = _MULTILANG_PHRASES[_raw_lower]
+        _dict_matched = True
+    elif _user_lang != "en":
+        # Only try phrase matching on SHORT messages (< 80 chars) to avoid
+        # false matches inside long paragraphs/medical text
+        if len(_raw_lower) < 80:
+            # Replace known phrases (longest first to avoid partial matches)
+            _translated_parts = _raw_lower
+            _any_match = False
+            for _phrase, _eng in sorted(_MULTILANG_PHRASES.items(), key=lambda x: -len(x[0])):
+                # Only match whole words: check that chars before/after the match are spaces or string boundaries
+                _idx = _translated_parts.find(_phrase)
+                while _idx != -1:
+                    _before_ok = (_idx == 0 or _translated_parts[_idx - 1] == ' ')
+                    _after_pos = _idx + len(_phrase)
+                    _after_ok = (_after_pos >= len(_translated_parts) or _translated_parts[_after_pos] == ' ')
+                    if _before_ok and _after_ok:
+                        _translated_parts = _translated_parts[:_idx] + _eng + _translated_parts[_after_pos:]
+                        _any_match = True
+                        break
+                    _idx = _translated_parts.find(_phrase, _idx + 1)
+            if _any_match:
+                # Strip remaining non-ASCII characters (untranslated words) and clean up
+                _english_input = "".join(c if ord(c) < 128 else " " for c in _translated_parts).strip()
+                _english_input = " ".join(_english_input.split())  # collapse whitespace
+                _dict_matched = True
+        if not _dict_matched:
+            # Fall back to AI translation for unknown phrases / long messages
+            _has_non_ascii = any(ord(c) > 127 for c in user_message)
+            if _has_non_ascii and message_interpreter.is_configured():
+                try:
+                    _english_input = message_interpreter.translate_to_english(user_message)
+                except Exception:
+                    _english_input = user_message
+
     # Step 0+1: AI spell-correction — only ONE Groq call needed (cleaner & interpreter do the same thing)
-    # Skip very short messages (greetings, yes/no) — no need to waste an API call
-    if len(user_message.strip()) <= 5:
-        interpreted = user_message
+    # Skip when multilingual dict already produced clean English (spell corrector can mangle intent words)
+    if _dict_matched:
+        interpreted = _english_input
+        print(f"[multilang] '{user_message}' -> '{_english_input}' (dict match, skip spell-correct)", flush=True)
+    elif len(_english_input.strip()) <= 5:
+        interpreted = _english_input
     elif message_interpreter.is_configured():
-        interpreted = message_interpreter.interpret(user_message, history=session.get("history"))
+        interpreted = message_interpreter.interpret(_english_input, history=session.get("history"))
     else:
-        grok_cleaned = grok_cleaner.clean(user_message, history=session.get("history"))
+        grok_cleaned = grok_cleaner.clean(_english_input, history=session.get("history"))
         interpreted = grok_cleaned
 
     # Step 2: Local spell-correct as additional cleanup
     corrected = correct_spelling(interpreted)
     lower = corrected.lower().strip()
 
-    # Helper to save history and return response
+    # Helper to save history and return response (translates if non-English)
     def _reply(response):
+        if _user_lang != "en":
+            try:
+                response = message_interpreter.translate_from_english(response, _user_lang)
+            except Exception:
+                pass
         session["history"].append({"role": "user", "content": user_message})
         session["history"].append({"role": "assistant", "content": response})
         # Keep last 20 messages (10 exchanges) to avoid token bloat
         if len(session["history"]) > 20:
             session["history"] = session["history"][-20:]
+        # Log bot response for chat history in lead detail
+        try:
+            db.log_chat(session_id, admin_id, response, sender="bot")
+        except Exception:
+            pass
         return response
 
     # ── Cancel detection (check BOTH raw message and corrected to avoid AI mangling) ──
@@ -4672,6 +9170,36 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
             response = "I'm connecting you with a staff member now. A team member will be with you shortly. Please hold on — they'll see your full conversation history."
         session["history"].append({"role": "assistant", "content": response})
         return response
+
+    # ── Smart escalation detection (frustration, repeated failures, complex issues) ──
+    try:
+        should_escalate, esc_reason, esc_urgency = handoff_engine.smart_escalation_check(session, user_message, admin_id)
+        if should_escalate and not session.get("_smart_escalation_offered"):
+            session["_smart_escalation_offered"] = True
+            if esc_urgency == "high":
+                # Auto-escalate for high urgency
+                try:
+                    handoff_engine.create_handoff(admin_id, session_id,
+                        patient_name=session.get("_greeting_name", ""),
+                        reason=f"Smart escalation: {esc_reason}", ai_confidence=0)
+                    realtime.emit_handoff_request(admin_id, {"patient_name": session.get("_greeting_name", ""), "reason": esc_reason})
+                except Exception:
+                    db.create_handoff(admin_id, session_id, patient_name=session.get("_greeting_name", ""),
+                                     reason=f"Smart escalation: {esc_reason}", ai_confidence=0)
+                session["history"].append({"role": "user", "content": user_message})
+                return "I can see you need more help than I can provide. I'm connecting you with a team member right now who can assist you personally. They'll have your full conversation history."
+            else:
+                # Offer escalation for medium urgency
+                session["_ui_options"] = {
+                    "type": "quick_replies",
+                    "items": [
+                        {"label": "Yes, connect me", "value": "speak to a human"},
+                        {"label": "No, continue with AI", "value": "no thanks continue"},
+                    ]
+                }
+                # Don't return — let the message fall through but offer the option
+    except Exception:
+        pass
 
     # Handle reschedule flow
     if session["flow"] == "reschedule":
@@ -4791,6 +9319,18 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
     if session["flow"] == "lead_capture":
         return _reply(handle_lead_capture(session, user_message))
 
+    # ── Real Estate Qualification Flow ──
+    if session["flow"] == "re_qualification":
+        result = _handle_re_qualification_step(session, user_message, raw_lower, admin_id, _reply)
+        if result:
+            return result
+
+    # ── Real Estate Showing Flow ──
+    if session["flow"] == "re_showing":
+        result = _handle_re_showing_step(session, user_message, raw_lower, admin_id, _reply)
+        if result:
+            return result
+
     # ── Appointment Lookup Flow (demo chatbot — identity not known) ──
     if session["flow"] == "appointment_lookup" and session.get("step") == "get_identity":
         identity = user_message.strip()
@@ -4849,75 +9389,30 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
             session["data"] = {"_admin_id": admin_id, "_session_id": session_id}
             return _reply(handle_booking(session, user_message))
 
-    # ── Silent auto-lead capture (Intent Scoring) ──
-    # Every message gets scored based on user behavior signals.
-    # When cumulative score crosses threshold (>=7) → silently capture as lead.
-    # Lead is auto-deleted when they confirm a booking.
-    _lead_score = session.get("_lead_score", 0)
-    if not session.get("_lead_captured"):
-        _msg_score = 0
-        # General info questions (+1)
-        if re.search(r'\b(what is|what are|tell me about|explain|how does|information|more info|details|learn more)\b', raw_lower):
-            _msg_score += 1
-        # Pricing / cost questions (+2)
-        if re.search(r'\b(price|pricing|cost|how much|fee|charge|expensive|cheap|afford|installment|payment plan|insurance|sar|dollar|\$)\b', raw_lower):
-            _msg_score += 2
-        # Treatment duration / process questions (+2)
-        if re.search(r'\b(how long|duration|last|session|procedure|process|recovery|healing|installation|install|take)\b', raw_lower):
-            _msg_score += 2
-        # Availability / scheduling questions (+4)
-        if re.search(r'\b(available|availability|appointment|schedule|opening|slot|when can|this week|today|tomorrow|days|hours|work|open|close|saturday|sunday|monday|tuesday|wednesday|thursday|friday)\b', raw_lower):
-            _msg_score += 4
-        # Booking intent (+6)
-        if re.search(r'\b(book|reserve|sign me up|i want to come|i\'d like to|schedule me|set up|come in)\b', raw_lower):
-            _msg_score += 6
-        # Providing contact info (+10)
-        if re.search(r'\b(my name is|my number|my phone|my email|i\'m \w+|call me|here is my|here\'s my)\b', raw_lower):
-            _msg_score += 10
-        # Symptom mentions (+3) — they need care
-        if re.search(r'\b(pain|hurts|ache|bleeding|swollen|broken|cracked|sensitive|cavity|decay|toothache|gum)\b', raw_lower):
-            _msg_score += 3
-        # Comparing / evaluating (+2)
-        if re.search(r'\b(which is better|difference between|compare|recommend|best option|pros and cons|which one|better)\b', raw_lower):
-            _msg_score += 2
-        # Doctor questions (+2)
-        if re.search(r'\b(doctor|dr\b|dentist|specialist|who does|experience|qualified)\b', raw_lower):
-            _msg_score += 2
-        # Service-specific mentions (+2)
-        if re.search(r'\b(braces|implant|whitening|veneer|crown|root canal|filling|extraction|cleaning|invisalign|orthodont|cosmetic)\b', raw_lower):
-            _msg_score += 2
+    # ── Contact info extraction from raw message ──
+    _found_email = re.search(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', user_message)
+    _found_phone = re.search(r'(?<!\d)(?:\+?\d{1,3}[\s\-]?)?\(?\d{2,4}\)?[\s\-]?\d{3,4}[\s\-]?\d{3,4}(?!\d)', user_message)
+    _found_name = re.search(r"(?:my name is|i'm|i am|this is)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)", user_message, re.IGNORECASE)
 
-        _lead_score += _msg_score
-        session["_lead_score"] = _lead_score
+    if _found_email and not session.get("_prefill_email"):
+        session["_prefill_email"] = _found_email.group()
+        print(f"[lead] Extracted email: {_found_email.group()}", flush=True)
+    if _found_phone and not session.get("_prefill_phone"):
+        _phone_str = _found_phone.group().strip()
+        if len(re.sub(r'\D', '', _phone_str)) >= 7:
+            session["_prefill_phone"] = _phone_str
+            print(f"[lead] Extracted phone: {_phone_str}", flush=True)
+    if _found_name and not session.get("_prefill_name"):
+        session["_prefill_name"] = _found_name.group(1).strip()
+        session["_greeting_name"] = _found_name.group(1).strip()
+        print(f"[lead] Extracted name: {_found_name.group(1).strip()}", flush=True)
 
-        if _msg_score > 0:
-            print(f"[lead] Score: +{_msg_score} = {_lead_score} (threshold: 7)", flush=True)
-
-        # Threshold reached → capture lead silently
-        if _lead_score >= 7 and db.is_feature_enabled(admin_id, "auto_lead_capture"):
-            try:
-                lead_id = lead_engine.capture_lead_from_session(
-                    session, admin_id, capture_trigger="auto_interest"
-                )
-                if lead_id:
-                    session["_lead_captured"] = True
-                    session["_auto_lead_id"] = lead_id
-                    print(f"[lead] Auto-captured lead #{lead_id} (score={_lead_score})", flush=True)
-                else:
-                    # capture_lead_from_session returns None if no name/phone/email
-                    # Try using _greeting_name as fallback
-                    _fallback_name = session.get("_greeting_name", "") or session.get("_prefill_name", "")
-                    if _fallback_name:
-                        session["data"]["name"] = _fallback_name
-                        lead_id = lead_engine.capture_lead_from_session(
-                            session, admin_id, capture_trigger="auto_interest"
-                        )
-                        if lead_id:
-                            session["_lead_captured"] = True
-                            session["_auto_lead_id"] = lead_id
-                            print(f"[lead] Auto-captured lead #{lead_id} (score={_lead_score}, name from greeting)", flush=True)
-            except Exception as e:
-                print(f"[lead] Auto-capture failed: {e}", flush=True)
+    # Session resurrection bonus (first message only)
+    if not session.get("_lead_base_total"):
+        _customer_key = session.get("_prefill_email") or session.get("_greeting_name") or session_id
+        _resurrection = lead_scoring.get_resurrection_bonus(admin_id, _customer_key)
+        if _resurrection > 0:
+            session["_lead_resurrection_bonus"] = _resurrection
 
     # ── Classifier-based intent routing ──
 
@@ -4981,12 +9476,103 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
         return _reply("I can help you cancel your appointment. What date is it on?")
 
     if classifier_intent == "booking":
-        if _login_required:
-            return _reply("You need to log in first before booking an appointment. Please log in to your account and try again.")
-        session["flow"] = "booking"
-        session["step"] = None
-        session["data"] = {"_admin_id": admin_id, "_session_id": session_id}
-        return _reply(handle_booking(session, user_message))
+        if company_type == "real_estate":
+            # Start showing scheduling flow
+            session["flow"] = "re_showing"
+            session["step"] = "get_listing"
+            session["data"] = {"_admin_id": admin_id, "_session_id": session_id}
+            listings = db.get_property_listings(admin_id, "active")
+            if listings:
+                _listing_cards = _build_property_cards(listings[:5])
+                session["_ui_options"] = {"type": "property_cards", "items": _listing_cards}
+                return _reply("I'd love to help you schedule a viewing! Which property are you interested in?")
+            return _reply("I'd love to help you schedule a viewing! Could you tell me which property you're interested in?")
+        elif company_type == "ecommerce":
+            pass  # ecommerce doesn't have booking
+        else:
+            if _login_required:
+                return _reply("You need to log in first before booking an appointment. Please log in to your account and try again.")
+            session["flow"] = "booking"
+            session["step"] = None
+            session["data"] = {"_admin_id": admin_id, "_session_id": session_id}
+            return _reply(handle_booking(session, user_message))
+
+    # ══════════════════════════════════════════════════════════════
+    #  AUTO-CAPTURE: Extract email/phone/name from any message
+    # ══════════════════════════════════════════════════════════════
+    if company_type in ("ecommerce", "real_estate"):
+        _auto_email = _extract_email(user_message)
+        if _auto_email and not session.get("_prefill_email"):
+            session["_prefill_email"] = _auto_email
+            session.setdefault("data", {})["email"] = _auto_email
+            print(f"[auto-capture] Email extracted from chat: {_auto_email}", flush=True)
+        _auto_phone = _extract_phone(user_message)
+        if _auto_phone and not session.get("_prefill_phone"):
+            session["_prefill_phone"] = _auto_phone
+            session.setdefault("data", {})["phone"] = _auto_phone
+            print(f"[auto-capture] Phone extracted from chat: {_auto_phone}", flush=True)
+        # Extract name from "my name is X" or "I'm X"
+        _name_match = re.search(r"(?:my name is|i'm|i am|call me)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)", user_message, re.IGNORECASE)
+        if _name_match and not session.get("_prefill_name"):
+            _auto_name = _name_match.group(1).strip()
+            session["_prefill_name"] = _auto_name
+            session["_greeting_name"] = _auto_name
+            session.setdefault("data", {})["name"] = _auto_name
+            print(f"[auto-capture] Name extracted from chat: {_auto_name}", flush=True)
+
+    # ══════════════════════════════════════════════════════════════
+    #  LEAD SCORING — runs BEFORE intent handlers so no path skips it
+    #  Captures leads on EVERY message when score is warm+ (including anonymous)
+    # ══════════════════════════════════════════════════════════════
+    if company_type in ("ecommerce", "real_estate"):
+        _score_result = lead_scoring.process_message(user_message, session)
+        session["_lead_score"] = _score_result["final_score"]
+        session["_lead_temperature"] = _score_result["temperature"]
+
+        # Auto-capture/update lead when score is warm+ (works for anonymous too)
+        if _score_result["temperature"] in ("warm_emerging", "warm", "hot", "vip"):
+            try:
+                lead_id = lead_engine.capture_lead_from_session(
+                    session, admin_id, capture_trigger="auto_interest"
+                )
+                if lead_id:
+                    session["_lead_captured"] = True
+                    session["_auto_lead_id"] = lead_id
+                    print(f"[lead] Captured/updated lead #{lead_id} (score={_score_result['final_score']}, temp={_score_result['temperature']})", flush=True)
+            except Exception as e:
+                print(f"[lead] Auto-capture failed: {e}", flush=True)
+
+        # Trigger lead form if score warrants it and no contact info
+        _has_contact = bool(session.get("_prefill_email") or session.get("_prefill_phone"))
+        if _score_result["temperature"] in ("warm", "hot", "vip") and not _has_contact and not session.get("_lead_form_shown"):
+            session["_pending_lead_form"] = _score_result
+
+        # Trigger human handoff for VIP leads
+        if _score_result["should_handoff"]:
+            try:
+                handoff_engine.create_handoff(admin_id, session_id,
+                    patient_name=session.get("_greeting_name", ""),
+                    reason=f"VIP lead (score={_score_result['final_score']})",
+                    ai_confidence=0)
+                print(f"[lead] Handoff triggered — VIP lead!", flush=True)
+            except Exception:
+                pass
+
+    # ══════════════════════════════════════════════════════════════
+    #  E-COMMERCE: Product search, cart, order tracking, upsell
+    # ══════════════════════════════════════════════════════════════
+    if company_type == "ecommerce":
+        ecom_result = _handle_ecommerce_intents(session, user_message, raw_lower, lower, admin_id, session_id, _reply)
+        if ecom_result:
+            return ecom_result
+
+    # ══════════════════════════════════════════════════════════════
+    #  REAL ESTATE: Lead qualification, property search, showing
+    # ══════════════════════════════════════════════════════════════
+    if company_type == "real_estate":
+        re_result = _handle_real_estate_intents(session, user_message, raw_lower, lower, admin_id, session_id, _reply)
+        if re_result:
+            return re_result
 
     # ══════════════════════════════════════════════════════════════
     #  No classifier match → send to Groq AI with full company context
@@ -4994,39 +9580,475 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
     #  pricing, availability, symptoms — ONLY dentist-related topics
     # ══════════════════════════════════════════════════════════════
     company_info = db.get_company_info(admin_id)
-    all_doctors = db.get_doctors(admin_id)
-    active_doctors = [d for d in all_doctors if d.get("status") == "active"]
-
-    # Build doctor time slots so the AI knows exact availability
+    active_doctors = []
     doctor_slots = {}
-    for doc in active_doctors:
-        doc_breaks = db.get_doctor_breaks(doc["id"])
-        slots = _generate_doctor_slots(doc, breaks=doc_breaks)
-        if slots:
-            doctor_slots[doc["name"]] = [s["time"] for s in slots]
 
-    # Inject service pricing into company_info so AI has real prices
-    try:
-        services_list = db.get_services_with_doctors(admin_id)
-        if services_list:
-            svc_lines = []
-            for s in services_list:
-                line = f"- {s['name']}: {s.get('price','')} {s.get('currency','SAR')}"
-                if s.get('description'):
-                    line += f" ({s['description']})"
-                doc_ids = s.get('doctor_ids', [])
-                if doc_ids:
-                    doc_names = [f"Dr. {doc['name']}" for doc in active_doctors if doc["id"] in doc_ids]
-                    if doc_names:
-                        line += f" [Available with: {', '.join(doc_names)}]"
-                svc_lines.append(line)
-            services_text = "\n".join(svc_lines)
-            if company_info is None:
-                company_info = {}
-            existing = company_info.get("pricing_insurance", "") or ""
-            company_info["pricing_insurance"] = (existing + "\n\nService Pricing:\n" + services_text).strip()
-    except Exception:
-        pass
+    if company_type == "ecommerce":
+        # ── E-commerce context building (SMART: category summary + relevant products only) ──
+        products = db.get_products(admin_id, "active")
+        store_settings = db.get_store_settings(admin_id)
+        if company_info is None:
+            company_info = {}
+        # Store Settings is the source of truth for ecommerce store name
+        if store_settings and store_settings.get("store_name"):
+            company_info["business_name"] = store_settings["store_name"]
+
+        biz = company_info.get("business_name") or "our store"
+        customer_name = company_info.get("_customer_name") or "Guest"
+        bot_name = (store_settings.get("bot_name") or "Sales Assistant") if store_settings else "Sales Assistant"
+        brand_voice = (store_settings.get("brand_voice") or "casual") if store_settings else "casual"
+        ecom_type = (store_settings.get("ecommerce_type") or "") if store_settings else ""
+        target_audience = (store_settings.get("target_audience") or "") if store_settings else ""
+
+        company_info["_bot_name"] = bot_name
+        company_info["_brand_voice"] = brand_voice
+
+        store_profile = "STORE_PROFILE:\n"
+        store_profile += f"  store_name: {biz}\n  bot_name: {bot_name}\n"
+        if ecom_type:
+            store_profile += f"  what_we_sell: {ecom_type}\n"
+        store_profile += f"  brand_voice: {brand_voice}\n"
+        if target_audience:
+            store_profile += f"  target_audience: {target_audience}\n"
+        store_profile += f"\nCUSTOMER:\n  name: {customer_name}\n"
+
+        # Cart (compact)
+        cart = session.get("_cart", [])
+        cart_total = sum(i["price"] * i["qty"] for i in cart) if cart else 0
+        if cart:
+            cart_lines = [f"  - {i['name']} x{i['qty']} ${i['price']*i['qty']:.2f}" for i in cart]
+            store_profile += f"\nCART ({sum(i['qty'] for i in cart)} items, ${cart_total:.2f}):\n" + "\n".join(cart_lines) + "\n"
+        else:
+            store_profile += "\nCART: empty\n"
+
+        # Store info (compact)
+        store_info_parts = []
+        if store_settings:
+            for key, label in [("store_url", "website"), ("default_shipping_rate", "shipping"),
+                               ("free_shipping_threshold", "free_shipping_over"), ("return_policy", "returns"),
+                               ("payment_methods", "payments")]:
+                val = store_settings.get(key)
+                if val and str(val).strip():
+                    store_info_parts.append(f"{label}: {val}")
+        for field, label in [("business_hours", "hours"), ("phone", "phone"), ("address", "address")]:
+            if company_info.get(field):
+                store_info_parts.append(f"{label}: {company_info[field]}")
+        if store_info_parts:
+            store_profile += "\nSTORE_INFO: " + " | ".join(store_info_parts) + "\n"
+
+        # Shipping zones
+        shipping_zones = db.get_shipping_zones(admin_id)
+        if shipping_zones:
+            import json as _json
+            sz_lines = []
+            for sz in shipping_zones:
+                if not sz.get("is_active"):
+                    continue
+                countries = sz.get("countries", "[]")
+                if isinstance(countries, str):
+                    try:
+                        countries = _json.loads(countries)
+                    except Exception:
+                        countries = []
+                fee = float(sz.get("shipping_fee", 0))
+                free_over = float(sz.get("free_shipping_threshold", 0))
+                est = sz.get("estimated_days", "")
+                c_text = ", ".join(countries[:5])
+                if len(countries) > 5:
+                    c_text += f" +{len(countries)-5} more"
+                line = f"  - {sz['zone_name']}: {c_text} | fee ${fee:.2f}"
+                if free_over > 0:
+                    line += f" (free over ${free_over:.2f})"
+                if est:
+                    line += f" | {est}"
+                sz_lines.append(line)
+            if sz_lines:
+                store_profile += "\nSHIPPING ZONES:\n" + "\n".join(sz_lines) + "\n"
+
+        # Active discounts
+        store_discounts = db.get_store_discounts(admin_id)
+        if store_discounts:
+            disc_lines = []
+            for d in store_discounts:
+                if not d.get("is_active"):
+                    continue
+                if d.get("end_date"):
+                    try:
+                        import datetime as _dt_mod
+                        if _dt_mod.datetime.strptime(d["end_date"], "%Y-%m-%d").date() < _dt_mod.datetime.now().date():
+                            continue
+                    except Exception:
+                        pass
+                val = float(d.get("discount_value", 0))
+                if d["discount_type"] == "percentage":
+                    val_text = f"{val:.0f}% off"
+                elif d["discount_type"] == "fixed":
+                    val_text = f"${val:.2f} off"
+                elif d["discount_type"] == "free_shipping":
+                    val_text = "Free shipping"
+                else:
+                    val_text = f"Buy {val:.0f} get 1 free"
+                line = f"  - Code: {d['discount_code']} — {val_text}"
+                if d.get("applies_to") == "specific_categories":
+                    try:
+                        cats = _json.loads(d["category_names"]) if isinstance(d["category_names"], str) else d["category_names"]
+                        if cats:
+                            line += f" (on {', '.join(cats)})"
+                    except Exception:
+                        pass
+                elif d.get("applies_to") == "specific_products":
+                    line += " (select products)"
+                if float(d.get("min_order_amount", 0)) > 0:
+                    line += f" | min order ${float(d['min_order_amount']):.2f}"
+                if d.get("end_date"):
+                    line += f" | expires {d['end_date']}"
+                disc_lines.append(line)
+            if disc_lines:
+                store_profile += "\nCURRENT PROMOTIONS:\n" + "\n".join(disc_lines) + "\n"
+
+        company_info["_store_profile"] = store_profile
+
+        # ── FIX 2: Cross-session memory — load previous context for returning customers ──
+        _customer_key = session.get("_prefill_email") or session.get("_greeting_name") or session_id
+        _prev_memory = None
+        try:
+            _prev_memory = db.get_chat_memory(admin_id, _customer_key)
+        except Exception:
+            pass
+        if _prev_memory and _prev_memory.get("summary"):
+            company_info["_customer_memory"] = f"\nRETURNING CUSTOMER CONTEXT (from previous visits):\n{_prev_memory['summary']}"
+            if _prev_memory.get("preferences"):
+                company_info["_customer_memory"] += f"\nPreferences: {_prev_memory['preferences']}"
+
+        # ── FIX 1: Smart product context — category summary + relevant products only ──
+        if products:
+            currency_code = store_settings.get("store_currency", "USD") if store_settings else "USD"
+
+            # Build category summary (always sent — lightweight)
+            cat_map = {}
+            for p in products:
+                cat = p.get("product_category") or "Uncategorized"
+                if cat not in cat_map:
+                    cat_map[cat] = {"count": 0, "price_min": float('inf'), "price_max": 0}
+                cat_map[cat]["count"] += 1
+                price = float(p.get("product_price", 0) or 0)
+                cat_map[cat]["price_min"] = min(cat_map[cat]["price_min"], price)
+                cat_map[cat]["price_max"] = max(cat_map[cat]["price_max"], price)
+            cat_summary_lines = []
+            for cat, info in cat_map.items():
+                cat_summary_lines.append(f"  {cat}: {info['count']} products (${info['price_min']:.2f}-${info['price_max']:.2f})")
+            company_info["_catalog_summary"] = "CATALOG CATEGORIES:\n" + "\n".join(cat_summary_lines)
+
+            # Select relevant products based on user message keywords (max 6)
+            msg_words = set(raw_lower.split())
+            # Add words from recent history too
+            for h in session.get("history", [])[-4:]:
+                msg_words.update(h.get("content", "").lower().split())
+            # Remove stop words
+            stop = {"i","a","an","the","is","are","was","were","do","does","did","will","would","can","could",
+                    "should","have","has","had","be","been","being","am","my","me","your","you","we","they",
+                    "it","to","of","in","for","on","at","by","with","and","or","but","not","so","if","hi",
+                    "hello","hey","what","how","why","when","where","which","who","that","this","just","want",
+                    "need","like","please","thanks","thank","show","find","get","see","tell","about"}
+            msg_words -= stop
+            msg_words = {w for w in msg_words if len(w) >= 2}
+
+            scored_products = []
+            # Build stemmed variants for better matching (jacket/jackets, shoe/shoes, etc.)
+            msg_stems = set()
+            for w in msg_words:
+                msg_stems.add(w)
+                if w.endswith("s") and len(w) > 3:
+                    msg_stems.add(w[:-1])       # jackets → jacket
+                if w.endswith("es") and len(w) > 4:
+                    msg_stems.add(w[:-2])       # watches → watch
+                if w.endswith("ing") and len(w) > 5:
+                    msg_stems.add(w[:-3])       # running → run
+                if not w.endswith("s"):
+                    msg_stems.add(w + "s")      # jacket → jackets
+            for p in products:
+                score = 0
+                searchable = " ".join([
+                    (p.get("product_name") or "").lower(),
+                    (p.get("product_category") or "").lower(),
+                    (p.get("product_brand") or "").lower(),
+                    (p.get("product_tags") or "").lower(),
+                    (p.get("search_keywords") or "").lower(),
+                    (p.get("target_customer") or "").lower(),
+                    (p.get("product_description") or "").lower()[:200],
+                ]).lower()
+                for w in msg_stems:
+                    if w in searchable:
+                        score += 1
+                scored_products.append((score, p))
+            scored_products.sort(key=lambda x: -x[0])
+
+            # If we have matches, send those; otherwise send top 6 by rating
+            if scored_products[0][0] > 0:
+                relevant = [p for s, p in scored_products if s > 0][:6]
+            else:
+                # No keyword match — send top products by rating (for general browsing)
+                relevant = sorted(products, key=lambda p: float(p.get("product_rating", 0) or 0), reverse=True)[:6]
+
+            prod_blocks = []
+            for p in relevant:
+                price = float(p.get("product_price", 0) or 0)
+                compare = float(p.get("compare_at_price", 0) or 0)
+                stock = int(p.get("inventory_quantity", 0) or 0)
+                rating = float(p.get("product_rating", 0) or 0)
+                reviews = int(p.get("product_review_count", 0) or 0)
+
+                lines = [f"[Product ID:{p['id']}] {p['product_name']}"]
+                if p.get("product_id"):
+                    lines.append(f"  SKU: {p['product_id']}")
+                lines.append(f"  Price: ${price:.2f}")
+                if compare > price:
+                    discount_pct = int((1 - price / compare) * 100)
+                    lines.append(f"  Compare-at: ${compare:.2f} ({discount_pct}% off)")
+                if p.get("product_brand"):
+                    lines.append(f"  Brand: {p['product_brand']}")
+                if p.get("product_category"):
+                    cat_str = p['product_category']
+                    if p.get("product_subcategory"):
+                        cat_str += f" > {p['product_subcategory']}"
+                    lines.append(f"  Category: {cat_str}")
+
+                # Description
+                desc = p.get("product_description") or p.get("product_short_description") or ""
+                if desc:
+                    lines.append(f"  Description: {desc}")
+
+                # Stock
+                if stock <= 0:
+                    lines.append("  Stock: OUT OF STOCK")
+                elif stock <= 5:
+                    lines.append(f"  Stock: Only {stock} left!")
+                else:
+                    lines.append(f"  Stock: In stock ({stock})")
+
+                # Ratings
+                if rating > 0:
+                    lines.append(f"  Rating: {rating}/5 ({reviews} reviews)")
+
+                # Material & Weight
+                if p.get("product_material"):
+                    lines.append(f"  Material: {p['product_material']}")
+                if float(p.get("product_weight", 0) or 0) > 0:
+                    lines.append(f"  Weight: {p['product_weight']}kg")
+                if p.get("product_dimensions"):
+                    lines.append(f"  Dimensions: {p['product_dimensions']}")
+
+                # AI selling fields
+                if p.get("product_highlights"):
+                    lines.append(f"  What makes it special: {p['product_highlights']}")
+                if p.get("product_benefits"):
+                    lines.append(f"  Key benefits: {p['product_benefits']}")
+                if p.get("target_customer"):
+                    lines.append(f"  Best for: {p['target_customer']}")
+                if p.get("use_cases"):
+                    lines.append(f"  Use cases: {p['use_cases']}")
+
+                # Specs
+                try:
+                    specs = json.loads(p.get("product_specs") or "[]")
+                    if specs:
+                        spec_parts = [f"{s['key']}: {s['value']}" for s in specs[:10]]
+                        lines.append(f"  Specs: {', '.join(spec_parts)}")
+                except Exception:
+                    pass
+
+                # Tags & search keywords
+                if p.get("product_tags"):
+                    lines.append(f"  Tags: {p['product_tags']}")
+                if p.get("search_keywords"):
+                    lines.append(f"  Also known as: {p['search_keywords']}")
+
+                # Sale window
+                if p.get("sale_start_date") and p.get("sale_end_date"):
+                    lines.append(f"  Sale period: {p['sale_start_date']} to {p['sale_end_date']}")
+
+                # Shipping & returns
+                ship_parts = []
+                if p.get("ships_free") in (True, 't', 'true'):
+                    ship_parts.append("FREE SHIPPING")
+                if p.get("shipping_class") and p.get("shipping_class") != "standard":
+                    ship_parts.append(f"Shipping class: {p['shipping_class']}")
+                if p.get("return_eligibility") == "final_sale":
+                    ship_parts.append("Final sale (no returns)")
+                elif p.get("return_eligibility") == "extended":
+                    ship_parts.append("Extended return window")
+                elif p.get("return_eligibility") == "standard":
+                    ship_parts.append("Standard returns")
+                if ship_parts:
+                    lines.append(f"  Shipping/Returns: {', '.join(ship_parts)}")
+
+                # Product URL
+                if p.get("product_url"):
+                    lines.append(f"  URL: {p['product_url']}")
+
+                # Variants
+                try:
+                    variants = db.get_product_variants(p['id'])
+                    if variants:
+                        var_parts = []
+                        for v in variants:
+                            opts = []
+                            for i in range(1, 4):
+                                oname = v.get(f'option_{i}_name', '')
+                                oval = v.get(f'option_{i}_value', '')
+                                if oval:
+                                    opts.append(f"{oname}: {oval}" if oname else oval)
+                            vname = v.get('variant_name') or '/'.join(opts) or 'variant'
+                            vprice = float(v.get('variant_price', 0) or 0)
+                            vstock = int(v.get('variant_inventory_qty', 0) or 0)
+                            vsku = v.get('variant_sku', '')
+                            part = vname
+                            if opts:
+                                part += f" ({', '.join(opts)})"
+                            if vsku:
+                                part += f" SKU:{vsku}"
+                            if vprice > 0:
+                                part += f" ${vprice:.2f}"
+                            if vstock <= 0:
+                                part += " [out of stock]"
+                            elif vstock <= 5:
+                                part += f" [{vstock} left]"
+                            else:
+                                part += f" [{vstock} in stock]"
+                            var_parts.append(part)
+                        lines.append(f"  Variants: {'; '.join(var_parts)}")
+                except Exception:
+                    pass
+
+                # Related products
+                try:
+                    comp_ids = json.loads(p.get("related_complementary") or "[]")
+                    if comp_ids:
+                        comp_names = []
+                        for cid in comp_ids[:5]:
+                            cp = next((pr for pr in products if pr['id'] == cid), None)
+                            if cp:
+                                comp_names.append(cp['product_name'])
+                        if comp_names:
+                            lines.append(f"  Goes well with: {', '.join(comp_names)}")
+                except Exception:
+                    pass
+                try:
+                    sim_ids = json.loads(p.get("related_similar") or "[]")
+                    if sim_ids:
+                        sim_names = []
+                        for sid in sim_ids[:5]:
+                            sp = next((pr for pr in products if pr['id'] == sid), None)
+                            if sp:
+                                sim_names.append(sp['product_name'])
+                        if sim_names:
+                            lines.append(f"  Similar alternatives: {', '.join(sim_names)}")
+                except Exception:
+                    pass
+
+                prod_blocks.append("\n".join(lines))
+            company_info["_products_full"] = "\n\n".join(prod_blocks)
+
+            # Track last discussed product for "add it to cart" context
+            if relevant:
+                session["_last_discussed_product_id"] = relevant[0].get("id")
+
+            # Track product price/stock for lead scoring (highest price, lowest stock among relevant)
+            if relevant:
+                _max_price = max(float(p.get("product_price", 0) or 0) for p in relevant)
+                _min_stock = min(int(p.get("inventory_quantity", 0) or 0) for p in relevant)
+                if _max_price > session.get("_lead_product_price", 0):
+                    session["_lead_product_price"] = _max_price
+                if session.get("_lead_product_stock") is None or _min_stock < session.get("_lead_product_stock", 9999):
+                    session["_lead_product_stock"] = _min_stock
+        else:
+            company_info["_products_full"] = "No products configured yet."
+
+        # ── PROMOTIONS section ──
+        promo_lines = []
+        try:
+            cr = db.get_cart_recovery_settings(admin_id)
+            if cr and cr.get("discount_enabled"):
+                dtype = cr.get("discount_type", "percentage")
+                dval = float(cr.get("discount_value", 0) or 0)
+                prefix = cr.get("discount_code_prefix", "SAVE")
+                _pcur = "$"
+                if store_settings and store_settings.get("store_currency"):
+                    _pcm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                    _pcur = _pcm.get(store_settings["store_currency"], "$")
+                if dtype == "percentage":
+                    promo_lines.append(f"Cart recovery discount: {int(dval)}% off (code prefix: {prefix})")
+                else:
+                    promo_lines.append(f"Cart recovery discount: {_pcur}{dval:.2f} off (code prefix: {prefix})")
+        except Exception:
+            pass
+        if store_settings and float(store_settings.get("free_shipping_threshold", 0) or 0) > 0:
+            _fcur = "$"
+            if store_settings.get("store_currency"):
+                _fcm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                _fcur = _fcm.get(store_settings["store_currency"], "$")
+            promo_lines.append(f"Free shipping on orders over {_fcur}{float(store_settings['free_shipping_threshold']):.2f}")
+        company_info["_promotions"] = "\n".join(promo_lines) if promo_lines else "No active promotions."
+
+        # ── Predictive Replenishment — check for reorder candidates ──
+        try:
+            replenish = db.get_replenishment_candidates(admin_id, _customer_key)
+            if replenish:
+                replenish_text = "REPLENISHMENT OPPORTUNITIES (customer may need to reorder):\n"
+                for r in replenish[:3]:
+                    replenish_text += f"  - {r['product_name']} (last bought {r['days_since']} days ago, avg reorder: {r['avg_days']:.0f} days)\n"
+                company_info["_replenishment"] = replenish_text
+        except Exception:
+            pass
+
+    elif company_type == "real_estate":
+        # ── Real estate context building ──
+        listings = db.get_property_listings(admin_id, "active")
+        agency = db.get_agency_settings(admin_id)
+        agents = db.get_re_agents(admin_id)
+        if company_info is None:
+            company_info = {}
+        if listings:
+            listing_lines = [f"- {l.get('listing_address','')}, {l.get('city','')}: ${l.get('price','')} ({l.get('bedrooms','')}bd/{l.get('bathrooms','')}ba, {l.get('sqft','')} sqft)" for l in listings[:20]]
+            company_info["listings"] = "\n".join(listing_lines)
+        if agents:
+            agent_lines = [f"- {a.get('first_name','')} {a.get('last_name','')} ({a.get('specializations','General')})" for a in agents]
+            company_info["agents"] = "\n".join(agent_lines)
+
+    else:
+        # ── Dental context building (default) ──
+        all_doctors = db.get_doctors(admin_id)
+        active_doctors = [d for d in all_doctors if d.get("status") == "active"]
+
+        # Build doctor time slots so the AI knows exact availability
+        for doc in active_doctors:
+            doc_breaks = db.get_doctor_breaks(doc["id"])
+            slots = _generate_doctor_slots(doc, breaks=doc_breaks)
+            if slots:
+                doctor_slots[doc["name"]] = [s["time"] for s in slots]
+
+        # Inject service pricing into company_info so AI has real prices
+        try:
+            services_list = db.get_services_with_doctors(admin_id)
+            if services_list:
+                svc_lines = []
+                for s in services_list:
+                    line = f"- {s['name']}: {s.get('price','')} {s.get('currency','SAR')}"
+                    if s.get('description'):
+                        line += f" ({s['description']})"
+                    doc_ids = s.get('doctor_ids', [])
+                    if doc_ids:
+                        doc_names = [f"Dr. {doc['name']}" for doc in active_doctors if doc["id"] in doc_ids]
+                        if doc_names:
+                            line += f" [Available with: {', '.join(doc_names)}]"
+                    svc_lines.append(line)
+                services_text = "\n".join(svc_lines)
+                if company_info is None:
+                    company_info = {}
+                existing = company_info.get("pricing_insurance", "") or ""
+                company_info["pricing_insurance"] = (existing + "\n\nService Pricing:\n" + services_text).strip()
+        except Exception:
+            pass
 
     # Add customer name to company_info so AI can address them by name
     _customer_name = session.get("_greeting_name", "") or session.get("_prefill_name", "")
@@ -5035,23 +10057,248 @@ def process_message(session_id, user_message, admin_id=1, patient_id=None,
             company_info = {}
         company_info["_customer_name"] = _customer_name
 
-    # Send to Groq AI with full context (dentist-only constraint is in the system prompt)
+    # ── Lead scoring context injection for AI ──
+    if company_type in ("ecommerce", "real_estate"):
+        _lead_ctx = lead_scoring.get_lead_scoring_context(session)
+        if company_info is None:
+            company_info = {}
+        existing_profile = company_info.get("_store_profile", "")
+        company_info["_store_profile"] = existing_profile + _lead_ctx
+
+        # Lead hint injection: when warm+ but no contact info, nudge the AI
+        _lead_temp = session.get("_lead_temperature", "cold")
+        _has_any_contact = bool(session.get("_prefill_email") or session.get("_prefill_phone"))
+        if _lead_temp in ("warm_emerging", "warm", "hot", "vip") and not _has_any_contact and not session.get("_lead_captured") and not session.get("_lead_hint_injected"):
+            session["_lead_hint_injected"] = True
+            _hint_urgency = {
+                "warm_emerging": "very casually mention you could send them a summary — e.g. 'I can email you this info if you like'",
+                "warm": "casually suggest sharing their email — e.g. 'Want me to email you the details?'",
+                "hot": "naturally suggest sharing their email or phone — e.g. 'I can send you a summary with all the details — what's your email?'",
+                "vip": "let them know a specialist is available right now and ask for their contact info to connect them immediately",
+            }
+            _lead_hint = f"\n\nLEAD CAPTURE HINT: This customer is highly engaged ({_lead_temp} lead) but hasn't shared contact info yet. At the END of your reply, {_hint_urgency.get(_lead_temp, _hint_urgency['warm'])}. Keep it casual, ONE sentence max. Do NOT be pushy."
+            existing_profile = company_info.get("_store_profile", "")
+            company_info["_store_profile"] = existing_profile + _lead_hint
+
+    # ── Sentiment analysis for e-commerce (pre-AI) ──
+    _sentiment = None
+    _escalated_by_sentiment = False
+    if company_type == "ecommerce":
+        try:
+            _sentiment = sentiment_engine.analyze_sentiment(user_message)
+            # Frustration >= 8: trigger handoff immediately
+            if _sentiment["frustration_score"] >= 8:
+                _escalated_by_sentiment = True
+                try:
+                    handoff_engine.create_handoff(admin_id, session_id,
+                        patient_name=session.get("_greeting_name", ""),
+                        reason="High frustration detected by sentiment engine",
+                        ai_confidence=0)
+                    realtime.emit_handoff_request(admin_id, {
+                        "patient_name": session.get("_greeting_name", ""),
+                        "reason": "High frustration detected"
+                    })
+                except Exception:
+                    try:
+                        db.create_handoff(admin_id, session_id,
+                            patient_name=session.get("_greeting_name", ""),
+                            reason="High frustration detected by sentiment engine",
+                            ai_confidence=0)
+                    except Exception:
+                        pass
+            # Frustration >= 6: inject hint into AI context
+            if _sentiment["frustration_score"] >= 6:
+                hint = sentiment_engine.get_frustration_response_hint(_sentiment)
+                if hint and company_info is not None:
+                    existing_profile = company_info.get("_store_profile", "")
+                    company_info["_store_profile"] = existing_profile + hint
+            elif _sentiment["offer_discount"]:
+                hint = sentiment_engine.get_frustration_response_hint(_sentiment)
+                if hint and company_info is not None:
+                    existing_profile = company_info.get("_store_profile", "")
+                    company_info["_store_profile"] = existing_profile + hint
+            elif _sentiment["dominant_emotion"] in ("annoyed", "delighted"):
+                hint = sentiment_engine.get_frustration_response_hint(_sentiment)
+                if hint and company_info is not None:
+                    existing_profile = company_info.get("_store_profile", "")
+                    company_info["_store_profile"] = existing_profile + hint
+        except Exception:
+            pass
+
+    # Send to Groq AI with full context (company-type-aware system prompt)
     if message_interpreter.is_configured():
         ai_result = message_interpreter.think_and_respond(
             corrected, company_info, active_doctors,
-            doctor_slots=doctor_slots, history=session["history"]
+            doctor_slots=doctor_slots, history=session["history"],
+            company_type=company_type, language=session.get("language", "en")
         )
         if ai_result and ai_result.get("reply"):
-            return _reply(ai_result["reply"])
+            ai_reply = ai_result["reply"]
+
+            # ── Parse and strip AI lead score tag, then record/update lead ──
+            if company_type in ("ecommerce", "real_estate"):
+                ai_reply, _ai_lead_score = lead_scoring.parse_ai_lead_score(ai_reply)
+                if _ai_lead_score is not None:
+                    # Blend AI score with pattern score: use the higher of the two
+                    _pattern_score = session.get("_lead_score", 0)
+                    _effective_score = max(_ai_lead_score, _pattern_score)
+                    if _effective_score != _pattern_score:
+                        session["_lead_score"] = _effective_score
+                        session["_lead_base_total"] = _effective_score
+                        session["_lead_temperature"] = lead_scoring.get_temperature(_effective_score)
+                        print(f"[lead] AI score {_ai_lead_score} > pattern {_pattern_score}, updated to {_effective_score} ({session['_lead_temperature']})", flush=True)
+
+                    # Record/update lead on every message if score >= warm_emerging
+                    _curr_temp = session.get("_lead_temperature", "cold")
+                    if _curr_temp in ("warm_emerging", "warm", "hot", "vip"):
+                        try:
+                            lead_id = lead_engine.capture_lead_from_session(
+                                session, admin_id, capture_trigger="ai_scored"
+                            )
+                            if lead_id:
+                                session["_lead_captured"] = True
+                                session["_auto_lead_id"] = lead_id
+                        except Exception as e:
+                            print(f"[lead] AI-scored capture failed: {e}", flush=True)
+
+            # ── FIX 3: Guardrails — validate AI output against real data ──
+            if company_type == "ecommerce":
+                ai_reply = _validate_ecommerce_response(ai_reply, admin_id, session=session)
+
+                # ── Zero-party data: extract preferences from user message ──
+                try:
+                    _customer_key = session.get("_prefill_email") or session.get("_greeting_name") or session_id
+                    _extract_preferences(raw_lower, admin_id, _customer_key)
+                except Exception:
+                    pass
+
+                # ── Conversation quality scoring (every 10 messages) ──
+                try:
+                    msg_count = len(session.get("history", [])) + 1
+                    if msg_count % 10 == 0:  # Every 5 exchanges (10 messages)
+                        conv_analysis = sentiment_engine.analyze_conversation(
+                            session.get("history", []) + [
+                                {"role": "user", "content": user_message},
+                                {"role": "assistant", "content": ai_reply}
+                            ]
+                        )
+                        cart = session.get("_cart", [])
+                        _converted = len(cart) > 0
+                        db.save_conversation_quality(
+                            admin_id, session_id,
+                            conv_analysis["quality_score"],
+                            conv_analysis["metrics"],
+                            escalated=_escalated_by_sentiment,
+                            converted=_converted
+                        )
+                except Exception:
+                    pass
+
+                # ── FIX 2b: Save cross-session memory every 5 messages ──
+                try:
+                    msg_count = len(session.get("history", [])) + 1
+                    if msg_count % 10 == 0:  # Every 5 exchanges (10 messages)
+                        _customer_key = session.get("_prefill_email") or session.get("_greeting_name") or session_id
+                        # Build a compact summary of what happened
+                        recent = session.get("history", [])[-10:]
+                        summary_parts = []
+                        prefs = []
+                        viewed = []
+                        for h in recent:
+                            content = h.get("content", "")[:150]
+                            if h["role"] == "user":
+                                summary_parts.append(f"Customer: {content}")
+                                # Extract preferences
+                                for kw in ["budget", "prefer", "like", "favorite", "style", "size", "color"]:
+                                    if kw in content.lower():
+                                        prefs.append(content[:80])
+                                        break
+                            else:
+                                # Extract viewed products
+                                for p_name in [p.get("product_name", "") for p in (products or [])]:
+                                    if p_name and p_name.lower() in content.lower():
+                                        if p_name not in viewed:
+                                            viewed.append(p_name)
+                        db.upsert_chat_memory(
+                            admin_id, _customer_key,
+                            summary="\n".join(summary_parts[-6:]),
+                            preferences="; ".join(prefs[-3:]),
+                            last_products_viewed=", ".join(viewed[-5:]),
+                            message_count=msg_count
+                        )
+                except Exception:
+                    pass
+
+            # ── Extract [SHOW:id] tags and render product cards ──
+            show_ids = re.findall(r'\[SHOW:(\d+)\]', ai_reply)
+            ai_reply = re.sub(r'\s*\[SHOW:\d+\]', '', ai_reply)
+
+            if show_ids and products:
+                show_id_set = set(int(x) for x in show_ids)
+                show_products = [p for p in products if p.get("id") in show_id_set]
+                if show_products:
+                    store_settings_c = db.get_store_settings(admin_id)
+                    currency_c = "$"
+                    if store_settings_c and store_settings_c.get("store_currency"):
+                        _cmap = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+                        currency_c = _cmap.get(store_settings_c["store_currency"], "$")
+                    cards = _build_product_cards(show_products, currency_c)
+                    session["_ui_options"] = {"type": "product_cards", "items": cards, "currency": currency_c}
+
+            # ── Append proactive messages for ecommerce (VIP, scarcity, replenishment, price alerts) ──
+            if company_type == "ecommerce":
+                proactive_parts = []
+                if session.get("_vip_welcome"):
+                    proactive_parts.append(session.pop("_vip_welcome"))
+                if session.get("_price_alert_msg"):
+                    proactive_parts.append(session.pop("_price_alert_msg"))
+                if session.get("_scarcity_alert"):
+                    proactive_parts.append(session.pop("_scarcity_alert"))
+                if session.get("_replenishment_nudge_msg"):
+                    proactive_parts.append(session.pop("_replenishment_nudge_msg"))
+                if session.get("_fit_feedback_nudge"):
+                    proactive_parts.append(session.pop("_fit_feedback_nudge"))
+                if session.get("_review_nudge_msg"):
+                    proactive_parts.append(session.pop("_review_nudge_msg"))
+                    # Now set the pending review order so the user can respond
+                    if session.get("_proactive_review_order"):
+                        session["_pending_review_order"] = session.pop("_proactive_review_order")
+                if session.get("_wishlist_drop_msg"):
+                    proactive_parts.append(session.pop("_wishlist_drop_msg"))
+                    if session.get("_wishlist_drop_ui"):
+                        session["_ui_options"] = session.pop("_wishlist_drop_ui")
+                if proactive_parts:
+                    ai_reply += "\n\n---\n" + "\n\n".join(proactive_parts)
+
+            return _reply(ai_reply)
 
     # Offline fallback — if Groq is not configured or fails
-    return _reply(
-        "I'm here to help with your dental needs! I can:\n\n"
-        "• Book an appointment\n"
-        "• Reschedule or cancel existing appointments\n"
-        "• Answer questions about our services & pricing\n\n"
-        "Just let me know what you need!"
-    )
+    if company_type == "ecommerce":
+        return _reply(
+            "I'm here to help with your shopping! I can:\n\n"
+            "• Browse products\n"
+            "• Track orders\n"
+            "• Help with returns\n"
+            "• Answer questions about our store\n\n"
+            "Just let me know what you need!"
+        )
+    elif company_type == "real_estate":
+        return _reply(
+            "I'm here to help with your property search! I can:\n\n"
+            "• Find properties matching your criteria\n"
+            "• Schedule showings\n"
+            "• Connect you with an agent\n"
+            "• Answer questions about listings\n\n"
+            "Just let me know what you need!"
+        )
+    else:
+        return _reply(
+            "I'm here to help with your dental needs! I can:\n\n"
+            "• Book an appointment\n"
+            "• Reschedule or cancel existing appointments\n"
+            "• Answer questions about our services & pricing\n\n"
+            "Just let me know what you need!"
+        )
 
 
 # ══════════════════════════════════════════════
@@ -5075,13 +10322,19 @@ def dashboard():
 
 @app.route("/user-dashboard")
 @app.route("/user-dashboard.html")
+@app.route("/user-dashboard/profile")
 def user_dashboard():
     return send_from_directory("static", "user-dashboard.html", max_age=0)
 
 
+@app.route("/product-detail")
+def product_detail_page():
+    return send_from_directory("static", "product-detail.html", max_age=0)
+
+
 @app.route("/checkout/<plan>")
 def checkout_page(plan):
-    if plan not in ("basic", "pro", "agency"):
+    if plan not in ("basic", "growth", "pro", "enterprise"):
         return redirect("/user-dashboard")
     return send_from_directory("static", "checkout.html")
 
@@ -5260,11 +10513,7 @@ def auth_signup():
     email_addr = data.get("email", "").strip().lower()
     password = data.get("password", "")
     company = data.get("company", "").strip()
-    role = data.get("role", "admin").strip().lower()
-    specialty = data.get("specialty", "").strip()
 
-    if role not in ("admin", "doctor", "head_admin"):
-        return jsonify({"error": "Invalid role."}), 400
     if not name or not email_addr or not password:
         return jsonify({"error": "Name, email, and password are required."}), 400
     if len(name) > 100:
@@ -5280,7 +10529,7 @@ def auth_signup():
     if len(company) > 200:
         return jsonify({"error": "Company name is too long (max 200 characters)."}), 400
 
-    user, error = db.create_user(name, email_addr, password, company, role=role, specialty=specialty)
+    user, error = db.create_user(name, email_addr, password, company, role="head_admin")
     if error:
         return jsonify({"error": error}), 400
 
@@ -5400,12 +10649,6 @@ def auth_social_token():
     client_name = data.get("name", "").strip()
     client_email = data.get("email", "").strip().lower()
     avatar_url = data.get("avatar_url", "")
-    role = data.get("role", "admin").strip().lower()
-    specialty = data.get("specialty", "").strip()
-    role_confirmed = data.get("role_confirmed", False)  # True when user explicitly chose a role
-
-    if role not in ("admin", "doctor", "head_admin"):
-        return jsonify({"error": "Invalid role."}), 400
     if provider not in ("google", "facebook", "apple"):
         return jsonify({"error": "Unknown provider."}), 400
 
@@ -5434,26 +10677,13 @@ def auth_social_token():
     else:
         return jsonify({"error": f"{provider.capitalize()} login is not configured on this server."}), 400
 
-    # Check if user already exists — if not and role wasn't explicitly chosen, ask for role
-    existing_user = db.get_user_by_email(email_addr)
-    if not existing_user and not role_confirmed:
-        return jsonify({
-            "needs_role": True,
-            "provider": provider,
-            "token": token,
-            "name": name,
-            "email": email_addr,
-            "avatar_url": avatar_url,
-        })
-
     user, error = db.login_or_create_social(
         name=name,
         email=email_addr,
         provider=provider,
         provider_id=provider_id,
         avatar_url=avatar_url,
-        role=role,
-        specialty=specialty,
+        role="head_admin",
     )
     if error:
         return jsonify({"error": error}), 400
@@ -5480,6 +10710,11 @@ def auth_me():
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Not authenticated"}), 401
+    # Check & enforce plan expiry (including free trial)
+    db.process_plan_expiry(user["id"])
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
     return jsonify({"user": db.user_to_public(user)})
 
 
@@ -5489,10 +10724,10 @@ def auth_me():
 PAYPAL_CLIENT_ID = os.environ.get("PAYPAL_CLIENT_ID", "")
 PAYPAL_SECRET = os.environ.get("PAYPAL_SECRET", "")
 PAYPAL_API = os.environ.get("PAYPAL_API", "https://api-m.sandbox.paypal.com")
-PLAN_PRICES = {"basic": "79.00", "pro": "239.00", "agency": "699.00"}
+PLAN_PRICES = {"basic": "23.00", "growth": "79.00", "pro": "299.00", "enterprise": "699.00"}
 
 # In-memory cache for PayPal billing plan IDs (created on first use)
-_paypal_plan_ids = {}  # {"basic": "P-xxx", "pro": "P-yyy", "agency": "P-zzz"}
+_paypal_plan_ids = {}  # {"basic": "P-xxx", "pro": "P-yyy", "enterprise": "P-zzz"}
 
 
 def _paypal_access_token():
@@ -5812,6 +11047,2266 @@ def paypal_webhook():
     return jsonify({"status": "ok"}), 200
 
 
+########################################################################
+# Ecom Integration – general platform info
+########################################################################
+
+
+@app.route("/api/ecom-integration", methods=["GET"])
+def get_ecom_integration_api():
+    """Return the connected ecom platform info for the authenticated admin."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    admin_id = get_effective_admin_id(user)
+    integration = db.get_ecom_integration(admin_id)
+    if not integration:
+        return jsonify({"connected": False, "platform": None})
+
+    return jsonify({
+        "connected": True,
+        "platform": integration.get("platform"),
+        "store_url": integration.get("store_url", ""),
+    })
+
+
+########################################################################
+# Stripe In-Chat Payment Processing – e-commerce checkout
+########################################################################
+
+
+@app.route("/api/ecom-integrations/stripe", methods=["POST"])
+def save_stripe_integration():
+    """Save Stripe API keys (publishable_key, secret_key, webhook_secret)."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    admin_id = get_effective_admin_id(user)
+    data = request.get_json(silent=True) or {}
+    publishable_key = data.get("publishable_key", "").strip()
+    secret_key = data.get("secret_key", "").strip()
+    webhook_secret = data.get("webhook_secret", "").strip()
+
+    if not publishable_key or not secret_key:
+        return jsonify({"error": "publishable_key and secret_key are required"}), 400
+
+    try:
+        db.save_stripe_keys(admin_id, publishable_key, secret_key, webhook_secret)
+    except Exception as e:
+        app.logger.error(f"Failed to save Stripe keys: {e}")
+        return jsonify({"error": "Failed to save Stripe keys. Please try again."}), 500
+
+    return jsonify({"ok": True, "message": "Stripe keys saved successfully"})
+
+
+@app.route("/api/ecom-integrations/stripe", methods=["GET"])
+def get_stripe_integration():
+    """Get Stripe connection status for the authenticated admin."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    admin_id = get_effective_admin_id(user)
+    keys = db.get_stripe_keys(admin_id)
+    if not keys or not keys.get("secret_key"):
+        return jsonify({"connected": False})
+
+    return jsonify({
+        "connected": True,
+        "publishable_key": keys["publishable_key"],
+        "has_webhook_secret": bool(keys.get("webhook_secret")),
+    })
+
+
+# ═══════════════════════════════════════════════════════════
+# ECOMMERCE INTEGRATION ROUTES (Shopify / WooCommerce / Stripe / External APIs)
+# ═══════════════════════════════════════════════════════════
+
+@app.route("/api/integration/shopify", methods=["POST"])
+def api_integration_shopify_save():
+    """Save Shopify store URL and Admin API token."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    data = request.get_json(silent=True) or {}
+    store_url = (data.get("store_url") or "").strip()
+    api_token = (data.get("api_token") or "").strip()
+    if not store_url or not api_token:
+        return jsonify({"ok": False, "error": "Store URL and API token are required"}), 400
+    # Normalize store URL
+    store_url = store_url.rstrip("/")
+    if not store_url.startswith("http"):
+        store_url = "https://" + store_url
+    if ".myshopify.com" not in store_url:
+        store_url = store_url + ".myshopify.com"
+    admin_id = get_effective_admin_id(user)
+    try:
+        db.save_ecom_integration(admin_id, "shopify", store_url=store_url, api_token=api_token)
+        return jsonify({"ok": True, "message": "Shopify credentials saved"})
+    except Exception as e:
+        app.logger.error(f"Shopify save failed for admin {admin_id}: {e}")
+        return jsonify({"ok": False, "error": "Failed to save Shopify config. Please try again."}), 500
+
+
+@app.route("/api/integration/shopify/test", methods=["POST"])
+def api_integration_shopify_test():
+    """Test Shopify connection by fetching product count."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    data = request.get_json(silent=True) or {}
+    store_url = (data.get("store_url") or "").strip().rstrip("/")
+    api_token = (data.get("api_token") or "").strip()
+    if not store_url or not api_token:
+        return jsonify({"ok": False, "error": "Store URL and API token required"}), 400
+    if not store_url.startswith("http"):
+        store_url = "https://" + store_url
+    if ".myshopify.com" not in store_url:
+        store_url = store_url + ".myshopify.com"
+    try:
+        resp = http_requests.get(
+            f"{store_url}/admin/api/2024-01/products/count.json",
+            headers={"X-Shopify-Access-Token": api_token},
+            timeout=10
+        )
+        if resp.status_code == 200:
+            count = resp.json().get("count", 0)
+            return jsonify({"ok": True, "product_count": count})
+        elif resp.status_code == 401:
+            return jsonify({"ok": False, "error": "Invalid API token. Check your Shopify Admin API access token."})
+        else:
+            return jsonify({"ok": False, "error": f"Shopify returned status {resp.status_code}"})
+    except Exception:
+        return jsonify({"ok": False, "error": "Connection failed. Check your store URL and API token."})
+
+
+@app.route("/api/integration/shopify/sync", methods=["POST"])
+def api_integration_shopify_sync():
+    """Sync products from Shopify into the local products table."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+    integration = db.get_ecom_integration(admin_id)
+    if not integration or integration.get("ecommerce_platform") != "shopify":
+        return jsonify({"ok": False, "error": "Shopify not configured. Save credentials first."}), 400
+    store_url = integration["platform_store_url"]
+    api_token = integration["platform_api_key"]
+    try:
+        synced = _sync_shopify_products(admin_id, store_url, api_token)
+        return jsonify({"ok": True, "synced": synced})
+    except Exception as e:
+        app.logger.error(f"Shopify sync failed for admin {admin_id}: {e}")
+        return jsonify({"ok": False, "error": "Sync failed. Check your Shopify credentials and try again."}), 500
+
+
+def _sync_shopify_products(admin_id, store_url, api_token):
+    """Fetch all products from Shopify Admin API and upsert into products table."""
+    import re as _re
+    all_products = []
+    url = f"{store_url}/admin/api/2024-01/products.json?limit=250"
+    while url:
+        resp = http_requests.get(url, headers={"X-Shopify-Access-Token": api_token}, timeout=30)
+        if resp.status_code != 200:
+            raise Exception(f"Shopify API error: {resp.status_code}")
+        data = resp.json()
+        all_products.extend(data.get("products", []))
+        # Pagination via Link header (safe regex parsing)
+        link = resp.headers.get("Link", "")
+        url = None
+        if 'rel="next"' in link:
+            match = _re.search(r'<([^>]+)>;\s*rel="next"', link)
+            if match:
+                url = match.group(1)
+    synced = 0
+    existing = db.get_products(admin_id)
+    existing_by_sku = {(p.get("product_barcode") or "").strip(): p for p in existing if p.get("product_barcode")}
+    for sp in all_products:
+        sku = str(sp.get("id", ""))
+        images = ",".join([img["src"] for img in sp.get("images", [])[:5]])
+        price = 0
+        compare_price = 0
+        if sp.get("variants"):
+            price = float(sp["variants"][0].get("price", 0) or 0)
+            compare_price = float(sp["variants"][0].get("compare_at_price", 0) or 0)
+        inventory_qty = sum(int(v.get("inventory_quantity", 0) or 0) for v in sp.get("variants", []))
+        product_data = {
+            "product_name": sp.get("title", ""),
+            "product_description": sp.get("body_html", ""),
+            "product_images": images,
+            "product_price": price,
+            "compare_at_price": compare_price,
+            "product_status": "active" if sp.get("status") == "active" else "draft",
+            "inventory_quantity": inventory_qty,
+            "product_category": sp.get("product_type", ""),
+            "product_tags": sp.get("tags", ""),
+            "product_barcode": sku,
+            "product_url": f"{store_url}/products/{sp.get('handle', '')}",
+        }
+        if sku in existing_by_sku:
+            pid = existing_by_sku[sku]["id"]
+            db.update_product(pid, **product_data)
+        else:
+            pid = db.create_product(admin_id, **product_data)
+            existing_by_sku[sku] = {"id": pid}
+        synced += 1
+        # Sync variants
+        if len(sp.get("variants", [])) > 1:
+            for sv in sp["variants"]:
+                try:
+                    db.create_variant(admin_id, pid,
+                                      variant_name=sv.get("title", ""),
+                                      variant_price=float(sv.get("price", 0) or 0),
+                                      variant_sku=sv.get("sku", ""),
+                                      inventory_quantity=int(sv.get("inventory_quantity", 0) or 0))
+                except Exception:
+                    pass
+    return synced
+
+
+@app.route("/api/integration/woocommerce", methods=["POST"])
+def api_integration_woo_save():
+    """Save WooCommerce store URL, consumer key, and consumer secret."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    data = request.get_json(silent=True) or {}
+    store_url = (data.get("store_url") or "").strip().rstrip("/")
+    ck = (data.get("consumer_key") or "").strip()
+    cs = (data.get("consumer_secret") or "").strip()
+    if not store_url or not ck or not cs:
+        return jsonify({"ok": False, "error": "Store URL, consumer key, and consumer secret are required"}), 400
+    if not store_url.startswith("http"):
+        store_url = "https://" + store_url
+    admin_id = get_effective_admin_id(user)
+    try:
+        db.save_ecom_integration(admin_id, "woocommerce", store_url=store_url, consumer_key=ck, consumer_secret=cs)
+        return jsonify({"ok": True, "message": "WooCommerce credentials saved"})
+    except Exception as e:
+        app.logger.error(f"WooCommerce save failed for admin {admin_id}: {e}")
+        return jsonify({"ok": False, "error": "Failed to save WooCommerce config. Please try again."}), 500
+
+
+@app.route("/api/integration/woocommerce/test", methods=["POST"])
+def api_integration_woo_test():
+    """Test WooCommerce connection by fetching product count."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    data = request.get_json(silent=True) or {}
+    store_url = (data.get("store_url") or "").strip().rstrip("/")
+    ck = (data.get("consumer_key") or "").strip()
+    cs = (data.get("consumer_secret") or "").strip()
+    if not store_url or not ck or not cs:
+        return jsonify({"ok": False, "error": "All fields required"}), 400
+    if not store_url.startswith("http"):
+        store_url = "https://" + store_url
+    try:
+        resp = http_requests.get(
+            f"{store_url}/wp-json/wc/v3/products",
+            auth=(ck, cs),
+            params={"per_page": 1},
+            timeout=10
+        )
+        if resp.status_code == 200:
+            total = int(resp.headers.get("X-WP-Total", 0))
+            return jsonify({"ok": True, "product_count": total})
+        elif resp.status_code == 401:
+            return jsonify({"ok": False, "error": "Invalid credentials. Check your consumer key and secret."})
+        else:
+            return jsonify({"ok": False, "error": f"WooCommerce returned status {resp.status_code}"})
+    except Exception:
+        return jsonify({"ok": False, "error": "Connection failed. Check your store URL and ensure WooCommerce REST API is enabled."})
+
+
+@app.route("/api/integration/woocommerce/sync", methods=["POST"])
+def api_integration_woo_sync():
+    """Sync products from WooCommerce into the local products table."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+    integration = db.get_ecom_integration(admin_id)
+    if not integration or integration.get("ecommerce_platform") != "woocommerce":
+        return jsonify({"ok": False, "error": "WooCommerce not configured. Save credentials first."}), 400
+    store_url = integration["platform_store_url"]
+    ck = integration["platform_api_key"]
+    cs = integration["platform_api_secret"]
+    try:
+        synced = _sync_woo_products(admin_id, store_url, ck, cs)
+        return jsonify({"ok": True, "synced": synced})
+    except Exception as e:
+        app.logger.error(f"WooCommerce sync failed for admin {admin_id}: {e}")
+        return jsonify({"ok": False, "error": "Sync failed. Check your WooCommerce credentials and try again."}), 500
+
+
+def _sync_woo_products(admin_id, store_url, ck, cs):
+    """Fetch all products from WooCommerce REST API and upsert into products table."""
+    all_products = []
+    page = 1
+    while True:
+        resp = http_requests.get(
+            f"{store_url}/wp-json/wc/v3/products",
+            auth=(ck, cs),
+            params={"per_page": 100, "page": page},
+            timeout=30
+        )
+        if resp.status_code != 200:
+            raise Exception(f"WooCommerce API error: {resp.status_code}")
+        batch = resp.json()
+        if not batch:
+            break
+        all_products.extend(batch)
+        page += 1
+        if len(batch) < 100:
+            break
+    synced = 0
+    existing = db.get_products(admin_id)
+    existing_by_sku = {(p.get("product_barcode") or "").strip(): p for p in existing if p.get("product_barcode")}
+    for wp in all_products:
+        sku = str(wp.get("id", ""))
+        images = ",".join([img["src"] for img in wp.get("images", [])[:5]])
+        price = float(wp.get("price", 0) or 0)
+        compare_price = float(wp.get("regular_price", 0) or 0)
+        inventory_qty = int(wp.get("stock_quantity") or 0)
+        cats = ", ".join([c["name"] for c in wp.get("categories", [])])
+        tags = ", ".join([t["name"] for t in wp.get("tags", [])])
+        product_data = {
+            "product_name": wp.get("name", ""),
+            "product_description": wp.get("description", ""),
+            "product_short_description": wp.get("short_description", ""),
+            "product_images": images,
+            "product_price": price,
+            "compare_at_price": compare_price,
+            "product_status": "active" if wp.get("status") == "publish" else "draft",
+            "inventory_quantity": inventory_qty,
+            "product_category": cats,
+            "product_tags": tags,
+            "product_barcode": sku,
+            "product_url": wp.get("permalink", ""),
+        }
+        if sku in existing_by_sku:
+            db.update_product(existing_by_sku[sku]["id"], **product_data)
+        else:
+            pid = db.create_product(admin_id, **product_data)
+            if sku:
+                existing_by_sku[sku] = {"id": pid}
+        synced += 1
+    return synced
+
+
+# ── Order Sync from Shopify / WooCommerce ──
+
+@app.route("/api/integration/orders/sync", methods=["POST"])
+def api_integration_orders_sync():
+    """Pull orders from connected Shopify or WooCommerce into local ecom_orders."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    integration = db.get_ecom_integration(admin_id)
+    if not integration or not integration.get("platform_api_key"):
+        return jsonify({"ok": False, "error": "No e-commerce platform configured. Connect Shopify or WooCommerce in Integrations first."}), 400
+    platform = integration.get("ecommerce_platform", "")
+    try:
+        if platform == "shopify":
+            synced = _sync_shopify_orders(admin_id, integration["platform_store_url"], integration["platform_api_key"])
+        elif platform == "woocommerce":
+            synced = _sync_woo_orders(admin_id, integration["platform_store_url"],
+                                       integration["platform_api_key"], integration.get("platform_api_secret", ""))
+        else:
+            return jsonify({"ok": False, "error": f"Order sync not supported for {platform}. Use the webhook endpoint instead."}), 400
+        return jsonify({"ok": True, "synced": synced, "platform": platform})
+    except Exception as e:
+        app.logger.error(f"Order sync failed for admin {admin_id} ({platform}): {e}")
+        return jsonify({"ok": False, "error": f"Sync failed: {str(e)}"}), 500
+
+
+def _sync_shopify_orders(admin_id, store_url, api_token):
+    """Fetch orders from Shopify Admin API and upsert into ecom_orders."""
+    all_orders = []
+    url = f"{store_url}/admin/api/2024-01/orders.json?limit=250&status=any"
+    while url:
+        resp = http_requests.get(url, headers={
+            "X-Shopify-Access-Token": api_token,
+            "Content-Type": "application/json"
+        }, timeout=30)
+        if resp.status_code != 200:
+            raise Exception(f"Shopify API error: {resp.status_code} - {resp.text[:200]}")
+        data = resp.json()
+        all_orders.extend(data.get("orders", []))
+        # Pagination via Link header
+        link = resp.headers.get("Link", "")
+        url = None
+        if 'rel="next"' in link:
+            import re as _re
+            m = _re.search(r'<([^>]+)>;\s*rel="next"', link)
+            if m:
+                url = m.group(1)
+
+    synced = 0
+    existing_orders = db.get_ecom_orders(admin_id)
+    existing_by_num = {o["order_number"]: o for o in existing_orders}
+
+    for so in all_orders:
+        order_num = str(so.get("name") or so.get("order_number") or so["id"])
+        # Map Shopify status
+        financial = (so.get("financial_status") or "").lower()
+        fulfillment = (so.get("fulfillment_status") or "").lower()
+        if so.get("cancelled_at"):
+            status = "cancelled"
+        elif financial == "refunded":
+            status = "refunded"
+        elif fulfillment == "fulfilled":
+            status = "delivered"
+        elif fulfillment == "partial":
+            status = "shipped"
+        elif financial in ("paid", "partially_paid"):
+            status = "confirmed"
+        else:
+            status = "pending"
+
+        payment_status = "paid" if financial == "paid" else ("refunded" if financial == "refunded" else "pending")
+
+        # Customer info
+        customer = so.get("customer", {})
+        cname = f"{customer.get('first_name', '')} {customer.get('last_name', '')}".strip()
+        cemail = customer.get("email", "") or so.get("email", "")
+        cphone = customer.get("phone", "") or ""
+
+        # Shipping address
+        ship = so.get("shipping_address") or {}
+        ship_addr = ", ".join(filter(None, [ship.get("address1", ""), ship.get("city", ""),
+                                            ship.get("province", ""), ship.get("zip", ""),
+                                            ship.get("country", "")]))
+
+        # Items
+        items = []
+        for li in so.get("line_items", []):
+            items.append({
+                "name": li.get("title", ""),
+                "price": float(li.get("price", 0)),
+                "qty": int(li.get("quantity", 1)),
+                "id": li.get("product_id", 0),
+                "sku": li.get("sku", ""),
+            })
+
+        # Tracking info from fulfillments
+        tracking_number = ""
+        carrier = ""
+        for ful in so.get("fulfillments", []):
+            if ful.get("tracking_number"):
+                tracking_number = ful["tracking_number"]
+                carrier = ful.get("tracking_company", "")
+                break
+
+        order_data = {
+            "customer_name": cname,
+            "customer_email": cemail,
+            "customer_phone": cphone,
+            "order_status": status,
+            "order_total": float(so.get("total_price", 0)),
+            "subtotal": float(so.get("subtotal_price", 0)),
+            "tax_amount": float(so.get("total_tax", 0)),
+            "shipping_cost": float(sum(float(sl.get("price", 0)) for sl in so.get("shipping_lines", []))),
+            "discount_amount": float(so.get("total_discounts", 0)),
+            "discount_code": ", ".join(dc.get("code", "") for dc in so.get("discount_codes", [])),
+            "items_json": json.dumps(items),
+            "shipping_address": ship_addr,
+            "tracking_number": tracking_number,
+            "carrier": carrier,
+            "payment_method": (so.get("gateway") or so.get("payment_gateway_names", [""])[0] if so.get("payment_gateway_names") else ""),
+            "payment_status": payment_status,
+        }
+
+        if order_num in existing_by_num:
+            db.update_ecom_order(existing_by_num[order_num]["id"], **order_data)
+        else:
+            db.create_ecom_order(admin_id, order_number=order_num, **order_data)
+            # Upsert customer
+            if cemail:
+                try:
+                    db.upsert_ecom_customer(admin_id, cemail, cname, cphone, float(so.get("total_price", 0)))
+                except Exception:
+                    pass
+        synced += 1
+
+    return synced
+
+
+def _sync_woo_orders(admin_id, store_url, ck, cs):
+    """Fetch orders from WooCommerce REST API and upsert into ecom_orders."""
+    all_orders = []
+    page = 1
+    while True:
+        resp = http_requests.get(
+            f"{store_url}/wp-json/wc/v3/orders",
+            auth=(ck, cs),
+            params={"per_page": 100, "page": page},
+            timeout=30
+        )
+        if resp.status_code != 200:
+            raise Exception(f"WooCommerce API error: {resp.status_code}")
+        batch = resp.json()
+        if not batch:
+            break
+        all_orders.extend(batch)
+        page += 1
+        if len(batch) < 100:
+            break
+
+    synced = 0
+    existing_orders = db.get_ecom_orders(admin_id)
+    existing_by_num = {o["order_number"]: o for o in existing_orders}
+
+    for wo in all_orders:
+        order_num = str(wo.get("number") or wo["id"])
+        # Map WooCommerce status
+        wc_status = (wo.get("status") or "").lower()
+        status_map = {
+            "pending": "pending", "processing": "processing", "on-hold": "pending",
+            "completed": "delivered", "cancelled": "cancelled", "refunded": "refunded",
+            "failed": "cancelled", "trash": "cancelled",
+        }
+        status = status_map.get(wc_status, "pending")
+        payment_status = "paid" if wo.get("date_paid") else "pending"
+        if wc_status == "refunded":
+            payment_status = "refunded"
+
+        # Customer info
+        billing = wo.get("billing", {})
+        cname = f"{billing.get('first_name', '')} {billing.get('last_name', '')}".strip()
+        cemail = billing.get("email", "")
+        cphone = billing.get("phone", "")
+
+        # Shipping address
+        ship = wo.get("shipping", {})
+        ship_addr = ", ".join(filter(None, [ship.get("address_1", ""), ship.get("city", ""),
+                                            ship.get("state", ""), ship.get("postcode", ""),
+                                            ship.get("country", "")]))
+
+        # Items
+        items = []
+        for li in wo.get("line_items", []):
+            items.append({
+                "name": li.get("name", ""),
+                "price": float(li.get("price", 0)),
+                "qty": int(li.get("quantity", 1)),
+                "id": li.get("product_id", 0),
+                "sku": li.get("sku", ""),
+            })
+
+        # Shipping total
+        shipping_total = float(wo.get("shipping_total", 0))
+        discount_total = float(wo.get("discount_total", 0))
+
+        order_data = {
+            "customer_name": cname,
+            "customer_email": cemail,
+            "customer_phone": cphone,
+            "order_status": status,
+            "order_total": float(wo.get("total", 0)),
+            "subtotal": float(sum(float(li.get("subtotal", 0)) for li in wo.get("line_items", []))),
+            "tax_amount": float(wo.get("total_tax", 0)),
+            "shipping_cost": shipping_total,
+            "discount_amount": discount_total,
+            "discount_code": ", ".join(c.get("code", "") for c in wo.get("coupon_lines", [])),
+            "items_json": json.dumps(items),
+            "shipping_address": ship_addr,
+            "payment_method": wo.get("payment_method_title", ""),
+            "payment_status": payment_status,
+        }
+
+        if order_num in existing_by_num:
+            db.update_ecom_order(existing_by_num[order_num]["id"], **order_data)
+        else:
+            db.create_ecom_order(admin_id, order_number=order_num, **order_data)
+            if cemail:
+                try:
+                    db.upsert_ecom_customer(admin_id, cemail, cname, cphone, float(wo.get("total", 0)))
+                except Exception:
+                    pass
+        synced += 1
+
+    return synced
+
+
+@app.route("/api/integration/bigcommerce", methods=["POST"])
+def api_integration_bigcommerce_save():
+    """Save BigCommerce store hash and access token."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    data = request.get_json(silent=True) or {}
+    store_hash = (data.get("store_hash") or "").strip()
+    access_token = (data.get("access_token") or "").strip()
+    if not store_hash or not access_token:
+        return jsonify({"ok": False, "error": "Store hash and access token are required"}), 400
+    store_hash = store_hash.replace("stores/", "").strip("/")
+    storefront_url = (data.get("storefront_url") or "").strip().rstrip("/")
+    admin_id = get_effective_admin_id(user)
+    try:
+        save_kwargs = {"store_url": store_hash, "api_token": access_token}
+        if storefront_url:
+            save_kwargs["storefront_url"] = storefront_url
+        db.save_ecom_integration(admin_id, "bigcommerce", **save_kwargs)
+        return jsonify({"ok": True, "message": "BigCommerce credentials saved"})
+    except Exception as e:
+        app.logger.error(f"BigCommerce save failed for admin {admin_id}: {e}")
+        return jsonify({"ok": False, "error": "Failed to save BigCommerce config. Please try again."}), 500
+
+
+@app.route("/api/integration/bigcommerce/test", methods=["POST"])
+def api_integration_bigcommerce_test():
+    """Test BigCommerce connection by fetching store info."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    data = request.get_json(silent=True) or {}
+    store_hash = (data.get("store_hash") or "").strip().replace("stores/", "").strip("/")
+    access_token = (data.get("access_token") or "").strip()
+    if not store_hash or not access_token:
+        return jsonify({"ok": False, "error": "All fields required"}), 400
+    try:
+        resp = http_requests.get(
+            f"https://api.bigcommerce.com/stores/{store_hash}/v3/catalog/summary",
+            headers={"X-Auth-Token": access_token, "Accept": "application/json"},
+            timeout=10
+        )
+        if resp.status_code == 200:
+            summary = resp.json().get("data", {})
+            # Auto-fetch storefront URL from /v2/store
+            storefront_url = ""
+            try:
+                store_resp = http_requests.get(
+                    f"https://api.bigcommerce.com/stores/{store_hash}/v2/store",
+                    headers={"X-Auth-Token": access_token, "Accept": "application/json"},
+                    timeout=10
+                )
+                if store_resp.status_code == 200:
+                    store_data = store_resp.json()
+                    storefront_url = store_data.get("secure_url", "") or store_data.get("domain", "")
+                    storefront_url = storefront_url.rstrip("/")
+            except Exception:
+                pass
+            return jsonify({"ok": True, "product_count": summary.get("product_count", 0), "storefront_url": storefront_url})
+        elif resp.status_code == 401:
+            return jsonify({"ok": False, "error": "Invalid access token."})
+        else:
+            return jsonify({"ok": False, "error": f"BigCommerce returned status {resp.status_code}"})
+    except Exception:
+        return jsonify({"ok": False, "error": "Connection failed. Check your store hash and access token."})
+
+
+@app.route("/api/integration/bigcommerce/sync", methods=["POST"])
+def api_integration_bigcommerce_sync():
+    """Sync products from BigCommerce into local products table."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+    integration = db.get_ecom_integration(admin_id)
+    if not integration or integration.get("ecommerce_platform") != "bigcommerce":
+        return jsonify({"ok": False, "error": "BigCommerce not configured. Save credentials first."}), 400
+    store_hash = integration["platform_store_url"]
+    access_token = integration["platform_api_key"]
+    try:
+        synced = _sync_bigcommerce_products(admin_id, store_hash, access_token)
+        return jsonify({"ok": True, "synced": synced})
+    except Exception as e:
+        app.logger.error(f"BigCommerce sync failed for admin {admin_id}: {e}")
+        return jsonify({"ok": False, "error": "Sync failed. Check your BigCommerce credentials and try again."}), 500
+
+
+def _sync_bigcommerce_products(admin_id, store_hash, access_token):
+    """Fetch all products from BigCommerce V3 API and upsert into products table."""
+    # Pre-fetch store domain for product URLs
+    store_domain = ""
+    try:
+        sd_resp = http_requests.get(
+            f"https://api.bigcommerce.com/stores/{store_hash}/v2/store",
+            headers={"X-Auth-Token": access_token, "Accept": "application/json"},
+            timeout=10
+        )
+        if sd_resp.status_code == 200:
+            store_domain = (sd_resp.json().get("secure_url") or sd_resp.json().get("domain", "")).rstrip("/")
+    except Exception:
+        pass
+    # Pre-fetch category names
+    cat_names = {}
+    try:
+        cat_resp = http_requests.get(
+            f"https://api.bigcommerce.com/stores/{store_hash}/v3/catalog/categories",
+            headers={"X-Auth-Token": access_token, "Accept": "application/json"},
+            params={"limit": 250}, timeout=15
+        )
+        if cat_resp.status_code == 200:
+            for c in cat_resp.json().get("data", []):
+                cat_names[c["id"]] = c.get("name", "")
+    except Exception:
+        pass
+    all_products = []
+    page = 1
+    while True:
+        resp = http_requests.get(
+            f"https://api.bigcommerce.com/stores/{store_hash}/v3/catalog/products",
+            headers={"X-Auth-Token": access_token, "Accept": "application/json"},
+            params={"limit": 250, "page": page, "include": "images,variants"},
+            timeout=30
+        )
+        if resp.status_code != 200:
+            raise Exception(f"BigCommerce API error: {resp.status_code}")
+        data = resp.json()
+        batch = data.get("data", [])
+        if not batch:
+            break
+        all_products.extend(batch)
+        pagination = data.get("meta", {}).get("pagination", {})
+        if page >= pagination.get("total_pages", 1):
+            break
+        page += 1
+    synced = 0
+    existing = db.get_products(admin_id)
+    existing_by_sku = {(p.get("product_barcode") or "").strip(): p for p in existing if p.get("product_barcode")}
+    for bp in all_products:
+        sku = str(bp.get("id", ""))
+        images_list = bp.get("images", [])
+        images = ",".join([img.get("url_standard", "") for img in sorted(images_list, key=lambda x: x.get("sort_order", 0))[:5]])
+        price = float(bp.get("price", 0) or 0)
+        compare_price = float(bp.get("retail_price", 0) or bp.get("sale_price", 0) or 0)
+        inventory_qty = int(bp.get("inventory_level", 0) or 0)
+        cats = ", ".join([cat_names.get(c, str(c)) for c in bp.get("categories", [])])
+        product_data = {
+            "product_name": bp.get("name", ""),
+            "product_description": bp.get("description", ""),
+            "product_images": images,
+            "product_price": price,
+            "compare_at_price": compare_price,
+            "product_status": "active" if bp.get("availability") == "available" else "draft",
+            "inventory_quantity": inventory_qty,
+            "product_category": cats,
+            "product_barcode": sku,
+            "product_url": store_domain + bp.get("custom_url", {}).get("url", "") if store_domain else bp.get("custom_url", {}).get("url", ""),
+            "product_brand": str(bp.get("brand_id", "")),
+            "product_weight": str(bp.get("weight", "")),
+        }
+        if sku in existing_by_sku:
+            db.update_product(existing_by_sku[sku]["id"], **product_data)
+        else:
+            pid = db.create_product(admin_id, **product_data)
+            if sku:
+                existing_by_sku[sku] = {"id": pid}
+        synced += 1
+    return synced
+
+
+@app.route("/api/integration/magento", methods=["POST"])
+def api_integration_magento_save():
+    """Save Magento store URL and admin API token."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    data = request.get_json(silent=True) or {}
+    store_url = (data.get("store_url") or "").strip().rstrip("/")
+    api_token = (data.get("api_token") or "").strip()
+    if not store_url or not api_token:
+        return jsonify({"ok": False, "error": "Store URL and API token are required"}), 400
+    if not store_url.startswith("http"):
+        store_url = "https://" + store_url
+    admin_id = get_effective_admin_id(user)
+    try:
+        db.save_ecom_integration(admin_id, "magento", store_url=store_url, api_token=api_token, storefront_url=store_url)
+        return jsonify({"ok": True, "message": "Magento credentials saved"})
+    except Exception as e:
+        app.logger.error(f"Magento save failed for admin {admin_id}: {e}")
+        return jsonify({"ok": False, "error": "Failed to save Magento config. Please try again."}), 500
+
+
+@app.route("/api/integration/magento/test", methods=["POST"])
+def api_integration_magento_test():
+    """Test Magento connection by fetching store config."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    data = request.get_json(silent=True) or {}
+    store_url = (data.get("store_url") or "").strip().rstrip("/")
+    api_token = (data.get("api_token") or "").strip()
+    if not store_url or not api_token:
+        return jsonify({"ok": False, "error": "All fields required"}), 400
+    if not store_url.startswith("http"):
+        store_url = "https://" + store_url
+    try:
+        resp = http_requests.get(
+            f"{store_url}/rest/V1/store/storeConfigs",
+            headers={"Authorization": f"Bearer {api_token}", "Accept": "application/json"},
+            timeout=10
+        )
+        if resp.status_code == 200:
+            configs = resp.json()
+            store_name = configs[0].get("store_name", "") if configs else ""
+            return jsonify({"ok": True, "store_name": store_name})
+        elif resp.status_code == 401:
+            return jsonify({"ok": False, "error": "Invalid API token."})
+        else:
+            return jsonify({"ok": False, "error": f"Magento returned status {resp.status_code}"})
+    except Exception:
+        return jsonify({"ok": False, "error": "Connection failed. Check your store URL and API token."})
+
+
+@app.route("/api/integration/magento/sync", methods=["POST"])
+def api_integration_magento_sync():
+    """Sync products from Magento into local products table."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+    integration = db.get_ecom_integration(admin_id)
+    if not integration or integration.get("ecommerce_platform") != "magento":
+        return jsonify({"ok": False, "error": "Magento not configured. Save credentials first."}), 400
+    store_url = integration["platform_store_url"]
+    api_token = integration["platform_api_key"]
+    try:
+        synced = _sync_magento_products(admin_id, store_url, api_token)
+        return jsonify({"ok": True, "synced": synced})
+    except Exception as e:
+        app.logger.error(f"Magento sync failed for admin {admin_id}: {e}")
+        return jsonify({"ok": False, "error": "Sync failed. Check your Magento credentials and try again."}), 500
+
+
+def _sync_magento_products(admin_id, store_url, api_token):
+    """Fetch all products from Magento REST API and upsert into products table."""
+    # Pre-fetch category names
+    mag_cat_names = {}
+    try:
+        cat_resp = http_requests.get(
+            f"{store_url}/rest/V1/categories",
+            headers={"Authorization": f"Bearer {api_token}", "Accept": "application/json"},
+            timeout=15
+        )
+        if cat_resp.status_code == 200:
+            def _walk_cats(node):
+                mag_cat_names[str(node.get("id", ""))] = node.get("name", "")
+                for child in node.get("children_data", []):
+                    _walk_cats(child)
+            _walk_cats(cat_resp.json())
+    except Exception:
+        pass
+    all_products = []
+    page = 1
+    page_size = 100
+    while True:
+        resp = http_requests.get(
+            f"{store_url}/rest/V1/products",
+            headers={"Authorization": f"Bearer {api_token}", "Accept": "application/json"},
+            params={
+                "searchCriteria[pageSize]": page_size,
+                "searchCriteria[currentPage]": page,
+            },
+            timeout=30
+        )
+        if resp.status_code != 200:
+            raise Exception(f"Magento API error: {resp.status_code}")
+        data = resp.json()
+        items = data.get("items", [])
+        if not items:
+            break
+        all_products.extend(items)
+        total = data.get("total_count", 0)
+        if page * page_size >= total:
+            break
+        page += 1
+    synced = 0
+    existing = db.get_products(admin_id)
+    existing_by_sku = {(p.get("product_barcode") or "").strip(): p for p in existing if p.get("product_barcode")}
+    for mp in all_products:
+        sku = str(mp.get("id", ""))
+        price = float(mp.get("price", 0) or 0)
+        # Extract custom attributes
+        attrs = {}
+        for attr in mp.get("custom_attributes", []):
+            attrs[attr.get("attribute_code", "")] = attr.get("value", "")
+        description = attrs.get("description", "") or attrs.get("short_description", "")
+        images = ""
+        media = mp.get("media_gallery_entries", [])
+        if media:
+            images = ",".join([f"{store_url}/pub/media/catalog/product{m.get('file', '')}" for m in media[:5]])
+        status = "active" if mp.get("status") == 1 else "draft"
+        product_data = {
+            "product_name": mp.get("name", ""),
+            "product_description": description,
+            "product_short_description": attrs.get("short_description", ""),
+            "product_images": images,
+            "product_price": price,
+            "compare_at_price": float(attrs.get("special_price") or 0) if str(attrs.get("special_price", "")).replace(".", "").isdigit() else 0,
+            "product_status": status,
+            "product_category": ", ".join([mag_cat_names.get(cid.strip(), cid.strip()) for cid in str(attrs.get("category_ids", "")).split(",") if cid.strip()]) if attrs.get("category_ids") else "",
+            "product_barcode": sku,
+            "product_url": f"{store_url}/{attrs.get('url_key', sku)}.html",
+            "product_weight": str(mp.get("weight", "")),
+        }
+        if sku in existing_by_sku:
+            db.update_product(existing_by_sku[sku]["id"], **product_data)
+        else:
+            pid = db.create_product(admin_id, **product_data)
+            if sku:
+                existing_by_sku[sku] = {"id": pid}
+        synced += 1
+    return synced
+
+
+def _create_bigcommerce_order(admin_id, cart_items, customer_email="", customer_name="", integration=None):
+    """Create an order on BigCommerce from chatbot cart items."""
+    if not integration:
+        integration = db.get_ecom_integration(admin_id)
+    if not integration or integration.get("ecommerce_platform") != "bigcommerce":
+        return {"ok": False, "error": "BigCommerce not configured"}
+    store_hash = integration["platform_store_url"]
+    access_token = integration["platform_api_key"]
+    products = []
+    for item in cart_items:
+        ext_id = item.get("external_id") or ""
+        if ext_id and ext_id.isdigit():
+            products.append({"product_id": int(ext_id), "quantity": item.get("qty", 1)})
+        else:
+            products.append({
+                "name": item.get("name", "Product"),
+                "quantity": item.get("qty", 1),
+                "price_inc_tax": float(item.get("price", 0)),
+                "price_ex_tax": float(item.get("price", 0)),
+            })
+    order_payload = {"status_id": 1, "products": products}
+    billing = {
+        "first_name": "Guest", "last_name": "Customer",
+        "street_1": "N/A", "city": "N/A", "state": "N/A",
+        "zip": "00000", "country": "United States", "country_iso2": "US",
+        "email": customer_email or "guest@checkout.local",
+    }
+    if customer_name:
+        names = customer_name.split(" ", 1)
+        billing["first_name"] = names[0]
+        billing["last_name"] = names[1] if len(names) > 1 else "Customer"
+    order_payload["billing_address"] = billing
+    order_payload["shipping_addresses"] = [billing]
+    try:
+        resp = http_requests.post(
+            f"https://api.bigcommerce.com/stores/{store_hash}/v2/orders",
+            headers={"X-Auth-Token": access_token, "Content-Type": "application/json", "Accept": "application/json"},
+            json=order_payload, timeout=15,
+        )
+        if resp.status_code in (200, 201):
+            order = resp.json()
+            order_id = order.get("id")
+            storefront_url = (integration.get("storefront_url") or "").rstrip("/")
+            checkout_url = f"{storefront_url}/checkout/order-confirmation/{order_id}" if storefront_url else ""
+            return {"ok": True, "order_id": order_id, "checkout_url": checkout_url, "order_number": str(order_id)}
+        else:
+            return {"ok": False, "error": f"BigCommerce returned {resp.status_code}"}
+    except Exception as e:
+        app.logger.error(f"BigCommerce order creation failed: {e}")
+        return {"ok": False, "error": "Failed to create order on BigCommerce"}
+
+
+def _create_magento_order(admin_id, cart_items, customer_email="", customer_name="", integration=None):
+    """Create an order on Magento via guest cart API."""
+    if not integration:
+        integration = db.get_ecom_integration(admin_id)
+    if not integration or integration.get("ecommerce_platform") != "magento":
+        return {"ok": False, "error": "Magento not configured"}
+    store_url = integration["platform_store_url"]
+    api_token = integration["platform_api_key"]
+    headers = {"Authorization": f"Bearer {api_token}", "Content-Type": "application/json"}
+    try:
+        # Create guest cart
+        resp = http_requests.post(f"{store_url}/rest/V1/guest-carts", headers=headers, timeout=10)
+        if resp.status_code != 200:
+            return {"ok": False, "error": f"Failed to create cart: {resp.status_code}"}
+        cart_id = resp.json()
+        # Add items — external_id is the Magento numeric product ID, need to fetch SKU for cart API
+        for item in cart_items:
+            product_id = item.get("external_id") or ""
+            if not product_id:
+                continue
+            # Fetch SKU from Magento using numeric product ID (search by entity_id)
+            sku = str(product_id)
+            try:
+                search_url = (
+                    f"{store_url}/rest/V1/products?"
+                    f"searchCriteria[filterGroups][0][filters][0][field]=entity_id"
+                    f"&searchCriteria[filterGroups][0][filters][0][value]={product_id}"
+                    f"&fields=items[sku]"
+                )
+                prod_resp = http_requests.get(
+                    search_url,
+                    headers={"Authorization": f"Bearer {api_token}", "Accept": "application/json"},
+                    timeout=10
+                )
+                if prod_resp.status_code == 200:
+                    items = prod_resp.json().get("items", [])
+                    if items and items[0].get("sku"):
+                        sku = items[0]["sku"]
+            except Exception:
+                pass
+            item_payload = {"cartItem": {"sku": sku, "qty": item.get("qty", 1), "quote_id": str(cart_id)}}
+            add_resp = http_requests.post(f"{store_url}/rest/V1/guest-carts/{cart_id}/items", headers=headers, json=item_payload, timeout=10)
+            if add_resp.status_code not in (200, 201):
+                app.logger.warning(f"Magento cart add failed for SKU {sku}: {add_resp.status_code}")
+        checkout_url = f"{store_url}/checkout/"
+        return {"ok": True, "order_id": cart_id, "checkout_url": checkout_url}
+    except Exception as e:
+        app.logger.error(f"Magento order creation failed: {e}")
+        return {"ok": False, "error": "Failed to create order on Magento"}
+
+
+def _create_shopify_order(admin_id, cart_items, customer_email="", customer_name="", integration=None):
+    """Create a draft order on Shopify from chatbot cart items.
+    Returns {"ok": True, "order_id": ..., "checkout_url": ...} or {"ok": False, "error": ...}"""
+    if not integration:
+        integration = db.get_ecom_integration(admin_id)
+    if not integration or integration.get("ecommerce_platform") != "shopify":
+        return {"ok": False, "error": "Shopify not configured"}
+    store_url = integration["platform_store_url"]
+    api_token = integration["platform_api_key"]
+
+    line_items = []
+    for item in cart_items:
+        ext_id = item.get("external_id") or ""
+        if ext_id:
+            # Fetch the first variant ID for this product from Shopify
+            try:
+                resp = http_requests.get(
+                    f"{store_url}/admin/api/2024-01/products/{ext_id}.json",
+                    headers={"X-Shopify-Access-Token": api_token},
+                    timeout=10
+                )
+                if resp.status_code == 200:
+                    variants = resp.json().get("product", {}).get("variants", [])
+                    if variants:
+                        line_items.append({
+                            "variant_id": variants[0]["id"],
+                            "quantity": item.get("qty", 1),
+                        })
+                        continue
+            except Exception:
+                pass
+        # Fallback: use title + price (custom line item)
+        line_items.append({
+            "title": item.get("name", "Product"),
+            "quantity": item.get("qty", 1),
+            "price": str(item.get("price", 0)),
+        })
+
+    order_payload = {
+        "draft_order": {
+            "line_items": line_items,
+            "use_customer_default_address": True,
+        }
+    }
+    if customer_email:
+        order_payload["draft_order"]["email"] = customer_email
+    if customer_name:
+        names = customer_name.split(" ", 1)
+        order_payload["draft_order"]["customer"] = {
+            "first_name": names[0],
+            "last_name": names[1] if len(names) > 1 else "",
+            "email": customer_email or "",
+        }
+
+    try:
+        resp = http_requests.post(
+            f"{store_url}/admin/api/2024-01/draft_orders.json",
+            headers={
+                "X-Shopify-Access-Token": api_token,
+                "Content-Type": "application/json",
+            },
+            json=order_payload,
+            timeout=15,
+        )
+        if resp.status_code in (200, 201):
+            draft = resp.json().get("draft_order", {})
+            return {
+                "ok": True,
+                "order_id": draft.get("id"),
+                "checkout_url": draft.get("invoice_url") or "",
+                "order_name": draft.get("name", ""),
+            }
+        else:
+            return {"ok": False, "error": f"Shopify returned {resp.status_code}"}
+    except Exception as e:
+        app.logger.error(f"Shopify order creation error: {e}")
+        return {"ok": False, "error": "Failed to create Shopify order. Please try again."}
+
+
+def _create_woo_order(admin_id, cart_items, customer_email="", customer_name="", integration=None):
+    """Create an order on WooCommerce from chatbot cart items.
+    Returns {"ok": True, "order_id": ..., "checkout_url": ...} or {"ok": False, "error": ...}"""
+    if not integration:
+        integration = db.get_ecom_integration(admin_id)
+    if not integration or integration.get("ecommerce_platform") != "woocommerce":
+        return {"ok": False, "error": "WooCommerce not configured"}
+    store_url = integration["platform_store_url"]
+    ck = integration["platform_api_key"]
+    cs = integration["platform_api_secret"]
+
+    line_items = []
+    for item in cart_items:
+        ext_id = item.get("external_id") or ""
+        if ext_id and ext_id.isdigit():
+            line_items.append({
+                "product_id": int(ext_id),
+                "quantity": item.get("qty", 1),
+            })
+        else:
+            # Custom line item with name and price
+            line_items.append({
+                "name": item.get("name", "Product"),
+                "quantity": item.get("qty", 1),
+                "total": str(round(item.get("price", 0) * item.get("qty", 1), 2)),
+            })
+
+    order_payload = {
+        "status": "pending",
+        "line_items": line_items,
+        "set_paid": False,
+    }
+    if customer_email:
+        order_payload["billing"] = {"email": customer_email}
+        if customer_name:
+            names = customer_name.split(" ", 1)
+            order_payload["billing"]["first_name"] = names[0]
+            order_payload["billing"]["last_name"] = names[1] if len(names) > 1 else ""
+
+    try:
+        resp = http_requests.post(
+            f"{store_url}/wp-json/wc/v3/orders",
+            auth=(ck, cs),
+            json=order_payload,
+            timeout=15,
+        )
+        if resp.status_code in (200, 201):
+            order = resp.json()
+            # WooCommerce checkout URL for the pending order
+            order_id = order.get("id")
+            checkout_url = f"{store_url}/checkout/order-pay/{order_id}/?pay_for_order=true&key={order.get('order_key', '')}"
+            return {
+                "ok": True,
+                "order_id": order_id,
+                "checkout_url": checkout_url,
+                "order_number": order.get("number", ""),
+            }
+        else:
+            return {"ok": False, "error": f"WooCommerce returned {resp.status_code}"}
+    except Exception as e:
+        app.logger.error(f"WooCommerce order creation error: {e}")
+        return {"ok": False, "error": "Failed to create WooCommerce order. Please try again."}
+
+
+def _send_browse_recovery_emails(admin_id):
+    """Send abandoned browse recovery emails to customers who viewed products but didn't buy."""
+    import email_service as email_svc
+
+    abandoned = db.get_abandoned_browses(admin_id, hours_ago=24)
+    sent_count = 0
+    company = db.get_company_info(admin_id)
+    business_name = (company.get("company_name") if company else None) or "Our Store"
+
+    store_settings = db.get_store_settings(admin_id)
+    currency = "$"
+    if store_settings and store_settings.get("store_currency"):
+        _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+        currency = _cm.get(store_settings["store_currency"], "$")
+
+    for browse in abandoned:
+        email = browse.get("customer_email", "")
+        if not email:
+            continue
+
+        products = browse.get("products", [])
+        if not products:
+            continue
+
+        product_list_html = ""
+        for pname in products[:3]:
+            product_list_html += f"<li style='padding:4px 0;'><strong>{pname}</strong></li>"
+
+        # Get discount if available
+        discount_html = ""
+        cr_settings = db.get_cart_recovery_settings(admin_id)
+        if cr_settings and cr_settings.get("discount_enabled"):
+            dtype = cr_settings.get("discount_type", "percentage")
+            dval = float(cr_settings.get("discount_value", 0) or 0)
+            prefix = (cr_settings.get("discount_code_prefix") or "BROWSE").upper()
+            code = f"{prefix}BACK"
+            if dtype == "percentage":
+                discount_html = f"<p>Use code <strong>{code}</strong> for <strong>{int(dval)}% off</strong> your order!</p>"
+            else:
+                discount_html = f"<p>Use code <strong>{code}</strong> for <strong>{currency}{dval:.2f} off</strong> your order!</p>"
+
+        html = f"""
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+            <h2 style="color:#1a1a2e;">{business_name}</h2>
+            <hr style="border:1px solid #eee;">
+            <h3>Still interested?</h3>
+            <p>We noticed you were looking at some great products:</p>
+            <ul style="list-style:none;padding:0;">{product_list_html}</ul>
+            {discount_html}
+            <p>Don't miss out — these items are popular and may sell out soon!</p>
+            <p style="color:#666;font-size:13px;">Visit our website to continue shopping.</p>
+        </div>
+        """
+
+        email_svc._send_email(email, f"Still looking? Your items are waiting! - {business_name}", html, from_name=business_name)
+        db.mark_browse_recovery_sent(admin_id, browse.get("session_id", ""))
+        sent_count += 1
+
+    return sent_count
+
+
+def _extract_and_save_topic(admin_id, session_id, message, company_type="ecommerce"):
+    """Extract conversation topic from user message using keyword matching.
+    Lightweight — no LLM calls needed."""
+    msg = message.lower().strip()
+    if len(msg) < 3:
+        return
+
+    # Topic detection rules — ordered by specificity
+    topic_rules = [
+        # Ecommerce topics
+        (r'\b(price|cost|how much|expensive|cheap|affordable|budget)\b', "pricing", "price_inquiry"),
+        (r'\b(shipping|deliver|ship|postal|fedex|ups|dhl|usps)\b', "shipping", "shipping_inquiry"),
+        (r'\b(return|refund|exchange|send back|money back)\b', "returns", "return_request"),
+        (r'\b(order|tracking|track|my order|my package|where.s my)\b', "order_tracking", "order_inquiry"),
+        (r'\b(discount|coupon|promo|sale|deal|offer|code)\b', "promotions", "discount_inquiry"),
+        (r'\b(size|fit|sizing|measurement|dimensions)\b', "sizing", "product_inquiry"),
+        (r'\b(review|rating|stars|recommend)\b', "reviews", "social_proof"),
+        (r'\b(stock|available|in stock|out of stock|sold out|inventory)\b', "availability", "stock_inquiry"),
+        (r'\b(payment|pay|credit card|paypal|stripe|visa|mastercard)\b', "payment", "payment_inquiry"),
+        (r'\b(cart|basket|add to|checkout|buy|purchase)\b', "shopping", "purchase_intent"),
+        (r'\b(warranty|guarantee|quality|defective|broken|damaged)\b', "quality", "quality_concern"),
+        (r'\b(gift|birthday|christmas|anniversary|present)\b', "gifting", "gift_inquiry"),
+        # General topics
+        (r'\b(help|support|issue|problem|complaint|frustrated|angry|upset)\b', "support", "help_request"),
+        (r'\b(thank|thanks|great|awesome|love|happy|satisfied)\b', "positive_feedback", "appreciation"),
+        (r'\b(hours|open|close|location|address|phone|contact|email)\b', "business_info", "info_request"),
+        (r'\b(hello|hi|hey|good morning|good evening|howdy)\b', "greeting", "greeting"),
+    ]
+
+    # Sentiment detection
+    sentiment = "neutral"
+    if re.search(r'\b(love|great|awesome|amazing|perfect|excellent|happy|thank|best)\b', msg):
+        sentiment = "positive"
+    elif re.search(r'\b(hate|terrible|awful|worst|horrible|angry|upset|frustrated|disappointed|bad)\b', msg):
+        sentiment = "negative"
+
+    for pattern, topic, intent in topic_rules:
+        if re.search(pattern, msg):
+            db.save_conversation_topic(admin_id, session_id, topic, "", sentiment, intent)
+            return
+
+    # If no specific topic matched but message is long enough, classify as "general"
+    if len(msg) > 10:
+        db.save_conversation_topic(admin_id, session_id, "general", "", sentiment, "general_inquiry")
+
+
+def _send_order_status_email(admin_id, order, new_status, update_data=None):
+    """Send proactive order status notification email to customer."""
+    import email_service as email_svc
+
+    customer_email = (order.get("customer_email") or "").strip()
+    customer_name = (order.get("customer_name") or "Customer").strip()
+    order_number = order.get("order_number", "")
+
+    status_messages = {
+        "confirmed": ("Your order has been confirmed!", "We're preparing your order for shipment."),
+        "processing": ("Your order is being processed!", "We're getting your items ready."),
+        "shipped": ("Your order has been shipped!", "Your package is on its way."),
+        "delivered": ("Your order has been delivered!", "We hope you enjoy your purchase."),
+        "cancelled": ("Your order has been cancelled", "If you didn't request this, please contact us."),
+        "refunded": ("Your order has been refunded", "The refund will appear on your statement within 5-10 business days."),
+    }
+
+    title, desc = status_messages.get(new_status, ("Order update", "Your order status has been updated."))
+
+    tracking_html = ""
+    if update_data and update_data.get("tracking_number"):
+        carrier = update_data.get("carrier", "")
+        tracking_html = f"<p><strong>Tracking:</strong> {update_data['tracking_number']}"
+        if carrier:
+            tracking_html += f" via {carrier}"
+        tracking_html += "</p>"
+    if update_data and update_data.get("estimated_delivery"):
+        tracking_html += f"<p><strong>Estimated Delivery:</strong> {update_data['estimated_delivery']}</p>"
+
+    # Get business name
+    company = db.get_company_info(admin_id)
+    business_name = (company.get("company_name") if company else None) or "Our Store"
+
+    html = f"""
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+        <h2 style="color:#1a1a2e;">{business_name}</h2>
+        <hr style="border:1px solid #eee;">
+        <h3>{title}</h3>
+        <p>Hi {customer_name},</p>
+        <p>{desc}</p>
+        <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+            <tr style="background:#f8f9fa;">
+                <td style="padding:8px;"><strong>Order</strong></td>
+                <td style="padding:8px;">#{order_number}</td>
+            </tr>
+            <tr>
+                <td style="padding:8px;"><strong>Status</strong></td>
+                <td style="padding:8px;">{new_status.title()}</td>
+            </tr>
+        </table>
+        {tracking_html}
+        <p style="color:#666;font-size:13px;margin-top:20px;">
+            If you have questions, just reply to the chatbot on our website or contact our support team.
+        </p>
+    </div>
+    """
+
+    email_svc._send_email(customer_email, f"Order #{order_number} - {title}", html, from_name=business_name)
+
+
+def _create_external_order(admin_id, cart_items, customer_email="", customer_name=""):
+    """Create order on the connected external platform (Shopify or WooCommerce).
+    Returns result dict or None if no integration configured."""
+    integration = db.get_ecom_integration(admin_id)
+    if not integration or not integration.get("platform_api_key"):
+        return None
+    platform = integration.get("ecommerce_platform", "")
+    if platform == "shopify":
+        return _create_shopify_order(admin_id, cart_items, customer_email, customer_name, integration=integration)
+    elif platform == "woocommerce":
+        return _create_woo_order(admin_id, cart_items, customer_email, customer_name, integration=integration)
+    elif platform == "bigcommerce":
+        return _create_bigcommerce_order(admin_id, cart_items, customer_email, customer_name, integration=integration)
+    elif platform == "magento":
+        return _create_magento_order(admin_id, cart_items, customer_email, customer_name, integration=integration)
+    return None
+
+
+@app.route("/api/integration/stripe", methods=["POST"])
+def api_integration_stripe_save():
+    """Save Stripe secret key via the integrations page."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    data = request.get_json(silent=True) or {}
+    api_key = (data.get("api_key") or "").strip()
+    if not api_key:
+        return jsonify({"ok": False, "error": "Stripe API key is required"}), 400
+    if not api_key.startswith("sk_"):
+        return jsonify({"ok": False, "error": "Enter a Stripe Secret Key (starts with sk_)"}), 400
+    admin_id = get_effective_admin_id(user)
+    try:
+        db.save_stripe_keys(admin_id, "", api_key, "")
+        return jsonify({"ok": True, "message": "Stripe key saved"})
+    except Exception as e:
+        app.logger.error(f"Stripe save failed for admin {admin_id}: {e}")
+        return jsonify({"ok": False, "error": "Failed to save Stripe key. Please try again."}), 500
+
+
+@app.route("/api/integration/stripe/test", methods=["POST"])
+def api_integration_stripe_test():
+    """Test Stripe connection by listing balance."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    data = request.get_json(silent=True) or {}
+    api_key = (data.get("api_key") or "").strip()
+    if not api_key:
+        return jsonify({"ok": False, "error": "Stripe API key required"}), 400
+    try:
+        resp = http_requests.get(
+            "https://api.stripe.com/v1/balance",
+            auth=(api_key, ""),
+            timeout=10
+        )
+        if resp.status_code == 200:
+            return jsonify({"ok": True, "message": "Stripe connection verified"})
+        elif resp.status_code == 401:
+            return jsonify({"ok": False, "error": "Invalid API key"})
+        else:
+            return jsonify({"ok": False, "error": f"Stripe returned status {resp.status_code}"})
+    except Exception:
+        return jsonify({"ok": False, "error": "Connection failed. Check your Stripe API key."})
+
+
+@app.route("/api/integration/status", methods=["GET"])
+def api_integration_status():
+    """Get current integration status for the dashboard."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+    integration = db.get_ecom_integration(admin_id)
+    if not integration:
+        return jsonify({"platform": None, "connected": False})
+    return jsonify({
+        "platform": integration.get("ecommerce_platform", ""),
+        "store_url": integration.get("platform_store_url", ""),
+        "storefront_url": integration.get("storefront_url", ""),
+        "connected": bool(integration.get("platform_api_key")),
+        "payment_gateway": integration.get("payment_gateway", ""),
+    })
+
+
+@app.route("/api/external/products", methods=["POST"])
+def api_external_products():
+    """External endpoint for pushing product catalog data via API."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    admin_id = db.get_admin_by_external_api_key(token)
+    if not admin_id:
+        return jsonify({"error": "Invalid or missing API key"}), 401
+
+    data = request.get_json(silent=True) or {}
+
+    # Support single product or array of products
+    products = data.get("products", [data] if "product_name" in data else [])
+    if not products:
+        return jsonify({"error": "No products provided. Send {products: [...]} or a single product object."}), 400
+
+    created = 0
+    updated = 0
+    errors = []
+    existing = db.get_products(admin_id)
+    existing_by_sku = {(p.get("product_barcode") or "").strip(): p for p in existing if p.get("product_barcode")}
+
+    for i, p in enumerate(products):
+        name = (p.get("product_name") or p.get("name") or "").strip()
+        if not name:
+            errors.append(f"Product #{i+1}: missing product_name")
+            continue
+        sku = (p.get("sku") or p.get("product_barcode") or "").strip()
+        product_data = {
+            "product_name": name,
+            "product_description": p.get("product_description") or p.get("description") or "",
+            "product_price": float(p.get("product_price") or p.get("price") or 0),
+            "compare_at_price": float(p.get("compare_at_price") or 0),
+            "product_status": p.get("product_status") or "active",
+            "inventory_quantity": int(p.get("inventory_quantity") or p.get("stock") or 0),
+            "product_category": p.get("product_category") or p.get("category") or "",
+            "product_tags": p.get("product_tags") or p.get("tags") or "",
+            "product_barcode": sku,
+            "product_images": p.get("product_images") or p.get("images") or "",
+            "product_url": p.get("product_url") or p.get("url") or "",
+        }
+        try:
+            if sku and sku in existing_by_sku:
+                db.update_product(existing_by_sku[sku]["id"], **product_data)
+                updated += 1
+            else:
+                pid = db.create_product(admin_id, **product_data)
+                if sku:
+                    existing_by_sku[sku] = {"id": pid}
+                created += 1
+        except Exception as e:
+            errors.append(f"Product '{name}': {str(e)}")
+
+    result = {"ok": True, "created": created, "updated": updated}
+    if errors:
+        result["errors"] = errors
+    return jsonify(result)
+
+
+@app.route("/api/external/order/raw", methods=["POST"])
+def api_external_order_raw():
+    """Accept ANY raw order JSON and intelligently extract fields. Zero config for the user."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    admin_id = db.get_admin_by_external_api_key(token)
+    if not admin_id:
+        return jsonify({"error": "Invalid or missing API key"}), 401
+
+    data = request.get_json(silent=True) or {}
+    if not data:
+        return jsonify({"error": "Empty or invalid JSON body"}), 400
+
+    import json as _json
+
+    # ── Smart field extraction: try many common field names ──
+    def _find(obj, *keys, default=""):
+        """Search for a value in obj trying multiple key names, including nested paths."""
+        for k in keys:
+            if "." in k:
+                parts = k.split(".")
+                v = obj
+                for p in parts:
+                    if isinstance(v, dict):
+                        v = v.get(p)
+                    else:
+                        v = None
+                        break
+                if v is not None and v != "":
+                    return v
+            elif isinstance(obj, dict) and k in obj and obj[k] is not None and obj[k] != "":
+                return obj[k]
+        return default
+
+    def _find_num(obj, *keys, default=0):
+        val = _find(obj, *keys, default=default)
+        try:
+            return float(val)
+        except (ValueError, TypeError):
+            return default
+
+    # ── Order ID ──
+    order_id = str(_find(data, "order_id", "id", "order_number", "number", "name",
+                         "order_name", "reference", "order_reference", "invoice_number", "uuid") or "")
+    if not order_id:
+        return jsonify({"error": "Could not detect an order ID. Include one of: order_id, id, order_number, number, name, reference"}), 400
+
+    # ── Customer info (try top-level and nested customer/billing objects) ──
+    # Check first_name/last_name FIRST (common in Shopify, WooCommerce)
+    fn = _find(data, "customer.first_name", "billing.first_name", "first_name",
+               "billing_address.first_name", "shipping.first_name")
+    ln = _find(data, "customer.last_name", "billing.last_name", "last_name",
+               "billing_address.last_name", "shipping.last_name")
+    if fn or ln:
+        customer_name = f"{fn} {ln}".strip()
+    else:
+        customer_name = _find(data, "customer_name", "customer.name", "billing.name",
+                              "billing_address.name", "shipping.name", "buyer_name")
+
+    customer_email = _find(data, "customer_email", "customer.email", "billing.email",
+                           "email", "buyer_email", "contact_email", "billing_address.email")
+    customer_phone = _find(data, "customer_phone", "customer.phone", "billing.phone",
+                           "phone", "buyer_phone", "billing_address.phone", "shipping.phone")
+
+    # ── Financials ──
+    total = _find_num(data, "total", "order_total", "total_price", "grand_total",
+                      "amount", "total_amount", "amount_total")
+    subtotal = _find_num(data, "subtotal", "subtotal_price", "sub_total", "line_items_total")
+    tax = _find_num(data, "tax_amount", "tax", "total_tax", "tax_total", "tax_lines_total")
+    shipping_cost = _find_num(data, "shipping_cost", "shipping", "shipping_total",
+                              "total_shipping", "shipping_amount", "shipping_price")
+    discount = _find_num(data, "discount_amount", "discount", "total_discounts",
+                         "discount_total", "total_discount")
+    discount_code = _find(data, "discount_code", "coupon_code", "coupon", "promo_code",
+                          "discount_codes.0.code", "coupons.0.code")
+    currency = _find(data, "currency", "currency_code", "order_currency") or "USD"
+
+    # ── Status & Payment ──
+    status = (_find(data, "status", "order_status", "financial_status",
+                    "fulfillment_status", "state") or "pending").strip().lower()
+    valid_statuses = {"pending", "confirmed", "processing", "shipped", "delivered", "cancelled", "refunded"}
+    if status not in valid_statuses:
+        # Map common external statuses
+        status_map = {"paid": "confirmed", "unfulfilled": "confirmed", "fulfilled": "delivered",
+                      "partially_fulfilled": "processing", "completed": "delivered",
+                      "on-hold": "pending", "on_hold": "pending", "failed": "cancelled",
+                      "active": "confirmed", "closed": "delivered", "voided": "cancelled"}
+        status = status_map.get(status, "pending")
+
+    payment_method = _find(data, "payment_method", "payment_gateway", "payment_type",
+                           "gateway", "payment_method_title")
+    payment_status = _find(data, "payment_status", "financial_status", "payment_state") or "paid"
+
+    # ── Shipping ──
+    shipping_address = _find(data, "shipping_address", "shipping.address",
+                             "billing_address", "address", "delivery_address")
+    if isinstance(shipping_address, dict):
+        # Flatten address object to string
+        parts = [shipping_address.get(k, "") for k in
+                 ["address1", "address2", "street", "city", "province", "state",
+                  "zip", "postal_code", "country"] if shipping_address.get(k)]
+        shipping_address = ", ".join(parts) if parts else _json.dumps(shipping_address)
+
+    shipping_method = _find(data, "shipping_method", "shipping_type", "delivery_method",
+                            "shipping_lines.0.title", "shipping_lines.0.method_title")
+    tracking_number = _find(data, "tracking_number", "tracking", "fulfillment.tracking_number",
+                            "fulfillments.0.tracking_number")
+    carrier = _find(data, "carrier", "shipping_carrier", "fulfillment.tracking_company",
+                    "fulfillments.0.tracking_company")
+    estimated_delivery = _find(data, "estimated_delivery", "delivery_date", "expected_delivery")
+    notes = _find(data, "notes", "note", "order_note", "customer_note", "comments")
+
+    # ── Items: find the array of line items from many possible locations ──
+    items_raw = (data.get("items") or data.get("line_items") or data.get("order_items")
+                 or data.get("products") or data.get("cart") or data.get("cart_items")
+                 or data.get("lines") or data.get("order_lines") or [])
+    if not isinstance(items_raw, list):
+        items_raw = []
+
+    items_parsed = []
+    for it in items_raw:
+        if not isinstance(it, dict):
+            continue
+        item = {
+            "product_id": str(_find(it, "product_id", "id", "productId", "product_id", "sku_id") or ""),
+            "variant_id": str(_find(it, "variant_id", "variantId", "variant_id", "variation_id") or ""),
+            "name": _find(it, "name", "title", "product_name", "product_title", "description"),
+            "variant_name": _find(it, "variant_name", "variant_title", "variant", "option_label"),
+            "sku": _find(it, "sku", "SKU", "item_sku", "product_sku"),
+            "qty": int(_find_num(it, "quantity", "qty", "amount", "count", default=1)),
+            "price": _find_num(it, "price", "unit_price", "sale_price", "line_price"),
+            "original_price": _find_num(it, "original_price", "compare_at_price",
+                                        "regular_price", "list_price"),
+            "category": _find(it, "category", "product_type", "type", "collection"),
+            "brand": _find(it, "brand", "vendor", "manufacturer", "brand_name"),
+            "image_url": _find(it, "image", "image_url", "thumbnail", "image_src",
+                               "featured_image", "product_image"),
+            "weight": str(_find(it, "weight", "grams", "weight_unit") or ""),
+        }
+        # Capture color and size as standalone fields (common in carts)
+        color = _find(it, "color", "colour", "selected_color", "color_name")
+        size = _find(it, "size", "selected_size", "size_name", "size_label")
+
+        # Capture ALL variant options/properties — the flexible catch-all
+        options = (it.get("options") or it.get("variant_options") or it.get("selected_options")
+                   or it.get("properties") or it.get("variation") or it.get("attributes")
+                   or it.get("meta") or it.get("meta_data") or it.get("custom_options")
+                   or it.get("option_values") or it.get("modifiers") or {})
+        if isinstance(options, list):
+            # Convert [{name: "Color", value: "Red"}, ...] or [{key: "Color", value: "Red"}] to {"Color": "Red"}
+            try:
+                options = {o.get("name", o.get("key", o.get("label", ""))): o.get("value", o.get("display_value", ""))
+                           for o in options if isinstance(o, dict)}
+            except Exception:
+                options = {}
+        # Merge standalone color/size into options if not already present
+        if color and not any(k.lower() in ("color", "colour") for k in options):
+            options["Color"] = color
+        if size and not any(k.lower() == "size" for k in options):
+            options["Size"] = size
+        item["options"] = options
+        item["customizations"] = (it.get("customizations") or it.get("custom_fields")
+                                  or it.get("personalizations") or {})
+        items_parsed.append(item)
+
+    items_json = _json.dumps(items_parsed)
+
+    # ── Store the full raw JSON for future reference ──
+    raw_json = _json.dumps(data)
+
+    try:
+        existing_order = db.get_ecom_order(admin_id, order_id)
+        is_new = existing_order is None
+
+        order_data = {
+            "order_number": order_id,
+            "customer_name": customer_name,
+            "customer_email": customer_email,
+            "customer_phone": customer_phone,
+            "order_status": status,
+            "order_total": total,
+            "items_json": items_json,
+            "notes": notes or "",
+        }
+        if subtotal:
+            order_data["subtotal"] = subtotal
+        if tax:
+            order_data["tax_amount"] = tax
+        if shipping_cost:
+            order_data["shipping_cost"] = shipping_cost
+        if discount:
+            order_data["discount_amount"] = discount
+        if discount_code:
+            order_data["discount_code"] = discount_code
+        if shipping_address:
+            order_data["shipping_address"] = str(shipping_address)
+        if shipping_method:
+            order_data["shipping_method"] = shipping_method
+        if payment_method:
+            order_data["payment_method"] = payment_method
+        if payment_status:
+            order_data["payment_status"] = payment_status
+        if tracking_number:
+            order_data["tracking_number"] = tracking_number
+        if carrier:
+            order_data["carrier"] = carrier
+        if estimated_delivery:
+            order_data["estimated_delivery"] = estimated_delivery
+
+        if is_new:
+            db.create_ecom_order(admin_id=admin_id, **order_data)
+            if customer_email:
+                db.upsert_ecom_customer(admin_id, customer_email, customer_name, customer_phone, total)
+        else:
+            db.update_ecom_order(existing_order["id"], **order_data)
+
+        # Record purchases for replenishment tracking
+        try:
+            customer_key = customer_email or customer_name or ""
+            if customer_key and items_parsed:
+                for item in items_parsed:
+                    db.record_purchase(
+                        admin_id, customer_key,
+                        product_id=item.get("product_id") or 0,
+                        product_name=item.get("name") or "",
+                        product_category=item.get("category") or "",
+                        quantity=item.get("qty") or 1
+                    )
+        except Exception:
+            pass
+
+        return jsonify({
+            "ok": True, "order_id": order_id, "is_new": is_new,
+            "message": f"Order {order_id} {'created' if is_new else 'updated'}",
+            "extracted": {
+                "customer": customer_name or "(not found)",
+                "email": customer_email or "(not found)",
+                "total": total,
+                "items_count": len(items_parsed),
+                "status": status
+            }
+        })
+    except Exception as e:
+        app.logger.error(f"External raw order failed for admin {admin_id}: {e}")
+        return jsonify({"ok": False, "error": "Failed to process order. Please try again."}), 500
+
+
+@app.route("/api/external/order", methods=["POST"])
+def api_external_order():
+    """External endpoint for receiving order webhook data. Upserts orders and customers."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    admin_id = db.get_admin_by_external_api_key(token)
+    if not admin_id:
+        return jsonify({"error": "Invalid or missing API key"}), 401
+
+    data = request.get_json(silent=True) or {}
+    order_id = (data.get("order_id") or "").strip()
+    customer_name = (data.get("customer_name") or "").strip()
+    customer_email = (data.get("customer_email") or "").strip()
+    customer_phone = (data.get("customer_phone") or "").strip()
+    status = (data.get("status") or "pending").strip().lower()
+    try:
+        total = float(data.get("total") or data.get("order_total") or 0)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid total value"}), 400
+    items = data.get("items") or data.get("line_items") or []
+    tracking_number = (data.get("tracking_number") or "").strip()
+    tracking_url = (data.get("tracking_url") or "").strip()
+    carrier = (data.get("carrier") or "").strip()
+    estimated_delivery = (data.get("estimated_delivery") or "").strip()
+    shipping_address = (data.get("shipping_address") or "").strip()
+
+    # Additional fields
+    subtotal = data.get("subtotal")
+    tax_amount = data.get("tax_amount") or data.get("tax")
+    shipping_cost = data.get("shipping_cost") or data.get("shipping")
+    discount_amount = data.get("discount_amount") or data.get("discount")
+    discount_code = (data.get("discount_code") or data.get("coupon_code") or "").strip()
+    shipping_method = (data.get("shipping_method") or "").strip()
+    payment_method = (data.get("payment_method") or "").strip()
+    payment_status = (data.get("payment_status") or "").strip().lower()
+    notes = (data.get("notes") or "").strip()
+    currency = (data.get("currency") or "").strip()
+
+    if not order_id:
+        return jsonify({"error": "order_id is required"}), 400
+
+    valid_statuses = {"pending", "confirmed", "processing", "shipped", "delivered", "cancelled", "refunded"}
+    if status not in valid_statuses:
+        return jsonify({"error": f"Invalid status. Must be one of: {', '.join(sorted(valid_statuses))}"}), 422
+
+    import json as _json
+    items_json = _json.dumps(items) if isinstance(items, list) else str(items)
+
+    try:
+        # Check if order already exists — update if so, create if not
+        existing_order = db.get_ecom_order(admin_id, order_id)
+        is_new = existing_order is None
+
+        order_data = {
+            "order_number": order_id,
+            "customer_name": customer_name,
+            "customer_email": customer_email,
+            "customer_phone": customer_phone,
+            "order_status": status,
+            "order_total": total,
+            "items_json": items_json,
+            "notes": notes or "via external API",
+        }
+        if tracking_number:
+            order_data["tracking_number"] = tracking_number
+        if carrier:
+            order_data["carrier"] = carrier
+        if estimated_delivery:
+            order_data["estimated_delivery"] = estimated_delivery
+        if shipping_address:
+            order_data["shipping_address"] = shipping_address
+        if shipping_method:
+            order_data["shipping_method"] = shipping_method
+        if payment_method:
+            order_data["payment_method"] = payment_method
+        if payment_status:
+            order_data["payment_status"] = payment_status
+        if discount_code:
+            order_data["discount_code"] = discount_code
+        try:
+            if subtotal is not None:
+                order_data["subtotal"] = float(subtotal)
+            if tax_amount is not None:
+                order_data["tax_amount"] = float(tax_amount)
+            if shipping_cost is not None:
+                order_data["shipping_cost"] = float(shipping_cost)
+            if discount_amount is not None:
+                order_data["discount_amount"] = float(discount_amount)
+        except (ValueError, TypeError):
+            pass
+        if tracking_url:
+            existing_notes = order_data.get("notes", "via external API")
+            order_data["notes"] = f"{existing_notes} | tracking_url: {tracking_url}"
+
+        if is_new:
+            db.create_ecom_order(admin_id=admin_id, **order_data)
+            # Upsert customer record
+            if customer_email:
+                db.upsert_ecom_customer(admin_id, customer_email, customer_name, customer_phone, total)
+        else:
+            # Update existing order — don't re-count customer stats
+            db.update_ecom_order(existing_order["id"], **order_data)
+            # Send notification if status changed
+            new_status = order_data.get("order_status", "")
+            if new_status and new_status != existing_order.get("order_status") and customer_email:
+                try:
+                    _send_order_status_email(admin_id, existing_order, new_status, order_data)
+                except Exception:
+                    pass
+
+        return jsonify({"ok": True, "order_id": order_id, "is_new": is_new,
+                        "message": f"Order {order_id} {'created' if is_new else 'updated'}"})
+    except Exception as e:
+        app.logger.error(f"External order failed for admin {admin_id}: {e}")
+        return jsonify({"ok": False, "error": "Failed to process order. Please try again."}), 500
+
+
+@app.route("/api/external/order/status", methods=["POST"])
+def api_external_order_status():
+    """Lightweight endpoint for order status updates only."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    admin_id = db.get_admin_by_external_api_key(token)
+    if not admin_id:
+        return jsonify({"error": "Invalid or missing API key"}), 401
+
+    data = request.get_json(silent=True) or {}
+    order_id = (data.get("order_id") or "").strip()
+    status = (data.get("status") or "").strip().lower()
+
+    if not order_id:
+        return jsonify({"error": "order_id is required"}), 400
+    if not status:
+        return jsonify({"error": "status is required"}), 400
+
+    valid_statuses = {"pending", "confirmed", "processing", "shipped", "delivered", "cancelled", "refunded"}
+    if status not in valid_statuses:
+        return jsonify({"error": f"Invalid status. Must be one of: {', '.join(sorted(valid_statuses))}"}), 422
+
+    try:
+        existing_order = db.get_ecom_order(admin_id, order_id)
+        if not existing_order:
+            return jsonify({"error": f"Order {order_id} not found"}), 404
+
+        update_data = {"order_status": status}
+        # Optional fields for status updates
+        if data.get("tracking_number"):
+            update_data["tracking_number"] = data["tracking_number"].strip()
+        if data.get("carrier"):
+            update_data["carrier"] = data["carrier"].strip()
+        if data.get("estimated_delivery"):
+            update_data["estimated_delivery"] = data["estimated_delivery"].strip()
+        if data.get("tracking_url"):
+            existing_notes = existing_order.get("notes", "") or ""
+            update_data["notes"] = f"{existing_notes} | tracking_url: {data['tracking_url'].strip()}" if existing_notes else f"tracking_url: {data['tracking_url'].strip()}"
+
+        db.update_ecom_order(existing_order["id"], **update_data)
+
+        # ── Proactive order status notification email ──
+        customer_email = (existing_order.get("customer_email") or "").strip()
+        if customer_email and status != existing_order.get("order_status"):
+            try:
+                _send_order_status_email(admin_id, existing_order, status, update_data)
+            except Exception as e:
+                print(f"[ecom] Order notification email failed: {e}", flush=True)
+
+        return jsonify({"ok": True, "order_id": order_id, "status": status,
+                        "message": f"Order {order_id} status updated to {status}"})
+    except Exception as e:
+        app.logger.error(f"External order status update failed for admin {admin_id}: {e}")
+        return jsonify({"ok": False, "error": "Failed to update order status. Please try again."}), 500
+
+
+@app.route("/api/external/order/update", methods=["POST", "PUT"])
+def api_external_order_update():
+    """Update any fields on an existing order (shipping address, items, notes, etc.)."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    admin_id = db.get_admin_by_external_api_key(token)
+    if not admin_id:
+        return jsonify({"error": "Invalid or missing API key"}), 401
+
+    data = request.get_json(silent=True) or {}
+    order_id = (data.get("order_id") or "").strip()
+    if not order_id:
+        return jsonify({"error": "order_id is required"}), 400
+
+    try:
+        existing_order = db.get_ecom_order(admin_id, order_id)
+        if not existing_order:
+            return jsonify({"error": f"Order {order_id} not found"}), 404
+
+        allowed_fields = {
+            "customer_name", "customer_email", "customer_phone",
+            "order_status", "order_total", "subtotal", "tax_amount",
+            "shipping_cost", "discount_amount", "discount_code",
+            "items_json", "shipping_address", "shipping_method",
+            "tracking_number", "carrier", "estimated_delivery",
+            "payment_method", "payment_status", "notes"
+        }
+        # Map external-friendly names to internal column names
+        field_map = {
+            "status": "order_status", "total": "order_total",
+            "items": "items_json", "line_items": "items_json",
+            "tracking_url": None,  # handled separately
+        }
+
+        update_data = {}
+        for key, val in data.items():
+            if key == "order_id":
+                continue
+            mapped = field_map.get(key, key)
+            if mapped and mapped in allowed_fields:
+                if mapped == "items_json" and isinstance(val, list):
+                    import json as _json
+                    val = _json.dumps(val)
+                if mapped == "order_status":
+                    val = str(val).strip().lower()
+                    valid_statuses = {"pending", "confirmed", "processing", "shipped", "delivered", "cancelled", "refunded"}
+                    if val not in valid_statuses:
+                        return jsonify({"error": f"Invalid status. Must be one of: {', '.join(sorted(valid_statuses))}"}), 422
+                update_data[mapped] = val
+            elif key == "tracking_url" and val:
+                existing_notes = update_data.get("notes") or existing_order.get("notes", "") or ""
+                update_data["notes"] = f"{existing_notes} | tracking_url: {str(val).strip()}" if existing_notes else f"tracking_url: {str(val).strip()}"
+
+        if not update_data:
+            return jsonify({"error": "No valid fields to update"}), 400
+
+        db.update_ecom_order(existing_order["id"], **update_data)
+
+        # Send notification if status changed
+        new_status = update_data.get("order_status")
+        old_status = existing_order.get("order_status")
+        email = update_data.get("customer_email") or existing_order.get("customer_email", "")
+        if new_status and new_status != old_status and email:
+            try:
+                _send_order_status_email(admin_id, existing_order, new_status, update_data)
+            except Exception:
+                pass
+
+        return jsonify({"ok": True, "order_id": order_id, "updated_fields": list(update_data.keys()),
+                        "message": f"Order {order_id} updated"})
+    except Exception as e:
+        app.logger.error(f"External order update failed for admin {admin_id}: {e}")
+        return jsonify({"ok": False, "error": "Failed to update order. Please try again."}), 500
+
+
+@app.route("/api/external/order/delete", methods=["POST", "DELETE"])
+def api_external_order_delete():
+    """Delete an order by order_id."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    admin_id = db.get_admin_by_external_api_key(token)
+    if not admin_id:
+        return jsonify({"error": "Invalid or missing API key"}), 401
+
+    data = request.get_json(silent=True) or {}
+    order_id = (data.get("order_id") or "").strip()
+    if not order_id:
+        return jsonify({"error": "order_id is required"}), 400
+
+    try:
+        existing_order = db.get_ecom_order(admin_id, order_id)
+        if not existing_order:
+            return jsonify({"error": f"Order {order_id} not found"}), 404
+        conn = db.get_db()
+        conn.execute("DELETE FROM ecom_orders WHERE id=%s AND admin_id=%s", (existing_order["id"], admin_id))
+        conn.commit()
+        conn.close()
+        return jsonify({"ok": True, "order_id": order_id, "message": f"Order {order_id} deleted"})
+    except Exception as e:
+        app.logger.error(f"External order delete failed for admin {admin_id}: {e}")
+        return jsonify({"ok": False, "error": "Failed to delete order. Please try again."}), 500
+
+
+@app.route("/api/stripe/create-checkout", methods=["POST"])
+def stripe_create_checkout():
+    """Create a Stripe Checkout Session for cart items.
+    Expects JSON: {admin_id, session_id, cart_items: [{name, price, qty}], customer_email?, currency?, success_url?, cancel_url?}
+    """
+    if not _STRIPE_AVAILABLE:
+        return jsonify({"error": "Stripe not configured"}), 503
+
+    data = request.get_json(silent=True) or {}
+    admin_id = data.get("admin_id")
+    session_id = data.get("session_id", "")
+    cart_items = data.get("cart_items", [])
+    customer_email = data.get("customer_email", "")
+    currency = data.get("currency", "usd").lower()
+    success_url = data.get("success_url", "")
+    cancel_url = data.get("cancel_url", "")
+
+    if not admin_id:
+        return jsonify({"error": "admin_id is required"}), 400
+    if not cart_items:
+        return jsonify({"error": "cart_items is required"}), 400
+
+    # Resolve admin_id if it's a public GUID
+    resolved_admin_id = admin_id
+    if not str(admin_id).isdigit():
+        resolved_user = db.get_user_by_public_id(str(admin_id))
+        if resolved_user:
+            resolved_admin_id = resolved_user["id"]
+        else:
+            return jsonify({"error": "Invalid admin_id"}), 400
+
+    keys = db.get_stripe_keys(resolved_admin_id)
+    if not keys or not keys.get("secret_key"):
+        return jsonify({"error": "Stripe not configured for this store"}), 400
+
+    _stripe_lib.api_key = keys["secret_key"]
+
+    # Build Stripe line_items
+    line_items = []
+    cart_total = 0
+    for item in cart_items:
+        item_name = item.get("name", "Item")
+        item_price = float(item.get("price", 0))
+        item_qty = int(item.get("qty", 1))
+        cart_total += item_price * item_qty
+        line_items.append({
+            "price_data": {
+                "currency": currency,
+                "product_data": {"name": item_name},
+                "unit_amount": int(round(item_price * 100)),  # Stripe uses cents
+            },
+            "quantity": item_qty,
+        })
+
+    try:
+        checkout_params = {
+            "mode": "payment",
+            "line_items": line_items,
+            "payment_intent_data": {"metadata": {"admin_id": str(resolved_admin_id), "session_id": session_id}},
+            "metadata": {"admin_id": str(resolved_admin_id), "session_id": session_id},
+        }
+        if customer_email:
+            checkout_params["customer_email"] = customer_email
+        if success_url:
+            checkout_params["success_url"] = success_url
+        if cancel_url:
+            checkout_params["cancel_url"] = cancel_url
+
+        stripe_session = _stripe_lib.checkout.Session.create(**checkout_params)
+
+        # Store in our DB
+        import json as _json
+        db.create_stripe_checkout(
+            admin_id=resolved_admin_id,
+            session_id=session_id,
+            stripe_session_id=stripe_session.id,
+            customer_email=customer_email,
+            cart_items=_json.dumps(cart_items),
+            cart_total=cart_total,
+            currency=currency,
+            checkout_url=stripe_session.url or "",
+        )
+
+        return jsonify({
+            "ok": True,
+            "checkout_url": stripe_session.url,
+            "stripe_session_id": stripe_session.id,
+        })
+
+    except Exception as e:
+        app.logger.error(f"Stripe checkout error: {e}")
+        return jsonify({"error": "Checkout failed. Please try again."}), 500
+
+
+@app.route("/api/stripe/webhook", methods=["POST"])
+@limiter.limit("60 per minute")
+def stripe_webhook():
+    """Handle Stripe webhook events (checkout.session.completed, etc.)."""
+    if not _STRIPE_AVAILABLE:
+        return jsonify({"error": "Stripe not configured"}), 503
+
+    payload = request.get_data(as_text=True)
+    sig_header = request.headers.get("Stripe-Signature", "")
+
+    # We need to find the admin's webhook secret — try from the event metadata after basic parse
+    import json as _json
+    try:
+        event_data = _json.loads(payload)
+    except Exception:
+        return jsonify({"error": "Invalid payload"}), 400
+
+    # Extract admin_id from event metadata to get webhook secret
+    checkout_obj = event_data.get("data", {}).get("object", {})
+    metadata = checkout_obj.get("metadata", {})
+    admin_id = metadata.get("admin_id")
+
+    event = None
+    if admin_id:
+        keys = db.get_stripe_keys(int(admin_id))
+        webhook_secret = keys.get("webhook_secret", "") if keys else ""
+        if webhook_secret and sig_header:
+            try:
+                event = _stripe_lib.Webhook.construct_event(payload, sig_header, webhook_secret)
+            except _stripe_lib.error.SignatureVerificationError:
+                return jsonify({"error": "Invalid webhook signature"}), 403
+            except Exception:
+                return jsonify({"error": "Webhook verification failed"}), 400
+
+    # If no signature verification was possible, reject the event
+    if event is None:
+        return jsonify({"error": "Webhook signature verification required"}), 403
+
+    event_type = event.get("type", "") if isinstance(event, dict) else event["type"]
+    obj = event.get("data", {}).get("object", {}) if isinstance(event, dict) else event["data"]["object"]
+
+    if event_type == "checkout.session.completed":
+        stripe_session_id = obj.get("id", "")
+        payment_intent = obj.get("payment_intent", "")
+        db.update_stripe_checkout_status(stripe_session_id, "completed", payment_intent or "")
+
+        # Record purchases for replenishment tracking
+        try:
+            checkout_record = db.get_stripe_checkout(stripe_session_id)
+            if checkout_record and admin_id:
+                import json as _json
+                cart_items = _json.loads(checkout_record.get("cart_items") or "[]")
+                customer_key = checkout_record.get("customer_email") or checkout_record.get("session_id") or ""
+                sid = checkout_record.get("session_id") or ""
+                cust_email = obj.get("customer_details", {}).get("email") or checkout_record.get("customer_email") or ""
+                for item in cart_items:
+                    db.record_purchase(
+                        int(admin_id), customer_key,
+                        product_id=item.get("id") or 0,
+                        product_name=item.get("name") or "",
+                        product_category=item.get("category") or "",
+                        quantity=item.get("qty") or 1
+                    )
+                    # Revenue attribution for Stripe purchases
+                    try:
+                        db.record_revenue_event(
+                            admin_id=int(admin_id), session_id=sid,
+                            event_type="purchase",
+                            event_value=float(item.get("price", 0)) * int(item.get("qty", 1)),
+                            product_id=item.get("id") or 0,
+                            product_name=item.get("name") or "",
+                            customer_email=cust_email,
+                        )
+                    except Exception:
+                        pass
+                # Create order on external platform (Shopify/WooCommerce)
+                try:
+                    customer_email = obj.get("customer_details", {}).get("email") or checkout_record.get("customer_email") or ""
+                    customer_name = obj.get("customer_details", {}).get("name") or ""
+                    _create_external_order(int(admin_id), cart_items, customer_email, customer_name)
+                except Exception:
+                    pass
+                # Create local ecom_order record
+                try:
+                    db.create_ecom_order(
+                        admin_id=int(admin_id),
+                        order_number=f"CG-{stripe_session_id[-8:].upper()}",
+                        customer_name=obj.get("customer_details", {}).get("name") or "",
+                        customer_email=obj.get("customer_details", {}).get("email") or "",
+                        order_status="paid",
+                        order_total=float(checkout_record.get("cart_total") or 0),
+                        items_json=checkout_record.get("cart_items") or "[]",
+                        payment_method="stripe",
+                        payment_status="paid",
+                        notes=f"Stripe session: {stripe_session_id}",
+                    )
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"[stripe] Purchase recording error: {e}", flush=True)
+
+    elif event_type == "checkout.session.expired":
+        stripe_session_id = obj.get("id", "")
+        db.update_stripe_checkout_status(stripe_session_id, "expired")
+
+    elif event_type == "payment_intent.payment_failed":
+        # ── Payment Failure Recovery ──
+        # Extract failure details and link back to checkout session
+        pi_id = obj.get("id", "")
+        last_error = obj.get("last_payment_error", {})
+        failure_code = last_error.get("code", "unknown")
+        failure_message = last_error.get("message", "Payment failed")
+        decline_code = last_error.get("decline_code", "")
+
+        # Map failure to user-friendly reason
+        failure_reason_map = {
+            "card_declined": "Your card was declined",
+            "insufficient_funds": "Insufficient funds on your card",
+            "incorrect_cvc": "The CVC/security code was incorrect",
+            "expired_card": "Your card has expired",
+            "processing_error": "A processing error occurred",
+            "incorrect_number": "The card number is incorrect",
+        }
+        friendly_reason = failure_reason_map.get(decline_code) or failure_reason_map.get(failure_code) or failure_message
+
+        # Find the checkout session linked to this payment_intent
+        pi_metadata = obj.get("metadata", {})
+        pi_admin_id = pi_metadata.get("admin_id")
+        pi_session_id = pi_metadata.get("session_id")
+
+        if pi_session_id:
+            checkout_rec = db.get_stripe_checkout_by_session(pi_session_id)
+            if checkout_rec:
+                db.update_stripe_checkout_failure(
+                    checkout_rec["stripe_session_id"],
+                    failure_reason=friendly_reason,
+                    failure_code=decline_code or failure_code,
+                )
+        print(f"[stripe] Payment failed: {failure_code}/{decline_code} - {failure_message} (session: {pi_session_id})", flush=True)
+
+    return jsonify({"status": "ok"}), 200
+
+
+@app.route("/api/stripe/session-status/<stripe_session_id>", methods=["GET"])
+def stripe_session_status(stripe_session_id):
+    """Check payment status for a Stripe checkout session."""
+    if not _STRIPE_AVAILABLE:
+        return jsonify({"error": "Stripe not configured"}), 503
+
+    record = db.get_stripe_checkout(stripe_session_id)
+    if not record:
+        return jsonify({"error": "Session not found"}), 404
+
+    # Only return status, not financial details
+    resp = {
+        "stripe_session_id": record.get("stripe_session_id"),
+        "status": record.get("status"),
+        "completed_at": str(record["completed_at"]) if record.get("completed_at") else None,
+    }
+    if record.get("status") == "failed":
+        resp["failure_reason"] = record.get("failure_reason", "Payment failed")
+        resp["failure_code"] = record.get("failure_code", "")
+    return jsonify(resp)
+
+
 @app.route("/auth/update-plan", methods=["POST"])
 def auth_update_plan():
     """Schedule a plan change for users already on a paid plan.
@@ -5825,7 +13320,7 @@ def auth_update_plan():
 
     data = request.get_json(silent=True) or {}
     plan = data.get("plan", "")
-    if plan not in ("basic", "pro", "agency"):
+    if plan not in ("basic", "growth", "pro", "enterprise"):
         return jsonify({"error": "Invalid plan"}), 400
 
     current_plan = user.get("plan", "free_trial")
@@ -6097,6 +13592,25 @@ def chat():
     if len(user_message) > 2000:
         user_message = user_message[:2000]
 
+    # ── Language switch command from widget ──
+    if user_message.startswith("__set_language__"):
+        lang_code = user_message.replace("__set_language__", "").strip()
+        _lang_names = {"en": "English", "ar": "العربية", "es": "Español", "fr": "Français", "zh": "中文", "ur": "اردو", "tl": "Tagalog"}
+        if lang_code in tr.SUPPORTED_LANGUAGES:
+            session = get_session(session_id)
+            session["language"] = lang_code
+            session["language_detected"] = True
+            name = _lang_names.get(lang_code, lang_code)
+            confirm = {"en": "Language switched to English. How can I help you?",
+                        "ar": "تم تغيير اللغة إلى العربية. كيف يمكنني مساعدتك؟",
+                        "es": "Idioma cambiado a Español. ¿Cómo puedo ayudarte?",
+                        "fr": "Langue changée en Français. Comment puis-je vous aider?",
+                        "zh": "语言已切换为中文。我能帮您什么？",
+                        "ur": "زبان اردو میں تبدیل ہو گئی۔ میں آپ کی کیسے مدد کر سکتا ہوں؟",
+                        "tl": "Lumipat na ang wika sa Tagalog. Paano kita matutulungan?"}
+            return jsonify({"reply": confirm.get(lang_code, "Language switched to " + name + ". How can I help you?")})
+        return jsonify({"reply": "Unsupported language."}), 400
+
     # Check chatbot domain limit — track which websites embed this chatbot
     origin = request.headers.get("Origin", "") or request.headers.get("Referer", "")
     if origin:
@@ -6112,6 +13626,12 @@ def chat():
         except Exception:
             pass
 
+    # Check if admin's plan is active (process expiry first to ensure current state)
+    db.process_plan_expiry(admin_id)
+    _admin_plan = db.get_admin_plan(admin_id)
+    if _admin_plan == "expired_trial":
+        return jsonify({"reply": "We're sorry, but this service is currently unavailable. The business's subscription has expired. Please contact them directly for assistance."})
+
     # Check conversation limit for the admin's plan
     if db.is_conversation_limit_reached(admin_id):
         return jsonify({"reply": "We're sorry, but our chat service has reached its monthly limit. Please contact the clinic directly for assistance or ask the clinic to upgrade their plan."})
@@ -6123,10 +13643,91 @@ def chat():
         # Check if session has UI options to send to frontend
         session = get_session(session_id)
         response = {"reply": reply}
+        # If handoff is active, tell widget to suppress bot reply
+        if reply == "__HANDOFF_SILENT__":
+            response["reply"] = ""
+            response["handoff_silent"] = True
         if session.get("_ui_options"):
-            response["options"] = session.pop("_ui_options")
+            opts = session.pop("_ui_options")
+            # Translate UI labels and service/doctor names for non-English users
+            _sess_lang = session.get("language", "en")
+            _translatable_types = ("confirm_yesno", "booking_type", "quick_replies", "edit_choices", "services", "categories")
+            if _sess_lang != "en" and opts.get("items") and opts.get("type") in _translatable_types:
+                try:
+                    items = opts["items"]
+                    # Collect names and subtitles for bulk translation
+                    names = [item.get("name", "") if isinstance(item, dict) else str(item) for item in items]
+                    subtitles = [item.get("subtitle", "") if isinstance(item, dict) else "" for item in items]
+                    has_subtitles = any(s for s in subtitles)
+                    bulk = " | ".join(names)
+                    if has_subtitles:
+                        bulk += " ||| " + " | ".join(subtitles)
+                    # Pass context for better medical/dental translations
+                    _opt_type = opts.get("type", "")
+                    _tr_context = None
+                    if _opt_type == "services":
+                        _tr_context = "dental_services"
+                    elif _opt_type in ("categories", "doctors"):
+                        _tr_context = "medical_specialties"
+                    translated = message_interpreter.translate_from_english(bulk, _sess_lang, context=_tr_context)
+                    if translated:
+                        if has_subtitles and "|||" in translated:
+                            name_part, sub_part = translated.split("|||", 1)
+                            parts = [p.strip() for p in name_part.split("|")]
+                            sub_parts = [p.strip() for p in sub_part.split("|")]
+                        else:
+                            parts = [p.strip() for p in translated.split("|")]
+                            sub_parts = []
+                        for i, item in enumerate(items):
+                            if i < len(parts) and parts[i]:
+                                if isinstance(item, dict):
+                                    if not item.get("value"):
+                                        item["value"] = item.get("name", "")
+                                    item["name"] = parts[i]
+                                    if i < len(sub_parts) and sub_parts[i]:
+                                        item["subtitle"] = sub_parts[i]
+                                else:
+                                    items[i] = {"name": parts[i], "value": str(item)}
+                except Exception as e:
+                    print(f"[translate_opts] Error: {e}", flush=True)
+            response["options"] = opts
         if session.pop("_booking_confirmed", False):
             response["booking_confirmed"] = True
+        # Return patient_id so the widget can store it for returning customer recognition
+        if session.get("patient_id"):
+            response["patient_id"] = session["patient_id"]
+        # Include cart state for ecommerce so the widget always knows
+        if session.get("_cart"):
+            response["cart"] = session["_cart"]
+
+        # ── Handoff state for widget ──
+        try:
+            _ho = db.get_handoff_by_session(session_id, admin_id=admin_id)
+            if _ho and _ho["status"] in ("queued", "assigned"):
+                response["handoff"] = True
+                response["handoff_status"] = _ho["status"]
+                response["staff_name"] = _ho.get("staff_name", "") if _ho["status"] == "assigned" else ""
+        except Exception:
+            pass
+
+        # ── Score-Driven Lead Capture Form (all company types) ──
+        _pending_form = session.pop("_pending_lead_form", None)
+        if _pending_form:
+            _ctype = session.get("_company_type", "dental")
+            _temperature = _pending_form.get("temperature", "warm_emerging") if isinstance(_pending_form, dict) else "warm_emerging"
+            _fields = lead_scoring.get_capture_fields(_temperature)
+            _title, _subtitle, _btn = lead_scoring.get_capture_copy(_temperature, _ctype)
+
+            if _fields:
+                session["_lead_form_shown"] = True
+                response["lead_form"] = {
+                    "title": _title,
+                    "subtitle": _subtitle,
+                    "fields": _fields,
+                    "button_text": _btn,
+                    "skip_text": True,
+                }
+
         return jsonify(response)
     except Exception as e:
         import traceback
@@ -6171,6 +13772,12 @@ def patient_chat():
     if len(user_message) > 2000:
         user_message = user_message[:2000]
 
+    # Check if admin's plan is active
+    db.process_plan_expiry(admin_id)
+    _admin_plan = db.get_admin_plan(admin_id)
+    if _admin_plan == "expired_trial":
+        return jsonify({"reply": "We're sorry, but this service is currently unavailable. The business's subscription has expired. Please contact them directly for assistance."})
+
     # Check conversation limit
     if db.is_conversation_limit_reached(admin_id):
         return jsonify({"reply": "We're sorry, but our chat service has reached its monthly limit. Please contact the clinic directly for assistance or ask the clinic to upgrade their plan."})
@@ -6179,10 +13786,15 @@ def patient_chat():
         reply = process_message(session_id, user_message, admin_id=admin_id, patient_id=patient_id)
         session = get_session(session_id)
         response = {"reply": reply}
+        if reply == "__HANDOFF_SILENT__":
+            response["reply"] = ""
+            response["handoff_silent"] = True
         if session.get("_ui_options"):
             response["options"] = session.pop("_ui_options")
         if session.pop("_booking_confirmed", False):
             response["booking_confirmed"] = True
+        if session.get("_cart"):
+            response["cart"] = session["_cart"]
         return jsonify(response)
     except Exception as e:
         print(f"Patient chat error: {e}")
@@ -6200,13 +13812,30 @@ def api_leads():
     if user.get("role") == "doctor":
         return jsonify([])  # Doctors don't see leads
     admin_id = get_effective_admin_id(user)
+    company_type = db.get_company_type(admin_id) or "dental"
     leads = db.get_all_leads(admin_id=admin_id)
-    # Enrich with follow-up summary
     for lead in leads:
+        # Follow-up summary (dental/general only)
+        if company_type != "ecommerce":
+            try:
+                lead["followup"] = db.get_lead_followup_summary(lead["id"])
+            except Exception:
+                lead["followup"] = {"total": 0, "sent": 0, "pending": 0}
+        # Enrich with session message count — try session_id first, then email/phone
+        msg_count = 0
         try:
-            lead["followup"] = db.get_lead_followup_summary(lead["id"])
+            conn = db.get_db()
+            if lead.get("session_id"):
+                row = conn.execute("SELECT COUNT(*) AS cnt FROM chat_logs WHERE session_id=%s", (lead["session_id"],)).fetchone()
+                msg_count = row["cnt"] if row else 0
+            if msg_count == 0 and lead.get("email"):
+                row = conn.execute("SELECT COUNT(*) AS cnt FROM chat_logs WHERE admin_id=%s AND message ILIKE %s",
+                                   (admin_id, '%' + lead["email"] + '%')).fetchone()
+                msg_count = row["cnt"] if row else 0
+            conn.close()
         except Exception:
-            lead["followup"] = {"total": 0, "sent": 0, "pending": 0}
+            pass
+        lead["message_count"] = msg_count
     return jsonify(leads)
 
 
@@ -6216,14 +13845,19 @@ def api_update_lead_stage(lid):
     user = db.get_user_by_token(token)
     if not user or not is_admin_role(user):
         return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    conn = db.get_db()
+    lead = conn.execute("SELECT admin_id FROM leads WHERE id=%s", (lid,)).fetchone()
+    conn.close()
+    if not lead or lead["admin_id"] != admin_id:
+        return jsonify({"error": "Lead not found"}), 404
     payload = request.get_json(silent=True) or {}
     stage = payload.get("stage", "").strip()
-    if stage not in ("new", "engaged", "warm", "cold", "converted"):
+    if stage not in ("new", "engaged", "warm", "contacted", "cold", "converted", "qualified", "lost", "nurturing", "disqualified"):
         return jsonify({"error": "Invalid stage"}), 400
     db.update_lead_stage(lid, stage)
     if stage == "cold":
         db.cancel_lead_followups(lid)
-    admin_id = get_effective_admin_id(user)
     db.log_admin_action(admin_id, user, "Updated lead stage", f"Lead #{lid} → {stage}")
     return jsonify({"ok": True})
 
@@ -6234,11 +13868,215 @@ def api_update_lead_score(lid):
     user = db.get_user_by_token(token)
     if not user or not is_admin_role(user):
         return jsonify({"error": "Unauthorized"}), 401
-    payload = request.get_json(silent=True) or {}
-    score = int(payload.get("score", 0))
-    db.update_lead_score(lid, score)
     admin_id = get_effective_admin_id(user)
+    conn = db.get_db()
+    lead = conn.execute("SELECT admin_id FROM leads WHERE id=%s", (lid,)).fetchone()
+    conn.close()
+    if not lead or lead["admin_id"] != admin_id:
+        return jsonify({"error": "Lead not found"}), 404
+    payload = request.get_json(silent=True) or {}
+    score = float(payload.get("score", 0))
+    db.update_lead_score(lid, score)
     db.log_admin_action(admin_id, user, "Updated lead score", f"Lead #{lid} → score {score}")
+    return jsonify({"ok": True})
+
+
+@app.route("/api/leads/<int:lid>/action", methods=["POST"])
+def api_lead_action(lid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    conn = db.get_db()
+    lead_check = conn.execute("SELECT admin_id FROM leads WHERE id=%s", (lid,)).fetchone()
+    conn.close()
+    if not lead_check or lead_check["admin_id"] != admin_id:
+        return jsonify({"error": "Lead not found"}), 404
+    payload = request.get_json(silent=True) or {}
+    action = payload.get("action", "").strip()
+    if action not in ("called", "emailed", "contacted", "converted"):
+        return jsonify({"error": "Invalid action"}), 400
+    try:
+        db.log_lead_action(lid, admin_id, action)
+        db.log_admin_action(admin_id, user, f"Lead action: {action}", f"Lead #{lid}")
+        # Actually send email when action is "emailed"
+        if action == "emailed":
+            conn = db.get_db()
+            lead_row = conn.execute("SELECT * FROM leads WHERE id=%s", (lid,)).fetchone()
+            conn.close()
+            if lead_row and lead_row["email"]:
+                import email_service
+                ci = db.get_company_info(admin_id) or {}
+                all_products = db.get_products(admin_id, status="active")
+                interest = (lead_row.get("treatment_interest") or "").lower()
+                # Find the hero product (the one the lead was interested in)
+                hero = None
+                related = []
+                if interest:
+                    for p in all_products:
+                        pname = (p.get("product_name") or "").lower()
+                        pcat = (p.get("product_category") or "").lower()
+                        ptags = (p.get("product_tags") or "").lower()
+                        if interest in pname or interest in pcat or interest in ptags:
+                            if not hero:
+                                hero = p
+                            else:
+                                related.append(p)
+                    # Fill related from same category
+                    if hero and len(related) < 3:
+                        hero_cat = (hero.get("product_category") or "").lower()
+                        for p in all_products:
+                            if p.get("id") != hero.get("id") and p not in related:
+                                if hero_cat and hero_cat in (p.get("product_category") or "").lower():
+                                    related.append(p)
+                                    if len(related) >= 3:
+                                        break
+                # Fallback: top products by rating
+                if not hero and all_products:
+                    hero = all_products[0]
+                    related = all_products[1:4]
+                email_service.send_lead_outreach(
+                    lead_row["email"], lead_row["name"] or "there",
+                    business_name=ci.get("business_name") or None,
+                    product_interest=lead_row.get("treatment_interest", ""),
+                    hero_product=hero, related_products=related[:3],
+                    company_info=ci, admin_id=admin_id
+                )
+    except Exception as e:
+        app.logger.error(f"Lead action error: {e}", exc_info=True)
+        return jsonify({"error": "Failed to process lead action. Please try again."}), 500
+    return jsonify({"ok": True, "action": action})
+
+
+@app.route("/api/leads/<int:lid>", methods=["DELETE"])
+def api_delete_lead(lid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    conn = db.get_db()
+    conn.execute("DELETE FROM leads WHERE id=%s AND admin_id=%s", (lid, admin_id))
+    conn.commit()
+    conn.close()
+    db.log_admin_action(admin_id, user, "Deleted lead", f"Lead #{lid}")
+    return jsonify({"ok": True})
+
+
+@app.route("/api/leads/<int:lid>/detail", methods=["GET"])
+def api_lead_detail(lid):
+    """Get full lead detail including score breakdown, cart, multipliers."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    conn = db.get_db()
+    lead = conn.execute("SELECT * FROM leads WHERE id=%s AND admin_id=%s", (lid, admin_id)).fetchone()
+    conn.close()
+    if not lead:
+        return jsonify({"error": "Lead not found"}), 404
+    lead = dict(lead)
+
+    # Parse JSON fields
+    import json as _json
+    for field in ("score_breakdown", "cart_data", "multipliers"):
+        val = lead.get(field, "") or ""
+        if val:
+            try:
+                lead[field] = _json.loads(val)
+            except Exception:
+                lead[field] = {}
+        else:
+            lead[field] = {} if field != "cart_data" else []
+
+    # Enrich with message count and chat history
+    try:
+        conn = db.get_db()
+        if lead.get("session_id"):
+            row = conn.execute("SELECT COUNT(*) AS cnt FROM chat_logs WHERE session_id=%s AND sender='user'", (lead["session_id"],)).fetchone()
+            lead["message_count"] = row["cnt"] if row else 0
+        conn.close()
+    except Exception:
+        lead["message_count"] = 0
+
+    # Get full chat conversation
+    try:
+        if lead.get("session_id"):
+            lead["chat_history"] = db.get_chat_history_by_session(lead["session_id"])
+        else:
+            lead["chat_history"] = []
+    except Exception:
+        lead["chat_history"] = []
+
+    # Compute missing contact fields for display
+    lead["missing_fields"] = []
+    if not lead.get("name") or lead["name"] == "Unknown":
+        lead["missing_fields"].append("name")
+    if not lead.get("email"):
+        lead["missing_fields"].append("email")
+    if not lead.get("phone"):
+        lead["missing_fields"].append("phone")
+
+    # Compute what score WOULD be with full contact info
+    if lead["missing_fields"]:
+        contact_bonus = 0
+        if "email" in lead["missing_fields"]:
+            contact_bonus += 6
+        if "phone" in lead["missing_fields"]:
+            contact_bonus += 5
+        if "name" in lead["missing_fields"]:
+            contact_bonus += 4
+        lead["potential_score_with_contact"] = round(float(lead.get("score", 0)) + contact_bonus, 1)
+    else:
+        lead["potential_score_with_contact"] = float(lead.get("score", 0))
+
+    # Revenue at risk = cart total
+    cart = lead.get("cart_data", [])
+    if isinstance(cart, list) and cart:
+        lead["revenue_at_risk"] = round(sum(i.get("price", 0) * i.get("qty", 1) for i in cart), 2)
+    elif not lead.get("revenue_at_risk"):
+        lead["revenue_at_risk"] = 0
+
+    # Suggested recovery action
+    score = float(lead.get("score", 0))
+    temp = lead.get("temperature", "cold")
+    if temp in ("hot", "vip") and lead.get("email"):
+        lead["recovery_action"] = "Send personalized email with cart items + exclusive discount code NOW"
+    elif temp in ("warm", "warm_emerging") and lead.get("email"):
+        lead["recovery_action"] = "Send follow-up email highlighting product benefits within 1 hour"
+    elif temp in ("warm_emerging", "warm") and not lead.get("email"):
+        lead["recovery_action"] = "Lead has no email — no automated recovery possible"
+    elif temp in ("cold", "frozen"):
+        lead["recovery_action"] = "Lead is cold — consider re-engagement campaign if email available"
+    else:
+        lead["recovery_action"] = ""
+
+    return jsonify(lead)
+
+
+@app.route("/api/leads/hot-alerts", methods=["GET"])
+def api_hot_lead_alerts():
+    """Poll for unseen hot lead alerts (score 12+)."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    alerts = db.get_unseen_hot_lead_alerts(admin_id)
+    return jsonify(alerts)
+
+
+@app.route("/api/leads/hot-alerts/seen", methods=["POST"])
+def api_mark_hot_alerts_seen():
+    """Mark all hot lead alerts as seen."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    db.mark_hot_lead_alerts_seen(admin_id)
     return jsonify({"ok": True})
 
 
@@ -6248,8 +14086,13 @@ def api_cancel_lead_followups(lid):
     user = db.get_user_by_token(token)
     if not user or not is_admin_role(user):
         return jsonify({"error": "Unauthorized"}), 401
-    db.cancel_lead_followups(lid)
     admin_id = get_effective_admin_id(user)
+    conn = db.get_db()
+    lead = conn.execute("SELECT admin_id FROM leads WHERE id=%s", (lid,)).fetchone()
+    conn.close()
+    if not lead or lead["admin_id"] != admin_id:
+        return jsonify({"error": "Lead not found"}), 404
+    db.cancel_lead_followups(lid)
     db.log_admin_action(admin_id, user, "Cancelled lead followups", f"Lead #{lid}")
     return jsonify({"ok": True})
 
@@ -6441,7 +14284,21 @@ def api_stats():
             return jsonify(db.get_stats(doctor_id=doctor["id"]))
         return jsonify(db.get_stats())
     admin_id = get_effective_admin_id(user)
-    return jsonify(db.get_stats(admin_id=admin_id))
+    stats = db.get_stats(admin_id=admin_id)
+    stats["company_type"] = db.get_company_type(admin_id)
+    return jsonify(stats)
+
+
+@app.route("/api/stats/extended", methods=["GET"])
+def api_stats_extended():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    if user.get("role") == "doctor":
+        return jsonify({"error": "Doctors cannot access extended stats"}), 403
+    admin_id = get_effective_admin_id(user)
+    return jsonify(db.get_stats_extended(admin_id))
 
 
 @app.route("/api/analytics", methods=["GET"])
@@ -6535,6 +14392,734 @@ def api_doctor_revenue():
     return jsonify({"doctors": result, "currency": currency})
 
 
+@app.route("/api/analytics/ecommerce", methods=["GET"])
+def api_ecommerce_analytics():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+    date_from = request.args.get("from", (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d"))
+    date_to = request.args.get("to", datetime.now().strftime("%Y-%m-%d"))
+    currency = db.get_company_currency(admin_id)
+    conn = db.get_db()
+
+    # 1) Revenue per day
+    revenue_per_day = conn.execute("""
+        SELECT DATE(created_at) as date, SUM(order_total) as revenue, COUNT(*) as orders
+        FROM ecom_orders WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s
+        AND order_status NOT IN ('cancelled','refunded')
+        GROUP BY DATE(created_at) ORDER BY date
+    """, (admin_id, date_from, date_to)).fetchall()
+
+    # 2) Orders per day (all statuses)
+    orders_per_day = conn.execute("""
+        SELECT DATE(created_at) as date, COUNT(*) as count,
+               SUM(CASE WHEN order_status IN ('delivered','completed','shipped') THEN 1 ELSE 0 END) as fulfilled,
+               SUM(CASE WHEN order_status='cancelled' THEN 1 ELSE 0 END) as cancelled,
+               SUM(CASE WHEN order_status='refunded' THEN 1 ELSE 0 END) as refunded,
+               SUM(CASE WHEN order_status IN ('pending','confirmed','processing') THEN 1 ELSE 0 END) as pending
+        FROM ecom_orders WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s
+        GROUP BY DATE(created_at) ORDER BY date
+    """, (admin_id, date_from, date_to)).fetchall()
+
+    # 3) Top products by revenue (parse items_json)
+    all_orders = conn.execute("""
+        SELECT items_json, order_total FROM ecom_orders
+        WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s
+        AND order_status NOT IN ('cancelled','refunded')
+    """, (admin_id, date_from, date_to)).fetchall()
+
+    product_stats = {}
+    for o in all_orders:
+        try:
+            items = json.loads(o["items_json"] or "[]")
+            for item in items:
+                name = item.get("name") or item.get("product_name") or "Unknown"
+                qty = int(item.get("qty") or item.get("quantity") or 1)
+                price = float(item.get("price") or item.get("unit_price") or 0)
+                revenue = price * qty
+                if name not in product_stats:
+                    product_stats[name] = {"name": name, "units": 0, "revenue": 0}
+                product_stats[name]["units"] += qty
+                product_stats[name]["revenue"] += revenue
+        except Exception:
+            pass
+    top_products = sorted(product_stats.values(), key=lambda x: x["revenue"], reverse=True)[:10]
+    for p in top_products:
+        p["revenue"] = round(p["revenue"], 2)
+
+    # 4) Avg order value
+    aov_row = conn.execute("""
+        SELECT AVG(order_total) as aov, COUNT(*) as total_orders, SUM(order_total) as total_revenue
+        FROM ecom_orders WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s
+        AND order_status NOT IN ('cancelled','refunded')
+    """, (admin_id, date_from, date_to)).fetchone()
+
+    # 5) Order status breakdown
+    status_breakdown = conn.execute("""
+        SELECT order_status, COUNT(*) as count
+        FROM ecom_orders WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s
+        GROUP BY order_status ORDER BY count DESC
+    """, (admin_id, date_from, date_to)).fetchall()
+
+    # 6) Payment method breakdown
+    payment_breakdown = conn.execute("""
+        SELECT COALESCE(NULLIF(payment_method,''), 'Unknown') as method, COUNT(*) as count, SUM(order_total) as revenue
+        FROM ecom_orders WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s
+        AND order_status NOT IN ('cancelled','refunded')
+        GROUP BY method ORDER BY revenue DESC
+    """, (admin_id, date_from, date_to)).fetchall()
+
+    # 7) Top customers by spend
+    top_customers = conn.execute("""
+        SELECT customer_name, customer_email, COUNT(*) as order_count,
+               SUM(order_total) as total_spent, AVG(order_total) as avg_order,
+               MAX(created_at) as last_order
+        FROM ecom_orders WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s
+        AND order_status NOT IN ('cancelled','refunded') AND customer_email <> ''
+        GROUP BY customer_name, customer_email ORDER BY total_spent DESC LIMIT 10
+    """, (admin_id, date_from, date_to)).fetchall()
+
+    # 8) New vs returning customers
+    all_customers_period = conn.execute("""
+        SELECT customer_email, MIN(first_order) as first_order FROM (
+            SELECT customer_email, MIN(created_at) as first_order
+            FROM ecom_orders WHERE admin_id=%s AND customer_email <> ''
+            GROUP BY customer_email
+        ) sub WHERE customer_email IN (
+            SELECT DISTINCT customer_email FROM ecom_orders
+            WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s AND customer_email <> ''
+        ) GROUP BY customer_email
+    """, (admin_id, admin_id, date_from, date_to)).fetchall()
+    new_customers = sum(1 for c in all_customers_period if c["first_order"] and str(c["first_order"])[:10] >= date_from)
+    returning_customers = len(all_customers_period) - new_customers
+
+    # 9) AOV trend over time
+    aov_trend = conn.execute("""
+        SELECT DATE(created_at) as date, AVG(order_total) as aov, COUNT(*) as orders
+        FROM ecom_orders WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s
+        AND order_status NOT IN ('cancelled','refunded')
+        GROUP BY DATE(created_at) ORDER BY date
+    """, (admin_id, date_from, date_to)).fetchall()
+
+    # 10) Revenue by hour of day
+    revenue_by_hour = conn.execute("""
+        SELECT EXTRACT(HOUR FROM created_at)::int as hour, COUNT(*) as orders,
+               SUM(order_total) as revenue
+        FROM ecom_orders WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s
+        AND order_status NOT IN ('cancelled','refunded')
+        GROUP BY hour ORDER BY hour
+    """, (admin_id, date_from, date_to)).fetchall()
+
+    # 11) Discount code performance
+    discount_stats = conn.execute("""
+        SELECT COALESCE(NULLIF(discount_code,''), 'No Discount') as code,
+               COUNT(*) as order_count, SUM(order_total) as revenue,
+               SUM(COALESCE(discount_amount, 0)) as total_discount
+        FROM ecom_orders WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s
+        AND order_status NOT IN ('cancelled','refunded')
+        GROUP BY code ORDER BY revenue DESC LIMIT 10
+    """, (admin_id, date_from, date_to)).fetchall()
+
+    # 12) Fulfillment metrics (avg days from created to delivered/shipped)
+    fulfillment_rows = conn.execute("""
+        SELECT order_status, created_at, updated_at
+        FROM ecom_orders WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s
+        AND order_status IN ('delivered','shipped','completed')
+    """, (admin_id, date_from, date_to)).fetchall()
+    fulfillment_days = []
+    for fr in fulfillment_rows:
+        if fr["updated_at"] and fr["created_at"]:
+            diff = (fr["updated_at"] - fr["created_at"]).total_seconds() / 86400.0
+            if diff >= 0:
+                fulfillment_days.append(round(diff, 1))
+    avg_fulfillment = round(sum(fulfillment_days) / len(fulfillment_days), 1) if fulfillment_days else 0
+
+    # 13) Repeat purchase rate + purchase frequency
+    customer_order_counts = conn.execute("""
+        SELECT customer_email, COUNT(*) as cnt, SUM(order_total) as total_spent
+        FROM ecom_orders WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s
+        AND order_status NOT IN ('cancelled','refunded') AND customer_email <> ''
+        GROUP BY customer_email
+    """, (admin_id, date_from, date_to)).fetchall()
+    total_unique = len(customer_order_counts)
+    repeat_buyers = sum(1 for c in customer_order_counts if c["cnt"] > 1)
+    repeat_rate = round(repeat_buyers / total_unique * 100, 1) if total_unique > 0 else 0
+    purchase_frequency = round(sum(c["cnt"] for c in customer_order_counts) / total_unique, 2) if total_unique > 0 else 0
+
+    # 14) Monthly sales growth (compare current period vs previous period of same length)
+    _dt_from = datetime.strptime(date_from, "%Y-%m-%d")
+    _dt_to = datetime.strptime(date_to, "%Y-%m-%d")
+    range_days = (_dt_to - _dt_from).days + 1
+    prev_from = (_dt_from - timedelta(days=range_days)).strftime("%Y-%m-%d")
+    prev_to = (_dt_from - timedelta(days=1)).strftime("%Y-%m-%d")
+    prev_rev_row = conn.execute("""
+        SELECT COALESCE(SUM(order_total),0) as rev, COUNT(*) as cnt
+        FROM ecom_orders WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s
+        AND order_status NOT IN ('cancelled','refunded')
+    """, (admin_id, prev_from, prev_to)).fetchone()
+    prev_revenue = float(prev_rev_row["rev"] or 0)
+    prev_orders = prev_rev_row["cnt"] or 0
+    total_revenue_f = round(float(aov_row["total_revenue"] or 0), 2) if aov_row else 0
+    total_orders_i = int(aov_row["total_orders"] or 0) if aov_row else 0
+    revenue_growth_pct = round((total_revenue_f - prev_revenue) / prev_revenue * 100, 1) if prev_revenue > 0 else 0
+    orders_growth_pct = round((total_orders_i - prev_orders) / prev_orders * 100, 1) if prev_orders > 0 else 0
+
+    # 15) Revenue per visitor
+    visitors_row = conn.execute("""
+        SELECT COUNT(DISTINCT session_id) as c FROM chat_logs
+        WHERE admin_id=%s AND created_at::date BETWEEN %s AND %s
+    """, (admin_id, date_from, date_to)).fetchone()
+    total_visitors = visitors_row["c"] if visitors_row else 0
+    revenue_per_visitor = round(total_revenue_f / total_visitors, 2) if total_visitors > 0 else 0
+    conversion_rate = round(total_orders_i / total_visitors * 100, 2) if total_visitors > 0 else 0
+
+    # 16) Conversion funnel: visitors → leads → orders
+    leads_row = conn.execute("""
+        SELECT COUNT(*) as c FROM leads
+        WHERE admin_id=%s AND created_at::date BETWEEN %s AND %s
+    """, (admin_id, date_from, date_to)).fetchone()
+    total_leads = leads_row["c"] if leads_row else 0
+
+    # 17) Customer Lifetime Value (CLV) = avg_order_value × purchase_frequency × avg_lifespan_months
+    # Calculate from ALL-TIME data for accuracy
+    clv_rows = conn.execute("""
+        SELECT customer_email, COUNT(*) as orders, SUM(order_total) as total,
+               MIN(created_at) as first_order, MAX(created_at) as last_order
+        FROM ecom_orders WHERE admin_id=%s AND order_status NOT IN ('cancelled','refunded')
+        AND customer_email <> ''
+        GROUP BY customer_email
+    """, (admin_id,)).fetchall()
+    clv_values = []
+    for cr in clv_rows:
+        avg_val = float(cr["total"] or 0) / max(cr["orders"], 1)
+        freq = cr["orders"]
+        if cr["first_order"] and cr["last_order"]:
+            lifespan_days = max(1, (cr["last_order"] - cr["first_order"]).days)
+            lifespan_months = max(1, lifespan_days / 30.0)
+        else:
+            lifespan_months = 1
+        # Annualized CLV: avg_value × (orders / lifespan_months) × 12
+        monthly_value = float(cr["total"] or 0) / lifespan_months
+        annual_clv = round(monthly_value * 12, 2)
+        clv_values.append({"email": cr["customer_email"], "clv": annual_clv, "orders": freq, "total": round(float(cr["total"] or 0), 2)})
+    clv_values.sort(key=lambda x: x["clv"], reverse=True)
+    avg_clv = round(sum(c["clv"] for c in clv_values) / len(clv_values), 2) if clv_values else 0
+    # CLV distribution buckets
+    clv_buckets = {"0-50": 0, "50-200": 0, "200-500": 0, "500-1000": 0, "1000+": 0}
+    for c in clv_values:
+        v = c["clv"]
+        if v < 50: clv_buckets["0-50"] += 1
+        elif v < 200: clv_buckets["50-200"] += 1
+        elif v < 500: clv_buckets["200-500"] += 1
+        elif v < 1000: clv_buckets["500-1000"] += 1
+        else: clv_buckets["1000+"] += 1
+
+    # 18) Churn rate: customers who ordered in previous period but NOT in current period
+    prev_customers = conn.execute("""
+        SELECT DISTINCT customer_email FROM ecom_orders
+        WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s
+        AND order_status NOT IN ('cancelled','refunded') AND customer_email <> ''
+    """, (admin_id, prev_from, prev_to)).fetchall()
+    prev_emails = {r["customer_email"] for r in prev_customers}
+    curr_emails = {c["customer_email"] for c in customer_order_counts}
+    churned = prev_emails - curr_emails
+    churn_rate = round(len(churned) / len(prev_emails) * 100, 1) if prev_emails else 0
+    retention_rate = round(100 - churn_rate, 1)
+
+    # 19) Product affinity — items frequently bought together
+    from collections import Counter
+    pair_counter = Counter()
+    all_order_items = conn.execute("""
+        SELECT items_json FROM ecom_orders
+        WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s
+        AND order_status NOT IN ('cancelled','refunded')
+    """, (admin_id, date_from, date_to)).fetchall()
+    for o in all_order_items:
+        try:
+            items = json.loads(o["items_json"] or "[]")
+            names = sorted(set((it.get("name") or it.get("product_name") or "Unknown") for it in items))
+            for i in range(len(names)):
+                for j in range(i + 1, len(names)):
+                    pair_counter[(names[i], names[j])] += 1
+        except Exception:
+            pass
+    top_pairs = [{"product_a": p[0], "product_b": p[1], "count": c} for p, c in pair_counter.most_common(10) if c > 0]
+
+    # 20) Revenue by category (from items_json category field)
+    category_stats = {}
+    for o in all_orders:
+        try:
+            items = json.loads(o["items_json"] or "[]")
+            for item in items:
+                cat = item.get("category") or item.get("product_category") or "Uncategorized"
+                qty = int(item.get("qty") or item.get("quantity") or 1)
+                price = float(item.get("price") or item.get("unit_price") or 0)
+                if cat not in category_stats:
+                    category_stats[cat] = {"category": cat, "units": 0, "revenue": 0, "orders": 0}
+                category_stats[cat]["units"] += qty
+                category_stats[cat]["revenue"] += price * qty
+                category_stats[cat]["orders"] += 1
+        except Exception:
+            pass
+    categories = sorted(category_stats.values(), key=lambda x: x["revenue"], reverse=True)
+    for c in categories:
+        c["revenue"] = round(c["revenue"], 2)
+
+    # 21) Worst selling products
+    worst_products = sorted(product_stats.values(), key=lambda x: x["revenue"])[:10]
+    for p in worst_products:
+        p["revenue"] = round(p["revenue"], 2)
+
+    # 22) Shipping cost as % of revenue
+    shipping_row = conn.execute("""
+        SELECT COALESCE(SUM(shipping_cost),0) as total_ship, COALESCE(SUM(order_total),0) as total_rev
+        FROM ecom_orders WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s
+        AND order_status NOT IN ('cancelled','refunded')
+    """, (admin_id, date_from, date_to)).fetchone()
+    total_shipping = float(shipping_row["total_ship"] or 0)
+    shipping_pct = round(total_shipping / total_revenue_f * 100, 1) if total_revenue_f > 0 else 0
+
+    # 23) Order processing time distribution
+    processing_rows = conn.execute("""
+        SELECT created_at, updated_at, order_status FROM ecom_orders
+        WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s
+        AND order_status NOT IN ('pending','cancelled','refunded')
+        AND updated_at IS NOT NULL
+    """, (admin_id, date_from, date_to)).fetchall()
+    processing_times = []
+    for pr in processing_rows:
+        if pr["updated_at"] and pr["created_at"]:
+            hrs = (pr["updated_at"] - pr["created_at"]).total_seconds() / 3600.0
+            if hrs >= 0:
+                processing_times.append(round(hrs, 1))
+    proc_buckets = {"<1h": 0, "1-6h": 0, "6-24h": 0, "1-3d": 0, "3-7d": 0, "7d+": 0}
+    for h in processing_times:
+        if h < 1: proc_buckets["<1h"] += 1
+        elif h < 6: proc_buckets["1-6h"] += 1
+        elif h < 24: proc_buckets["6-24h"] += 1
+        elif h < 72: proc_buckets["1-3d"] += 1
+        elif h < 168: proc_buckets["3-7d"] += 1
+        else: proc_buckets["7d+"] += 1
+    avg_processing_hrs = round(sum(processing_times) / len(processing_times), 1) if processing_times else 0
+
+    # 24) Revenue by day of week
+    dow_rows = conn.execute("""
+        SELECT EXTRACT(DOW FROM created_at)::int as dow, COUNT(*) as orders, SUM(order_total) as revenue
+        FROM ecom_orders WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s
+        AND order_status NOT IN ('cancelled','refunded')
+        GROUP BY dow ORDER BY dow
+    """, (admin_id, date_from, date_to)).fetchall()
+    dow_names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    revenue_by_dow = [{"day": dow_names[r["dow"]], "orders": r["orders"], "revenue": round(float(r["revenue"] or 0), 2)} for r in dow_rows]
+
+    # 25) Refund/cancellation analysis
+    cancel_analysis = conn.execute("""
+        SELECT order_status, COUNT(*) as cnt, SUM(order_total) as lost_revenue
+        FROM ecom_orders WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s
+        AND order_status IN ('cancelled','refunded')
+        GROUP BY order_status
+    """, (admin_id, date_from, date_to)).fetchall()
+    total_all_orders = conn.execute("""
+        SELECT COUNT(*) as c FROM ecom_orders WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s
+    """, (admin_id, date_from, date_to)).fetchone()["c"]
+    cancel_rate = 0
+    refund_rate = 0
+    total_lost_revenue = 0
+    for ca in cancel_analysis:
+        r = round(ca["cnt"] / total_all_orders * 100, 1) if total_all_orders > 0 else 0
+        if ca["order_status"] == "cancelled":
+            cancel_rate = r
+        else:
+            refund_rate = r
+        total_lost_revenue += float(ca["lost_revenue"] or 0)
+
+    # 26) Chatbot response metrics
+    chat_metrics = conn.execute("""
+        SELECT COUNT(*) as total_msgs,
+               COUNT(DISTINCT session_id) as sessions,
+               AVG(CASE WHEN sender='bot' THEN CHAR_LENGTH(message) END) as avg_response_len
+        FROM chat_logs WHERE admin_id=%s AND created_at::date BETWEEN %s AND %s
+    """, (admin_id, date_from, date_to)).fetchone()
+    avg_msgs_per_session = round(int(chat_metrics["total_msgs"] or 0) / max(int(chat_metrics["sessions"] or 1), 1), 1)
+
+    # 27) Monthly revenue trend (last 6 months)
+    monthly_trend = conn.execute("""
+        SELECT TO_CHAR(created_at, 'YYYY-MM') as month, SUM(order_total) as revenue, COUNT(*) as orders
+        FROM ecom_orders WHERE admin_id=%s AND order_status NOT IN ('cancelled','refunded')
+        AND created_at >= CURRENT_DATE - INTERVAL '6 months'
+        GROUP BY month ORDER BY month
+    """, (admin_id,)).fetchall()
+
+    # 28) Gross Profit Margin — join products cost_price with order items
+    try:
+        cost_lookup = {}
+        cost_rows = conn.execute("""
+            SELECT product_name, cost_price FROM products
+            WHERE admin_id=%s AND cost_price IS NOT NULL
+        """, (admin_id,)).fetchall()
+        for cr in cost_rows:
+            cost_lookup[cr["product_name"]] = float(cr["cost_price"] or 0)
+
+        total_cogs = 0
+        total_item_revenue = 0
+        for o in all_orders:
+            try:
+                items = json.loads(o["items_json"] or "[]")
+                for item in items:
+                    name = item.get("name") or item.get("product_name") or "Unknown"
+                    qty = int(item.get("qty") or item.get("quantity") or 1)
+                    price = float(item.get("price") or item.get("unit_price") or 0)
+                    item_rev = price * qty
+                    total_item_revenue += item_rev
+                    if name in cost_lookup:
+                        total_cogs += cost_lookup[name] * qty
+            except Exception:
+                pass
+        gross_profit = total_item_revenue - total_cogs
+        gross_profit_margin = round(gross_profit / total_item_revenue * 100, 1) if total_item_revenue > 0 else 0
+        # Per-product margin breakdown
+        product_margins = []
+        for pname, pdata in product_stats.items():
+            p_rev = pdata["revenue"]
+            p_cogs = cost_lookup.get(pname, 0) * pdata["units"]
+            p_margin = round((p_rev - p_cogs) / p_rev * 100, 1) if p_rev > 0 else 0
+            product_margins.append({"name": pname, "revenue": round(p_rev, 2), "cogs": round(p_cogs, 2), "margin_pct": p_margin})
+        product_margins.sort(key=lambda x: x["revenue"], reverse=True)
+        gross_profit_data = {
+            "total_revenue": round(total_item_revenue, 2),
+            "total_cogs": round(total_cogs, 2),
+            "gross_profit": round(gross_profit, 2),
+            "margin_pct": gross_profit_margin,
+            "by_product": product_margins[:15],
+        }
+    except Exception:
+        gross_profit_data = {"total_revenue": 0, "total_cogs": 0, "gross_profit": 0, "margin_pct": 0}
+
+    # 29) Traffic by source — from leads.source
+    try:
+        traffic_by_source = conn.execute("""
+            SELECT COALESCE(NULLIF(source,''), 'Unknown') as source, COUNT(*) as count
+            FROM leads WHERE admin_id=%s AND created_at::date BETWEEN %s AND %s
+            GROUP BY source ORDER BY count DESC
+        """, (admin_id, date_from, date_to)).fetchall()
+    except Exception:
+        traffic_by_source = []
+
+    # 30) Bounce rate — sessions with only 1 message
+    try:
+        bounce_row = conn.execute("""
+            SELECT COUNT(*) as total_sessions,
+                   SUM(CASE WHEN msg_count = 1 THEN 1 ELSE 0 END) as bounced
+            FROM (
+                SELECT session_id, COUNT(*) as msg_count
+                FROM chat_logs WHERE admin_id=%s AND created_at::date BETWEEN %s AND %s
+                GROUP BY session_id
+            ) sub
+        """, (admin_id, date_from, date_to)).fetchone()
+        bounce_sessions = int(bounce_row["bounced"] or 0)
+        bounce_total = int(bounce_row["total_sessions"] or 0)
+        bounce_rate = round(bounce_sessions / bounce_total * 100, 1) if bounce_total > 0 else 0
+        bounce_data = {"bounced_sessions": bounce_sessions, "total_sessions": bounce_total, "bounce_rate": bounce_rate}
+    except Exception:
+        bounce_data = {"bounced_sessions": 0, "total_sessions": 0, "bounce_rate": 0}
+
+    # 31) Cart abandonment metrics
+    try:
+        cart_abandon_row = conn.execute("""
+            SELECT COUNT(*) as total,
+                   SUM(CASE WHEN recovery_status='recovered' THEN 1 ELSE 0 END) as recovered,
+                   SUM(CASE WHEN recovery_status!='recovered' OR recovery_status IS NULL THEN 1 ELSE 0 END) as abandoned,
+                   COALESCE(SUM(cart_total), 0) as total_cart_value,
+                   COALESCE(SUM(CASE WHEN recovery_status='recovered' THEN cart_total ELSE 0 END), 0) as recovered_value,
+                   AVG(cart_total) as avg_cart_value,
+                   AVG(recovery_messages_sent) as avg_recovery_msgs
+            FROM abandoned_carts WHERE admin_id=%s AND abandoned_at::date BETWEEN %s AND %s
+        """, (admin_id, date_from, date_to)).fetchone()
+        cart_abandonment = {
+            "total_carts": int(cart_abandon_row["total"] or 0),
+            "recovered": int(cart_abandon_row["recovered"] or 0),
+            "abandoned": int(cart_abandon_row["abandoned"] or 0),
+            "recovery_rate": round(int(cart_abandon_row["recovered"] or 0) / max(int(cart_abandon_row["total"] or 0), 1) * 100, 1),
+            "total_cart_value": round(float(cart_abandon_row["total_cart_value"] or 0), 2),
+            "recovered_value": round(float(cart_abandon_row["recovered_value"] or 0), 2),
+            "avg_cart_value": round(float(cart_abandon_row["avg_cart_value"] or 0), 2),
+            "avg_recovery_msgs": round(float(cart_abandon_row["avg_recovery_msgs"] or 0), 1),
+        }
+    except Exception:
+        cart_abandonment = {"total_carts": 0, "recovered": 0, "abandoned": 0, "recovery_rate": 0, "total_cart_value": 0, "recovered_value": 0, "avg_cart_value": 0, "avg_recovery_msgs": 0}
+
+    # 32) Product page views from browse_history
+    try:
+        product_views = conn.execute("""
+            SELECT product_id, product_name, COUNT(*) as view_count,
+                   COUNT(DISTINCT session_id) as unique_sessions
+            FROM browse_history WHERE admin_id=%s AND viewed_at::date BETWEEN %s AND %s
+            GROUP BY product_id, product_name ORDER BY view_count DESC LIMIT 20
+        """, (admin_id, date_from, date_to)).fetchall()
+    except Exception:
+        product_views = []
+
+    # 33) Customer satisfaction from product_reviews + surveys
+    try:
+        review_stats = conn.execute("""
+            SELECT COUNT(*) as total_reviews, AVG(rating) as avg_rating,
+                   SUM(CASE WHEN rating=5 THEN 1 ELSE 0 END) as five_star,
+                   SUM(CASE WHEN rating=4 THEN 1 ELSE 0 END) as four_star,
+                   SUM(CASE WHEN rating=3 THEN 1 ELSE 0 END) as three_star,
+                   SUM(CASE WHEN rating=2 THEN 1 ELSE 0 END) as two_star,
+                   SUM(CASE WHEN rating=1 THEN 1 ELSE 0 END) as one_star
+            FROM product_reviews WHERE admin_id=%s AND created_at::date BETWEEN %s AND %s
+        """, (admin_id, date_from, date_to)).fetchone()
+        satisfaction = {
+            "total_reviews": int(review_stats["total_reviews"] or 0),
+            "avg_rating": round(float(review_stats["avg_rating"] or 0), 2),
+            "distribution": {
+                "5": int(review_stats["five_star"] or 0),
+                "4": int(review_stats["four_star"] or 0),
+                "3": int(review_stats["three_star"] or 0),
+                "2": int(review_stats["two_star"] or 0),
+                "1": int(review_stats["one_star"] or 0),
+            }
+        }
+    except Exception:
+        satisfaction = {"total_reviews": 0, "avg_rating": 0, "distribution": {"5": 0, "4": 0, "3": 0, "2": 0, "1": 0}}
+
+    try:
+        survey_stats = conn.execute("""
+            SELECT COUNT(*) as total, AVG(star_rating) as avg_rating
+            FROM surveys WHERE admin_id=%s AND completed_at IS NOT NULL
+            AND created_at::date BETWEEN %s AND %s
+        """, (admin_id, date_from, date_to)).fetchone()
+        satisfaction["survey_count"] = int(survey_stats["total"] or 0)
+        satisfaction["survey_avg_rating"] = round(float(survey_stats["avg_rating"] or 0), 2)
+    except Exception:
+        satisfaction["survey_count"] = 0
+        satisfaction["survey_avg_rating"] = 0
+
+    # 34) Inventory metrics from products table
+    try:
+        inventory_rows = conn.execute("""
+            SELECT product_name, inventory_quantity, low_stock_threshold, cost_price, product_price, product_category
+            FROM products WHERE admin_id=%s
+        """, (admin_id,)).fetchall()
+        low_stock_items = []
+        out_of_stock = 0
+        total_inventory_value = 0
+        for inv in inventory_rows:
+            qty = int(inv["inventory_quantity"] or 0)
+            threshold = int(inv["low_stock_threshold"] or 5)
+            cost = float(inv["cost_price"] or inv["product_price"] or 0)
+            total_inventory_value += cost * qty
+            if qty == 0:
+                out_of_stock += 1
+            if qty <= threshold:
+                low_stock_items.append({
+                    "product_name": inv["product_name"],
+                    "quantity": qty,
+                    "threshold": threshold,
+                    "category": inv["product_category"] or "Uncategorized",
+                })
+        inventory_metrics = {
+            "total_products": len(inventory_rows),
+            "out_of_stock": out_of_stock,
+            "low_stock_count": len(low_stock_items),
+            "low_stock_items": low_stock_items[:20],
+            "total_inventory_value": round(total_inventory_value, 2),
+        }
+    except Exception:
+        inventory_metrics = {"total_products": 0, "out_of_stock": 0, "low_stock_count": 0, "low_stock_items": [], "total_inventory_value": 0}
+
+    # 35) Return rate by product (refunded orders parsed by items_json)
+    try:
+        refunded_orders = conn.execute("""
+            SELECT items_json FROM ecom_orders
+            WHERE admin_id=%s AND DATE(created_at) BETWEEN %s AND %s
+            AND order_status='refunded'
+        """, (admin_id, date_from, date_to)).fetchall()
+        return_product_counts = {}
+        for ro in refunded_orders:
+            try:
+                items = json.loads(ro["items_json"] or "[]")
+                for item in items:
+                    name = item.get("name") or item.get("product_name") or "Unknown"
+                    qty = int(item.get("qty") or item.get("quantity") or 1)
+                    if name not in return_product_counts:
+                        return_product_counts[name] = {"name": name, "returned_units": 0, "sold_units": 0, "return_rate": 0}
+                    return_product_counts[name]["returned_units"] += qty
+            except Exception:
+                pass
+        # Merge with sold units from product_stats
+        for name, rdata in return_product_counts.items():
+            sold = product_stats.get(name, {}).get("units", 0)
+            rdata["sold_units"] = sold
+            rdata["return_rate"] = round(rdata["returned_units"] / max(sold, 1) * 100, 1)
+        return_by_product = sorted(return_product_counts.values(), key=lambda x: x["returned_units"], reverse=True)[:15]
+    except Exception:
+        return_by_product = []
+
+    # 36) Cohort retention — group customers by first purchase month, track reorder months
+    try:
+        cohort_rows = conn.execute("""
+            SELECT customer_email, TO_CHAR(created_at, 'YYYY-MM') as order_month
+            FROM ecom_orders WHERE admin_id=%s
+            AND order_status NOT IN ('cancelled','refunded') AND customer_email <> ''
+            ORDER BY created_at
+        """, (admin_id,)).fetchall()
+        customer_first_month = {}
+        customer_months = {}
+        for cr in cohort_rows:
+            email = cr["customer_email"]
+            month = cr["order_month"]
+            if email not in customer_first_month:
+                customer_first_month[email] = month
+            if email not in customer_months:
+                customer_months[email] = set()
+            customer_months[email].add(month)
+        # Build cohort matrix: for each cohort month, how many customers ordered in month+0, month+1, etc.
+        from collections import defaultdict
+        cohort_sizes = defaultdict(int)
+        cohort_activity = defaultdict(lambda: defaultdict(int))
+        all_months_sorted = sorted(set(customer_first_month.values()))
+        month_index = {m: i for i, m in enumerate(all_months_sorted)}
+        for email, first_m in customer_first_month.items():
+            cohort_sizes[first_m] += 1
+            first_idx = month_index[first_m]
+            for m in customer_months[email]:
+                offset = month_index.get(m, first_idx) - first_idx
+                if 0 <= offset <= 11:
+                    cohort_activity[first_m][offset] += 1
+        cohort_retention = []
+        for cohort_m in all_months_sorted[-12:]:  # last 12 cohorts
+            size = cohort_sizes[cohort_m]
+            if size == 0:
+                continue
+            retention_row = {"cohort": cohort_m, "size": size, "months": {}}
+            for offset in range(min(12, len(all_months_sorted) - month_index[cohort_m])):
+                active = cohort_activity[cohort_m].get(offset, 0)
+                retention_row["months"][str(offset)] = round(active / size * 100, 1)
+            cohort_retention.append(retention_row)
+    except Exception:
+        cohort_retention = []
+
+    # 37) Avg session duration from chat_analytics_events
+    try:
+        session_metrics_row = conn.execute("""
+            SELECT AVG(duration_seconds) as avg_duration,
+                   AVG(scroll_depth) as avg_scroll_depth,
+                   AVG(page_time_seconds) as avg_page_time,
+                   COUNT(*) as total_events
+            FROM chat_analytics_events WHERE admin_id=%s AND created_at::date BETWEEN %s AND %s
+        """, (admin_id, date_from, date_to)).fetchone()
+        session_engagement = {
+            "avg_duration_seconds": round(float(session_metrics_row["avg_duration"] or 0), 1),
+            "avg_scroll_depth": round(float(session_metrics_row["avg_scroll_depth"] or 0), 1),
+            "avg_page_time_seconds": round(float(session_metrics_row["avg_page_time"] or 0), 1),
+            "total_events": int(session_metrics_row["total_events"] or 0),
+        }
+    except Exception:
+        session_engagement = {"avg_duration_seconds": 0, "avg_scroll_depth": 0, "avg_page_time_seconds": 0, "total_events": 0}
+
+    conn.close()
+
+    def _clean_row(r):
+        """Convert Decimal/date types to JSON-friendly float/str."""
+        d = dict(r)
+        for k, v in d.items():
+            if hasattr(v, 'quantize'):
+                d[k] = float(v)
+            elif hasattr(v, 'isoformat'):
+                d[k] = v.isoformat()
+        return d
+
+    return jsonify({
+        "currency": currency,
+        # ── Revenue & Profitability ──
+        "revenue_per_day": [_clean_row(r) for r in revenue_per_day],
+        "total_revenue": total_revenue_f,
+        "total_orders": total_orders_i,
+        "aov": round(float(aov_row["aov"] or 0), 2) if aov_row else 0,
+        "revenue_growth_pct": revenue_growth_pct,
+        "orders_growth_pct": orders_growth_pct,
+        "prev_revenue": round(prev_revenue, 2),
+        "prev_orders": prev_orders,
+        "revenue_per_visitor": revenue_per_visitor,
+        "shipping_cost_total": round(total_shipping, 2),
+        "shipping_pct_of_revenue": shipping_pct,
+        "monthly_trend": [_clean_row(r) for r in monthly_trend],
+        # ── Orders ──
+        "orders_per_day": [_clean_row(r) for r in orders_per_day],
+        "status_breakdown": [_clean_row(r) for r in status_breakdown],
+        "payment_breakdown": [_clean_row(r) for r in payment_breakdown],
+        "revenue_by_hour": [_clean_row(r) for r in revenue_by_hour],
+        "revenue_by_dow": revenue_by_dow,
+        "aov_trend": [_clean_row(r) for r in aov_trend],
+        # ── Products ──
+        "top_products": top_products,
+        "worst_products": worst_products,
+        "product_affinity": top_pairs,
+        "categories": categories,
+        # ── Conversion Funnel ──
+        "funnel": {
+            "visitors": total_visitors,
+            "leads": total_leads,
+            "orders": total_orders_i,
+            "visitor_to_lead_pct": round(total_leads / total_visitors * 100, 1) if total_visitors > 0 else 0,
+            "lead_to_order_pct": round(total_orders_i / total_leads * 100, 1) if total_leads > 0 else 0,
+            "overall_conversion_pct": conversion_rate,
+        },
+        # ── Customer Analytics ──
+        "top_customers": [_clean_row(r) for r in top_customers],
+        "customer_split": {"new": new_customers, "returning": returning_customers},
+        "unique_customers": total_unique,
+        "repeat_buyers": repeat_buyers,
+        "repeat_rate": repeat_rate,
+        "purchase_frequency": purchase_frequency,
+        "avg_clv": avg_clv,
+        "clv_distribution": clv_buckets,
+        "top_clv_customers": clv_values[:10],
+        "churn_rate": churn_rate,
+        "retention_rate": retention_rate,
+        # ── Discount ──
+        "discount_stats": [_clean_row(r) for r in discount_stats],
+        # ── Operations ──
+        "fulfillment": {"avg_days": avg_fulfillment, "total_fulfilled": len(fulfillment_days)},
+        "processing_time": {"avg_hours": avg_processing_hrs, "distribution": proc_buckets},
+        # ── Loss Metrics ──
+        "cancel_rate": cancel_rate,
+        "refund_rate": refund_rate,
+        "total_lost_revenue": round(total_lost_revenue, 2),
+        # ── Chatbot Metrics ──
+        "chatbot": {
+            "total_visitors": total_visitors,
+            "total_sessions": int(chat_metrics["sessions"] or 0),
+            "avg_msgs_per_session": avg_msgs_per_session,
+            "avg_response_length": int(chat_metrics["avg_response_len"] or 0),
+        },
+        # ── Gross Profit ──
+        "gross_profit": gross_profit_data,
+        # ── Traffic Sources ──
+        "traffic_by_source": [_clean_row(r) for r in traffic_by_source],
+        # ── Bounce Rate ──
+        "bounce": bounce_data,
+        # ── Cart Abandonment ──
+        "cart_abandonment": cart_abandonment,
+        # ── Product Views ──
+        "product_views": [_clean_row(r) for r in product_views],
+        # ── Customer Satisfaction ──
+        "satisfaction": satisfaction,
+        # ── Inventory ──
+        "inventory": inventory_metrics,
+        # ── Returns by Product ──
+        "return_by_product": return_by_product,
+        # ── Cohort Retention ──
+        "cohort_retention": cohort_retention,
+        # ── Session Engagement ──
+        "session_engagement": session_engagement,
+    })
+
+
 @app.route("/api/roi", methods=["GET"])
 def api_roi():
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
@@ -6548,6 +15133,337 @@ def api_roi():
     return jsonify(data)
 
 
+@app.route("/api/analytics/conversation-insights", methods=["GET"])
+def api_conversation_insights():
+    """Conversation insights dashboard — trending topics, sentiment, intents."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+    days = int(request.args.get("days", 30))
+
+    insights = db.get_conversation_insights(admin_id, days=days)
+
+    # Generate action recommendations based on data
+    recommendations = []
+    if insights.get("sentiments", {}).get("negative", 0) > 5:
+        neg_pct = insights["sentiments"]["negative"] / max(sum(insights["sentiments"].values()), 1) * 100
+        if neg_pct > 20:
+            recommendations.append({
+                "type": "warning",
+                "title": "High negative sentiment",
+                "description": f"{neg_pct:.0f}% of conversations have negative sentiment. Review recent complaints and consider updating FAQ or product descriptions.",
+            })
+
+    topics = insights.get("trending_topics", [])
+    for t in topics:
+        if t["topic"] == "returns" and t["count"] > 3:
+            recommendations.append({
+                "type": "action",
+                "title": "Return requests trending",
+                "description": f"{t['count']} return-related conversations in the last {days} days. Consider reviewing product quality or updating size guides.",
+            })
+        elif t["topic"] == "availability" and t["count"] > 3:
+            recommendations.append({
+                "type": "action",
+                "title": "Stock inquiries rising",
+                "description": f"{t['count']} stock-related questions. Check inventory levels and consider restocking popular items.",
+            })
+        elif t["topic"] == "shipping" and t["count"] > 5:
+            recommendations.append({
+                "type": "info",
+                "title": "Shipping is a hot topic",
+                "description": f"{t['count']} shipping questions. Consider adding shipping info to your product pages or chatbot FAQ.",
+            })
+
+    insights["recommendations"] = recommendations
+    return jsonify(insights)
+
+
+@app.route("/api/analytics/revenue-attribution", methods=["GET"])
+def api_revenue_attribution():
+    """Revenue attribution dashboard — chatbot-influenced revenue tracking."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+    days = int(request.args.get("days", 30))
+    data = db.get_revenue_attribution(admin_id, days=days)
+    return jsonify(data)
+
+
+@app.route("/api/wishlist", methods=["GET"])
+def api_wishlist():
+    """Get customer wishlist items."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+    email = request.args.get("email", "").lower().strip()
+    if not email:
+        return jsonify({"error": "Email required"}), 400
+    items = db.get_wishlist(admin_id, email)
+    return jsonify(items)
+
+
+@app.route("/api/analytics/customer-interests", methods=["GET"])
+def api_customer_interests():
+    """Get customer interest profile for personalization."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+    customer_key = request.args.get("customer", "").lower().strip()
+    if not customer_key:
+        return jsonify({"error": "Customer key required"}), 400
+    interests = db.get_customer_interests(admin_id, customer_key)
+    return jsonify(interests)
+
+
+@app.route("/api/analytics/merchant-copilot", methods=["GET"])
+def api_merchant_copilot():
+    """Merchant AI Co-Pilot — business intelligence from chatbot data."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+    days = int(request.args.get("days", 30))
+    query = request.args.get("q", "").strip()
+
+    summary = db.get_merchant_analytics_summary(admin_id, days=days)
+
+    # If a natural language query is provided, add contextual insight
+    if query:
+        q_lower = query.lower()
+        insights = []
+        if "return" in q_lower or "spike" in q_lower:
+            rd = summary.get("returns", {})
+            insights.append(f"Return rate over the last {days} days: {rd.get('return_rate', 0)}% ({rd.get('returned', 0)} of {rd.get('total_feedback', 0)} tracked).")
+            fit_issues = []
+            try:
+                stats = db.get_size_fit_stats(admin_id)
+                for issue in stats.get("fit_issues", [])[:3]:
+                    fit_issues.append(f"Size {issue['size']}: {issue['issue']} ({issue['count']}x)")
+            except Exception:
+                pass
+            if fit_issues:
+                insights.append("Top return reasons: " + "; ".join(fit_issues))
+        if "restock" in q_lower or "stock" in q_lower or "inventory" in q_lower:
+            low = summary.get("low_stock", [])
+            if low:
+                insights.append("Products needing restock: " + ", ".join(f"{p['name']} ({p['qty']} left)" for p in low))
+            else:
+                insights.append("No products are critically low on stock right now.")
+        if "revenue" in q_lower or "sales" in q_lower or "money" in q_lower:
+            rev = summary.get("revenue", {})
+            insights.append(f"Revenue (last {days}d): ${rev.get('total', 0):,.2f} from {rev.get('orders', 0)} orders ({rev.get('unique_customers', 0)} customers).")
+        if "top" in q_lower or "best" in q_lower or "product" in q_lower:
+            top = summary.get("top_products", [])
+            if top:
+                insights.append("Top products: " + ", ".join(f"{p['name']} (${p['revenue']:,.2f}, {p['sales']} sales)" for p in top[:5]))
+        if "fraud" in q_lower:
+            insights.append(f"Unresolved fraud alerts: {summary.get('unresolved_fraud_alerts', 0)}")
+        if "topic" in q_lower or "customer" in q_lower and "ask" in q_lower:
+            topics = summary.get("top_topics", [])
+            if topics:
+                insights.append("Top conversation topics: " + ", ".join(f"{t['topic']} ({t['count']})" for t in topics[:5]))
+        if "funnel" in q_lower or "conversion" in q_lower:
+            funnel = summary.get("funnel", {})
+            views = funnel.get("product_view", 0)
+            carts = funnel.get("add_to_cart", 0)
+            purchases = funnel.get("purchase", 0)
+            insights.append(f"Funnel: {views} views → {carts} add-to-cart → {purchases} purchases")
+            if views > 0:
+                insights.append(f"View-to-cart: {carts/views*100:.1f}%, Cart-to-purchase: {purchases/carts*100:.1f}%" if carts > 0 else f"View-to-cart: {carts/views*100:.1f}%")
+
+        summary["query"] = query
+        summary["insights"] = insights if insights else ["I don't have specific data for that query. Try: returns, restock, revenue, top products, fraud, funnel."]
+
+    return jsonify(summary)
+
+
+@app.route("/api/competitor-prices", methods=["GET", "POST"])
+def api_competitor_prices():
+    """Manage competitor pricing data."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+
+    if request.method == "POST":
+        data = request.get_json() or {}
+        product_id = data.get("product_id")
+        competitor_name = data.get("competitor_name", "").strip()
+        competitor_price = float(data.get("competitor_price", 0))
+        if not product_id or not competitor_name:
+            return jsonify({"error": "product_id and competitor_name required"}), 400
+        db.upsert_competitor_price(
+            admin_id, product_id, competitor_name, competitor_price,
+            data.get("competitor_url", ""), data.get("our_advantages", "")
+        )
+        return jsonify({"ok": True})
+    else:
+        product_id = request.args.get("product_id")
+        if product_id:
+            return jsonify(db.get_competitor_prices(admin_id, int(product_id)))
+        return jsonify({"error": "product_id required"}), 400
+
+
+@app.route("/api/fraud-signals", methods=["GET"])
+def api_fraud_signals():
+    """View fraud detection signals."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+    session_id = request.args.get("session_id")
+    signals = db.get_fraud_signals(admin_id, session_id=session_id)
+    return jsonify(signals)
+
+
+@app.route("/api/size-fit/stats", methods=["GET"])
+def api_size_fit_stats():
+    """Get aggregate size/fit data for a product or brand."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+    product_id = request.args.get("product_id")
+    brand = request.args.get("brand")
+    category = request.args.get("category")
+    stats = db.get_size_fit_stats(admin_id, product_id=int(product_id) if product_id else None,
+                                  brand=brand, category=category)
+    return jsonify(stats)
+
+
+@app.route("/api/price-watches", methods=["GET"])
+def api_price_watches():
+    """Get active price watches for a customer."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+    email = request.args.get("email", "").lower().strip()
+    if not email:
+        return jsonify({"error": "Email required"}), 400
+    watches = db.get_price_watches(admin_id, email)
+    return jsonify(watches)
+
+
+@app.route("/api/knowledge-base", methods=["GET", "POST"])
+def api_knowledge_base():
+    """CRUD for AI knowledge base entries."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+
+    if request.method == "GET":
+        category = request.args.get("category")
+        entries = db.get_knowledge_base(admin_id, category)
+        return jsonify(entries)
+
+    # POST — add new entry
+    data = request.get_json(silent=True) or {}
+    question = (data.get("question") or "").strip()
+    answer = (data.get("answer") or "").strip()
+    if not question or not answer:
+        return jsonify({"error": "Both question and answer are required"}), 400
+
+    db.add_knowledge_entry(
+        admin_id, question, answer,
+        category=data.get("category", "general"),
+        keywords=data.get("keywords", ""),
+        entry_type=data.get("entry_type", "qa"),
+        source=data.get("source", "manual"),
+    )
+    return jsonify({"ok": True, "message": "Knowledge entry added"})
+
+
+@app.route("/api/knowledge-base/<int:entry_id>", methods=["PUT", "DELETE"])
+def api_knowledge_base_entry(entry_id):
+    """Update or delete a knowledge base entry."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+
+    if request.method == "DELETE":
+        db.delete_knowledge_entry(entry_id, admin_id)
+        return jsonify({"ok": True})
+
+    data = request.get_json(silent=True) or {}
+    db.update_knowledge_entry(entry_id, admin_id, **data)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/guardrails", methods=["GET", "POST"])
+def api_guardrails():
+    """CRUD for AI guardrails."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+
+    if request.method == "GET":
+        rules = db.get_guardrails(admin_id)
+        return jsonify(rules)
+
+    data = request.get_json(silent=True) or {}
+    rule_type = (data.get("rule_type") or "").strip()
+    rule_value = (data.get("rule_value") or "").strip()
+    if not rule_type or not rule_value:
+        return jsonify({"error": "rule_type and rule_value are required"}), 400
+
+    valid_types = {"block_topic", "block_word", "require_disclaimer"}
+    if rule_type not in valid_types:
+        return jsonify({"error": f"Invalid rule_type. Must be one of: {', '.join(valid_types)}"}), 422
+
+    db.add_guardrail(admin_id, rule_type, rule_value, data.get("replacement_response", ""))
+    return jsonify({"ok": True, "message": "Guardrail added"})
+
+
+@app.route("/api/guardrails/<int:guardrail_id>", methods=["DELETE"])
+def api_guardrail_delete(guardrail_id):
+    """Delete a guardrail."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+    db.delete_guardrail(guardrail_id, admin_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/analytics/browse-recovery", methods=["POST"])
+def api_browse_recovery():
+    """Trigger abandoned browse recovery emails. Call via cron or manually."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "Not available for your account type"}), 403
+    try:
+        sent = _send_browse_recovery_emails(admin_id)
+        return jsonify({"ok": True, "emails_sent": sent})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 @app.route("/api/external/booking", methods=["POST"])
 def api_external_booking():
     """External endpoint for syncing appointments from a website/PMS."""
@@ -6559,7 +15475,7 @@ def api_external_booking():
 
     # Plan check — Appointment API requires Enterprise plan
     admin_user = db.get_user_by_id(admin_id)
-    if not admin_user or (admin_user.get("plan") or "free_trial").lower() != "agency":
+    if not admin_user or (admin_user.get("plan") or "free_trial").lower() != "enterprise":
         return jsonify({"error": "Appointment API requires an Enterprise plan."}), 403
 
     data = request.get_json(silent=True) or {}
@@ -6763,6 +15679,12 @@ def api_external_booking():
         db.add_booking_revenue(booking_id, svc_row["price"])
     svc_conn.close()
 
+    # ── PMS auto-sync: push booking to configured dental PMS ──
+    try:
+        sync_booking_to_pms(admin_id, booking_id)
+    except Exception:
+        pass
+
     # -- Zapier webhook: new booking (external sync) --
     try:
         zapier_engine.trigger_new_booking(admin_id, {
@@ -6774,6 +15696,12 @@ def api_external_booking():
         })
     except Exception:
         pass
+
+    # Sync to Google Calendar (blocks slot on Calendly too since Calendly reads GCal availability)
+    try:
+        gcal_engine.sync_booking_to_gcal(booking_id)
+    except Exception as e:
+        print(f"[external-booking] Google Calendar sync failed: {e}", flush=True)
 
     return jsonify({"ok": True, "booking_id": booking_id, "patient_id": patient["id"], "is_returning": patient.get("total_bookings", 1) > 1, "message": "Appointment synced successfully"}), 201
 
@@ -6833,8 +15761,8 @@ def api_manual_booking():
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Not authenticated"}), 401
-    if user.get("role") not in ("admin", "head_admin"):
-        return jsonify({"error": "Only admins can add appointments"}), 403
+    if user.get("role") not in ("admin", "head_admin", "doctor"):
+        return jsonify({"error": "Permission denied"}), 403
     admin_id = get_effective_admin_id(user)
 
     data = request.get_json(silent=True) or {}
@@ -6847,6 +15775,13 @@ def api_manual_booking():
     service = (data.get("service") or "General Consultation").strip()
     notes = (data.get("notes") or "").strip()
 
+    # Doctors can only create appointments for themselves
+    if user.get("role") == "doctor":
+        linked_doctor = db.get_doctor_by_user_id(user["id"])
+        if not linked_doctor:
+            return jsonify({"error": "No doctor profile linked to your account"}), 403
+        doctor_id = linked_doctor["id"]
+
     if not patient_name or not doctor_id or not date_str or not time_str:
         return jsonify({"error": "Missing required fields: patient_name, doctor_id, date, time"}), 400
 
@@ -6854,6 +15789,10 @@ def api_manual_booking():
     doctor = db.get_doctor_by_id(doctor_id)
     if not doctor or doctor.get("admin_id") != admin_id:
         return jsonify({"error": "Doctor not found"}), 404
+
+    # Double-check: doctors can only book for themselves
+    if user.get("role") == "doctor" and doctor.get("user_id") != user["id"]:
+        return jsonify({"error": "You can only create appointments for yourself"}), 403
 
     # Check for double-booking
     conn = db.get_db()
@@ -6888,6 +15827,12 @@ def api_manual_booking():
 
     db.log_admin_action(admin_id, user, "Created booking", f"Booking #{booking_id} for {patient_name} on {date_str} at {time_str}")
 
+    # ── PMS auto-sync: push booking to configured dental PMS ──
+    try:
+        sync_booking_to_pms(admin_id, booking_id)
+    except Exception:
+        pass
+
     # ── Zapier webhook: new booking (manual) ──
     try:
         zapier_engine.trigger_new_booking(admin_id, {
@@ -6900,7 +15845,129 @@ def api_manual_booking():
     except Exception:
         pass
 
+    # Sync to Google Calendar (blocks slot on Calendly too since Calendly reads GCal availability)
+    try:
+        gcal_engine.sync_booking_to_gcal(booking_id)
+    except Exception as e:
+        print(f"[manual-booking] Google Calendar sync failed: {e}", flush=True)
+
     return jsonify({"ok": True, "booking_id": booking_id, "message": "Appointment added successfully"}), 201
+
+
+@app.route("/api/bookings/<int:booking_id>/reschedule", methods=["POST"])
+def api_reschedule_booking(booking_id):
+    """Admin/head_admin endpoint to reschedule a booking."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    if user.get("role") not in ("admin", "head_admin"):
+        return jsonify({"error": "Only admins can reschedule appointments"}), 403
+    admin_id = get_effective_admin_id(user)
+
+    data = request.get_json(silent=True) or {}
+    new_date = (data.get("date") or "").strip()
+    new_time = (data.get("time") or "").strip()
+    new_doctor_id = data.get("doctor_id")
+    new_service = (data.get("service") or "").strip()
+
+    if not new_date or not new_time:
+        return jsonify({"error": "New date and time are required"}), 400
+
+    # Get existing booking
+    conn = db.get_db()
+    booking = conn.execute("SELECT * FROM bookings WHERE id=%s AND admin_id=%s", (booking_id, admin_id)).fetchone()
+    if not booking:
+        conn.close()
+        return jsonify({"error": "Booking not found"}), 404
+    booking = dict(booking)
+
+    if booking["status"] in ("cancelled", "no_show"):
+        conn.close()
+        return jsonify({"error": "Cannot reschedule a cancelled or no-show booking"}), 400
+
+    # Resolve doctor
+    doctor_id = new_doctor_id or booking["doctor_id"]
+    doctor = db.get_doctor_by_id(doctor_id)
+    if not doctor or doctor.get("admin_id") != admin_id:
+        conn.close()
+        return jsonify({"error": "Doctor not found"}), 404
+    doctor_name = doctor.get("name", "")
+
+    # Check for double-booking (exclude current booking)
+    existing = conn.execute(
+        "SELECT id FROM bookings WHERE admin_id=%s AND doctor_id=%s AND date=%s AND time=%s AND status NOT IN ('cancelled','no_show') AND id != %s",
+        (admin_id, doctor_id, new_date, new_time, booking_id)
+    ).fetchone()
+    if existing:
+        conn.close()
+        return jsonify({"error": f"Time slot {new_date} {new_time} is already booked for Dr. {doctor_name}"}), 409
+
+    # Update booking
+    update_fields = "date=%s, time=%s, doctor_id=%s, doctor_name=%s"
+    update_vals = [new_date, new_time, doctor_id, doctor_name]
+    if new_service:
+        update_fields += ", service=%s"
+        update_vals.append(new_service)
+    update_vals.append(booking_id)
+    conn.execute(f"UPDATE bookings SET {update_fields} WHERE id=%s", tuple(update_vals))
+    conn.commit()
+    conn.close()
+
+    db.log_admin_action(admin_id, user, "Rescheduled booking",
+        f"Booking #{booking_id} from {booking['date']} {booking['time']} to {new_date} {new_time}")
+
+    # Sync to PMS
+    try:
+        reschedule_booking_in_pms(admin_id, booking_id, new_date, new_time, doctor_name)
+    except Exception:
+        pass
+
+    # Sync to Google Calendar
+    try:
+        gcal_engine.sync_booking_to_gcal(booking_id)
+    except Exception:
+        pass
+
+    # Send reschedule notification email to patient
+    customer_name = booking.get("name") or booking.get("customer_name") or "Patient"
+    customer_email = booking.get("email") or booking.get("customer_email") or ""
+    customer_phone = booking.get("phone") or booking.get("customer_phone") or ""
+    service_name = new_service or booking.get("service") or ""
+    old_date = booking.get("date", "")
+    old_time = booking.get("time", "")
+
+    if customer_email:
+        try:
+            email.send_booking_reschedule(
+                customer_email, customer_name,
+                old_date, old_time, new_date, new_time,
+                doctor_name=doctor_name, service_name=service_name,
+                admin_id=admin_id
+            )
+            print(f"[reschedule] Email sent to {customer_email}", flush=True)
+        except Exception as e:
+            print(f"[reschedule] Email error: {e}", flush=True)
+
+    # Send WhatsApp notification if configured
+    if customer_phone:
+        try:
+            wa_msg = (
+                f"Hi {customer_name}, your appointment has been rescheduled.\n\n"
+                f"Previous: {old_date} at {old_time}\n"
+                f"New: {new_date} at {new_time}\n"
+            )
+            if doctor_name:
+                wa_msg += f"Doctor: Dr. {doctor_name}\n"
+            if service_name:
+                wa_msg += f"Service: {service_name}\n"
+            wa_msg += "\nIf you have any questions, please contact us."
+            channel_engine.send_whatsapp_message(customer_phone, wa_msg, admin_id)
+            print(f"[reschedule] WhatsApp sent to {customer_phone[-4:]}", flush=True)
+        except Exception as e:
+            print(f"[reschedule] WhatsApp error: {e}", flush=True)
+
+    return jsonify({"ok": True, "message": f"Rescheduled to {new_date} at {new_time} with Dr. {doctor_name}"}), 200
 
 
 @app.route("/api/roi/stats", methods=["GET"])
@@ -7012,6 +16079,91 @@ def api_get_company_info():
     return jsonify(info or {})
 
 
+@app.route("/api/setup-status", methods=["GET"])
+def api_setup_status():
+    """Check if the store owner has completed the required setup steps before embedding."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    company_type = db.get_company_type(admin_id)
+
+    # Step 1: Company/Store info — required fields for chatbot to operate
+    has_store_info = False
+    missing_fields = []
+    ci = db.get_company_info(admin_id)
+    if company_type == "ecommerce":
+        ss = db.get_store_settings(admin_id)
+        if ss and ss.get("store_name", "").strip() and ss.get("store_url", "").strip() and ss.get("store_currency", "").strip():
+            has_store_info = True
+        else:
+            if not ss or not ss.get("store_name", "").strip():
+                missing_fields.append("Store Name")
+            if not ss or not ss.get("store_url", "").strip():
+                missing_fields.append("Store URL")
+            if not ss or not ss.get("store_currency", "").strip():
+                missing_fields.append("Currency")
+    else:
+        if ci and ci.get("business_name", "").strip():
+            has_store_info = True
+        else:
+            missing_fields.append("Business Name")
+
+    # Step 2: Products (ecommerce only)
+    products = []
+    has_products = True
+    if company_type == "ecommerce":
+        products = db.get_products(admin_id, "active")
+        has_products = len(products) > 0
+
+    # Step 3: Product links (ecommerce only) — ALL products must have a real external link
+    has_product_links = True
+    products_missing_links = 0
+    _invalid_link_prefixes = ("https://yourstore.com",)
+    if company_type == "ecommerce" and products:
+        for p in products:
+            url = (p.get("product_url") or "").strip()
+            if not url or url.lower().startswith(_invalid_link_prefixes):
+                products_missing_links += 1
+        has_product_links = products_missing_links == 0
+
+    # Step 4: At least 1 doctor with working hours (dental/real_estate)
+    has_doctor = True
+    doctor_count = 0
+    if company_type != "ecommerce":
+        doctors = db.get_doctors(admin_id)
+        doctor_count = len(doctors)
+        # Need at least one doctor with start_time and end_time set
+        has_doctor = any(
+            d.get("start_time", "").strip() and d.get("end_time", "").strip()
+            for d in doctors
+        ) if doctors else False
+
+    # Step 5: Customer endpoint configured (required)
+    has_customer_endpoint = bool((ci or {}).get("customers_api_url", "").strip())
+
+    if company_type == "ecommerce":
+        ready = has_store_info and has_products and has_product_links and has_customer_endpoint
+    else:
+        ready = has_store_info and has_doctor and has_customer_endpoint
+
+    result = {
+        "ready": ready,
+        "company_type": company_type,
+        "store_info": has_store_info,
+        "products": has_products,
+        "product_links": has_product_links,
+        "products_missing_links": products_missing_links,
+        "total_products": len(products),
+        "missing_fields": missing_fields,
+        "has_doctor": has_doctor,
+        "doctor_count": doctor_count,
+        "has_customer_endpoint": has_customer_endpoint,
+    }
+    return jsonify(result)
+
+
 @app.route("/api/embed-id", methods=["GET"])
 def api_embed_id():
     """Return the public GUID for embed code — resolves to the effective company admin."""
@@ -7058,6 +16210,49 @@ def api_save_company_info():
         db.set_all_services_currency(admin_id, new_currency)
     db.log_admin_action(admin_id, user, "Updated company info", "")
     return jsonify({"ok": True})
+
+
+COMPANY_IMG_DIR = os.path.join(os.path.dirname(__file__), "uploads", "company_images")
+os.makedirs(COMPANY_IMG_DIR, exist_ok=True)
+
+
+@app.route("/api/company-info/upload-image", methods=["POST"])
+def api_upload_company_image():
+    user = db.get_user_by_token(request.headers.get("Authorization", "").replace("Bearer ", ""))
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 403
+    field = request.form.get("field", "store_image")  # "store_image" or "logo_url"
+    if field not in ("store_image", "logo_url"):
+        return jsonify({"error": "Invalid field"}), 400
+    if "image" not in request.files:
+        return jsonify({"error": "No image provided"}), 400
+    file = request.files["image"]
+    if not file.filename:
+        return jsonify({"error": "Empty filename"}), 400
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"):
+        return jsonify({"error": "Invalid image type"}), 400
+    import uuid
+    safe_name = f"{uuid.uuid4().hex}{ext}"
+    file.save(os.path.join(COMPANY_IMG_DIR, safe_name))
+    base_url = request.host_url.rstrip("/")
+    url = f"{base_url}/uploads/company_images/{safe_name}"
+    # Save to company_info
+    admin_id = get_effective_admin_id(user)
+    conn = db.get_db()
+    existing = conn.execute("SELECT id FROM company_info WHERE user_id=%s", (admin_id,)).fetchone()
+    if existing:
+        conn.execute(f"UPDATE company_info SET {field}=%s, updated_at=CURRENT_TIMESTAMP WHERE user_id=%s", (url, admin_id))
+    else:
+        conn.execute(f"INSERT INTO company_info (user_id, {field}) VALUES (%s, %s)", (admin_id, url))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "url": url, "field": field})
+
+
+@app.route("/uploads/company_images/<path:filename>")
+def serve_company_image(filename):
+    return send_from_directory(COMPANY_IMG_DIR, filename)
 
 
 @app.route("/api/company-info/currency", methods=["POST"])
@@ -7311,8 +16506,8 @@ def api_get_customers_api_config():
     if not is_admin_role(user):
         return jsonify({"error": "Admin only"}), 403
     plan = (user.get("plan") or "free_trial").lower()
-    if plan not in ("pro", "agency"):
-        return jsonify({"error": "Customer DB API requires a Pro or Enterprise plan."}), 403
+    if plan not in ("growth", "pro", "enterprise"):
+        return jsonify({"error": "Customer DB API requires a Growth plan or above."}), 403
     admin_id = get_effective_admin_id(user)
     config = db.get_customers_api_config(admin_id)
     return jsonify(config)
@@ -7327,8 +16522,8 @@ def api_save_customers_api_config():
     if not is_admin_role(user):
         return jsonify({"error": "Admin only"}), 403
     plan = (user.get("plan") or "free_trial").lower()
-    if plan not in ("pro", "agency"):
-        return jsonify({"error": "Customer DB API requires a Pro or Enterprise plan."}), 403
+    if plan not in ("growth", "pro", "enterprise"):
+        return jsonify({"error": "Customer DB API requires a Growth plan or above."}), 403
     data = request.get_json(silent=True) or {}
     api_url = data.get("customers_api_url", "").strip()
     # Bug 4 fix: SSRF validation on save as well
@@ -7360,8 +16555,8 @@ def api_test_customers_api():
     if not is_admin_role(user):
         return jsonify({"error": "Admin only"}), 403
     plan = (user.get("plan") or "free_trial").lower()
-    if plan not in ("pro", "agency"):
-        return jsonify({"error": "Customer DB API requires a Pro or Enterprise plan."}), 403
+    if plan not in ("growth", "pro", "enterprise"):
+        return jsonify({"error": "Customer DB API requires a Growth plan or above."}), 403
     data = request.get_json(silent=True) or {}
     url = data.get("customers_api_url", "").strip().rstrip("/")
     key = data.get("customers_api_key", "").strip()
@@ -7407,6 +16602,14 @@ def api_add_doctor():
         return jsonify({"error": "Not authenticated"}), 401
     if not is_admin_role(user):
         return jsonify({"error": "Only administrators can add doctors."}), 403
+
+    # Plan limit check: doctors
+    admin_id = get_effective_admin_id(user)
+    within_limit, count, max_allowed = db.check_plan_limit(admin_id, "doctors")
+    if not within_limit:
+        plan = db.get_admin_plan(admin_id)
+        return jsonify({"error": f"Your {plan.capitalize()} plan allows up to {max_allowed} doctor(s). Upgrade to add more."}), 403
+
     data = request.get_json(silent=True) or {}
     name = data.get("name", "").strip()
     doctor_email = data.get("email", "").strip().lower()
@@ -8175,6 +17378,14 @@ def api_invite_admin():
         return jsonify({"error": "Not authenticated"}), 401
     if user.get("role") != "head_admin":
         return jsonify({"error": "Only head administrators can invite admins."}), 403
+
+    # Plan limit check: staff
+    admin_id = get_effective_admin_id(user)
+    within_limit, count, max_allowed = db.check_plan_limit(admin_id, "staff")
+    if not within_limit:
+        plan = db.get_admin_plan(admin_id)
+        return jsonify({"error": f"Your {plan.capitalize()} plan allows up to {max_allowed} staff account(s). Upgrade to add more."}), 403
+
     data = request.get_json(silent=True) or {}
     admin_email = data.get("email", "").strip().lower()
     if not admin_email:
@@ -8233,6 +17444,11 @@ def api_respond_admin_request(request_id):
     if error:
         return jsonify({"error": error}), 400
     updated_user = db.get_user_by_token(token)
+    # Seed default staff permissions for ecommerce
+    if accept and updated_user and updated_user.get("admin_id"):
+        ct = db.get_company_type(updated_user["admin_id"])
+        if ct == "ecommerce":
+            db.seed_default_staff_permissions(updated_user["admin_id"], updated_user["id"])
     return jsonify({"ok": True, "accepted": accept, "user": db.user_to_public(updated_user) if updated_user else None})
 
 
@@ -8295,7 +17511,10 @@ def api_add_to_waitlist():
     """Add a patient to the waitlist for a specific slot."""
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     data = request.get_json(silent=True) or {}
-    admin_id = data.get("admin_id", 1)
+    admin_id = data.get("admin_id")
+    if not admin_id:
+        return jsonify({"error": "Missing admin_id"}), 400
+    admin_id = int(admin_id)
     wid = db.add_to_waitlist(
         admin_id=admin_id,
         doctor_id=data["doctor_id"],
@@ -8386,6 +17605,12 @@ def api_confirm_waitlist(wid):
         admin_id=entry["admin_id"],
         status="pending"
     )
+
+    # ── PMS auto-sync: push booking to configured dental PMS ─��
+    try:
+        sync_booking_to_pms(entry["admin_id"], booking_id)
+    except Exception:
+        pass
 
     # Link booking to waitlist entry
     try:
@@ -8484,6 +17709,22 @@ def api_save_feature_config():
         return jsonify({"error": "Permission denied"}), 403
     admin_id = get_effective_admin_id(user)
     data = request.get_json() or {}
+    # Plan enforcement: block enabling features that require a higher plan
+    _feature_toggle_plan_map = {
+        "sms_booking_confirmation": "twilio_sms",
+        "sms_appointment_reminder": "twilio_sms",
+        "sms_noshow_recovery": "noshow_detection",
+        "auto_recall": "recall_campaigns",
+        "auto_followups": "treatment_followups",
+        "missed_call_autoreply": "missed_call_handling",
+        "auto_waitlist": "waitlist",
+    }
+    for toggle_key, feature_key in _feature_toggle_plan_map.items():
+        val = str(data.get(toggle_key, "")).lower()
+        if val in ("true", "1", "yes", "on"):
+            allowed, req_plan = db.can_use_feature(admin_id, feature_key)
+            if not allowed:
+                return jsonify({"error": f"Enabling {toggle_key.replace('_', ' ')} requires the {req_plan.capitalize()} plan or above."}), 403
     # Prevent enabling SMS toggles if Twilio is not configured
     sms_toggle_keys = ("sms_booking_confirmation", "sms_appointment_reminder", "sms_noshow_recovery")
     enabling_sms = any(str(data.get(k, "")).lower() in ("true", "1", "yes", "on") for k in sms_toggle_keys)
@@ -8532,9 +17773,11 @@ def api_add_custom_form_field():
         return jsonify({"error": "Not authenticated"}), 401
     if user.get("role") not in ("admin", "head_admin"):
         return jsonify({"error": "Access denied"}), 403
-    if user.get("plan") != "agency":
-        return jsonify({"error": "Custom fields are only available on the Enterprise plan"}), 403
     admin_id = get_effective_admin_id(user)
+    # Plan limit check: custom field count
+    within_limit, count, max_allowed = db.check_plan_limit(admin_id, "custom_fields")
+    if not within_limit:
+        return jsonify({"error": f"Your plan allows up to {max_allowed} custom fields. Upgrade to add more."}), 403
     data = request.get_json(silent=True) or {}
     field_name = (data.get("field_name") or "").strip()
     field_type = data.get("field_type", "text")
@@ -8562,7 +17805,7 @@ def api_delete_custom_form_field(field_id):
     return jsonify({"ok": True})
 
 
-# ── Chatbot Customization (Enterprise plan only) ──
+# ── Chatbot Customization (Growth+ plans) ──
 
 @app.route("/api/chatbot-customization", methods=["GET"])
 def get_chatbot_customization_api():
@@ -8571,8 +17814,8 @@ def get_chatbot_customization_api():
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
     plan = user.get("plan", "free_trial")
-    if plan != "agency":
-        return jsonify({"error": "Chatbot customization requires an Enterprise plan."}), 403
+    if plan not in ("growth", "pro", "enterprise", "free_trial"):
+        return jsonify({"error": "Chatbot customization requires a Growth plan or above."}), 403
     admin_id = get_effective_admin_id(user)
     customization = db.get_chatbot_customization(admin_id)
     return jsonify(customization or {})
@@ -8586,10 +17829,8 @@ def save_chatbot_customization_api():
         return jsonify({"error": "Unauthorized"}), 401
     if not is_admin_role(user):
         return jsonify({"error": "Only administrators can edit chatbot customization."}), 403
-    plan = user.get("plan", "free_trial")
-    if plan != "agency":
-        return jsonify({"error": "Chatbot customization requires an Enterprise plan."}), 403
     admin_id = get_effective_admin_id(user)
+    # Plan check handled by before_request hook (chatbot_customization = Growth+)
     data = request.get_json() or {}
     db.save_chatbot_customization(admin_id, data)
     db.log_admin_action(admin_id, user, "Updated chatbot customization", "")
@@ -8614,8 +17855,41 @@ def get_chatbot_customization_public(admin_id_raw):
     plan = user.get("plan", "free_trial")
     customization = db.get_chatbot_customization(admin_id)
     result = customization or {}
-    result["hide_watermark"] = (plan == "agency")
-    result["voice_enabled"] = (plan == "agency")
+    plan_level = db.get_plan_level(plan)
+    result["hide_watermark"] = (plan_level >= 3)   # Pro+ can remove watermark
+    result["voice_enabled"] = (plan_level >= 3)     # Pro+ voice input
+    # Include ecommerce platform info for native cart integration
+    try:
+        integration = db.get_ecom_integration(admin_id)
+        if integration and integration.get("ecommerce_platform"):
+            result["ecom_platform"] = integration["ecommerce_platform"]
+            # Pass storefront URL so widget knows the store domain
+            sf_url = integration.get("storefront_url", "")
+            if not sf_url:
+                # For Shopify/WooCommerce/Magento, platform_store_url IS the storefront
+                platform = integration["ecommerce_platform"]
+                if platform in ("shopify", "woocommerce", "magento"):
+                    sf_url = integration.get("platform_store_url", "")
+            if sf_url:
+                result["store_url"] = sf_url
+    except Exception:
+        pass
+    # Include cart integration settings
+    try:
+        store_settings = db.get_store_settings(admin_id)
+        if store_settings:
+            if store_settings.get("cart_add_url"):
+                result["cart_add_url"] = store_settings["cart_add_url"]
+            cart_mode = store_settings.get("cart_integration_mode", "product_link")
+            # Only allow native_cart for enterprise plans
+            if cart_mode == "native_cart" and plan != "enterprise":
+                cart_mode = "product_link"
+            result["cart_integration_mode"] = cart_mode
+            # If native_cart and not marked done, chatbot should show setup notice
+            if cart_mode == "native_cart" and not store_settings.get("cart_integration_done"):
+                result["cart_integration_pending"] = True
+    except Exception:
+        pass
     return jsonify(result)
 
 
@@ -8929,6 +18203,7 @@ def api_submit_noshow_reason(token):
                     date_display,
                     booking["time"],
                     reason=reason,
+                    admin_id=booking.get("admin_id"),
                 )
         except Exception as e:
             print(f"[noshow] ERROR sending reason to doctor: {e}", flush=True)
@@ -8943,6 +18218,12 @@ def api_get_booking_form(booking_id):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    conn = db.get_db()
+    booking = conn.execute("SELECT admin_id FROM bookings WHERE id=%s", (booking_id,)).fetchone()
+    conn.close()
+    if not booking or booking["admin_id"] != admin_id:
+        return jsonify({"error": "No form found"}), 404
     form = db.get_form_for_booking(booking_id)
     if not form:
         return jsonify({"error": "No form found"}), 404
@@ -8956,12 +18237,16 @@ def api_booking_full_details(booking_id):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
     conn = db.get_db()
     booking = conn.execute("SELECT * FROM bookings WHERE id=%s", (booking_id,)).fetchone()
     if not booking:
         conn.close()
         return jsonify({"error": "Booking not found"}), 404
     booking = dict(booking)
+    if booking.get("admin_id") != admin_id:
+        conn.close()
+        return jsonify({"error": "Booking not found"}), 404
 
     # Booking type
     booking_type = "Service" if booking.get("service_id") else "Appointment"
@@ -9090,6 +18375,8 @@ def booking_cancel_page(token):
     conn.execute("UPDATE bookings SET status='cancelled', cancel_token='', cancelled_at=CURRENT_TIMESTAMP WHERE id=%s", (booking["id"],))
     conn.commit()
     conn.close()
+    # Sync cancellation to PMS
+    cancel_booking_in_pms(booking.get("admin_id", 0), booking["id"])
     # Update patient stats
     try:
         if booking.get("patient_id"):
@@ -9647,6 +18934,12 @@ def api_recall_book():
 
     db.mark_recall_booked(campaign["id"], booking_id=bid)
 
+    # ── PMS auto-sync: push booking to configured dental PMS ──
+    try:
+        sync_booking_to_pms(admin_id, bid)
+    except Exception:
+        pass
+
     # Send confirmation email
     try:
         import email_service as email_svc
@@ -9667,8 +18960,16 @@ def api_recall_book():
 @app.route("/api/missed-calls/webhook", methods=["POST"])
 def api_missed_call_webhook():
     """Webhook endpoint for Twilio/phone system to report missed calls."""
+    webhook_secret = os.environ.get("WEBHOOK_SECRET", "")
+    if webhook_secret:
+        provided = request.headers.get("X-Webhook-Secret", "")
+        if not provided or provided != webhook_secret:
+            return jsonify({"error": "Forbidden"}), 403
     data = request.get_json() or request.form.to_dict()
-    admin_id = data.get("admin_id", 1)
+    admin_id = data.get("admin_id")
+    if not admin_id:
+        return jsonify({"error": "Missing admin_id"}), 400
+    admin_id = int(admin_id)
     caller = data.get("From") or data.get("caller_number", "")
     if not caller:
         return jsonify({"error": "No caller number"}), 400
@@ -10169,6 +19470,12 @@ def api_followup_book():
 
     db.mark_followup_booked(followup["id"], booking_id=bid)
 
+    # ── PMS auto-sync: push booking to configured dental PMS ──
+    try:
+        sync_booking_to_pms(admin_id, bid)
+    except Exception:
+        pass
+
     # Send confirmation email
     try:
         import email_service as email_svc
@@ -10362,8 +19669,9 @@ def acknowledge_emergency(alert_id):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
     try:
-        emergency_handler.acknowledge_alert(alert_id)
+        emergency_handler.acknowledge_alert(alert_id, admin_id=admin_id)
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": "Operation failed. Please try again."}), 500
@@ -10372,6 +19680,128 @@ def acknowledge_emergency(alert_id):
 # ══════════════════════════════════════════════════════════════════
 #  Feature 10 — Live Chat Handoff
 # ══════════════════════════════════════════════════════════════════
+
+# ═══════════════ Live Chat API ═══════════════
+
+@app.route("/api/live-chats", methods=["GET"])
+def api_live_chats():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if user.get("role") not in ("admin", "head_admin"):
+        return jsonify({"error": "Access denied"}), 403
+    admin_id = get_effective_admin_id(user)
+    return jsonify(db.get_live_chats(admin_id))
+
+
+@app.route("/api/live-chats/<path:session_id>/take", methods=["POST"])
+def api_take_live_chat(session_id):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if user.get("role") not in ("admin", "head_admin"):
+        return jsonify({"error": "Access denied"}), 403
+    admin_id = get_effective_admin_id(user)
+    result = db.take_live_chat(admin_id, session_id, user["id"], user.get("name", "Admin"))
+    if result.get("error"):
+        return jsonify(result), 409
+    return jsonify(result)
+
+
+@app.route("/api/live-chats/<path:session_id>/release", methods=["POST"])
+def api_release_live_chat(session_id):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    db.release_live_chat(admin_id, session_id, user["id"])
+    return jsonify({"success": True})
+
+
+@app.route("/api/live-chats/<path:session_id>/message", methods=["POST"])
+def api_send_live_chat_msg(session_id):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if user.get("role") not in ("admin", "head_admin"):
+        return jsonify({"error": "Access denied"}), 403
+    admin_id = get_effective_admin_id(user)
+    data = request.get_json(silent=True) or {}
+    message = data.get("message", "").strip()
+    if not message:
+        return jsonify({"error": "Empty message"}), 400
+    db.send_live_chat_msg(admin_id, session_id, message, user.get("name", "Admin"))
+    return jsonify({"success": True})
+
+
+@app.route("/api/live-chats/<path:session_id>/messages", methods=["GET"])
+def api_live_chat_messages(session_id):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    return jsonify(db.get_live_chat_messages(admin_id, session_id))
+
+
+@app.route("/api/chat/poll", methods=["GET"])
+def api_chat_poll():
+    """Widget polls for staff messages and handoff state."""
+    session_id = request.args.get("session_id", "")
+    after_id = int(request.args.get("after_id", 0))
+    admin_id_raw = request.args.get("admin_id", "")
+
+    if not session_id or not admin_id_raw:
+        return jsonify({"messages": [], "active": False})
+
+    # Resolve admin_id from public_id
+    admin_id = None
+    admin_id_str = str(admin_id_raw).strip()
+    if not admin_id_str.isdigit():
+        resolved = db.get_user_by_public_id(admin_id_str)
+        if resolved:
+            admin_id = resolved["id"]
+    if not admin_id:
+        return jsonify({"messages": [], "active": False})
+
+    # Get staff messages since last_id
+    msgs = db.get_staff_messages_since(session_id, after_id)
+
+    # Get assignment info
+    assignment = db.get_live_chat_assignment(admin_id, session_id)
+
+    return jsonify({
+        "messages": [{"id": m["id"], "text": m["message"],
+                       "time": str(m["created_at"])} for m in msgs],
+        "staff_name": assignment["staff_name"] if assignment else "",
+        "active": assignment is not None,
+    })
+
+
+@app.route("/api/chat/history", methods=["GET"])
+def api_chat_history():
+    """Widget fetches chat history for a restored session (no auth, uses admin public_id)."""
+    session_id = request.args.get("session_id", "")
+    admin_id_raw = request.args.get("admin_id", "")
+    if not session_id or not admin_id_raw:
+        return jsonify({"messages": []})
+    admin_id = None
+    admin_id_str = str(admin_id_raw).strip()
+    if not admin_id_str.isdigit():
+        resolved = db.get_user_by_public_id(admin_id_str)
+        if resolved:
+            admin_id = resolved["id"]
+    if not admin_id:
+        return jsonify({"messages": []})
+    rows = db.get_chat_history_by_session(session_id)
+    return jsonify({
+        "messages": [{"text": r["message"], "sender": r["sender"]} for r in rows]
+    })
+
 
 @app.route("/api/handoffs", methods=["GET"])
 def api_get_handoffs():
@@ -10457,6 +19887,28 @@ def api_handoff_message(hid):
         sessions[sid]["history"].append({"role": "bot", "content": data["message"], "from_staff": True, "staff_name": user["name"]})
     return jsonify({"ok": True})
 
+@app.route("/api/handoffs/<int:hid>/copilot", methods=["GET"])
+def api_handoff_copilot(hid):
+    """Get AI co-pilot suggestions for a handoff conversation."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    conn = db.get_db()
+    handoff = conn.execute("SELECT * FROM live_chat_handoffs WHERE id=%s", (hid,)).fetchone()
+    conn.close()
+    if not handoff:
+        return jsonify({"error": "Handoff not found"}), 404
+    if handoff["admin_id"] != admin_id:
+        return jsonify({"error": "Forbidden"}), 403
+
+    sid = handoff["session_id"]
+    session = sessions.get(sid, {})
+    suggestions = handoff_engine.generate_copilot_suggestions(admin_id, sid, session)
+    return jsonify({"suggestions": suggestions})
+
+
 @app.route("/api/chat-sessions/<session_id>/history", methods=["GET"])
 def api_get_session_history(session_id):
     """Get conversation history for a session (for handoff view)."""
@@ -10464,7 +19916,11 @@ def api_get_session_history(session_id):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
     if session_id in sessions:
+        session_admin = sessions[session_id].get("admin_id")
+        if session_admin and session_admin != admin_id:
+            return jsonify({"history": [], "flow": None})
         return jsonify({"history": sessions[session_id].get("history", []), "flow": sessions[session_id].get("flow")})
     return jsonify({"history": [], "flow": None})
 
@@ -10602,8 +20058,12 @@ def api_create_promotion():
     user = db.get_user_by_token(token)
     if not user or not is_admin_role(user):
         return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json(silent=True) or {}
     admin_id = get_effective_admin_id(user)
+    # Plan limit check: promo code count (feature access checked by before_request)
+    within_limit, count, max_allowed = db.check_plan_limit(admin_id, "promo_codes")
+    if not within_limit:
+        return jsonify({"error": f"Your plan allows up to {max_allowed} active promo codes. Upgrade to add more."}), 403
+    data = request.get_json(silent=True) or {}
     pid = db.create_promotion(
         admin_id=admin_id,
         code=data["code"],
@@ -10632,7 +20092,19 @@ def api_delete_promotion(pid):
 def api_validate_promotion():
     """Validate a discount code (used by chatbot during booking)."""
     data = request.get_json(silent=True) or {}
-    admin_id = data.get("admin_id", 1)
+    # Try token auth first, fall back to admin_id for chatbot widget calls
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token) if token else None
+    if user:
+        admin_id = get_effective_admin_id(user)
+    else:
+        admin_id = data.get("admin_id")
+        if not admin_id:
+            return jsonify({"valid": False, "error": "Unauthorized"}), 401
+        # Verify admin_id exists
+        admin_user = db.get_user_by_id(int(admin_id))
+        if not admin_user:
+            return jsonify({"valid": False, "error": "Invalid admin"}), 400
     code = data.get("code", "")
     try:
         result = promo.validate_discount_code(admin_id, code)
@@ -10865,8 +20337,11 @@ def api_get_patient(pid):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
     patient = db.get_patient(pid)
     if not patient:
+        return jsonify({"error": "Patient not found"}), 404
+    if patient.get("admin_id") != admin_id:
         return jsonify({"error": "Patient not found"}), 404
     history = db.get_patient_history(pid)
     patient["history"] = history
@@ -10878,9 +20353,12 @@ def api_update_patient(pid):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    patient = db.get_patient(pid)
+    if not patient or patient.get("admin_id") != admin_id:
+        return jsonify({"error": "Patient not found"}), 404
     data = request.get_json(silent=True) or {}
     db.update_patient(pid, **data)
-    admin_id = get_effective_admin_id(user)
     db.log_admin_action(admin_id, user, "Updated patient", f"Patient #{pid}")
     return jsonify({"ok": True})
 
@@ -10905,6 +20383,10 @@ def api_add_patient_note(pid):
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    patient = db.get_patient(pid)
+    if not patient or patient.get("admin_id") != admin_id:
+        return jsonify({"error": "Patient not found"}), 404
     data = request.get_json(silent=True) or {}
     doctor_id = 0
     if user["role"] == "doctor":
@@ -11394,7 +20876,10 @@ def api_get_loyalty_stats():
 def api_redeem_points():
     """Patient redeems loyalty points during booking (called from chatbot)."""
     data = request.get_json(silent=True) or {}
-    admin_id = data.get("admin_id", 1)
+    admin_id = data.get("admin_id")
+    if not admin_id:
+        return jsonify({"error": "Missing admin_id"}), 400
+    admin_id = int(admin_id)
     if not db.is_feature_enabled(admin_id, "loyalty_program"):
         return jsonify({"error": "Loyalty program is disabled"}), 403
     patient_email = data.get("email", "")
@@ -11418,7 +20903,7 @@ def api_redeem_points():
     if not success:
         return jsonify({"error": msg}), 400
     discount = points * config.get("redemption_value", 0.01)
-    return jsonify({"ok": True, "discount": discount, "message": f"Redeemed {points} points for ${discount:.2f} discount"})
+    return jsonify({"ok": True, "discount": discount, "message": f"Redeemed {points} points for {discount:.2f} discount"})
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -11563,7 +21048,7 @@ def api_gcal_callback():
     doctor_id = state.get("doctor_id")
     admin_id = state.get("admin_id")
 
-    if not doctor_id or not admin_id or not code:
+    if (doctor_id is None) or not admin_id or not code:
         return ("<html><body style='font-family:sans-serif;text-align:center;padding:60px'>"
                 "<h2>Invalid callback</h2><p>Missing required parameters. Please try connecting again.</p>"
                 "</body></html>"), 400
@@ -11577,12 +21062,27 @@ def api_gcal_callback():
                 "<p>Could not obtain refresh token from Google. Please try again and grant calendar access.</p>"
                 "</body></html>"), 400
 
-    # Store tokens on the doctor record
-    gcal_engine.save_doctor_tokens(doctor_id, tokens["refresh_token"], "primary")
+    refresh_token = tokens["refresh_token"]
+
+    if doctor_id == 0:
+        # Shared/head calendar mode — store ONLY as shared token (not per-doctor)
+        # This way events go to the shared calendar once, no duplicates
+        conn = db.get_db()
+        conn.execute(
+            "UPDATE gcal_settings SET shared_refresh_token=%s, shared_calendar_id=%s WHERE admin_id=%s",
+            (refresh_token, "primary", admin_id)
+        )
+        conn.commit()
+        conn.close()
+        msg = "Shared Google Calendar connected! All bookings will appear here."
+    else:
+        # Single doctor mode
+        gcal_engine.save_doctor_tokens(doctor_id, refresh_token, "primary")
+        msg = "Google Calendar connected for this doctor!"
 
     return ("<html><body style='font-family:sans-serif;text-align:center;padding:60px;background:#0f0f1a;color:#e0e0e0'>"
-            "<h2 style='color:#22d3ee'>Google Calendar Connected!</h2>"
-            "<p>Your Google Calendar has been linked successfully. Appointments will now sync automatically.</p>"
+            f"<h2 style='color:#22d3ee'>{msg}</h2>"
+            "<p>Appointments will now sync automatically to your Google Calendar.</p>"
             "<p style='color:#888'>You can close this window and return to the dashboard.</p>"
             "<script>setTimeout(function(){window.close()},3000);</script>"
             "</body></html>")
@@ -11635,10 +21135,55 @@ def api_gcal_status():
     # Return status for all doctors under this admin
     settings = db.get_gcal_settings(admin_id)
     doctors = db.get_doctors_with_gcal(admin_id)
+    # Check if shared calendar is connected (all doctors have same refresh token)
+    shared_connected = False
+    if doctors:
+        tokens = [d.get("gcal_connected") for d in doctors]
+        shared_connected = all(tokens) and len(tokens) > 0
     return jsonify({
         "configured": bool(settings and settings.get("gcal_client_id")),
         "doctors": doctors,
+        "shared_connected": shared_connected,
     })
+
+
+@app.route("/api/integrations/google-calendar/connect-all", methods=["POST"])
+def api_gcal_connect_all():
+    """Connect one shared Google Calendar for ALL doctors under this admin."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    admin_id = get_effective_admin_id(user)
+    settings = db.get_gcal_settings(admin_id)
+    if not settings or not settings.get("gcal_client_id"):
+        return jsonify({"error": "Google Calendar OAuth not configured. Save Client ID and Secret first."}), 400
+
+    # Use doctor_id=0 as a special "shared" marker, actual token will be copied to all doctors in callback
+    redirect_uri = request.host_url.rstrip("/") + "/api/integrations/google-calendar/callback"
+    auth_url = gcal_engine.get_auth_url(admin_id, redirect_uri, doctor_id=0)
+    if not auth_url:
+        return jsonify({"error": "Failed to generate authorization URL"}), 500
+
+    return jsonify({"auth_url": auth_url})
+
+
+@app.route("/api/integrations/google-calendar/disconnect-all", methods=["POST"])
+def api_gcal_disconnect_all():
+    """Disconnect shared Google Calendar from ALL doctors."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    admin_id = get_effective_admin_id(user)
+    conn = db.get_db()
+    # Clear shared/head calendar token only (individual doctor connections stay)
+    conn.execute("UPDATE gcal_settings SET shared_refresh_token=NULL, shared_calendar_id=NULL WHERE admin_id=%s", (admin_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
 
 
 @app.route("/api/integrations/google-calendar/settings", methods=["POST"])
@@ -12048,11 +21593,17 @@ def api_complete_booking(bid):
                     db.add_loyalty_points(patient["id"], admin_id, config.get("points_per_appointment", 100),
                                           "appointment_completed", f"Completed appointment on {booking['date']}", bid)
 
-
-# ══════════════════════════════════════════════════════════════════
-#  Booking Cancellation with Waitlist Integration (Feature 1)
-# ══════════════════════════════════════════════════════════════════
-
+        # Trigger satisfaction survey / review request
+        try:
+            import reviews_engine
+            reviews_engine.trigger_review_request(
+                admin_id, bid,
+                booking.get("customer_email", ""),
+                booking.get("customer_name", ""),
+                doctor_id=booking.get("doctor_id"),
+            )
+        except Exception as e:
+            print(f"[booking] Survey trigger error: {e}", flush=True)
 
     # -- Zapier webhook: booking completed --
     try:
@@ -12089,6 +21640,8 @@ def api_cancel_booking(bid):
     conn.commit()
     conn.close()
     admin_id = get_effective_admin_id(user)
+    # Sync cancellation to PMS
+    cancel_booking_in_pms(admin_id, bid)
     db.log_admin_action(admin_id, user, "Cancelled booking", f"Booking #{bid} for {booking.get('customer_name', '')} on {booking.get('date', '')} at {booking.get('time', '')}")
     # Send cancellation email to customer
     try:
@@ -12129,6 +21682,11 @@ def api_cancel_booking(bid):
     # Cancel pending reminders for cancelled booking
     try:
         db.cancel_reminders_for_booking(bid)
+    except Exception:
+        pass
+    # Delete Google Calendar event if synced
+    try:
+        gcal_engine.delete_gcal_event(bid)
     except Exception:
         pass
     # Trigger waitlist cascade — notify next waiting patient (do NOT auto-book)
@@ -12187,11 +21745,100 @@ def api_reminder_config():
     admin_id = user["admin_id"] or user["id"]
     if request.method == "GET":
         config = db.get_reminder_config(admin_id)
+        # Include smtp_configured flag so frontend knows whether to unlock
+        smtp_cfg = db.get_admin_smtp_config(admin_id)
+        config["smtp_configured"] = 1 if smtp_cfg else 0
         return jsonify(config)
+    # Block saving email automation config if SMTP not set up
+    smtp_cfg = db.get_admin_smtp_config(admin_id)
+    if not smtp_cfg:
+        return jsonify({"error": "Set up your email (SMTP) first before configuring email automation."}), 400
     data = request.get_json() or {}
     db.save_reminder_config(admin_id, **data)
     db.log_admin_action(admin_id, user, "Updated reminder config", "")
     return jsonify({"ok": True})
+
+
+@app.route("/api/smtp-config", methods=["GET", "POST"])
+def api_smtp_config():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = user["admin_id"] or user["id"]
+    if request.method == "GET":
+        cfg = db.get_admin_smtp_config(admin_id)
+        if not cfg:
+            return jsonify({"smtp_host": "", "smtp_port": 587, "smtp_user": "", "smtp_password": "", "smtp_from_email": "", "smtp_verified": 0})
+        # Mask password for security
+        masked = dict(cfg)
+        if masked.get("smtp_password"):
+            masked["smtp_password"] = "••••••••"
+        return jsonify(masked)
+    data = request.get_json() or {}
+    # Don't overwrite password if masked placeholder was sent back
+    if data.get("smtp_password") == "••••••••":
+        existing = db.get_admin_smtp_config(admin_id)
+        if existing:
+            data["smtp_password"] = existing["smtp_password"]
+    db.save_admin_smtp_config(admin_id, data)
+    db.log_admin_action(admin_id, user, "Updated SMTP config", "")
+    return jsonify({"ok": True})
+
+
+@app.route("/api/smtp-config/test", methods=["POST"])
+def api_smtp_test():
+    """Test the admin's SMTP config by sending a test email."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = user["admin_id"] or user["id"]
+    data = request.get_json() or {}
+
+    smtp_host = data.get("smtp_host", "smtp.gmail.com")
+    smtp_port = int(data.get("smtp_port", 587))
+    smtp_user = data.get("smtp_user", "")
+    smtp_pass = data.get("smtp_password", "")
+    from_email = data.get("smtp_from_email", "") or smtp_user
+
+    # If password is masked, use saved one
+    if smtp_pass == "••••••••":
+        existing = db.get_admin_smtp_config(admin_id)
+        if existing:
+            smtp_pass = existing["smtp_password"]
+
+    if not smtp_user or not smtp_pass:
+        return jsonify({"error": "SMTP user and password are required"}), 400
+
+    try:
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+
+        msg = MIMEMultipart("alternative")
+        biz_name = db.get_company_info(admin_id)
+        biz = biz_name["business_name"] if biz_name and biz_name.get("business_name") else "Your Business"
+        msg["From"] = f"{biz} <{from_email}>"
+        msg["To"] = smtp_user
+        msg["Subject"] = "SMTP Configuration Test - Success!"
+        html = "<html><body><h2 style='color:#059669'>Your SMTP is configured correctly!</h2><p>Emails will now be sent from your own email address.</p></body></html>"
+        msg.attach(MIMEText(html, "html"))
+
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.send_message(msg)
+
+        # Mark as verified
+        data["smtp_verified"] = 1
+        if smtp_pass != "••••••••":
+            data["smtp_password"] = smtp_pass
+        db.save_admin_smtp_config(admin_id, data)
+
+        return jsonify({"ok": True, "message": "Test email sent successfully!"})
+    except Exception as e:
+        return jsonify({"error": f"SMTP test failed: {str(e)}"}), 400
 
 
 @app.route("/api/reminder-stats")
@@ -12336,11 +21983,65 @@ def api_upsell_analytics():
 #  Feature 4: Multi-Channel Unified Inbox
 # ════════════════════���════════════════════════════════���════════════════════════
 
+def _verify_meta_signature():
+    """Verify X-Hub-Signature-256 from Meta webhooks. Returns True if valid or if no secret configured."""
+    app_secret = os.environ.get("META_APP_SECRET", "")
+    if not app_secret:
+        return True
+    signature = request.headers.get("X-Hub-Signature-256", "")
+    if not signature:
+        return False
+    import hmac, hashlib
+    expected = "sha256=" + hmac.new(app_secret.encode(), request.get_data(), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(signature, expected)
+
 @app.route("/api/webhooks/whatsapp", methods=["POST"])
 def webhook_whatsapp():
+    if not _verify_meta_signature():
+        return jsonify({"error": "Invalid signature"}), 403
     payload = request.get_json() or {}
     admin_id = request.args.get("admin_id", 0, type=int)
     results = channel_engine.process_whatsapp_webhook(payload, admin_id)
+
+    # Auto-respond via chatbot for each incoming message
+    for msg_result in results:
+        try:
+            phone = msg_result.get("phone", "")
+            sender_name = msg_result.get("sender", "")
+            text = msg_result.get("text", "")
+            if not text or not admin_id or not phone:
+                continue
+            # Use WhatsApp phone as session ID for continuity
+            wa_session_id = f"wa_{admin_id}_{phone}"
+            reply = process_message(wa_session_id, text, admin_id=admin_id)
+            if reply:
+                # Check for UI options (dropdown buttons) in session
+                session = get_session(wa_session_id)
+                ui_options = session.pop("_ui_options", None)
+                if ui_options and isinstance(ui_options, dict) and ui_options.get("items"):
+                    # Extract items list from UI options dict
+                    items = ui_options["items"]
+                    option_labels = []
+                    for item in items:
+                        if isinstance(item, str):
+                            option_labels.append(item)
+                        elif isinstance(item, dict):
+                            option_labels.append(item.get("name") or item.get("label") or item.get("text") or str(item))
+                    if option_labels:
+                        channel_engine.send_whatsapp_interactive(
+                            phone, reply, option_labels, admin_id)
+                else:
+                    channel_engine.send_whatsapp_message(phone, reply, admin_id)
+                # Save bot reply to unified inbox
+                conv_id = msg_result.get("conversation_id")
+                if conv_id:
+                    # Get company name for the bot sender label
+                    _company = db.get_company_info(admin_id)
+                    _bot_name = (_company.get("company_name") if _company else None) or "ChatGenius"
+                    channel_engine.save_message(admin_id, conv_id, "outbound", _bot_name, reply)
+        except Exception as e:
+            print(f"[whatsapp] Auto-reply error: {e}")
+
     return jsonify({"ok": True, "messages": results})
 
 
@@ -12349,7 +22050,20 @@ def webhook_whatsapp_verify():
     mode = request.args.get("hub.mode")
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
-    verify_token = os.getenv("WHATSAPP_VERIFY_TOKEN", "chatgenius_verify")
+    admin_id = request.args.get("admin_id", 0, type=int)
+    # Try per-admin verify token from DB
+    verify_token = None
+    if admin_id:
+        try:
+            conn = db.get_db()
+            row = conn.execute("SELECT verify_token FROM whatsapp_config WHERE admin_id=%s AND connected=1", (admin_id,)).fetchone()
+            conn.close()
+            if row:
+                verify_token = row["verify_token"]
+        except Exception:
+            pass
+    if not verify_token:
+        verify_token = os.getenv("WHATSAPP_VERIFY_TOKEN", "chatgenius_verify")
     if mode == "subscribe" and token == verify_token:
         return challenge, 200
     return "Forbidden", 403
@@ -12357,6 +22071,8 @@ def webhook_whatsapp_verify():
 
 @app.route("/api/webhooks/facebook", methods=["POST"])
 def webhook_facebook():
+    if not _verify_meta_signature():
+        return jsonify({"error": "Invalid signature"}), 403
     payload = request.get_json() or {}
     admin_id = request.args.get("admin_id", 0, type=int)
     results = channel_engine.process_meta_webhook(payload, admin_id, channel_engine.CHANNEL_FACEBOOK)
@@ -12365,9 +22081,54 @@ def webhook_facebook():
 
 @app.route("/api/webhooks/instagram", methods=["POST"])
 def webhook_instagram():
+    if not _verify_meta_signature():
+        return jsonify({"error": "Invalid signature"}), 403
     payload = request.get_json() or {}
     admin_id = request.args.get("admin_id", 0, type=int)
     results = channel_engine.process_meta_webhook(payload, admin_id, channel_engine.CHANNEL_INSTAGRAM)
+
+    # Auto-respond via chatbot for each incoming message (aligned with WhatsApp)
+    for msg_result in results:
+        try:
+            sender_id = msg_result.get("sender", "")
+            text = msg_result.get("text", "")
+            if not text or not admin_id or not sender_id:
+                continue
+            ig_session_id = f"ig_{admin_id}_{sender_id}"
+            # Resolve numbered replies ("1", "2", etc.) to the actual option label
+            actual_text = _resolve_numbered_reply(ig_session_id, text)
+            reply = process_message(ig_session_id, actual_text, admin_id=admin_id)
+            if reply:
+                # Check for UI options (dropdown/buttons) in session — format as numbered list
+                session = get_session(ig_session_id)
+                ui_options = session.pop("_ui_options", None)
+                full_reply = reply
+                if ui_options and isinstance(ui_options, dict) and ui_options.get("items"):
+                    items = ui_options["items"]
+                    option_labels = []
+                    for item in items:
+                        if isinstance(item, str):
+                            option_labels.append(item)
+                        elif isinstance(item, dict):
+                            option_labels.append(item.get("name") or item.get("label") or item.get("text") or str(item))
+                    if option_labels:
+                        numbered = "\n".join(f"{i+1}. {lbl}" for i, lbl in enumerate(option_labels))
+                        full_reply = f"{reply}\n\n{numbered}\n\nReply with a number to select."
+                        # Store for resolving future numbered replies
+                        session["_last_numbered_options"] = option_labels
+                    else:
+                        session.pop("_last_numbered_options", None)
+                else:
+                    session.pop("_last_numbered_options", None)
+                channel_engine._send_meta_message(sender_id, full_reply, admin_id, channel_engine.CHANNEL_INSTAGRAM)
+                conv_id = msg_result.get("conversation_id")
+                if conv_id:
+                    _company = db.get_company_info(admin_id)
+                    _bot_name = (_company.get("company_name") if _company else None) or "ChatGenius"
+                    channel_engine.save_message(admin_id, conv_id, "outbound", _bot_name, full_reply)
+        except Exception as e:
+            print(f"[instagram] Auto-reply error: {e}")
+
     return jsonify({"ok": True, "messages": results})
 
 
@@ -12377,7 +22138,20 @@ def webhook_meta_verify():
     mode = request.args.get("hub.mode")
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
-    verify_token = os.getenv("META_VERIFY_TOKEN", "chatgenius_verify")
+    admin_id = request.args.get("admin_id", 0, type=int)
+    # Try per-admin verify token from DB
+    verify_token = None
+    if admin_id:
+        try:
+            conn = db.get_db()
+            row = conn.execute("SELECT verify_token FROM instagram_config WHERE admin_id=%s AND connected=1", (admin_id,)).fetchone()
+            conn.close()
+            if row and row["verify_token"]:
+                verify_token = row["verify_token"]
+        except Exception:
+            pass
+    if not verify_token:
+        verify_token = os.getenv("META_VERIFY_TOKEN", "chatgenius_verify")
     if mode == "subscribe" and token == verify_token:
         return challenge, 200
     return "Forbidden", 403
@@ -12551,7 +22325,19 @@ def api_inbox_analytics():
 @app.route("/api/webhooks/sms", methods=["POST"])
 def api_webhook_sms():
     """Twilio inbound SMS webhook — processes incoming SMS into the unified inbox."""
-    # Validate webhook secret if configured
+    # Validate Twilio signature if auth token configured
+    twilio_auth = os.environ.get("TWILIO_AUTH_TOKEN", "")
+    if twilio_auth:
+        twilio_sig = request.headers.get("X-Twilio-Signature", "")
+        if twilio_sig:
+            try:
+                from twilio.request_validator import RequestValidator
+                validator = RequestValidator(twilio_auth)
+                if not validator.validate(request.url, request.form.to_dict(), twilio_sig):
+                    return jsonify({"error": "Forbidden"}), 403
+            except ImportError:
+                pass
+    # Fallback: validate webhook secret if configured
     sms_webhook_secret = os.environ.get("SMS_WEBHOOK_SECRET")
     if sms_webhook_secret:
         provided_secret = request.headers.get("X-Webhook-Secret", "")
@@ -12581,7 +22367,45 @@ def api_webhook_sms():
             conn.close()
 
     if admin_id:
-        channel_engine.process_inbound_sms(admin_id, from_number, body)
+        result = channel_engine.process_inbound_sms(admin_id, from_number, body)
+
+        # Auto-respond via chatbot (aligned with WhatsApp)
+        if result and body.strip():
+            try:
+                sms_session_id = f"sms_{admin_id}_{from_number}"
+                # Resolve numbered replies ("1", "2", etc.) to the actual option label
+                actual_body = _resolve_numbered_reply(sms_session_id, body.strip())
+                reply = process_message(sms_session_id, actual_body, admin_id=admin_id)
+                if reply:
+                    # Check for UI options — format as numbered list for SMS
+                    session = get_session(sms_session_id)
+                    ui_options = session.pop("_ui_options", None)
+                    full_reply = reply
+                    if ui_options and isinstance(ui_options, dict) and ui_options.get("items"):
+                        items = ui_options["items"]
+                        option_labels = []
+                        for item in items:
+                            if isinstance(item, str):
+                                option_labels.append(item)
+                            elif isinstance(item, dict):
+                                option_labels.append(item.get("name") or item.get("label") or item.get("text") or str(item))
+                        if option_labels:
+                            numbered = "\n".join(f"{i+1}. {lbl}" for i, lbl in enumerate(option_labels))
+                            full_reply = f"{reply}\n\n{numbered}\n\nReply with a number to select."
+                            session["_last_numbered_options"] = option_labels
+                        else:
+                            session.pop("_last_numbered_options", None)
+                    else:
+                        session.pop("_last_numbered_options", None)
+                    channel_engine._send_sms_reply(from_number, full_reply, admin_id)
+                    # Save bot reply to unified inbox
+                    conv_id = result.get("conversation_id")
+                    if conv_id:
+                        _company = db.get_company_info(admin_id)
+                        _bot_name = (_company.get("company_name") if _company else None) or "ChatGenius"
+                        channel_engine.save_message(admin_id, conv_id, "outbound", _bot_name, full_reply)
+            except Exception as e:
+                print(f"[sms] Auto-reply error: {e}")
 
     # Return TwiML empty response
     return "<Response></Response>", 200
@@ -13223,12 +23047,12 @@ def save_email_template():
     user = db.get_user_by_token(request.headers.get("Authorization", "").replace("Bearer ", ""))
     if not user or not is_admin_role(user):
         return jsonify({"error": "Not authorized"}), 403
-    # Plan check — Pro+ only
-    plan = user.get("plan", "free_trial")
-    if plan not in ("pro", "agency"):
-        return jsonify({"error": "Email customization requires Pro or Enterprise plan."}), 403
-
     admin_id = get_effective_admin_id(user)
+    # Plan limit check: email template count
+    within_limit, count, max_allowed = db.check_plan_limit(admin_id, "email_templates")
+    if not within_limit:
+        return jsonify({"error": f"Your plan allows up to {max_allowed} email templates. Upgrade to add more."}), 403
+
     data = request.json or {}
 
     # Validate variables in all HTML sections
@@ -13263,7 +23087,7 @@ def upload_email_image():
     if not user or not is_admin_role(user):
         return jsonify({"error": "Not authorized"}), 403
     plan = user.get("plan", "free_trial")
-    if plan not in ("pro", "agency"):
+    if plan not in ("pro", "enterprise"):
         return jsonify({"error": "Email customization requires Pro or Enterprise plan."}), 403
 
     if "image" not in request.files:
@@ -13347,7 +23171,7 @@ def preview_email_template():
         <p style="color:#444;font-size:15px;line-height:1.6;">Your appointment has been confirmed for <strong>{sample_vars['date']}</strong> at <strong>{sample_vars['time']}</strong> with <strong>{sample_vars['doctor_name']}</strong>.</p>
     </td></tr>
     <tr><td style="padding:16px 40px;text-align:center;">
-        <a href="#" style="display:inline-block;background:#c9a84c;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Confirm Appointment</a>
+        <a href="#" style="display:inline-block;background:#8b5cf6;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">Confirm Appointment</a>
     </td></tr>"""
 
     # Check if admin has a saved template with compiled_html (drag-and-drop builder)
@@ -13380,7 +23204,7 @@ def send_test_email():
     if not user or not is_admin_role(user):
         return jsonify({"error": "Not authorized"}), 403
     plan = user.get("plan", "free_trial")
-    if plan not in ("pro", "agency"):
+    if plan not in ("pro", "enterprise"):
         return jsonify({"error": "Pro or Enterprise plan required."}), 403
 
     data = request.json or {}
@@ -13524,6 +23348,234 @@ def api_twilio_disconnect():
     })
     db.log_admin_action(admin_id, user, "Disconnected Twilio SMS integration", "")
     return jsonify({"ok": True, "message": "Twilio disconnected."})
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  WhatsApp Business API Integration
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route("/api/integrations/whatsapp/configure", methods=["POST"])
+def api_whatsapp_configure():
+    """Save WhatsApp Business API credentials."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    data = request.get_json() or {}
+    access_token = data.get("access_token", "").strip()
+    phone_number_id = data.get("phone_number_id", "").strip()
+    verify_token = data.get("verify_token", "").strip()
+    business_account_id = data.get("business_account_id", "").strip()
+    if not access_token or not phone_number_id:
+        return jsonify({"error": "Access Token and Phone Number ID are required"}), 400
+    if not verify_token:
+        verify_token = secrets.token_hex(16)
+    # Save to DB
+    conn = db.get_db()
+    try:
+        existing = conn.execute("SELECT id FROM whatsapp_config WHERE admin_id=%s", (admin_id,)).fetchone()
+        if existing:
+            conn.execute(
+                "UPDATE whatsapp_config SET access_token=%s, phone_number_id=%s, verify_token=%s, business_account_id=%s, connected=1, updated_at=%s WHERE admin_id=%s",
+                (access_token, phone_number_id, verify_token, business_account_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), admin_id)
+            )
+        else:
+            conn.execute(
+                "INSERT INTO whatsapp_config (admin_id, access_token, phone_number_id, verify_token, business_account_id, connected, created_at, updated_at) VALUES (%s,%s,%s,%s,%s,1,%s,%s)",
+                (admin_id, access_token, phone_number_id, verify_token, business_account_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            )
+        conn.commit()
+    finally:
+        conn.close()
+    db.log_admin_action(admin_id, user, "Configured WhatsApp Business integration", "")
+    # Build the webhook URL for this admin
+    base_url = request.host_url.rstrip("/")
+    webhook_url = f"{base_url}/api/webhooks/whatsapp?admin_id={admin_id}"
+    return jsonify({"ok": True, "message": "WhatsApp credentials saved.", "verify_token": verify_token, "webhook_url": webhook_url})
+
+
+@app.route("/api/integrations/whatsapp/status", methods=["GET"])
+def api_whatsapp_status():
+    """Check if WhatsApp is configured for the current admin."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    conn = db.get_db()
+    try:
+        row = conn.execute("SELECT * FROM whatsapp_config WHERE admin_id=%s AND connected=1", (admin_id,)).fetchone()
+    finally:
+        conn.close()
+    if row:
+        base_url = request.host_url.rstrip("/")
+        return jsonify({
+            "configured": True,
+            "phone_number_id": row["phone_number_id"][:6] + "****" if row["phone_number_id"] and len(row["phone_number_id"]) > 6 else row["phone_number_id"],
+            "verify_token": row["verify_token"],
+            "webhook_url": f"{base_url}/api/webhooks/whatsapp?admin_id={admin_id}"
+        })
+    return jsonify({"configured": False})
+
+
+@app.route("/api/integrations/whatsapp/test", methods=["POST"])
+def api_whatsapp_test():
+    """Send a test WhatsApp message to verify configuration."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    data = request.get_json() or {}
+    to_number = data.get("to_number", "").strip()
+    if not to_number:
+        return jsonify({"error": "Phone number is required"}), 400
+    # Get config from DB
+    conn = db.get_db()
+    try:
+        row = conn.execute("SELECT * FROM whatsapp_config WHERE admin_id=%s AND connected=1", (admin_id,)).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return jsonify({"success": False, "error": "WhatsApp not configured"})
+    # Send test message via WhatsApp Cloud API
+    try:
+        import requests as http_req
+        resp = http_req.post(
+            f"https://graph.facebook.com/v18.0/{row['phone_number_id']}/messages",
+            headers={"Authorization": f"Bearer {row['access_token']}", "Content-Type": "application/json"},
+            json={
+                "messaging_product": "whatsapp",
+                "to": to_number,
+                "type": "text",
+                "text": {"body": "Hello! This is a test message from ChatGenius. Your WhatsApp integration is working correctly."}
+            },
+            timeout=10
+        )
+        if resp.status_code == 200:
+            return jsonify({"success": True, "message": "Test message sent!"})
+        else:
+            error_msg = resp.json().get("error", {}).get("message", "Unknown error")
+            return jsonify({"success": False, "error": f"WhatsApp API error: {error_msg}"})
+    except Exception as e:
+        return jsonify({"success": False, "error": f"Failed to send: {str(e)}"})
+
+
+@app.route("/api/integrations/whatsapp/disconnect", methods=["POST"])
+def api_whatsapp_disconnect():
+    """Remove WhatsApp credentials."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    conn = db.get_db()
+    try:
+        conn.execute("UPDATE whatsapp_config SET connected=0 WHERE admin_id=%s", (admin_id,))
+        conn.commit()
+    finally:
+        conn.close()
+    db.log_admin_action(admin_id, user, "Disconnected WhatsApp Business integration", "")
+    return jsonify({"ok": True, "message": "WhatsApp disconnected."})
+
+
+# ── Instagram Integration Endpoints ──
+
+@app.route("/api/integrations/instagram/configure", methods=["POST"])
+def api_instagram_configure():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or user.get("role") not in ("admin", "head_admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    data = request.get_json(silent=True) or {}
+    page_access_token = (data.get("page_access_token") or "").strip()
+    instagram_account_id = (data.get("instagram_account_id") or "").strip()
+    page_id = (data.get("page_id") or "").strip()
+    if not page_access_token:
+        return jsonify({"error": "Page Access Token is required"}), 400
+
+    import secrets as _secrets
+    verify_token = _secrets.token_urlsafe(24)
+
+    conn = db.get_db()
+    try:
+        existing = conn.execute("SELECT id FROM instagram_config WHERE admin_id=%s", (admin_id,)).fetchone()
+        now = datetime.now().isoformat()
+        if existing:
+            conn.execute(
+                "UPDATE instagram_config SET page_access_token=%s, instagram_account_id=%s, page_id=%s, verify_token=%s, connected=1, updated_at=%s WHERE admin_id=%s",
+                (page_access_token, instagram_account_id, page_id, verify_token, now, admin_id)
+            )
+        else:
+            conn.execute(
+                "INSERT INTO instagram_config (admin_id, page_access_token, instagram_account_id, page_id, verify_token, connected, created_at, updated_at) VALUES (%s,%s,%s,%s,%s,1,%s,%s)",
+                (admin_id, page_access_token, instagram_account_id, page_id, verify_token, now, now)
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+    base_url = request.host_url.rstrip("/")
+    webhook_url = f"{base_url}/api/webhooks/instagram?admin_id={admin_id}"
+    return jsonify({"ok": True, "verify_token": verify_token, "webhook_url": webhook_url})
+
+
+@app.route("/api/integrations/instagram/status", methods=["GET"])
+def api_instagram_status():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    conn = db.get_db()
+    try:
+        row = conn.execute("SELECT page_access_token, instagram_account_id, page_id, verify_token, connected FROM instagram_config WHERE admin_id=%s", (admin_id,)).fetchone()
+    finally:
+        conn.close()
+    if not row or not row["connected"]:
+        return jsonify({"connected": False})
+    return jsonify({
+        "connected": True,
+        "instagram_account_id": row["instagram_account_id"] or "",
+        "page_id": row["page_id"] or "",
+        "token_set": bool(row["page_access_token"]),
+        "verify_token": row["verify_token"] or ""
+    })
+
+
+@app.route("/api/integrations/instagram/test", methods=["POST"])
+def api_instagram_test():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or user.get("role") not in ("admin", "head_admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    data = request.get_json(silent=True) or {}
+    recipient_id = (data.get("recipient_id") or "").strip()
+    if not recipient_id:
+        return jsonify({"error": "Recipient ID is required"}), 400
+    sent = channel_engine._send_meta_message(recipient_id, "This is a test message from ChatGenius! Your Instagram integration is working.", admin_id, channel_engine.CHANNEL_INSTAGRAM)
+    if sent:
+        return jsonify({"ok": True, "message": "Test message sent!"})
+    return jsonify({"error": "Failed to send. Check your Page Access Token."}), 400
+
+
+@app.route("/api/integrations/instagram/disconnect", methods=["POST"])
+def api_instagram_disconnect():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or user.get("role") not in ("admin", "head_admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    conn = db.get_db()
+    try:
+        conn.execute("UPDATE instagram_config SET connected=0 WHERE admin_id=%s", (admin_id,))
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"ok": True})
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -13770,8 +23822,14 @@ def api_emr_status():
     except Exception:
         return jsonify({"error": "Failed to fetch EMR status"}), 500
 
+    integrations = []
+    for r in rows:
+        row_dict = dict(r)
+        row_dict["last_sync"] = str(row_dict.get("last_sync", ""))
+        integrations.append(row_dict)
+
     return jsonify({
-        "integrations": [dict(r) for r in rows],
+        "integrations": integrations,
         "requests": [dict(r) for r in requests_rows],
     })
 
@@ -13783,7 +23841,7 @@ def api_emr_configure():
     user = db.get_user_by_token(token)
     if not user or not is_admin_role(user):
         return jsonify({"error": "Unauthorized"}), 401
-    if user.get("plan") not in ("agency", "enterprise", "enterprise_yearly"):
+    if user.get("plan") != "enterprise":
         return jsonify({"error": "EMR integration requires an Enterprise plan"}), 403
     admin_id = get_effective_admin_id(user)
 
@@ -13803,7 +23861,170 @@ def api_emr_configure():
         "status": "configured",
         "sync_enabled": data.get("sync_enabled", False),
     })
+
+    # Auto-sync all existing bookings to PMS in background
+    if data.get("sync_enabled"):
+        import threading
+        threading.Thread(target=sync_all_bookings_to_pms, args=(admin_id,), daemon=True).start()
+
     return jsonify({"ok": True, "message": f"{integration_type} integration configured successfully"})
+
+
+def sync_booking_to_pms(admin_id, booking_id):
+    """Push a new booking to the configured PMS (if any). Non-blocking."""
+    try:
+        # Check all 3 dental PMS types
+        for pms_type in ["dentrix", "opendental", "eaglesoft"]:
+            integration = db.get_emr_integration(admin_id, pms_type)
+            if integration and integration.get("sync_enabled"):
+                from services.pms.adapters import get_adapter
+                # Get booking data
+                conn = db.get_db()
+                booking = conn.execute("SELECT * FROM bookings WHERE id = %s", (booking_id,)).fetchone()
+                conn.close()
+                if not booking:
+                    return
+                adapter = get_adapter(pms_type, {
+                    "api_url": integration.get("api_endpoint", ""),
+                    "api_key": integration.get("api_key_encrypted", ""),
+                    "admin_id": admin_id,
+                })
+                result = adapter.create_appointment({
+                    "patient_name": booking["customer_name"],
+                    "patient_email": booking.get("customer_email", ""),
+                    "patient_phone": booking.get("customer_phone", ""),
+                    "date": booking["date"],
+                    "time": booking["time"],
+                    "service": booking.get("service", ""),
+                    "doctor_name": booking.get("doctor_name", ""),
+                    "notes": f"Booked via ChatGenius (ID: {booking_id})",
+                })
+                # Log sync
+                db.log_pms_sync(admin_id, pms_type, booking_id, result.get("status", "unknown"))
+                break  # only sync to first configured PMS
+    except Exception as e:
+        import traceback
+        app.logger.error(f"PMS sync failed for booking {booking_id}: {e}\n{traceback.format_exc()}")
+
+
+def cancel_booking_in_pms(admin_id, booking_id):
+    """Notify PMS that a booking was cancelled."""
+    try:
+        for pms_type in ["dentrix", "opendental", "eaglesoft"]:
+            integration = db.get_emr_integration(admin_id, pms_type)
+            if integration and integration.get("sync_enabled"):
+                from services.pms.adapters import get_adapter
+                adapter = get_adapter(pms_type, {
+                    "api_url": integration.get("api_endpoint", ""),
+                    "api_key": integration.get("api_key_encrypted", ""),
+                    "admin_id": admin_id,
+                })
+                try:
+                    result = adapter.cancel_appointment(str(booking_id), "Cancelled via ChatGenius")
+                    db.log_pms_sync(admin_id, pms_type, booking_id, "cancelled", "Appointment cancelled in PMS")
+                except NotImplementedError:
+                    # Adapter doesn't support cancel yet — log it
+                    db.log_pms_sync(admin_id, pms_type, booking_id, "cancelled", "Cancellation logged (PMS cancel API pending)")
+                break
+    except Exception as e:
+        app.logger.error(f"PMS cancel sync failed for booking {booking_id}: {e}")
+
+
+def reschedule_booking_in_pms(admin_id, booking_id, new_date, new_time, new_doctor_name=""):
+    """Notify PMS that a booking was rescheduled."""
+    try:
+        for pms_type in ["dentrix", "opendental", "eaglesoft"]:
+            integration = db.get_emr_integration(admin_id, pms_type)
+            if integration and integration.get("sync_enabled"):
+                from services.pms.adapters import get_adapter
+                conn = db.get_db()
+                booking = conn.execute("SELECT * FROM bookings WHERE id = %s", (booking_id,)).fetchone()
+                conn.close()
+                if not booking:
+                    return
+                adapter = get_adapter(pms_type, {
+                    "api_url": integration.get("api_endpoint", ""),
+                    "api_key": integration.get("api_key_encrypted", ""),
+                    "admin_id": admin_id,
+                })
+                try:
+                    result = adapter.update_appointment(str(booking_id), {
+                        "date": new_date,
+                        "time": new_time,
+                        "doctor_name": new_doctor_name or booking.get("doctor_name", ""),
+                    })
+                    db.log_pms_sync(admin_id, pms_type, booking_id, "rescheduled", f"Rescheduled to {new_date} {new_time}")
+                except NotImplementedError:
+                    # Adapter doesn't support update — cancel old + create new
+                    result = adapter.create_appointment({
+                        "patient_name": booking["customer_name"],
+                        "patient_email": booking.get("customer_email", ""),
+                        "patient_phone": booking.get("customer_phone", ""),
+                        "date": new_date,
+                        "time": new_time,
+                        "service": booking.get("service", ""),
+                        "doctor_name": new_doctor_name or booking.get("doctor_name", ""),
+                        "notes": f"Rescheduled via ChatGenius (ID: {booking_id})",
+                    })
+                    db.log_pms_sync(admin_id, pms_type, booking_id, "rescheduled", f"Re-created in PMS for {new_date} {new_time}")
+                break
+    except Exception as e:
+        app.logger.error(f"PMS reschedule sync failed for booking {booking_id}: {e}")
+
+
+def sync_all_bookings_to_pms(admin_id):
+    """Push ALL unsynced bookings to the configured PMS. Runs in background thread."""
+    try:
+        # Find configured PMS
+        pms_type = None
+        integration = None
+        for pt in ["dentrix", "opendental", "eaglesoft"]:
+            emr = db.get_emr_integration(admin_id, pt)
+            if emr and emr.get("sync_enabled"):
+                pms_type = pt
+                integration = emr
+                break
+        if not pms_type:
+            return
+
+        from services.pms.adapters import get_adapter
+        adapter = get_adapter(pms_type, {
+            "api_url": integration.get("api_endpoint", ""),
+            "api_key": integration.get("api_key_encrypted", ""),
+            "admin_id": admin_id,
+        })
+
+        # Get all bookings that haven't been synced yet
+        conn = db.get_db()
+        all_bookings = conn.execute(
+            "SELECT * FROM bookings WHERE admin_id = %s ORDER BY created_at DESC",
+            (admin_id,)
+        ).fetchall()
+        conn.close()
+
+        for booking in all_bookings:
+            booking_id = booking["id"]
+            # Skip if already synced
+            existing = db.get_pms_sync_for_booking(admin_id, booking_id)
+            if existing and existing.get("status") == "success":
+                continue
+
+            result = adapter.create_appointment({
+                "patient_name": booking["customer_name"],
+                "patient_email": booking.get("customer_email", ""),
+                "patient_phone": booking.get("customer_phone", ""),
+                "date": str(booking["date"]),
+                "time": str(booking["time"]),
+                "service": booking.get("service", ""),
+                "doctor_name": booking.get("doctor_name", ""),
+                "notes": f"Booked via ChatGenius (ID: {booking_id})",
+            })
+            db.log_pms_sync(admin_id, pms_type, booking_id, result.get("status", "unknown"), result.get("message", ""))
+
+        app.logger.info(f"PMS bulk sync complete for admin {admin_id}: {len(all_bookings)} bookings processed")
+    except Exception as e:
+        import traceback
+        app.logger.error(f"PMS bulk sync failed for admin {admin_id}: {e}\n{traceback.format_exc()}")
 
 
 @app.route("/api/integrations/emr/sync", methods=["GET"])
@@ -13813,7 +24034,7 @@ def api_emr_sync():
     user = db.get_user_by_token(token)
     if not user or not is_admin_role(user):
         return jsonify({"error": "Unauthorized"}), 401
-    if user.get("plan") not in ("agency", "enterprise", "enterprise_yearly"):
+    if user.get("plan") != "enterprise":
         return jsonify({"error": "EMR sync requires an Enterprise plan"}), 403
     admin_id = get_effective_admin_id(user)
 
@@ -13842,6 +24063,151 @@ def api_emr_sync():
     except Exception as e:
         app.logger.error(f"EMR sync failed: {e}")
         return jsonify({"error": "Internal server error"}), 500
+
+
+@app.route("/api/integrations/emr/sync-log", methods=["GET"])
+def api_emr_sync_log():
+    """Get recent PMS sync log entries."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+
+    logs = db.get_pms_sync_logs(admin_id, limit=50)
+    return jsonify({"logs": logs})
+
+
+# ══════════════════════════════════════════════
+#  PMS Dashboard — Appointments, Patients, Doctors
+# ══════════════════════════════════════════════
+
+@app.route("/api/pms/appointments", methods=["GET"])
+def api_pms_appointments():
+    """Get all bookings for this admin (shown in PMS dashboard)."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+
+    conn = db.get_db()
+    rows = conn.execute(
+        """SELECT id, customer_name as patient_name, customer_email as email,
+                  customer_phone as phone, date, time, service,
+                  doctor_name, status, created_at
+           FROM bookings WHERE admin_id = %s ORDER BY created_at DESC LIMIT 200""",
+        (admin_id,)
+    ).fetchall()
+    conn.close()
+
+    appointments = []
+    for r in rows:
+        row = dict(r)
+        row["created_at"] = str(row.get("created_at", ""))
+        # Check if this booking was synced to PMS
+        sync_log = db.get_pms_sync_for_booking(admin_id, row["id"]) if hasattr(db, "get_pms_sync_for_booking") else None
+        row["synced"] = bool(sync_log)
+        row["sync_status"] = sync_log.get("status", "") if sync_log else ""
+        appointments.append(row)
+
+    return jsonify(appointments)
+
+
+@app.route("/api/pms/patients", methods=["GET"])
+def api_pms_patients():
+    """Get unique patients from bookings for this admin."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+
+    conn = db.get_db()
+    rows = conn.execute(
+        """SELECT DISTINCT ON (customer_email)
+                  customer_name as name, customer_email as email,
+                  customer_phone as phone, COUNT(*) OVER (PARTITION BY customer_email) as visit_count
+           FROM bookings WHERE admin_id = %s AND customer_email != ''
+           ORDER BY customer_email, created_at DESC""",
+        (admin_id,)
+    ).fetchall()
+    conn.close()
+
+    patients = []
+    for i, r in enumerate(rows):
+        row = dict(r)
+        row["id"] = i + 1
+        row["insurance_provider"] = ""
+        patients.append(row)
+
+    return jsonify(patients)
+
+
+@app.route("/api/pms/doctors", methods=["GET"])
+def api_pms_doctors():
+    """Get doctors for this admin."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+
+    conn = db.get_db()
+    rows = conn.execute(
+        "SELECT id, name, specialty, email, phone, is_active FROM doctors WHERE admin_id = %s ORDER BY name",
+        (admin_id,)
+    ).fetchall()
+    conn.close()
+
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route("/api/pms/sync-booking", methods=["POST"])
+def api_pms_sync_booking():
+    """Manually push a single booking to the configured PMS."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+
+    data = request.get_json(silent=True) or {}
+    booking_id = data.get("booking_id")
+    if not booking_id:
+        return jsonify({"error": "booking_id is required"}), 400
+
+    # Get booking
+    conn = db.get_db()
+    booking = conn.execute("SELECT * FROM bookings WHERE id = %s AND admin_id = %s", (booking_id, admin_id)).fetchone()
+    conn.close()
+    if not booking:
+        return jsonify({"error": "Booking not found"}), 404
+
+    # Find configured PMS
+    for pms_type in ["dentrix", "opendental", "eaglesoft"]:
+        integration = db.get_emr_integration(admin_id, pms_type)
+        if integration and integration.get("sync_enabled"):
+            from services.pms.adapters import get_adapter
+            adapter = get_adapter(pms_type, {
+                "api_url": integration.get("api_endpoint", ""),
+                "api_key": integration.get("api_key_encrypted", ""),
+                "admin_id": admin_id,
+            })
+            result = adapter.create_appointment({
+                "patient_name": booking["customer_name"],
+                "patient_email": booking.get("customer_email", ""),
+                "patient_phone": booking.get("customer_phone", ""),
+                "date": str(booking["date"]),
+                "time": str(booking["time"]),
+                "service": booking.get("service", ""),
+                "doctor_name": booking.get("doctor_name", ""),
+                "notes": f"Booked via ChatGenius (ID: {booking_id})",
+            })
+            db.log_pms_sync(admin_id, pms_type, booking_id, result.get("status", "unknown"), result.get("message", ""))
+            return jsonify({"status": result.get("status", "error"), "pms_type": pms_type, "message": result.get("message", "")})
+
+    return jsonify({"error": "No PMS integration configured with auto-sync enabled"}), 400
 
 
 # ══════════════════════════════════════════════
@@ -14106,12 +24472,106 @@ def api_get_proactive_config_public(admin_id_raw):
     if not config or not config.get("enabled"):
         return jsonify({"enabled": False})
     # Return safe public config (no admin_id, no internal fields)
-    return jsonify({
+    trigger_msg = config.get("trigger_message", "")
+    if not trigger_msg:
+        company_type = db.get_company_type(admin_id) or "dental"
+        if company_type == "ecommerce":
+            trigger_msg = "Looking for something? I can help you find the perfect product!"
+        elif company_type == "real_estate":
+            trigger_msg = "Looking for your dream home? I can help you find properties 24/7!"
+        else:
+            trigger_msg = "Need help? I can assist with booking appointments!"
+    result = {
         "enabled": True,
         "dwell_time_seconds": config.get("dwell_time_seconds", 30),
         "scroll_depth_percent": config.get("scroll_depth_percent", 60),
         "exit_intent_enabled": bool(config.get("exit_intent_enabled", 1)),
-        "trigger_message": config.get("trigger_message") or "Need help? I can assist with booking appointments!",
+        "trigger_message": trigger_msg,
+    }
+
+    # Include cart recovery config for e-commerce
+    company_type = db.get_company_type(admin_id) or "dental"
+    if company_type == "ecommerce":
+        cr = db.get_cart_recovery_settings(admin_id)
+        if cr and cr.get("cart_recovery_enabled"):
+            result["cart_recovery"] = {
+                "enabled": True,
+                "exit_intent_trigger": bool(cr.get("exit_intent_trigger", 1)),
+                "tab_switch_trigger": bool(cr.get("tab_switch_trigger", 0)),
+                "recovery_message_1": cr.get("recovery_message_1") or "Wait! You have items in your cart. Don't miss out!",
+                "recovery_message_1_delay": cr.get("recovery_message_1_delay", 0),
+                "recovery_message_2": cr.get("recovery_message_2") or "Still thinking? Here's a special discount just for you!",
+                "recovery_message_2_delay": cr.get("recovery_message_2_delay", 60),
+                "recovery_message_3": cr.get("recovery_message_3") or "Last chance! Your cart is about to expire.",
+                "recovery_message_3_delay": cr.get("recovery_message_3_delay", 180),
+                "discount_enabled": bool(cr.get("discount_enabled", 0)),
+                "discount_type": cr.get("discount_type", "percentage"),
+                "discount_value": float(cr.get("discount_value", 0) or 0),
+                "discount_code_prefix": cr.get("discount_code_prefix", "CHAT"),
+                "urgency_timer_enabled": bool(cr.get("urgency_timer_enabled", 0)),
+                "urgency_timer_duration": cr.get("urgency_timer_duration", 30),
+            }
+
+    return jsonify(result)
+
+
+@app.route("/api/cart-recovery/abandon", methods=["POST"])
+def api_cart_recovery_abandon():
+    """Public endpoint — widget reports an abandoned cart for recovery tracking."""
+    data = request.get_json(silent=True) or {}
+    admin_id_raw = str(data.get("admin_id", "")).strip()
+    if not admin_id_raw:
+        return jsonify({"error": "Missing admin_id"}), 400
+
+    if not admin_id_raw.isdigit():
+        resolved = db.get_user_by_public_id(admin_id_raw)
+        if not resolved:
+            return jsonify({"error": "Invalid admin"}), 400
+        admin_id = resolved["id"]
+    else:
+        admin_id = int(admin_id_raw)
+
+    cart_items = data.get("cart_items", [])
+    if not cart_items:
+        return jsonify({"ok": True})  # Nothing to save
+
+    cart_total = sum(float(i.get("price", 0)) * int(i.get("qty", 1)) for i in cart_items)
+
+    cart_id = db.create_abandoned_cart(
+        admin_id,
+        session_id=data.get("session_id", ""),
+        cart_items=json.dumps(cart_items),
+        cart_total=cart_total,
+    )
+
+    # Generate unique discount code if enabled
+    discount_code = ""
+    cr = db.get_cart_recovery_settings(admin_id)
+    if cr and cr.get("discount_enabled"):
+        import hashlib
+        prefix = cr.get("discount_code_prefix") or "CHAT"
+        unique = hashlib.md5(f"{cart_id}-{admin_id}-{cart_total}".encode()).hexdigest()[:6].upper()
+        discount_code = f"{prefix}{unique}"
+        # Store the code on the abandoned cart record
+        conn = db.get_db()
+        conn.execute("UPDATE abandoned_carts SET discount_code_sent=%s WHERE id=%s", (discount_code, cart_id))
+        conn.commit()
+        conn.close()
+
+    # Get store currency for display
+    _store_settings = db.get_store_settings(admin_id)
+    _currency_sym = "$"
+    if _store_settings and _store_settings.get("store_currency"):
+        _cm = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SAR": "SAR ", "AED": "AED "}
+        _currency_sym = _cm.get(_store_settings["store_currency"], "$")
+
+    return jsonify({
+        "ok": True,
+        "cart_id": cart_id,
+        "discount_code": discount_code,
+        "discount_type": cr.get("discount_type", "percentage") if cr else "",
+        "discount_value": float(cr.get("discount_value", 0) or 0) if cr else 0,
+        "currency": _currency_sym,
     })
 
 
@@ -14124,11 +24584,115 @@ def api_support_chat():
     import chatgenius_support_bot as sb
     data = request.get_json(silent=True) or {}
     msg = (data.get("message") or "").strip()
+    history = data.get("history") or []
+    is_init = data.get("init", False)
+
+    # Check if user is logged in — build context if so
+    user_context = None
+    logged_in = False
+    user_role = None
+    user_name = None
+    user_plan = None
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    if token:
+        user = db.get_user_by_token(token)
+        if user:
+            logged_in = True
+            user_role = user.get("role", "admin")
+            user_name = user.get("name", "")
+            user_plan = user.get("plan", "free")
+            try:
+                admin_id = get_effective_admin_id(user)
+                user_context = sb.build_user_context(user, admin_id, user_role)
+            except Exception as e:
+                print(f"[support-bot] Error building user context: {e}", flush=True)
+
+    # Init request — just return quick actions and status, no LLM call
+    if is_init:
+        quick_actions = sb.get_quick_actions(logged_in, user_role, user_plan)
+        resp_data = {
+            "logged_in": logged_in,
+            "user_name": user_name,
+            "role": user_role,
+            "plan": user_plan,
+            "quick_actions": quick_actions
+        }
+        if logged_in and user:
+            try:
+                admin_id = get_effective_admin_id(user)
+                resp_data["greeting"] = sb.build_proactive_greeting(user, admin_id, user_role)
+                resp_data["company_type"] = db.get_company_type(admin_id) or ""
+            except Exception as e:
+                print(f"[support-bot] Error building greeting: {e}", flush=True)
+        return jsonify(resp_data)
+
     if not msg:
         return jsonify({"error": "Please type a message."}), 400
-    history = data.get("history") or []
-    result = sb.ask_support_bot(msg, history)
+
+    result = sb.ask_support_bot(msg, history, user_context=user_context)
     return jsonify(result)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Website Visitor Tracking
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route("/api/track-visit", methods=["POST"])
+@limiter.limit("60 per minute")
+def api_track_visit():
+    """Track a page visit from an embedded chatbot widget (lightweight pixel)."""
+    import hashlib
+    data = request.get_json(silent=True) or {}
+    admin_id = data.get("admin_id")
+    if not admin_id:
+        return jsonify({"ok": False}), 400
+
+    try:
+        admin_id = int(admin_id)
+    except (ValueError, TypeError):
+        return jsonify({"ok": False}), 400
+
+    visitor_id = (data.get("visitor_id") or "").strip()[:128]
+    page_url = (data.get("page_url") or "").strip()[:2000]
+    page_path = (data.get("page_path") or "").strip()[:500]
+    referrer = (data.get("referrer") or "").strip()[:2000]
+    ua = (request.headers.get("User-Agent") or "")[:500]
+
+    # Hash the IP for privacy
+    raw_ip = request.remote_addr or ""
+    ip_hash = hashlib.sha256(raw_ip.encode()).hexdigest()[:16]
+
+    # Detect device type from user-agent
+    ua_lower = ua.lower()
+    if "mobile" in ua_lower or "android" in ua_lower or "iphone" in ua_lower:
+        device_type = "mobile"
+    elif "tablet" in ua_lower or "ipad" in ua_lower:
+        device_type = "tablet"
+    else:
+        device_type = "desktop"
+
+    try:
+        db.record_page_visit(admin_id, visitor_id, page_url, page_path, referrer, ua, ip_hash, device_type)
+    except Exception as e:
+        print(f"[track-visit] Error: {e}", flush=True)
+
+    return jsonify({"ok": True})
+
+
+@app.route("/api/visitor-stats", methods=["GET"])
+def api_visitor_stats():
+    """Get website visitor stats for current admin."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    if not token:
+        return jsonify({"error": "Unauthorized"}), 401
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    stats = db.get_visitor_stats(admin_id)
+    if not stats:
+        return jsonify({"error": "No data"}), 404
+    return jsonify(stats)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -14345,6 +24909,1561 @@ def api_activate_chatbot_flow(flow_id):
     except Exception:
         return jsonify({"error": "Failed to activate chatbot flow"}), 500
     return jsonify({"ok": True, "message": "Flow activated"})
+
+
+# ── Multi-industry endpoints ──────────────────────────────────────────
+
+
+@app.route("/api/company-type", methods=["GET", "POST"])
+def api_company_type():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if request.method == "GET":
+        ct = db.get_company_type(admin_id)
+        return jsonify({"company_type": ct})
+    # POST - only head_admin can set (first-time setup)
+    if user.get("role") != "head_admin":
+        return jsonify({"error": "Only the account owner can set company type"}), 403
+    data = request.get_json() or {}
+    ct = data.get("company_type", "")
+    if ct not in ("dental", "ecommerce", "real_estate"):
+        return jsonify({"error": "Invalid company type. Must be: dental, ecommerce, or real_estate"}), 400
+    new_role = data.get("role", "head_admin")
+    # Validate role based on company type
+    if ct == "dental":
+        if new_role not in ("head_admin", "admin", "doctor"):
+            new_role = "head_admin"
+    elif ct == "ecommerce":
+        if new_role not in ("head_admin", "admin"):
+            new_role = "head_admin"
+    else:
+        new_role = "head_admin"
+    db.set_company_type(admin_id, ct)
+    # Update role if changed from default head_admin
+    if new_role != "head_admin":
+        conn = db.get_db()
+        conn.execute("UPDATE users SET role=%s WHERE id=%s", (new_role, user["id"]))
+        conn.commit()
+        conn.close()
+    db.log_admin_action(admin_id, user, "Set company type", f"{ct} (role: {new_role})")
+    # Refresh user for response
+    updated_user = db.get_user_by_token(token)
+    return jsonify({"ok": True, "company_type": ct, "user": db.user_to_public(updated_user) if updated_user else None})
+
+
+@app.route("/api/staff-permissions", methods=["GET", "POST"])
+def api_staff_permissions():
+    """GET: list all staff with permissions. POST: update a staff member's permissions."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "Only for e-commerce accounts"}), 403
+    if request.method == "GET":
+        # Staff can view their own permissions
+        if user.get("role") != "head_admin":
+            perms = db.get_staff_permissions(admin_id, user["id"])
+            return jsonify({"staff": [{"id": user["id"], "name": user["name"], "email": user["email"], "permissions": perms}]})
+        # Store owner sees all staff
+        staff = db.get_all_staff_with_permissions(admin_id)
+        return jsonify({"staff": staff, "permission_keys": db.ECOM_PERMISSION_KEYS})
+    # POST — only store owner can set
+    if user.get("role") != "head_admin":
+        return jsonify({"error": "Only the store owner can manage staff permissions"}), 403
+    data = request.get_json() or {}
+    staff_user_id = data.get("staff_user_id")
+    permissions = data.get("permissions", {})
+    if not staff_user_id:
+        return jsonify({"error": "staff_user_id is required"}), 400
+    # Verify the staff member belongs to this admin
+    staff_user = db.get_user_by_id(staff_user_id)
+    if not staff_user or staff_user.get("admin_id") != admin_id:
+        return jsonify({"error": "Staff member not found"}), 404
+    db.set_staff_permissions(admin_id, staff_user_id, permissions)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/store-settings", methods=["GET", "POST"])
+def api_store_settings():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "This feature is only for e-commerce accounts"}), 403
+    if not _check_ecom_permission(user, admin_id, "store_settings"):
+        return jsonify({"error": "You don't have permission to manage store settings"}), 403
+    if request.method == "GET":
+        settings = db.get_store_settings(admin_id) or {}
+        # Merge in company_info fields so Store Settings is the single view
+        ci = db.get_company_info(admin_id)
+        if ci:
+            if not settings.get("store_name") and ci.get("business_name"):
+                settings["store_name"] = ci["business_name"]
+            for ci_key in ("address", "phone", "business_hours", "about", "store_image", "logo_url"):
+                if not settings.get(ci_key) and ci.get(ci_key):
+                    settings[ci_key] = ci[ci_key]
+        return jsonify(settings)
+    data = request.get_json() or {}
+    # Extract company_info fields before saving store settings
+    ci_fields = {}
+    for ss_key, ci_key in [("store_name", "business_name"), ("address", "address"),
+                           ("phone", "phone"), ("business_hours", "business_hours"),
+                           ("about", "about")]:
+        if ss_key in data:
+            ci_fields[ci_key] = data[ss_key]
+    db.save_store_settings(admin_id, **data)
+    # Sync to company_info so chatbot picks it up
+    if ci_fields:
+        db.save_company_info(admin_id, ci_fields)
+    db.log_admin_action(admin_id, user, "Updated store settings", "")
+    return jsonify({"ok": True})
+
+
+@app.route("/api/shipping-zones", methods=["GET"])
+def api_shipping_zones_get():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "Not available for your account type"}), 403
+    zones = db.get_shipping_zones(admin_id)
+    import json as _json
+    for z in zones:
+        try:
+            z["countries"] = _json.loads(z["countries"]) if isinstance(z["countries"], str) else z["countries"]
+        except Exception:
+            z["countries"] = []
+    return jsonify({"zones": zones})
+
+@app.route("/api/shipping-zones", methods=["POST"])
+def api_shipping_zones_save():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "Not available for your account type"}), 403
+    data = request.get_json() or {}
+    import json as _json
+    if isinstance(data.get("countries"), list):
+        data["countries"] = _json.dumps(data["countries"])
+    zone_id = data.pop("id", None)
+    db.save_shipping_zone(admin_id, zone_id=zone_id, **data)
+    return jsonify({"ok": True})
+
+@app.route("/api/shipping-zones/<int:zone_id>", methods=["DELETE"])
+def api_shipping_zones_delete(zone_id):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "Not available for your account type"}), 403
+    db.delete_shipping_zone(admin_id, zone_id)
+    return jsonify({"ok": True})
+
+@app.route("/api/store-discounts", methods=["GET"])
+def api_store_discounts_get():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "Not available for your account type"}), 403
+    discounts = db.get_store_discounts(admin_id)
+    import json as _json
+    for d in discounts:
+        try:
+            d["product_ids"] = _json.loads(d["product_ids"]) if isinstance(d["product_ids"], str) else d["product_ids"]
+        except Exception:
+            d["product_ids"] = []
+        try:
+            d["category_names"] = _json.loads(d["category_names"]) if isinstance(d["category_names"], str) else d["category_names"]
+        except Exception:
+            d["category_names"] = []
+    return jsonify({"discounts": discounts})
+
+@app.route("/api/store-discounts", methods=["POST"])
+def api_store_discounts_save():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "Not available for your account type"}), 403
+    if not _check_ecom_permission(user, admin_id, "promotions"):
+        return jsonify({"error": "You don't have permission to manage discounts"}), 403
+    data = request.get_json() or {}
+    import json as _json
+    if isinstance(data.get("product_ids"), list):
+        data["product_ids"] = _json.dumps(data["product_ids"])
+    if isinstance(data.get("category_names"), list):
+        data["category_names"] = _json.dumps(data["category_names"])
+    # Validate discount type
+    if data.get("discount_type") and data["discount_type"] not in ("percentage", "fixed", "free_shipping", "buy_x_get_y"):
+        return jsonify({"error": "Invalid discount type"}), 400
+    # Validate discount value is non-negative
+    if "discount_value" in data:
+        try:
+            dv = float(data["discount_value"])
+            if dv < 0:
+                return jsonify({"error": "Discount value cannot be negative"}), 400
+        except (ValueError, TypeError):
+            return jsonify({"error": "Invalid discount value"}), 400
+    discount_id = data.pop("id", None)
+    db.save_store_discount(admin_id, discount_id=discount_id, **data)
+    return jsonify({"ok": True})
+
+@app.route("/api/store-discounts/<int:discount_id>", methods=["DELETE"])
+def api_store_discounts_delete(discount_id):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "Not available for your account type"}), 403
+    db.delete_store_discount(admin_id, discount_id)
+    return jsonify({"ok": True})
+
+@app.route("/api/agency-settings", methods=["GET", "POST"])
+def api_agency_settings():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "real_estate":
+        return jsonify({"error": "This feature is only for real estate accounts"}), 403
+    if request.method == "GET":
+        settings = db.get_agency_settings(admin_id)
+        return jsonify(settings or {})
+    data = request.get_json() or {}
+    db.save_agency_settings(admin_id, **data)
+    db.log_admin_action(admin_id, user, "Updated agency settings", "")
+    return jsonify({"ok": True})
+
+
+@app.route("/api/products", methods=["GET", "POST"])
+def api_products():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "This feature is only for e-commerce accounts"}), 403
+    if not _check_ecom_permission(user, admin_id, "products"):
+        return jsonify({"error": "You don't have permission to manage products"}), 403
+    if request.method == "GET":
+        status = request.args.get("status")
+        products = db.get_products(admin_id, status)
+        return jsonify(products)
+    data = request.get_json() or {}
+    # Validate price is non-negative
+    if "product_price" in data:
+        try:
+            pp = float(data["product_price"] or 0)
+            if pp < 0:
+                return jsonify({"error": "Product price cannot be negative"}), 400
+        except (ValueError, TypeError):
+            return jsonify({"error": "Invalid product price"}), 400
+    # Validate image URLs - reject dangerous schemes
+    if "product_images" in data and data["product_images"]:
+        imgs = data["product_images"]
+        if isinstance(imgs, str):
+            try:
+                import json as _json
+                img_list = _json.loads(imgs)
+            except (ValueError, TypeError):
+                img_list = [u.strip() for u in imgs.split(",") if u.strip()]
+        elif isinstance(imgs, list):
+            img_list = imgs
+        else:
+            img_list = []
+        for img_url in img_list:
+            if isinstance(img_url, str) and img_url.strip():
+                scheme = img_url.strip().split(":")[0].lower()
+                if scheme not in ("http", "https", "/uploads", ""):
+                    return jsonify({"error": "Only http/https image URLs are allowed"}), 400
+    pid = db.create_product(admin_id, **data)
+    db.log_admin_action(admin_id, user, "Created product", data.get("product_name", ""))
+    return jsonify({"ok": True, "id": pid})
+
+
+@app.route("/api/products/<int:pid>", methods=["GET", "PUT", "DELETE"])
+def api_product_detail(pid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if not _check_ecom_permission(user, admin_id, "products"):
+        return jsonify({"error": "You don't have permission to manage products"}), 403
+    product = db.get_product_by_id(pid)
+    if not product or product.get("admin_id") != admin_id:
+        return jsonify({"error": "Product not found"}), 404
+    if request.method == "GET":
+        product["variants"] = db.get_product_variants(pid)
+        return jsonify(product)
+    if request.method == "DELETE":
+        db.delete_product(pid)
+        db.log_admin_action(admin_id, user, "Deleted product", product.get("product_name", ""))
+        return jsonify({"ok": True})
+    data = request.get_json() or {}
+    # Validate image URLs - reject dangerous schemes
+    if "product_images" in data and data["product_images"]:
+        imgs = data["product_images"]
+        if isinstance(imgs, str):
+            try:
+                import json as _json
+                img_list = _json.loads(imgs)
+            except (ValueError, TypeError):
+                img_list = [u.strip() for u in imgs.split(",") if u.strip()]
+        elif isinstance(imgs, list):
+            img_list = imgs
+        else:
+            img_list = []
+        for img_url in img_list:
+            if isinstance(img_url, str) and img_url.strip():
+                scheme = img_url.strip().split(":")[0].lower()
+                if scheme not in ("http", "https", "/uploads", ""):
+                    return jsonify({"error": "Only http/https image URLs are allowed"}), 400
+    db.update_product(pid, **data)
+    db.log_admin_action(admin_id, user, "Updated product", product.get("product_name", ""))
+    return jsonify({"ok": True})
+
+
+@app.route("/api/products/bulk-links", methods=["POST"])
+def api_products_bulk_links():
+    """Save product page URLs for multiple products at once."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    data = request.get_json() or {}
+    links = data.get("links", {})
+    updated = 0
+    for pid_str, url in links.items():
+        try:
+            pid = int(pid_str)
+            product = db.get_product_by_id(pid)
+            if product and product.get("admin_id") == admin_id:
+                db.update_product(pid, product_url=url.strip())
+                updated += 1
+        except (ValueError, TypeError):
+            continue
+    return jsonify({"ok": True, "updated": updated})
+
+
+@app.route("/api/products/<int:pid>/variants", methods=["GET", "POST"])
+def api_product_variants(pid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    product = db.get_product_by_id(pid)
+    if not product or product.get("admin_id") != admin_id:
+        return jsonify({"error": "Product not found"}), 404
+    if request.method == "GET":
+        return jsonify(db.get_product_variants(pid))
+    data = request.get_json() or {}
+    vid = db.create_variant(admin_id, pid, **data)
+    return jsonify({"ok": True, "id": vid})
+
+
+@app.route("/api/variants/<int:vid>", methods=["DELETE"])
+def api_variant_delete(vid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    # Verify variant belongs to this admin's product
+    conn = db.get_db()
+    row = conn.execute("SELECT pv.id, p.admin_id FROM product_variants pv JOIN products p ON pv.product_id=p.id WHERE pv.id=%s", (vid,)).fetchone()
+    conn.close()
+    if not row or row["admin_id"] != admin_id:
+        return jsonify({"error": "Not found"}), 404
+    db.delete_variant(vid)
+    return jsonify({"ok": True})
+
+
+PRODUCT_PHOTO_DIR = os.path.join(os.path.dirname(__file__), "uploads", "product_photos")
+os.makedirs(PRODUCT_PHOTO_DIR, exist_ok=True)
+
+@app.route("/api/products/<int:pid>/photos", methods=["POST"])
+def api_upload_product_photo(pid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    product = db.get_product_by_id(pid)
+    if not product or product.get("admin_id") != admin_id:
+        return jsonify({"error": "Product not found"}), 404
+    photo = request.files.get("photo")
+    if not photo or not photo.filename:
+        return jsonify({"error": "No photo provided"}), 400
+    ext = os.path.splitext(photo.filename)[1].lower()
+    if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+        return jsonify({"error": "Only JPG, PNG, and WebP images are allowed."}), 400
+    if not _validate_image_content(photo.stream):
+        return jsonify({"error": "File content does not match an image format."}), 400
+    photo.seek(0, 2)
+    size = photo.tell()
+    photo.seek(0)
+    if size > MAX_PHOTO_SIZE:
+        return jsonify({"error": "Photo must be under 5 MB."}), 400
+    filename = f"product_{pid}_{int(datetime.now().timestamp())}_{secrets.token_hex(4)}{ext}"
+    filepath = os.path.join(PRODUCT_PHOTO_DIR, filename)
+    photo.save(filepath)
+    photo_url = f"/uploads/product_photos/{filename}"
+    import json as _json
+    existing_images = product.get("product_images", "[]")
+    try:
+        images = _json.loads(existing_images) if isinstance(existing_images, str) else existing_images
+    except (ValueError, TypeError):
+        images = []
+    images.append(photo_url)
+    db.update_product(pid, product_images=_json.dumps(images))
+    return jsonify({"ok": True, "photo_url": photo_url, "images": images})
+
+
+@app.route("/api/products/<int:pid>/photos", methods=["DELETE"])
+def api_delete_product_photo(pid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    product = db.get_product_by_id(pid)
+    if not product or product.get("admin_id") != admin_id:
+        return jsonify({"error": "Product not found"}), 404
+    data = request.get_json() or {}
+    photo_url = data.get("photo_url", "")
+    import json as _json
+    existing_images = product.get("product_images", "[]")
+    try:
+        images = _json.loads(existing_images) if isinstance(existing_images, str) else existing_images
+    except (ValueError, TypeError):
+        images = []
+    images = [img for img in images if img != photo_url]
+    db.update_product(pid, product_images=_json.dumps(images))
+    return jsonify({"ok": True, "images": images})
+
+
+@app.route("/uploads/product_photos/<path:filename>")
+def serve_product_photo(filename):
+    return send_from_directory(PRODUCT_PHOTO_DIR, filename)
+
+
+@app.route("/api/products/import-pdf", methods=["POST"])
+def api_import_products_pdf():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if not is_admin_role(user):
+        return jsonify({"error": "Admin only"}), 403
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "This feature is only for e-commerce accounts"}), 403
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+    f = request.files["file"]
+    if not f.filename.lower().endswith(".pdf"):
+        return jsonify({"error": "Only PDF files are allowed"}), 400
+    try:
+        from PyPDF2 import PdfReader
+        reader = PdfReader(f.stream)
+        text = "\n".join((p.extract_text() or "") for p in reader.pages)
+    except Exception:
+        return jsonify({"error": "Failed to read PDF"}), 400
+    if not text.strip():
+        return jsonify({"error": "PDF appears to be empty or image-based"}), 400
+
+    # Send to Groq to extract products
+    try:
+        from groq import Groq
+        groq_client = Groq()
+        response = groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": """You are a product data extraction assistant. Extract ALL products from the text below.
+Return ONLY a JSON array of objects. Each object must have these fields:
+- "product_name": string (required)
+- "product_price": number (0 if not found)
+- "product_description": string (brief, from context)
+- "product_category": string (best guess from: electronics, clothing, home, beauty, food, sports, other)
+- "product_id": string (SKU/ID if found, empty string if not)
+
+Example output:
+[{"product_name":"Blue T-Shirt","product_price":29.99,"product_description":"Cotton casual t-shirt","product_category":"clothing","product_id":"TSH-001"}]
+
+Return ONLY the JSON array, no other text."""},
+                {"role": "user", "content": f"Extract products from this text:\n\n{text[:8000]}"}
+            ],
+            max_tokens=4000,
+            temperature=0.1,
+        )
+        raw = response.choices[0].message.content.strip()
+        import json as _json
+        # Handle markdown code blocks
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        products = _json.loads(raw)
+    except Exception as e:
+        app.logger.error(f"AI extraction failed: {e}")
+        return jsonify({"error": "Failed to extract products from PDF. Please try again."}), 500
+
+    if not products or not isinstance(products, list):
+        return jsonify({"error": "No products could be extracted from the PDF"}), 400
+
+    # Insert products into database
+    added = 0
+    for p in products:
+        if not p.get("product_name"):
+            continue
+        try:
+            db.create_product(admin_id,
+                product_name=p.get("product_name", ""),
+                product_price=p.get("product_price", 0),
+                product_description=p.get("product_description", ""),
+                product_category=p.get("product_category", "other"),
+                product_id=p.get("product_id", ""),
+                product_status="active"
+            )
+            added += 1
+        except Exception:
+            continue
+
+    db.log_admin_action(admin_id, user, "Imported products from PDF", f"{added} product(s) extracted")
+    return jsonify({"ok": True, "added": added, "products": products})
+
+
+@app.route("/api/products/import-url", methods=["POST"])
+def api_import_products_url():
+    """Scrape products from a website URL and import them into the products table."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if not is_admin_role(user):
+        return jsonify({"error": "Admin only"}), 403
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "This feature is only for e-commerce accounts"}), 403
+
+    data = request.get_json(silent=True) or {}
+    site_url = (data.get("url") or "").strip().rstrip("/")
+    if not site_url:
+        return jsonify({"error": "URL is required"}), 400
+    if not site_url.startswith("http"):
+        site_url = "https://" + site_url
+    # SSRF protection: validate URL points to a public domain
+    if not _is_safe_url(site_url):
+        return jsonify({"error": "Invalid URL. Please provide a public website URL."}), 400
+
+    try:
+        products = _scrape_products_from_url(site_url)
+    except Exception as e:
+        app.logger.error(f"Product scrape failed for {site_url}: {e}")
+        return jsonify({"error": "Failed to fetch products from that URL. Make sure the URL is correct and the site is accessible."}), 500
+
+    if not products:
+        return jsonify({"error": "No products found on that page. Try a page that lists products (e.g. /shop, /collections, /products)."}), 400
+
+    added = 0
+    for p in products:
+        if not p.get("product_name"):
+            continue
+        try:
+            db.create_product(admin_id,
+                product_name=p.get("product_name", ""),
+                product_price=float(p.get("product_price", 0) or 0),
+                product_description=p.get("product_description", ""),
+                product_short_description=p.get("product_short_description", ""),
+                product_images=p.get("product_images", ""),
+                product_category=p.get("product_category", ""),
+                product_url=p.get("product_url", ""),
+                product_barcode=p.get("product_barcode", ""),
+                product_status="active",
+            )
+            added += 1
+        except Exception:
+            continue
+
+    db.log_admin_action(admin_id, user, "Imported products from URL", f"{added} product(s) scraped from {site_url}")
+    return jsonify({"ok": True, "added": added, "total_found": len(products)})
+
+
+def _scrape_products_from_url(site_url):
+    """Scrape product data from a website. Tries structured data first, then AI extraction."""
+    from bs4 import BeautifulSoup
+
+    headers_req = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    }
+
+    # ── Step 1: Try to find product URLs from sitemap ──
+    product_urls = []
+    base = site_url.split("//")[0] + "//" + site_url.split("//")[1].split("/")[0]
+
+    # Try sitemap.xml first
+    for sitemap_path in ["/sitemap.xml", "/sitemap_products_1.xml", "/sitemap-products.xml"]:
+        try:
+            sm_resp = http_requests.get(base + sitemap_path, headers=headers_req, timeout=10)
+            if sm_resp.status_code == 200 and "<url" in sm_resp.text.lower():
+                soup = BeautifulSoup(sm_resp.text, "lxml")
+                # Check for sitemap index (contains other sitemaps)
+                sitemap_locs = soup.find_all("sitemap")
+                if sitemap_locs:
+                    for sm in sitemap_locs[:5]:
+                        loc = sm.find("loc")
+                        if loc and loc.text and ("product" in loc.text.lower() or "shop" in loc.text.lower()):
+                            try:
+                                sub_resp = http_requests.get(loc.text.strip(), headers=headers_req, timeout=10)
+                                if sub_resp.status_code == 200:
+                                    sub_soup = BeautifulSoup(sub_resp.text, "lxml")
+                                    for url_tag in sub_soup.find_all("url"):
+                                        loc_tag = url_tag.find("loc")
+                                        if loc_tag and loc_tag.text:
+                                            product_urls.append(loc_tag.text.strip())
+                            except Exception:
+                                pass
+                else:
+                    for url_tag in soup.find_all("url"):
+                        loc = url_tag.find("loc")
+                        if loc and loc.text:
+                            u = loc.text.strip()
+                            # Filter for likely product URLs
+                            if any(kw in u.lower() for kw in ["/product", "/item", "/p/", "/dp/", "/shop/"]):
+                                product_urls.append(u)
+                if product_urls:
+                    break
+        except Exception:
+            continue
+
+    # ── Step 2: If no sitemap products, scrape the given page for product links ──
+    if not product_urls:
+        try:
+            page_resp = http_requests.get(site_url, headers=headers_req, timeout=15)
+            page_resp.raise_for_status()
+            soup = BeautifulSoup(page_resp.text, "lxml")
+            # Look for JSON-LD structured data on the page itself (collection/catalog page)
+            jsonld_products = _extract_jsonld_products(soup, site_url)
+            if jsonld_products:
+                return jsonld_products[:100]
+            # Collect product links from the page
+            for a in soup.find_all("a", href=True):
+                href = a["href"]
+                if any(kw in href.lower() for kw in ["/product", "/item", "/p/", "/dp/", "/shop/", ".html"]):
+                    if href.startswith("/"):
+                        href = base + href
+                    elif not href.startswith("http"):
+                        continue
+                    if href not in product_urls and base in href:
+                        product_urls.append(href)
+        except Exception:
+            pass
+
+    if not product_urls:
+        return []
+
+    # Limit to 50 products max
+    product_urls = product_urls[:50]
+
+    # ── Step 3: Fetch each product page and extract structured data ──
+    products = []
+    for url in product_urls:
+        try:
+            resp = http_requests.get(url, headers=headers_req, timeout=10)
+            if resp.status_code != 200:
+                continue
+            soup = BeautifulSoup(resp.text, "lxml")
+
+            product = _extract_product_from_page(soup, url)
+            if product and product.get("product_name"):
+                products.append(product)
+        except Exception:
+            continue
+
+    # ── Step 4: If structured data didn't work, try AI extraction on the main page ──
+    if not products:
+        try:
+            page_resp = http_requests.get(site_url, headers=headers_req, timeout=15)
+            if page_resp.status_code == 200:
+                products = _ai_extract_products_from_html(page_resp.text, site_url)
+        except Exception:
+            pass
+
+    return products
+
+
+def _extract_jsonld_products(soup, page_url):
+    """Extract products from JSON-LD structured data on a page."""
+    products = []
+    for script in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(script.string or "")
+            items = []
+            if isinstance(data, list):
+                items = data
+            elif isinstance(data, dict):
+                if data.get("@type") in ("Product", "product"):
+                    items = [data]
+                elif data.get("@type") in ("ItemList", "CollectionPage", "ProductCollection"):
+                    items = data.get("itemListElement", [])
+                elif data.get("@graph"):
+                    items = [x for x in data["@graph"] if isinstance(x, dict) and x.get("@type") in ("Product", "product")]
+            for item in items:
+                if isinstance(item, dict) and item.get("item"):
+                    item = item["item"]
+                if not isinstance(item, dict):
+                    continue
+                if item.get("@type") not in ("Product", "product"):
+                    continue
+                price = 0
+                offers = item.get("offers") or {}
+                if isinstance(offers, list):
+                    offers = offers[0] if offers else {}
+                if isinstance(offers, dict):
+                    price = float(offers.get("price", 0) or 0)
+                image = item.get("image", "")
+                if isinstance(image, list):
+                    image = ",".join(str(i) if isinstance(i, str) else i.get("url", "") for i in image[:5])
+                elif isinstance(image, dict):
+                    image = image.get("url", "")
+                products.append({
+                    "product_name": item.get("name", ""),
+                    "product_description": item.get("description", ""),
+                    "product_price": price,
+                    "product_images": str(image),
+                    "product_url": item.get("url", page_url),
+                    "product_barcode": item.get("sku", "") or item.get("gtin", "") or item.get("mpn", ""),
+                    "product_category": item.get("category", ""),
+                })
+        except Exception:
+            continue
+    return products
+
+
+def _extract_product_from_page(soup, url):
+    """Extract a single product's data from its page using JSON-LD, meta tags, and HTML."""
+    # Try JSON-LD first
+    jsonld = _extract_jsonld_products(soup, url)
+    if jsonld:
+        return jsonld[0]
+
+    product = {"product_url": url}
+
+    # Try OpenGraph / meta tags
+    og_title = soup.find("meta", property="og:title")
+    og_desc = soup.find("meta", property="og:description")
+    og_image = soup.find("meta", property="og:image")
+    og_price = soup.find("meta", property="product:price:amount") or soup.find("meta", property="og:price:amount")
+
+    if og_title and og_title.get("content"):
+        product["product_name"] = og_title["content"].strip()
+    if og_desc and og_desc.get("content"):
+        product["product_description"] = og_desc["content"].strip()
+    if og_image and og_image.get("content"):
+        product["product_images"] = og_image["content"].strip()
+    if og_price and og_price.get("content"):
+        try:
+            product["product_price"] = float(og_price["content"])
+        except (ValueError, TypeError):
+            pass
+
+    # Fallback to HTML title
+    if not product.get("product_name"):
+        title_tag = soup.find("title")
+        if title_tag and title_tag.string:
+            product["product_name"] = title_tag.string.strip().split("|")[0].split("–")[0].split("-")[0].strip()
+
+    # Try to find price in common selectors
+    if not product.get("product_price"):
+        for sel in [".price", ".product-price", "[data-price]", ".current-price", ".sale-price", ".woocommerce-Price-amount"]:
+            el = soup.select_one(sel)
+            if el:
+                price_text = re.sub(r"[^\d.]", "", el.get_text())
+                if price_text:
+                    try:
+                        product["product_price"] = float(price_text)
+                        break
+                    except (ValueError, TypeError):
+                        pass
+
+    # Collect additional images
+    if not product.get("product_images"):
+        imgs = []
+        for img in soup.select(".product-image img, .product-gallery img, .woocommerce-product-gallery img, [data-zoom-image]"):
+            src = img.get("data-zoom-image") or img.get("data-src") or img.get("src") or ""
+            if src and src.startswith("http"):
+                imgs.append(src)
+        if imgs:
+            product["product_images"] = ",".join(imgs[:5])
+
+    return product if product.get("product_name") else None
+
+
+def _ai_extract_products_from_html(html_text, site_url):
+    """Use AI to extract products from raw HTML when structured data isn't available."""
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html_text, "lxml")
+    # Strip scripts and styles to reduce noise
+    for tag in soup(["script", "style", "nav", "footer", "header"]):
+        tag.decompose()
+    text = soup.get_text(separator="\n", strip=True)
+    # Trim to avoid token limits
+    text = text[:6000]
+
+    try:
+        from groq import Groq
+        groq_client = Groq()
+        response = groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": """You extract product data from website text. Return ONLY a JSON array.
+Each object: {"product_name":"...","product_price":0,"product_description":"...","product_category":"...","product_url":"..."}
+If you find no products, return []. Return ONLY valid JSON, no other text."""},
+                {"role": "user", "content": f"Extract all products from this website ({site_url}):\n\n{text}"}
+            ],
+            max_tokens=4000,
+            temperature=0.1,
+        )
+        raw = response.choices[0].message.content.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        products = json.loads(raw)
+        if isinstance(products, list):
+            return products[:50]
+    except Exception:
+        pass
+    return []
+
+
+@app.route("/api/ecom-orders", methods=["GET", "POST"])
+def api_ecom_orders():
+    """List or create e-commerce orders."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "This feature is only for e-commerce accounts"}), 403
+    if not _check_ecom_permission(user, admin_id, "orders_view"):
+        return jsonify({"error": "You don't have permission to manage orders"}), 403
+
+    if request.method == "GET":
+        status = request.args.get("status")
+        orders = db.get_ecom_orders(admin_id, status=status)
+        return jsonify(orders)
+
+    # POST — create order
+    data = request.get_json() or {}
+    order_number = data.get("order_number", "").strip()
+    if not order_number:
+        import uuid
+        order_number = "ORD-" + uuid.uuid4().hex[:8].upper()
+
+    allowed_fields = [
+        "customer_name", "customer_email", "customer_phone",
+        "order_status", "order_total", "subtotal", "tax_amount",
+        "shipping_cost", "discount_amount", "discount_code",
+        "items_json", "shipping_address", "shipping_method",
+        "tracking_number", "carrier", "estimated_delivery",
+        "payment_method", "payment_status", "notes"
+    ]
+    kwargs = {k: data[k] for k in allowed_fields if k in data}
+    kwargs["order_number"] = order_number
+
+    order_id = db.create_ecom_order(admin_id, **kwargs)
+    db.log_admin_action(admin_id, user, "Created order", f"#{order_number}")
+
+    # Record purchases for replenishment tracking
+    try:
+        items_json = data.get("items_json", "[]")
+        if isinstance(items_json, str):
+            import json as _json
+            items = _json.loads(items_json)
+        else:
+            items = items_json
+        customer_key = data.get("customer_email") or data.get("customer_name") or ""
+        if customer_key and items:
+            for item in items:
+                db.record_purchase(
+                    admin_id, customer_key,
+                    product_id=item.get("id") or item.get("product_id") or 0,
+                    product_name=item.get("name") or item.get("product_name") or "",
+                    product_category=item.get("category") or item.get("product_category") or "",
+                    quantity=item.get("qty") or item.get("quantity") or 1
+                )
+    except Exception:
+        pass
+
+    return jsonify({"ok": True, "id": order_id, "order_number": order_number})
+
+
+@app.route("/order/<int:order_id>")
+def order_detail_page(order_id):
+    """Serve the standalone order detail page (auth checked client-side via token)."""
+    return send_from_directory("static", "order-detail.html")
+
+
+@app.route("/api/ecom-orders/<int:order_id>", methods=["GET", "PUT", "DELETE"])
+def api_ecom_order_detail(order_id):
+    """Get, update, or delete a specific order."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "This feature is only for e-commerce accounts"}), 403
+    if not _check_ecom_permission(user, admin_id, "orders_view"):
+        return jsonify({"error": "You don't have permission to manage orders"}), 403
+
+    if request.method == "GET":
+        orders = db.get_ecom_orders(admin_id)
+        order = next((o for o in orders if o["id"] == order_id), None)
+        if not order:
+            return jsonify({"error": "Order not found"}), 404
+        return jsonify(order)
+
+    if request.method == "DELETE":
+        conn = db.get_db()
+        conn.execute("DELETE FROM ecom_orders WHERE id=%s AND admin_id=%s", (order_id, admin_id))
+        conn.commit()
+        conn.close()
+        db.log_admin_action(admin_id, user, "Deleted order", f"ID {order_id}")
+        return jsonify({"ok": True})
+
+    # PUT — update order (verify ownership via admin_id)
+    # First verify the order belongs to this admin
+    orders = db.get_ecom_orders(admin_id)
+    order = next((o for o in orders if o["id"] == order_id), None)
+    if not order:
+        return jsonify({"error": "Order not found"}), 404
+
+    data = request.get_json() or {}
+    allowed_fields = [
+        "customer_name", "customer_email", "customer_phone",
+        "order_status", "order_total", "subtotal", "tax_amount",
+        "shipping_cost", "discount_amount", "discount_code",
+        "items_json", "shipping_address", "shipping_method",
+        "tracking_number", "carrier", "estimated_delivery",
+        "payment_method", "payment_status", "notes"
+    ]
+    kwargs = {k: data[k] for k in allowed_fields if k in data}
+    if not kwargs:
+        return jsonify({"error": "No fields to update"}), 400
+    db.update_ecom_order(order_id, admin_id=admin_id, **kwargs)
+    db.log_admin_action(admin_id, user, "Updated order", f"ID {order_id}")
+    return jsonify({"ok": True})
+
+
+@app.route("/api/abandoned-carts", methods=["GET"])
+def api_abandoned_carts():
+    """List abandoned carts for the admin."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "This feature is only for e-commerce accounts"}), 403
+    status = request.args.get("status")
+    carts = db.get_abandoned_carts(admin_id, status=status)
+    return jsonify(carts)
+
+
+# ══════════════════════════════════════════════
+#  Chat Analytics Events (drop-off, scroll, etc.)
+# ══════════════════════════════════════════════
+
+@app.route("/api/chat-analytics/event", methods=["POST"])
+def api_chat_analytics_event():
+    """Public endpoint — widget sends analytics events (drop-off, page leave, etc.)."""
+    data = request.get_json(silent=True) or {}
+    admin_id_raw = str(data.get("admin_id", "")).strip()
+    if not admin_id_raw:
+        return jsonify({"ok": True})
+    if not admin_id_raw.isdigit():
+        resolved = db.get_user_by_public_id(admin_id_raw)
+        if not resolved:
+            return jsonify({"ok": True})
+        admin_id = resolved["id"]
+    else:
+        admin_id = int(admin_id_raw)
+    try:
+        conn = db.get_db()
+        conn.execute("""
+            INSERT INTO chat_analytics_events
+            (admin_id, session_id, event_type, message_count, duration_seconds,
+             scroll_depth, page_time_seconds, visit_count, language, cart_items_count)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            admin_id, data.get("session_id", ""), data.get("event", "unknown"),
+            int(data.get("message_count", 0)), int(data.get("duration_seconds", 0)),
+            int(data.get("scroll_depth", 0)), int(data.get("page_time_seconds", 0)),
+            int(data.get("visit_count", 1)), data.get("language", "en"),
+            int(data.get("cart_items", 0)),
+        ))
+        conn.close()
+    except Exception as e:
+        print(f"[analytics] Error saving event: {e}", flush=True)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/chat/upload-image", methods=["POST"])
+def api_chat_upload_image():
+    """Public endpoint — widget sends an image for visual product search."""
+    sid = (request.form.get("session_id") or "").strip()
+    if not sid or sid not in sessions:
+        return jsonify({"ok": False, "error": "Invalid session"}), 400
+    description = (request.form.get("description") or "").strip()
+    image_file = request.files.get("image")
+    if not image_file and not description:
+        return jsonify({"ok": False, "error": "No image or description provided"}), 400
+    # Store image metadata in the session so the next chat message picks it up
+    sessions[sid]["_uploaded_image"] = {
+        "description": description or (image_file.filename if image_file else ""),
+        "filename": image_file.filename if image_file else "",
+    }
+    return jsonify({"ok": True, "message": "Image received. Send a message to see results."})
+
+
+@app.route("/api/chat-analytics/overview", methods=["GET"])
+def api_chat_analytics_overview():
+    """Dashboard — returns ecommerce chatbot analytics overview."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    days = int(request.args.get("days", 30))
+    try:
+        conn = db.get_db()
+        total = conn.execute("SELECT COUNT(DISTINCT session_id) as cnt FROM chat_logs WHERE admin_id=%s AND created_at >= NOW() - INTERVAL '%s days'", (admin_id, days)).fetchone()
+        total_conversations = total["cnt"] if total else 0
+        dropoffs = conn.execute("SELECT COUNT(*) as cnt FROM chat_analytics_events WHERE admin_id=%s AND event_type='widget_closed' AND created_at >= NOW() - INTERVAL '%s days'", (admin_id, days)).fetchone()
+        dropoff_count = dropoffs["cnt"] if dropoffs else 0
+        avg_msgs = conn.execute("SELECT AVG(msg_count) as avg_mc FROM (SELECT session_id, COUNT(*) as msg_count FROM chat_logs WHERE admin_id=%s AND created_at >= NOW() - INTERVAL '%s days' GROUP BY session_id) sub", (admin_id, days)).fetchone()
+        avg_messages = round(float(avg_msgs["avg_mc"] or 0), 1)
+        langs = conn.execute("SELECT language, COUNT(*) as cnt FROM chat_analytics_events WHERE admin_id=%s AND created_at >= NOW() - INTERVAL '%s days' GROUP BY language ORDER BY cnt DESC LIMIT 10", (admin_id, days)).fetchall()
+        language_dist = {r["language"]: r["cnt"] for r in langs} if langs else {}
+        visits = conn.execute("SELECT CASE WHEN visit_count=1 THEN 'new' ELSE 'returning' END as vtype, COUNT(*) as cnt FROM chat_analytics_events WHERE admin_id=%s AND created_at >= NOW() - INTERVAL '%s days' GROUP BY vtype", (admin_id, days)).fetchall()
+        visitor_dist = {r["vtype"]: r["cnt"] for r in visits} if visits else {}
+        scroll = conn.execute("SELECT AVG(scroll_depth) as avg_sd FROM chat_analytics_events WHERE admin_id=%s AND scroll_depth > 0 AND created_at >= NOW() - INTERVAL '%s days'", (admin_id, days)).fetchone()
+        avg_scroll_depth = round(float(scroll["avg_sd"] or 0), 1)
+        dur = conn.execute("SELECT AVG(duration_seconds) as avg_dur FROM chat_analytics_events WHERE admin_id=%s AND duration_seconds > 0 AND created_at >= NOW() - INTERVAL '%s days'", (admin_id, days)).fetchone()
+        avg_duration = round(float(dur["avg_dur"] or 0), 1)
+        carts = conn.execute("SELECT COUNT(*) as total, COUNT(CASE WHEN recovery_status='recovered' THEN 1 END) as recovered FROM abandoned_carts WHERE admin_id=%s AND abandoned_at >= NOW() - INTERVAL '%s days'", (admin_id, days)).fetchone()
+        cart_total = carts["total"] if carts else 0
+        cart_recovered = carts["recovered"] if carts else 0
+        cart_recovery_rate = round((cart_recovered / cart_total * 100) if cart_total > 0 else 0, 1)
+        quality = conn.execute("SELECT AVG(quality_score) as avg_q, AVG(avg_frustration) as avg_f FROM conversation_quality WHERE admin_id=%s AND created_at >= NOW() - INTERVAL '%s days'", (admin_id, days)).fetchone()
+        avg_quality = round(float(quality["avg_q"] or 0), 1) if quality else 0
+        avg_frustration = round(float(quality["avg_f"] or 0), 1) if quality else 0
+        conn.close()
+        return jsonify({
+            "total_conversations": total_conversations, "avg_messages_per_conversation": avg_messages,
+            "avg_conversation_duration_seconds": avg_duration, "drop_off_count": dropoff_count,
+            "drop_off_rate": round((dropoff_count / total_conversations * 100) if total_conversations > 0 else 0, 1),
+            "avg_scroll_depth": avg_scroll_depth, "language_distribution": language_dist,
+            "visitor_distribution": visitor_dist, "cart_recovery_rate": cart_recovery_rate,
+            "abandoned_carts": cart_total, "recovered_carts": cart_recovered,
+            "avg_quality_score": avg_quality, "avg_frustration": avg_frustration, "period_days": days,
+        })
+    except Exception as e:
+        print(f"[analytics] Error: {e}", flush=True)
+        return jsonify({"error": "Analytics query failed"}), 500
+
+
+@app.route("/api/ab-greeting/<admin_id_raw>", methods=["GET"])
+def api_ab_greeting(admin_id_raw):
+    """Public endpoint — widget fetches A/B tested greeting message."""
+    admin_id_str = str(admin_id_raw).strip()
+    if not admin_id_str.isdigit():
+        resolved = db.get_user_by_public_id(admin_id_str)
+        if not resolved:
+            return jsonify({})
+        admin_id = resolved["id"]
+    else:
+        admin_id = int(admin_id_str)
+    session_id = request.args.get("session", "")
+    try:
+        import ab_testing
+        msg = ab_testing.get_active_message(admin_id, "opening_message", session_id)
+        if msg:
+            return jsonify({"message": msg})
+    except Exception as e:
+        print(f"[ab_greeting] Error: {e}", flush=True)
+    return jsonify({})
+
+
+@app.route("/api/lead-capture", methods=["POST"])
+def api_lead_capture():
+    """Public endpoint — widget submits lead capture form data."""
+    data = request.get_json(silent=True) or {}
+    admin_id_raw = str(data.get("admin_id", "")).strip()
+    if not admin_id_raw:
+        return jsonify({"error": "Missing admin_id"}), 400
+    if not admin_id_raw.isdigit():
+        resolved = db.get_user_by_public_id(admin_id_raw)
+        if not resolved:
+            return jsonify({"error": "Invalid admin"}), 400
+        admin_id = resolved["id"]
+    else:
+        admin_id = int(admin_id_raw)
+        # Validate admin exists
+        admin_user = db.get_user_by_id(admin_id)
+        if not admin_user:
+            return jsonify({"error": "Invalid admin"}), 400
+    fields = data.get("fields", {})
+    session_id = data.get("session_id", "")
+    try:
+        name = fields.get("name", "").strip()
+        email = fields.get("email", "").strip()
+        phone = fields.get("phone", "").strip()
+        budget = fields.get("budget", "").strip()
+
+        # Email validation
+        if email:
+            import re as _re
+            if not _re.match(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$', email):
+                return jsonify({"error": "Please enter a valid email address"}), 400
+
+        # Update the session with contact info so it persists
+        session = get_session(session_id) if session_id else {}
+        if name:
+            session["_prefill_name"] = name
+            session.setdefault("data", {})["name"] = name
+        if email:
+            session["_prefill_email"] = email
+            session.setdefault("data", {})["email"] = email
+        if phone:
+            session["_prefill_phone"] = phone
+            session.setdefault("data", {})["phone"] = phone
+        if budget:
+            session.setdefault("data", {})["budget"] = budget
+
+        # Use lead_engine to properly capture with scoring + followups + webhooks
+        lead_id = lead_engine.capture_lead_from_session(
+            session, admin_id, capture_trigger="widget_form"
+        )
+
+        if lead_id:
+            session["_lead_captured"] = True
+            session["_lead_form_shown"] = True
+            print(f"[lead_capture] Lead #{lead_id} captured via widget form (name={name}, email={email})", flush=True)
+
+        try:
+            import mailchimp_engine
+            mailchimp_engine.auto_sync_if_enabled({"name": name, "email": email, "phone": phone}, admin_id)
+        except Exception:
+            pass
+        try:
+            import zapier_engine
+            zapier_engine.trigger_event(admin_id, "lead_captured", {"name": name, "email": email, "phone": phone, "source": "chatbot_form", "session_id": session_id})
+        except Exception:
+            pass
+        return jsonify({"ok": True, "message": "Lead captured", "lead_id": lead_id})
+    except Exception as e:
+        print(f"[lead_capture] Error: {e}", flush=True)
+        return jsonify({"error": "Failed to save"}), 500
+
+
+@app.route("/api/ecom-analytics/preferences", methods=["GET"])
+def api_ecom_preference_insights():
+    """Returns aggregated preference insights for merchandising decisions."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "This feature is only for e-commerce accounts"}), 403
+    insights = db.get_all_preference_insights(admin_id)
+    return jsonify(insights)
+
+
+@app.route("/api/replenishment/candidates/<customer_key>", methods=["GET"])
+def api_replenishment_candidates(customer_key):
+    """Returns replenishment candidates for a specific customer."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "This feature is only for e-commerce accounts"}), 403
+    candidates = db.get_replenishment_candidates(admin_id, customer_key)
+    return jsonify(candidates)
+
+
+@app.route("/api/purchase/record", methods=["POST"])
+def api_record_purchase():
+    """Manually record a purchase for replenishment tracking."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "This feature is only for e-commerce accounts"}), 403
+    data = request.get_json() or {}
+    customer_key = data.get("customer_key", "").strip()
+    product_id = data.get("product_id", 0)
+    product_name = data.get("product_name", "").strip()
+    if not customer_key or not product_name:
+        return jsonify({"error": "customer_key and product_name are required"}), 400
+    db.record_purchase(
+        admin_id, customer_key,
+        product_id=product_id,
+        product_name=product_name,
+        product_category=data.get("product_category", ""),
+        quantity=data.get("quantity", 1)
+    )
+    return jsonify({"ok": True})
+
+
+@app.route("/api/listings", methods=["GET", "POST"])
+def api_listings():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "real_estate":
+        return jsonify({"error": "This feature is only for real estate accounts"}), 403
+    if request.method == "GET":
+        status = request.args.get("status")
+        return jsonify(db.get_property_listings(admin_id, status))
+    data = request.get_json() or {}
+    lid = db.create_listing(admin_id, **data)
+    db.log_admin_action(admin_id, user, "Created listing", data.get("listing_address", ""))
+    return jsonify({"ok": True, "id": lid})
+
+
+@app.route("/api/listings/<int:lid>", methods=["GET", "PUT", "DELETE"])
+def api_listing_detail(lid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    listing = db.get_listing_by_id(lid)
+    if not listing or listing.get("admin_id") != admin_id:
+        return jsonify({"error": "Listing not found"}), 404
+    if request.method == "GET":
+        return jsonify(listing)
+    if request.method == "DELETE":
+        db.delete_listing(lid)
+        db.log_admin_action(admin_id, user, "Deleted listing", listing.get("listing_address", ""))
+        return jsonify({"ok": True})
+    data = request.get_json() or {}
+    db.update_listing(lid, **data)
+    db.log_admin_action(admin_id, user, "Updated listing", listing.get("listing_address", ""))
+    return jsonify({"ok": True})
+
+
+@app.route("/api/re-agents", methods=["GET", "POST"])
+def api_re_agents():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "real_estate":
+        return jsonify({"error": "This feature is only for real estate accounts"}), 403
+    if request.method == "GET":
+        return jsonify(db.get_re_agents(admin_id))
+    data = request.get_json() or {}
+    aid = db.create_re_agent(admin_id, **data)
+    db.log_admin_action(admin_id, user, "Created RE agent", data.get("first_name", "") + " " + data.get("last_name", ""))
+    return jsonify({"ok": True, "id": aid})
+
+
+@app.route("/api/re-agents/<int:aid>", methods=["GET", "PUT", "DELETE"])
+def api_re_agent_detail(aid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    agent = db.get_re_agent_by_id(aid)
+    if not agent or agent.get("admin_id") != admin_id:
+        return jsonify({"error": "Agent not found"}), 404
+    if request.method == "GET":
+        return jsonify(agent)
+    if request.method == "DELETE":
+        db.delete_re_agent(aid)
+        return jsonify({"ok": True})
+    data = request.get_json() or {}
+    db.update_re_agent(aid, **data)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/cart-recovery-settings", methods=["GET", "POST"])
+def api_cart_recovery_settings():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "This feature is only for e-commerce accounts"}), 403
+    if not _check_ecom_permission(user, admin_id, "cart_recovery"):
+        return jsonify({"error": "You don't have permission to manage cart recovery"}), 403
+    if request.method == "GET":
+        settings = db.get_cart_recovery_settings(admin_id)
+        return jsonify(settings or {})
+    data = request.get_json() or {}
+    db.save_cart_recovery_settings(admin_id, **data)
+    db.log_admin_action(admin_id, user, "Updated cart recovery settings", "")
+    return jsonify({"ok": True})
+
+
+@app.route("/api/re-leads", methods=["GET", "POST"])
+def api_re_leads():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "real_estate":
+        return jsonify({"error": "This feature is only for real estate accounts"}), 403
+    if request.method == "GET":
+        status = request.args.get("status")
+        return jsonify(db.get_re_leads(admin_id, status))
+    data = request.get_json() or {}
+    lid = db.create_re_lead(admin_id, **data)
+    return jsonify({"ok": True, "id": lid})
+
+
+@app.route("/api/re-leads/<int:lid>", methods=["PUT"])
+def api_re_lead_update(lid):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json() or {}
+    db.update_re_lead(lid, **data)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/re-showings", methods=["GET", "POST"])
+def api_re_showings():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "real_estate":
+        return jsonify({"error": "This feature is only for real estate accounts"}), 403
+    if request.method == "GET":
+        status = request.args.get("status")
+        return jsonify(db.get_re_showings(admin_id, status))
+    data = request.get_json() or {}
+    sid = db.create_re_showing(admin_id, **data)
+    db.log_admin_action(admin_id, user, "Created showing", "")
+    return jsonify({"ok": True, "id": sid})
+
+
+# ══════════════════════════════════════════════════════════════
+#  E-Commerce Analytics: Conversation Quality & Sentiment
+# ══════════════════════════════════════════════════════════════
+
+@app.route("/api/ecom-analytics/conversation-quality", methods=["GET"])
+def api_ecom_conversation_quality():
+    """Returns conversation quality stats for the dashboard."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if not is_admin_role(user):
+        return jsonify({"error": "Admin only"}), 403
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "This feature is only for e-commerce accounts"}), 403
+    days = int(request.args.get("days", 30))
+    stats = db.get_conversation_quality_stats(admin_id, days=days)
+    recent = db.get_conversation_quality_list(admin_id, days=days, limit=50)
+    return jsonify({"stats": stats, "recent": recent})
+
+
+@app.route("/api/ecom-analytics/sentiment-overview", methods=["GET"])
+def api_ecom_sentiment_overview():
+    """Returns sentiment distribution across recent conversations."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if not is_admin_role(user):
+        return jsonify({"error": "Admin only"}), 403
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "This feature is only for e-commerce accounts"}), 403
+    days = int(request.args.get("days", 30))
+    records = db.get_conversation_quality_list(admin_id, days=days, limit=200)
+    low_frust = sum(1 for r in records if r.get("avg_frustration", 0) < 3)
+    med_frust = sum(1 for r in records if 3 <= r.get("avg_frustration", 0) < 6)
+    high_frust = sum(1 for r in records if r.get("avg_frustration", 0) >= 6)
+    trend_counts = {"stable": 0, "increasing": 0, "decreasing": 0}
+    for r in records:
+        t = r.get("frustration_trend", "stable")
+        if t in trend_counts:
+            trend_counts[t] += 1
+    return jsonify({
+        "total_conversations": len(records),
+        "frustration_distribution": {
+            "low": low_frust,
+            "medium": med_frust,
+            "high": high_frust,
+        },
+        "frustration_trends": trend_counts,
+        "avg_quality_score": round(sum(r.get("quality_score", 0) for r in records) / max(len(records), 1), 1),
+        "avg_frustration": round(sum(r.get("avg_frustration", 0) for r in records) / max(len(records), 1), 1),
+    })
+
+
+@app.route("/api/ecom-analytics/overview", methods=["GET"])
+def api_ecom_analytics_overview():
+    """Returns overview: total conversations, automation rate, conversion rate, avg quality, avg frustration."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if not is_admin_role(user):
+        return jsonify({"error": "Admin only"}), 403
+    admin_id = get_effective_admin_id(user)
+    if db.get_company_type(admin_id) != "ecommerce":
+        return jsonify({"error": "This feature is only for e-commerce accounts"}), 403
+    days = int(request.args.get("days", 30))
+    quality_stats = db.get_conversation_quality_stats(admin_id, days=days)
+    total = quality_stats["total_conversations"]
+    escalation_rate = quality_stats["escalation_rate"]
+    automation_rate = round(100 - escalation_rate, 1) if total > 0 else 100.0
+    return jsonify({
+        "total_conversations": total,
+        "automation_rate": automation_rate,
+        "conversion_rate": quality_stats["conversion_rate"],
+        "avg_quality_score": quality_stats["avg_quality_score"],
+        "avg_frustration": quality_stats["avg_frustration"],
+        "escalation_rate": escalation_rate,
+        "avg_engagement": quality_stats["avg_engagement"],
+        "avg_resolution": quality_stats["avg_resolution"],
+        "avg_buying_intent": quality_stats["avg_buying_intent"],
+        "avg_messages_per_conversation": quality_stats["avg_messages"],
+        "days": days,
+    })
+
+
+@app.route("/api/ecom-analytics/analyze-message", methods=["POST"])
+def api_ecom_analyze_message():
+    """Analyze a single message for sentiment (utility/testing endpoint)."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    if not is_admin_role(user):
+        return jsonify({"error": "Admin only"}), 403
+    data = request.get_json() or {}
+    message = data.get("message", "")
+    if not message:
+        return jsonify({"error": "Message required"}), 400
+    result = sentiment_engine.analyze_sentiment(message)
+    return jsonify(result)
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Fast Setup — Auto-populate from website URL
+# ══════════════════════════════════════════════════════════════════
+
+import fast_setup as fast_setup_engine
+
+@app.route("/api/fast-setup/scrape", methods=["POST"])
+@limiter.limit("3 per minute")
+def api_fast_setup_scrape():
+    """Crawl a website and extract business data. Saves result to DB."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json() or {}
+    website_url = data.get("url", "").strip()
+    if not website_url:
+        return jsonify({"error": "Website URL is required"}), 400
+
+    admin_id = get_effective_admin_id(user)
+    result = fast_setup_engine.run_fast_setup(website_url)
+    if result.get("error"):
+        return jsonify({"error": result["error"]}), 400
+
+    # Save to database so it persists across sessions/devices
+    db.save_fast_setup_result(admin_id, website_url, result)
+
+    return jsonify(result)
+
+
+@app.route("/api/fast-setup/saved", methods=["GET"])
+def api_fast_setup_saved():
+    """Get previously saved fast setup results."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    admin_id = get_effective_admin_id(user)
+    saved = db.get_fast_setup_result(admin_id)
+    if not saved:
+        return jsonify({"exists": False})
+
+    return jsonify({"exists": True, "source_url": saved["source_url"], "data": saved["data"], "applied": saved["applied"]})
+
+
+@app.route("/api/fast-setup/apply", methods=["POST"])
+@limiter.limit("5 per minute")
+def api_fast_setup_apply():
+    """Apply extracted fast-setup data to the database."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    user = db.get_user_by_token(token)
+    if not user or not is_admin_role(user):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json() or {}
+    if not data.get("company_info") and not data.get("doctors") and not data.get("services"):
+        return jsonify({"error": "No data to apply"}), 400
+
+    admin_id = get_effective_admin_id(user)
+    summary = fast_setup_engine.apply_fast_setup(admin_id, data)
+    db.mark_fast_setup_applied(admin_id)
+    return jsonify({"ok": True, "summary": summary})
 
 
 if __name__ == "__main__":

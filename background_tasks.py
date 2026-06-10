@@ -286,6 +286,18 @@ def _process_noshow_detection():
                             )
                     conn.commit()
                     logger.info(f"Auto-completed: booking {row['id']} for {row['customer_name']}")
+                    # Trigger satisfaction survey for auto-completed bookings
+                    try:
+                        import reviews_engine
+                        if row.get("customer_email"):
+                            reviews_engine.trigger_review_request(
+                                admin_id, row["id"],
+                                row["customer_email"],
+                                row.get("customer_name", ""),
+                                doctor_id=row.get("doctor_id"),
+                            )
+                    except Exception as e:
+                        logger.warning(f"Survey trigger failed for booking {row['id']}: {e}")
             except (ValueError, IndexError):
                 pass
     finally:
@@ -409,6 +421,12 @@ def start_background_tasks(app):
             "cron", hour=10, minute=0,
             id="lead_stage_progression", replace_existing=True,
             name="Auto-progress lead stages (daily 10am)",
+        )
+        _scheduler.add_job(
+            _leads.process_queued_lead_emails,
+            "interval", seconds=60,
+            id="lead_email_queue", replace_existing=True,
+            name="Process queued lead outreach emails (every 60s)",
         )
         logger.info("Lead engine jobs registered")
     except Exception as e:

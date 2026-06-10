@@ -82,16 +82,21 @@ def process_recall_campaigns(admin_id=None):
 
     # Get all active recall rules (optionally filtered by admin)
     if admin_id:
+        if db.get_company_type(admin_id) not in ("dental", ""):
+            conn.close()
+            return
         if not db.is_feature_enabled(admin_id, "auto_recall"):
             conn.close()
             return
         rules = conn.execute("SELECT * FROM recall_rules WHERE admin_id=%s AND is_active=1", (admin_id,)).fetchall()
     else:
-        # Process all admins - filter by feature flag
+        # Process all admins - filter by feature flag and company type (dental only)
         all_admins = conn.execute("SELECT DISTINCT admin_id FROM recall_rules WHERE is_active=1").fetchall()
         rules = []
         for admin_row in all_admins:
             a_id = admin_row["admin_id"]
+            if db.get_company_type(a_id) not in ("dental", ""):
+                continue
             if db.is_feature_enabled(a_id, "auto_recall"):
                 admin_rules = conn.execute("SELECT * FROM recall_rules WHERE admin_id=%s AND is_active=1", (a_id,)).fetchall()
                 rules.extend(admin_rules)
@@ -235,23 +240,35 @@ def process_second_reminders():
 # ── Birthday Greetings ──
 
 def process_birthday_greetings():
-    """Send birthday greetings to patients whose birthday is today."""
+    """Send birthday greetings to patients whose birthday is today (or within days_before window)."""
     import database as db
     import email_service as email_svc
 
     conn = db.get_db()
-    today_md = datetime.now().strftime("%m-%d")  # e.g., "03-15"
     year = datetime.now().strftime("%Y")
 
-    # Find patients with birthday today (matching month-day from date_of_birth)
-    patients = conn.execute(
-        """SELECT p.*,
-                  (SELECT user_id FROM company_info WHERE user_id = p.admin_id) as admin_user_id
-           FROM patients p
-           WHERE p.date_of_birth IS NOT NULL
-           AND SUBSTR(p.date_of_birth, 6) = %s""",
-        (today_md,)
-    ).fetchall()
+    # Collect all admins with patients, check birthday_enabled per admin (dental only)
+    all_admins = conn.execute("SELECT DISTINCT admin_id FROM patients WHERE date_of_birth IS NOT NULL").fetchall()
+    target_patients = []
+    for admin_row in all_admins:
+        a_id = admin_row["admin_id"]
+        if db.get_company_type(a_id) not in ("dental", ""):
+            continue
+        rc = db.get_reminder_config(a_id)
+        if not rc.get("birthday_enabled", 1):
+            continue
+        days_before = rc.get("birthday_days_before", 0)
+        target_date = (datetime.now() + timedelta(days=days_before)).strftime("%m-%d")
+        pts = conn.execute(
+            """SELECT p.*
+               FROM patients p
+               WHERE p.admin_id=%s AND p.date_of_birth IS NOT NULL
+               AND SUBSTR(p.date_of_birth, 6) = %s""",
+            (a_id, target_date)
+        ).fetchall()
+        target_patients.extend(pts)
+
+    patients = target_patients
 
     for patient in patients:
         patient = dict(patient)
@@ -315,19 +332,33 @@ def process_birthday_greetings():
 # ── Re-engagement ──
 
 def process_reengagement():
-    """Contact patients who haven't visited in 12+ months."""
+    """Contact patients who haven't visited in X+ months (configurable via reactivation_days)."""
     import database as db
     import email_service as email_svc
 
     conn = db.get_db()
-    cutoff = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
 
-    patients = conn.execute(
-        """SELECT * FROM patients
-           WHERE last_visit_date IS NOT NULL AND last_visit_date <= %s
-           AND email IS NOT NULL AND email != ''""",
-        (cutoff,)
+    # Collect per-admin: check reactivation_enabled and reactivation_days (dental only)
+    all_admins = conn.execute(
+        "SELECT DISTINCT admin_id FROM patients WHERE last_visit_date IS NOT NULL AND email IS NOT NULL AND email != ''"
     ).fetchall()
+    patients = []
+    for admin_row in all_admins:
+        a_id = admin_row["admin_id"]
+        if db.get_company_type(a_id) not in ("dental", ""):
+            continue
+        rc = db.get_reminder_config(a_id)
+        if not rc.get("reactivation_enabled", 1):
+            continue
+        reactivation_days = rc.get("reactivation_days", 365)
+        cutoff = (datetime.now() - timedelta(days=reactivation_days)).strftime("%Y-%m-%d")
+        pts = conn.execute(
+            """SELECT * FROM patients
+               WHERE admin_id=%s AND last_visit_date IS NOT NULL AND last_visit_date <= %s
+               AND email IS NOT NULL AND email != ''""",
+            (a_id, cutoff)
+        ).fetchall()
+        patients.extend(pts)
 
     for patient in patients:
         patient = dict(patient)

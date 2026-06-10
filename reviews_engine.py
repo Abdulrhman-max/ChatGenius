@@ -166,25 +166,51 @@ def trigger_review_request(admin_id, booking_id, patient_email, patient_name, do
     Trigger review request after appointment completion.
     Called by the booking completion flow.
     """
+    import database as db
+    import os
+
     if not db.is_feature_enabled(admin_id, "auto_surveys"):
         logger.info(f"Auto surveys disabled for admin {admin_id}, skipping review request")
         return None
-    
+
+    # Check survey_delay_hours from reminder_config
+    rc = db.get_reminder_config(admin_id)
+    delay_hours = rc.get("survey_delay_hours", 24)
+
     try:
         token = create_review_request(admin_id, booking_id, patient_email, patient_name, doctor_id)
-        
+
         base_url = os.getenv("BASE_URL", "http://localhost:8080")
         review_url = f"{base_url}/rating.html?token={token}"
-        
-        message = f"Thank you for visiting us! Please rate your experience: {review_url}"
-        
-        try:
-            import email_service as email_svc
-            email_svc.send_review_request(patient_email, patient_name, review_url)
-            logger.info(f"Review request email sent to {patient_email}")
-        except Exception as e:
-            logger.warning(f"Failed to send review email: {e}")
-        
+
+        # Schedule the survey email with the configured delay
+        def _send_survey():
+            try:
+                import email_service as email_svc
+                email_svc.send_review_request(patient_email, patient_name, review_url, admin_id=admin_id)
+                logger.info(f"Review request email sent to {patient_email}")
+            except Exception as e:
+                logger.warning(f"Failed to send review email: {e}")
+
+        if delay_hours and delay_hours > 0:
+            try:
+                from datetime import datetime, timedelta
+                import background_tasks
+                if background_tasks._scheduler:
+                    run_date = datetime.now() + timedelta(hours=delay_hours)
+                    background_tasks._scheduler.add_job(
+                        _send_survey, "date", run_date=run_date,
+                        id=f"survey_{booking_id}", replace_existing=True,
+                        name=f"Survey email for booking {booking_id}",
+                    )
+                    logger.info(f"Survey email scheduled for {run_date} ({delay_hours}h delay)")
+                else:
+                    _send_survey()
+            except Exception:
+                _send_survey()
+        else:
+            _send_survey()
+
         try:
             import realtime_engine as realtime
             realtime.emit_review_request(admin_id, {
@@ -194,7 +220,7 @@ def trigger_review_request(admin_id, booking_id, patient_email, patient_name, do
             })
         except Exception as e:
             logger.warning(f"Failed to emit realtime event: {e}")
-        
+
         return token
     except Exception as e:
         logger.error(f"Failed to trigger review request: {e}")

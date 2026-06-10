@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 import database as db
-from email_service import _send_email, _wrap_luxury, BUSINESS_NAME
+from email_service import _send_email, _wrap_luxury, _get_admin_business_name
 
 load_dotenv(override=True)
 
@@ -87,16 +87,22 @@ def schedule_reminders(booking_id, admin_id):
     if high_risk:
         print(f"[Reminders] Booking {booking_id}: HIGH RISK patient (threshold={high_risk_threshold}) — scheduling 48h + 24h + 6h reminders")
 
-    # Build tiers based on risk level
+    # Build tiers based on risk level and admin config
+    reminder_48h = config.get("reminder_48h_enabled", 1)
+    reminder_24h = config.get("reminder_24h_enabled", 1)
+    reminder_2h = config.get("reminder_2h_enabled", 0)
+
     if high_risk:
         tiers = [
-            ("48h", 48, True),
-            ("24h", 24, True),
-            ("6h", 6, True),
+            ("48h", 48, reminder_48h),
+            ("24h", 24, reminder_24h),
+            ("6h", 6, True),  # always send for high-risk
         ]
     else:
         tiers = [
-            ("24h", 24, True),
+            ("48h", 48, reminder_48h),
+            ("24h", 24, reminder_24h),
+            ("2h", 2, reminder_2h),
         ]
 
     quiet_start = config.get("quiet_hours_start", 23)
@@ -212,6 +218,7 @@ def send_reminder(reminder_id):
     else:
         subject = f"Appointment Reminder — {date_display}"
 
+    admin_id = reminder.get("admin_id", 0)
     html = _build_reminder_email(
         customer_name=customer_name,
         doctor_name=doctor_name,
@@ -221,9 +228,11 @@ def send_reminder(reminder_id):
         cancel_url=cancel_url,
         preparation_instructions=prep_instructions,
         is_urgent=is_high_risk_reminder,
+        admin_id=admin_id,
     )
 
-    success = _send_email(customer_email, subject, html)
+    biz_name = _get_admin_business_name(admin_id)
+    success = _send_email(customer_email, subject, html, from_name=biz_name, admin_id=admin_id)
 
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if success:
@@ -248,7 +257,7 @@ def send_reminder(reminder_id):
     return success
 
 
-def _build_reminder_email(customer_name, doctor_name, date_display, time_display, confirm_url, cancel_url, preparation_instructions="", is_urgent=False):
+def _build_reminder_email(customer_name, doctor_name, date_display, time_display, confirm_url, cancel_url, preparation_instructions="", is_urgent=False, admin_id=None):
     """Return full HTML for the appointment-reminder email, matching the
     luxury style used throughout email_service.py."""
 
@@ -341,15 +350,15 @@ def _build_reminder_email(customer_name, doctor_name, date_display, time_display
     <tr><td style="padding:28px 40px 36px;">
         <div style="border-top:1px solid #eee;padding-top:24px;text-align:center;">
             <p style="color:#999;font-size:13px;margin:0;">
-                Need to reschedule? Call us at <strong style="color:#c9a84c;">(555) 123-4567</strong><br>
-                <strong style="color:#c9a84c;">{BUSINESS_NAME}</strong>
+                Need to reschedule? Contact us directly.<br>
+                <strong style="color:#c9a84c;">{_get_admin_business_name(admin_id)}</strong>
             </p>
         </div>
     </td></tr>
     <!-- Gold bottom bar -->
     <tr><td style="height:4px;background:linear-gradient(90deg,#c9a84c,#d4af37,#e8c547,#d4af37,#c9a84c);"></td></tr>"""
 
-    return _wrap_luxury(content)
+    return _wrap_luxury(content, admin_id=admin_id)
 
 
 # ── Patient Response Handlers ────────────────────────────────────────────────

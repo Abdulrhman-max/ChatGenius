@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Details - ChatGenius</title>
+    <style>
+        :root {
+            --bg: #FFFFFF;
+            --card: #FFFFFF;
+            --border: rgba(229,231,235,1);
+            --white: #1E293B;
+            --gray: #64748b;
+            --purple: #8B5CF6;
+            --green: #10b981;
+            --blue: #3b82f6;
+            --amber: #f59e0b;
+            --red: #ef4444;
+            --cyan: #06b6d4;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--white);
+            min-height: 100vh;
+        }
+        .top-bar {
+            background: rgba(17,24,39,0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 0.75rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .back-btn {
+            background: rgba(229,231,235,1);
+            border: 1px solid var(--border);
+            color: var(--white);
+            width: 38px; height: 38px;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            font-size: 1.1rem;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .back-btn:hover { background: rgba(243,244,246,1); }
+        .top-bar h1 { font-size: 1rem; font-weight: 600; }
+        .top-bar .order-num { color: var(--purple); }
+        .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+        /* Loading & Error */
+        .loading-state {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 60vh; gap: 1rem;
+        }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 3px solid rgba(209,213,219,1);
+            border-top-color: var(--purple);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error-state {
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 60vh; gap: 1rem; text-align: center;
+        }
+        .error-icon { font-size: 3rem; opacity: 0.5; }
+        .error-state h2 { font-size: 1.2rem; color: var(--white); }
+        .error-state p { color: var(--gray); font-size: 0.9rem; max-width: 400px; }
+        .error-state a { color: var(--purple); text-decoration: none; }
+
+        /* Cards */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .card-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--gray);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 1rem;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .card-title svg { opacity: 0.6; }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 14px; border-radius: 8px;
+            font-size: 0.8rem; font-weight: 600; text-transform: capitalize;
+        }
+        .status-badge.pending { background: rgba(245,158,11,0.12); color: #f59e0b; }
+        .status-badge.confirmed { background: rgba(16,185,129,0.12); color: #10b981; }
+        .status-badge.processing { background: rgba(59,130,246,0.12); color: #3b82f6; }
+        .status-badge.shipped { background: rgba(59,130,246,0.12); color: #3b82f6; }
+        .status-badge.delivered { background: rgba(16,185,129,0.12); color: #10b981; }
+        .status-badge.cancelled { background: rgba(239,68,68,0.12); color: #ef4444; }
+        .status-badge.refunded { background: rgba(245,158,11,0.12); color: #f59e0b; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+        /* Timeline */
+        .timeline-track {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            position: relative; padding: 0 10px;
+        }
+        .timeline-line {
+            position: absolute; top: 20px; left: 50px; right: 50px;
+            height: 3px; background: rgba(229,231,235,1); border-radius: 2px;
+        }
+        .timeline-progress {
+            height: 100%; border-radius: 2px;
+            background: linear-gradient(90deg, var(--green), var(--purple));
+            transition: width 0.6s ease;
+        }
+        .timeline-step {
+            text-align: center; position: relative; z-index: 2; flex: 1;
+        }
+        .timeline-circle {
+            width: 40px; height: 40px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto; font-size: 0.9rem;
+            border: 2px solid rgba(243,244,246,1);
+            background: rgba(249,250,251,1);
+            color: var(--gray);
+            transition: all 0.3s;
+        }
+        .timeline-step.done .timeline-circle {
+            border-color: var(--green);
+            background: rgba(34,197,94,0.12);
+            color: var(--green);
+        }
+        .timeline-step.active .timeline-circle {
+            border-color: var(--green);
+            background: rgba(34,197,94,0.15);
+            color: var(--green);
+            box-shadow: 0 0 16px rgba(34,197,94,0.35);
+        }
+        .timeline-step.error .timeline-circle {
+            border-color: var(--red);
+            background: rgba(239,68,68,0.12);
+            color: var(--red);
+        }
+        .timeline-label {
+            font-size: 0.72rem; margin-top: 8px;
+            color: var(--gray); font-weight: 500;
+        }
+        .timeline-step.done .timeline-label,
+        .timeline-step.active .timeline-label { color: var(--white); font-weight: 600; }
+
+        /* Order Header */
+        .order-header {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            flex-wrap: wrap; gap: 1rem; margin-bottom: 0.5rem;
+        }
+        .order-header h2 { font-size: 1.4rem; font-weight: 700; }
+        .order-meta { display: flex; gap: 1.5rem; margin-top: 0.5rem; flex-wrap: wrap; }
+        .order-meta-item { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--gray); }
+        .order-meta-item svg { opacity: 0.5; }
+
+        /* Two-col grid */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+        @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
+
+        /* Customer Info */
+        .customer-name { font-weight: 700; font-size: 1.05rem; color: var(--white); margin-bottom: 6px; }
+        .customer-row { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--gray); margin-top: 4px; }
+        .customer-row svg { opacity: 0.5; flex-shrink: 0; }
+
+        /* Shipping */
+        .ship-row { font-size: 0.85rem; color: var(--gray); margin-top: 6px; display: flex; align-items: flex-start; gap: 8px; }
+        .ship-row svg { opacity: 0.5; flex-shrink: 0; margin-top: 2px; }
+        .ship-label { color: var(--gray); }
+        .ship-value { color: var(--white); font-weight: 500; }
+        .tracking-num {
+            color: var(--purple); font-weight: 700; font-family: 'SF Mono', 'Fira Code', monospace;
+            background: rgba(229,231,235,1); padding: 2px 8px; border-radius: 6px;
+        }
+
+        /* Items */
+        .item-row {
+            display: flex; gap: 1rem; padding: 1rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .item-row:last-child { border-bottom: none; }
+        .item-img {
+            width: 64px; height: 64px; border-radius: 12px;
+            object-fit: cover; flex-shrink: 0;
+            border: 1px solid var(--border);
+        }
+        .item-placeholder {
+            width: 64px; height: 64px; border-radius: 12px;
+            background: rgba(249,250,251,1); border: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; color: var(--gray); font-size: 1.5rem;
+        }
+        .item-info { flex: 1; min-width: 0; }
+        .item-name { font-weight: 600; font-size: 0.95rem; color: var(--white); }
+        .item-variant { font-size: 0.8rem; color: var(--gray); margin-top: 2px; }
+        .item-options { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+        .option-pill {
+            background: rgba(243,244,246,1); color:#6B7280;
+            padding: 3px 10px; border-radius: 8px; font-size: 0.73rem; font-weight: 500;
+        }
+        .item-sku { font-size: 0.73rem; color: var(--gray); margin-top: 4px; font-family: monospace; }
+        .item-pricing { text-align: right; flex-shrink: 0; }
+        .item-total { font-weight: 700; font-size: 1rem; color: var(--green); }
+        .item-qty { font-size: 0.78rem; color: var(--gray); margin-top: 2px; }
+
+        /* Payment Summary */
+        .pay-row {
+            display: flex; justify-content: space-between;
+            padding: 6px 0; font-size: 0.88rem;
+        }
+        .pay-row .label { color: var(--gray); }
+        .pay-row .value { color: var(--white); font-weight: 500; }
+        .pay-row.discount .value { color: var(--red); }
+        .pay-row.total {
+            border-top: 2px solid rgba(229,231,235,1);
+            margin-top: 8px; padding-top: 12px;
+            font-size: 1.15rem; font-weight: 700;
+        }
+        .pay-row.total .value { color: var(--green); }
+        .pay-method-row {
+            display: flex; justify-content: space-between; padding: 6px 0;
+            font-size: 0.85rem; margin-top: 4px;
+        }
+        .pay-status {
+            font-weight: 600; text-transform: capitalize;
+        }
+        .pay-status.paid { color: var(--green); }
+        .pay-status.pending { color: var(--amber); }
+        .pay-status.failed { color: var(--red); }
+        .pay-status.refunded { color: #f59e0b; }
+
+        /* Notes */
+        .notes-text { font-size: 0.88rem; color: var(--white); white-space: pre-wrap; line-height: 1.6; }
+
+        /* Print button */
+        .action-btn {
+            background: rgba(229,231,235,1); border: 1px solid var(--border);
+            color: #374151; padding: 8px 16px; border-radius: 8px;
+            font-size: 0.82rem; font-weight: 500; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 6px;
+            transition: all 0.2s;
+        }
+        .action-btn:hover { background: rgba(243,244,246,1); }
+        .action-btn.primary {
+            background: linear-gradient(135deg, #ffffff, #e4e4e7);
+            border-color: transparent; color: #09090B;
+        }
+        .action-btn.primary:hover { opacity: 0.9; }
+
+        /* Animations */
+        @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+        .fade-up { animation: fadeUp 0.4s ease forwards; }
+        .fade-up-d1 { animation-delay: 0.05s; opacity: 0; }
+        .fade-up-d2 { animation-delay: 0.1s; opacity: 0; }
+        .fade-up-d3 { animation-delay: 0.15s; opacity: 0; }
+        .fade-up-d4 { animation-delay: 0.2s; opacity: 0; }
+        .fade-up-d5 { animation-delay: 0.25s; opacity: 0; }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <a href="/user-dashboard.html" class="back-btn" id="backBtn">&larr;</a>
+    <h1>Order <span class="order-num" id="topOrderNum">#...</span></h1>
+    <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="action-btn" onclick="window.print()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print
+        </button>
+    </div>
+</div>
+
+<div class="loading-state" id="loadingState">
+    <div class="spinner"></div>
+    <div style="color:var(--gray);font-size:0.9rem">Loading order details...</div>
+</div>
+
+<div class="error-state" id="errorState">
+    <div class="error-icon">&#128274;</div>
+    <h2 id="errorTitle">Access Denied</h2>
+    <p id="errorMsg">You must be logged in to view order details. <a href="/user-dashboard.html">Go to Dashboard</a></p>
+</div>
+
+<div class="container" id="mainContent" style="display:none">
+    <!-- Order Header -->
+    <div class="card fade-up" style="margin-bottom:1.5rem">
+        <div class="order-header">
+            <div>
+                <h2 id="orderTitle">Order #</h2>
+                <div class="order-meta">
+                    <div class="order-meta-item" id="metaDate">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        <span></span>
+                    </div>
+                    <div class="order-meta-item" id="metaUpdated" style="display:none">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <span></span>
+                    </div>
+                </div>
+            </div>
+            <div id="headerBadge"></div>
+        </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="card fade-up fade-up-d1" id="timelineCard">
+        <div class="card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Order Progress
+        </div>
+        <div class="timeline-track" id="timeline"></div>
+    </div>
+
+    <!-- Customer + Shipping -->
+    <div class="grid-2">
+        <div class="card fade-up fade-up-d2">
+            <div class="card-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Customer
+            </div>
+            <div id="customerInfo"></div>
+        </div>
+        <div class="card fade-up fade-up-d2">
+            <div class="card-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                Shipping &amp; Tracking
+            </div>
+            <div id="shippingInfo"></div>
+        </div>
+    </div>
+
+    <!-- Items -->
+    <div class="card fade-up fade-up-d3">
+        <div class="card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+            Items (<span id="itemCount">0</span>)
+        </div>
+        <div id="itemsList"></div>
+    </div>
+
+    <!-- Payment -->
+    <div class="card fade-up fade-up-d4">
+        <div class="card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            Payment Summary
+        </div>
+        <div id="paymentInfo"></div>
+    </div>
+
+    <!-- Notes -->
+    <div class="card fade-up fade-up-d5" id="notesCard" style="display:none">
+        <div class="card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Notes
+        </div>
+        <p class="notes-text" id="notesText"></p>
+    </div>
+</div>
+
+<script>
+(function() {
+    const orderId = window.location.pathname.split('/').pop();
+    const token = localStorage.getItem('token');
+
+    if (!token) {
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('errorState').style.display = 'flex';
+        return;
+    }
+
+    const headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+
+    fetch('/api/ecom-orders/' + orderId, { headers: headers })
+        .then(function(res) {
+            if (res.status === 401) throw { code: 401, msg: 'You must be logged in to view this order.' };
+            if (res.status === 403) throw { code: 403, msg: 'You do not have permission to view this order.' };
+            if (res.status === 404) throw { code: 404, msg: 'This order was not found or does not belong to your account.' };
+            if (!res.ok) throw { code: res.status, msg: 'Something went wrong loading this order.' };
+            return res.json();
+        })
+        .then(function(o) { renderOrder(o); })
+        .catch(function(err) {
+            document.getElementById('loadingState').style.display = 'none';
+            var errState = document.getElementById('errorState');
+            errState.style.display = 'flex';
+            var titles = { 401: 'Not Logged In', 403: 'Access Denied', 404: 'Order Not Found' };
+            var icons = { 401: '&#128274;', 403: '&#128683;', 404: '&#128270;' };
+            document.getElementById('errorTitle').textContent = titles[err.code] || 'Error';
+            document.getElementById('errorMsg').innerHTML = (err.msg || 'Failed to load order.') + ' <a href="/user-dashboard.html">Go to Dashboard</a>';
+            document.querySelector('.error-icon').innerHTML = icons[err.code] || '&#9888;';
+        });
+
+    function renderOrder(o) {
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('mainContent').style.display = 'block';
+
+        // Title
+        var num = o.order_number || orderId;
+        document.getElementById('orderTitle').textContent = 'Order #' + num;
+        document.getElementById('topOrderNum').textContent = '#' + num;
+        document.title = 'Order #' + num + ' - ChatGenius';
+
+        // Date
+        if (o.created_at) {
+            document.querySelector('#metaDate span').textContent = 'Created ' + new Date(o.created_at).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+        if (o.updated_at && o.updated_at !== o.created_at) {
+            var updEl = document.getElementById('metaUpdated');
+            updEl.style.display = 'flex';
+            updEl.querySelector('span').textContent = 'Updated ' + new Date(o.updated_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        // Status badge
+        var status = o.order_status || 'pending';
+        document.getElementById('headerBadge').innerHTML = '<span class="status-badge ' + status + '"><span class="status-dot"></span>' + status.charAt(0).toUpperCase() + status.slice(1) + '</span>';
+
+        // Timeline
+        renderTimeline(status);
+
+        // Customer
+        renderCustomer(o);
+
+        // Shipping
+        renderShipping(o);
+
+        // Items
+        renderItems(o);
+
+        // Payment
+        renderPayment(o);
+
+        // Notes
+        if (o.notes) {
+            document.getElementById('notesCard').style.display = '';
+            document.getElementById('notesText').textContent = o.notes;
+        }
+    }
+
+    function renderTimeline(status) {
+        var steps = [
+            { key: 'pending', label: 'Pending', icon: '&#9711;' },
+            { key: 'confirmed', label: 'Confirmed', icon: '&#10003;' },
+            { key: 'processing', label: 'Processing', icon: '&#9881;' },
+            { key: 'shipped', label: 'Shipped', icon: '&#9992;' },
+            { key: 'delivered', label: 'Delivered', icon: '&#9733;' }
+        ];
+        var cancelled = status === 'cancelled' || status === 'refunded';
+        var idx = -1;
+        for (var i = 0; i < steps.length; i++) { if (steps[i].key === status) idx = i; }
+        var pct = cancelled ? 0 : (idx > 0 ? (idx / (steps.length - 1)) * 100 : 0);
+
+        var html = '<div class="timeline-line"><div class="timeline-progress" style="width:' + pct + '%"></div></div>';
+        for (var j = 0; j < steps.length; j++) {
+            var s = steps[j];
+            var cls = '';
+            if (!cancelled && j < idx) cls = 'done';
+            if (!cancelled && j === idx) cls = 'active';
+            html += '<div class="timeline-step ' + cls + '">' +
+                '<div class="timeline-circle">' + s.icon + '</div>' +
+                '<div class="timeline-label">' + s.label + '</div></div>';
+        }
+        if (cancelled) {
+            html += '<div class="timeline-step error">' +
+                '<div class="timeline-circle">&#10007;</div>' +
+                '<div class="timeline-label">' + (status === 'refunded' ? 'Refunded' : 'Cancelled') + '</div></div>';
+        }
+        document.getElementById('timeline').innerHTML = html;
+    }
+
+    function renderCustomer(o) {
+        var h = '';
+        if (o.customer_name) h += '<div class="customer-name">' + esc(o.customer_name) + '</div>';
+        if (o.customer_email) h += '<div class="customer-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 7L2 7"/></svg>' + esc(o.customer_email) + '</div>';
+        if (o.customer_phone) h += '<div class="customer-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 014.12 2.06 2 2 0 016.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/></svg>' + esc(o.customer_phone) + '</div>';
+        if (!h) h = '<span style="color:var(--gray);font-size:0.85rem">No customer info</span>';
+        document.getElementById('customerInfo').innerHTML = h;
+    }
+
+    function renderShipping(o) {
+        var h = '';
+        if (o.shipping_address) h += '<div class="ship-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg><span>' + esc(o.shipping_address) + '</span></div>';
+        if (o.shipping_method) h += '<div class="ship-row" style="margin-top:10px"><span class="ship-label">Method:</span>&nbsp;<span class="ship-value">' + esc(o.shipping_method) + '</span></div>';
+        if (o.carrier) h += '<div class="ship-row"><span class="ship-label">Carrier:</span>&nbsp;<span class="ship-value" style="text-transform:uppercase">' + esc(o.carrier) + '</span></div>';
+        if (o.tracking_number) h += '<div class="ship-row"><span class="ship-label">Tracking:</span>&nbsp;<span class="tracking-num">' + esc(o.tracking_number) + '</span></div>';
+        if (o.estimated_delivery) h += '<div class="ship-row"><span class="ship-label">Est. Delivery:</span>&nbsp;<span class="ship-value">' + esc(o.estimated_delivery) + '</span></div>';
+        if (!h) h = '<span style="color:var(--gray);font-size:0.85rem">No shipping info</span>';
+        document.getElementById('shippingInfo').innerHTML = h;
+    }
+
+    function renderItems(o) {
+        var items = [];
+        try {
+            var raw = o.items_json || '[]';
+            items = typeof raw === 'string' ? JSON.parse(raw) : (Array.isArray(raw) ? raw : []);
+        } catch(e) {}
+        document.getElementById('itemCount').textContent = items.length;
+
+        if (!items.length) {
+            document.getElementById('itemsList').innerHTML = '<div style="color:var(--gray);font-size:0.85rem;padding:1rem 0">No items recorded</div>';
+            return;
+        }
+
+        var html = '';
+        for (var i = 0; i < items.length; i++) {
+            var it = items[i];
+            var name = it.name || it.title || it.product_name || 'Item';
+            var qty = it.qty || it.quantity || 1;
+            var price = parseFloat(it.price || 0).toFixed(2);
+            var lineTotal = (qty * parseFloat(it.price || 0)).toFixed(2);
+            var sku = it.sku || it.product_id || '';
+            var img = it.image_url || it.image || '';
+            var variant = it.variant_name || it.variant_title || '';
+            var opts = it.options && typeof it.options === 'object' && !Array.isArray(it.options) ? it.options : {};
+
+            var imgHtml = img
+                ? '<img class="item-img" src="' + esc(img) + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="item-placeholder" style="display:none">&#128722;</div>'
+                : '<div class="item-placeholder">&#128722;</div>';
+
+            var optsHtml = '';
+            var keys = Object.keys(opts);
+            for (var k = 0; k < keys.length; k++) {
+                if (opts[keys[k]]) optsHtml += '<span class="option-pill">' + esc(keys[k]) + ': ' + esc(opts[keys[k]]) + '</span>';
+            }
+
+            html += '<div class="item-row">' +
+                '<div style="position:relative">' + imgHtml + '</div>' +
+                '<div class="item-info">' +
+                    '<div class="item-name">' + esc(name) + '</div>' +
+                    (variant ? '<div class="item-variant">' + esc(variant) + '</div>' : '') +
+                    (optsHtml ? '<div class="item-options">' + optsHtml + '</div>' : '') +
+                    (sku ? '<div class="item-sku">SKU: ' + esc(String(sku)) + '</div>' : '') +
+                '</div>' +
+                '<div class="item-pricing">' +
+                    '<div class="item-total">$' + lineTotal + '</div>' +
+                    '<div class="item-qty">' + qty + ' &times; $' + price + '</div>' +
+                '</div>' +
+            '</div>';
+        }
+        document.getElementById('itemsList').innerHTML = html;
+    }
+
+    function renderPayment(o) {
+        var sub = parseFloat(o.subtotal || 0);
+        var tax = parseFloat(o.tax_amount || 0);
+        var ship = parseFloat(o.shipping_cost || 0);
+        var disc = parseFloat(o.discount_amount || 0);
+        var total = parseFloat(o.order_total || 0);
+        var payMethod = o.payment_method || '-';
+        var payStatus = o.payment_status || 'pending';
+
+        var h = '';
+        if (sub) h += '<div class="pay-row"><span class="label">Subtotal</span><span class="value">$' + sub.toFixed(2) + '</span></div>';
+        if (ship) h += '<div class="pay-row"><span class="label">Shipping</span><span class="value">$' + ship.toFixed(2) + '</span></div>';
+        if (tax) h += '<div class="pay-row"><span class="label">Tax</span><span class="value">$' + tax.toFixed(2) + '</span></div>';
+        if (disc) h += '<div class="pay-row discount"><span class="label">Discount' + (o.discount_code ? ' (' + esc(o.discount_code) + ')' : '') + '</span><span class="value">-$' + disc.toFixed(2) + '</span></div>';
+        h += '<div class="pay-row total"><span class="label">Total</span><span class="value">$' + total.toFixed(2) + '</span></div>';
+        h += '<div class="pay-method-row"><span style="color:var(--gray)">Payment Method</span><span style="color:var(--white);text-transform:capitalize">' + esc(payMethod) + '</span></div>';
+        h += '<div class="pay-method-row"><span style="color:var(--gray)">Payment Status</span><span class="pay-status ' + payStatus + '">' + payStatus.charAt(0).toUpperCase() + payStatus.slice(1) + '</span></div>';
+
+        document.getElementById('paymentInfo').innerHTML = h;
+    }
+
+    function esc(str) {
+        if (str == null) return '';
+        var d = document.createElement('div');
+        d.textContent = String(str);
+        return d.innerHTML;
+    }
+})();
+</script>
+</body>
+</html>

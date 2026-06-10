@@ -327,6 +327,161 @@ def get_handoff_stats(admin_id):
     }
 
 
+def smart_escalation_check(session, message, admin_id):
+    """Enhanced escalation detection beyond simple keywords.
+    Returns (should_escalate: bool, reason: str, urgency: str)"""
+    import re
+
+    msg_lower = message.lower()
+    history = session.get("history", [])
+
+    # 1. Explicit human request (existing behavior)
+    for keyword in HUMAN_REQUEST_KEYWORDS:
+        if keyword in msg_lower:
+            return True, "customer_requested", "high"
+
+    # 2. Frustration signals — multiple negative messages in a row
+    negative_count = 0
+    for h in history[-5:]:
+        if h.get("role") == "user":
+            hmsg = (h.get("content") or "").lower()
+            if re.search(r'\b(frustrated|angry|upset|terrible|awful|worst|ridiculous|unacceptable|horrible|useless)\b', hmsg):
+                negative_count += 1
+    if negative_count >= 2:
+        return True, "customer_frustration", "high"
+
+    # 3. Repeated questions — customer asking the same thing 3+ times
+    if len(history) >= 6:
+        recent_user_msgs = [h["content"].lower().strip() for h in history[-6:] if h.get("role") == "user"]
+        if len(recent_user_msgs) >= 3:
+            # Check for similarity between messages
+            for i, m1 in enumerate(recent_user_msgs):
+                similar_count = sum(1 for m2 in recent_user_msgs[i+1:] if _message_similarity(m1, m2) > 0.6)
+                if similar_count >= 2:
+                    return True, "repeated_question", "medium"
+
+    # 4. Complex issue indicators
+    complex_indicators = [
+        r'\b(legal|lawyer|sue|lawsuit|attorney)\b',
+        r'\b(complaint|formal complaint|report|escalate)\b',
+        r'\b(manager|supervisor|boss|higher up)\b',
+        r'\b(fraud|scam|stolen|unauthorized)\b',
+    ]
+    for pattern in complex_indicators:
+        if re.search(pattern, msg_lower):
+            return True, "complex_issue", "high"
+
+    # 5. Failed resolution — bot said "I can't" or "I don't know" recently
+    for h in history[-3:]:
+        if h.get("role") == "assistant":
+            amsg = (h.get("content") or "").lower()
+            if re.search(r"(i can't|i cannot|i'm unable|i don't have|i'm not sure|i don't know how|beyond my ability)", amsg):
+                if re.search(r'\b(still|again|but|yet)\b', msg_lower):
+                    return True, "bot_unable_to_resolve", "medium"
+
+    return False, "", ""
+
+
+def generate_copilot_suggestions(admin_id, session_id, session=None):
+    """Generate AI-powered response suggestions for the human agent.
+    Analyzes conversation history and provides contextual recommendations."""
+    import database as db
+
+    suggestions = []
+    history = (session or {}).get("history", [])
+
+    if not history:
+        return suggestions
+
+    # Extract key info from conversation
+    customer_name = (session or {}).get("_prefill_name", "")
+    customer_email = (session or {}).get("_prefill_email", "")
+    cart = (session or {}).get("_cart", [])
+
+    # Analyze the issue from recent messages
+    recent_user_msgs = [h["content"] for h in history[-6:] if h.get("role") == "user"]
+    combined = " ".join(recent_user_msgs).lower()
+
+    # Issue categorization and suggested responses
+    import re
+
+    if re.search(r'\b(order|tracking|package|delivery|ship)\b', combined):
+        suggestions.append({
+            "type": "order_lookup",
+            "text": f"Let me look up your order details right away, {customer_name or 'there'}. Could you confirm your order number?",
+            "action": "Check order status in the Orders tab",
+        })
+        if re.search(r'\b(late|delayed|slow|hasn\'t arrived|not received|where)\b', combined):
+            suggestions.append({
+                "type": "shipping_delay",
+                "text": "I apologize for the delay. Let me check with our shipping team and get you an updated delivery estimate.",
+                "action": "Contact carrier for tracking update",
+            })
+
+    if re.search(r'\b(refund|return|exchange|money back|send back)\b', combined):
+        suggestions.append({
+            "type": "return_request",
+            "text": f"I'd be happy to help with your return. I'll initiate the return process for you right away.",
+            "action": "Create return authorization in Orders tab",
+        })
+
+    if re.search(r'\b(broken|damaged|defective|wrong item|missing|not what I ordered)\b', combined):
+        suggestions.append({
+            "type": "quality_issue",
+            "text": "I'm sorry to hear about this issue. We'll make it right — I can arrange a replacement or full refund for you.",
+            "action": "Offer replacement or refund; request photos if needed",
+        })
+
+    if re.search(r'\b(payment|charge|charged|billing|invoice|overcharged)\b', combined):
+        suggestions.append({
+            "type": "billing",
+            "text": "Let me review your billing details. I can see your account and will sort this out for you.",
+            "action": "Check payment records in Stripe dashboard",
+        })
+
+    if cart:
+        cart_total = sum(i["price"] * i["qty"] for i in cart)
+        suggestions.append({
+            "type": "cart_assist",
+            "text": f"I see you have items in your cart ({len(cart)} items, total: ${cart_total:.2f}). Is there anything I can help you with regarding your purchase?",
+            "action": f"Customer has {len(cart)} items worth ${cart_total:.2f} in cart",
+        })
+
+    # Default suggestion
+    if not suggestions:
+        suggestions.append({
+            "type": "general",
+            "text": f"Hi {customer_name or 'there'}, I'm here to help. How can I assist you today?",
+            "action": "Review conversation history for context",
+        })
+
+    # Add context summary
+    if customer_email:
+        # Check for order history
+        try:
+            orders = db.get_ecom_orders_by_customer(admin_id, customer_email)
+            if orders:
+                suggestions.append({
+                    "type": "customer_context",
+                    "text": f"Customer has {len(orders)} previous order(s). Most recent: #{orders[0].get('order_number', '')} ({orders[0].get('order_status', 'unknown')})",
+                    "action": "View full order history",
+                })
+        except Exception:
+            pass
+
+    return suggestions
+
+
+def _message_similarity(msg1, msg2):
+    """Simple word-overlap similarity between two messages."""
+    words1 = set(msg1.split())
+    words2 = set(msg2.split())
+    if not words1 or not words2:
+        return 0
+    overlap = len(words1 & words2)
+    return overlap / max(len(words1), len(words2))
+
+
 def _format_wait_time(minutes):
     """Format wait time for display."""
     if not minutes:

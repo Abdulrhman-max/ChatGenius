@@ -264,15 +264,12 @@ def sync_booking_to_gcal(booking_id, duration_minutes=None, timezone=None):
         print(f"[gcal] Booking {booking_id} has no doctor_id, skipping gcal sync", flush=True)
         return None
 
-    if not is_connected(doctor_id):
-        return None
+    doctor_connected = is_connected(doctor_id)
+    # Check if shared calendar is configured (even if doctor isn't individually connected)
+    has_shared = _has_shared_calendar(admin_id)
 
-    service = _get_calendar_service(admin_id, doctor_id)
-    if not service:
+    if not doctor_connected and not has_shared:
         return None
-
-    tokens = _get_doctor_tokens(doctor_id)
-    calendar_id = tokens.get("gcal_calendar_id") or "primary"
 
     # Resolve duration: use provided, or try booking/service duration, default 60
     if duration_minutes is None:
@@ -285,7 +282,22 @@ def sync_booking_to_gcal(booking_id, duration_minutes=None, timezone=None):
     try:
         # Parse date and time
         date_str = booking["date"]  # e.g. "2026-04-25"
-        time_str = booking["time"]  # e.g. "10:00" or "10:00 AM"
+        time_str = booking["time"]  # e.g. "10:00", "10:00 AM", or "01:00 PM - 02:00 PM"
+
+        # Handle time range format "HH:MM AM - HH:MM PM" — extract start and end
+        end_from_range = None
+        if " - " in time_str:
+            parts = time_str.split(" - ")
+            time_str = parts[0].strip()  # Start time
+            end_time_str = parts[1].strip()  # End time
+            # Parse end time from range
+            try:
+                end_from_range = datetime.strptime(f"{date_str} {end_time_str}", "%Y-%m-%d %H:%M")
+            except ValueError:
+                try:
+                    end_from_range = datetime.strptime(f"{date_str} {end_time_str}", "%Y-%m-%d %I:%M %p")
+                except ValueError:
+                    pass
 
         # Normalize time format
         try:
@@ -293,7 +305,8 @@ def sync_booking_to_gcal(booking_id, duration_minutes=None, timezone=None):
         except ValueError:
             dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %I:%M %p")
 
-        end_dt = dt + timedelta(minutes=int(duration_minutes))
+        # Use end time from range if available, otherwise calculate from duration
+        end_dt = end_from_range if end_from_range else dt + timedelta(minutes=int(duration_minutes))
 
         summary = f"Appointment: {booking.get('customer_name', 'Patient')}"
         description = (
@@ -323,22 +336,34 @@ def sync_booking_to_gcal(booking_id, duration_minutes=None, timezone=None):
             },
         }
 
-        created = service.events().insert(calendarId=calendar_id, body=event).execute()
-        gcal_event_id = created.get("id", "")
+        gcal_event_id = None
 
-        # Store the event ID on the booking for later deletion
-        if gcal_event_id:
-            conn = db.get_db()
-            try:
-                conn.execute(
-                    "UPDATE bookings SET gcal_event_id=%s WHERE id=%s",
-                    (gcal_event_id, booking_id)
-                )
-                conn.commit()
-            finally:
-                conn.close()
+        # Sync to doctor's individual calendar (if connected)
+        if doctor_connected:
+            service = _get_calendar_service(admin_id, doctor_id)
+            if service:
+                tokens = _get_doctor_tokens(doctor_id)
+                calendar_id = tokens.get("gcal_calendar_id") or "primary"
+                created = service.events().insert(calendarId=calendar_id, body=event).execute()
+                gcal_event_id = created.get("id", "")
 
-        print(f"[gcal] Created event {gcal_event_id} for booking {booking_id}", flush=True)
+                # Store the event ID on the booking for later deletion
+                if gcal_event_id:
+                    conn = db.get_db()
+                    try:
+                        conn.execute(
+                            "UPDATE bookings SET gcal_event_id=%s WHERE id=%s",
+                            (gcal_event_id, booking_id)
+                        )
+                        conn.commit()
+                    finally:
+                        conn.close()
+
+                print(f"[gcal] Created event {gcal_event_id} for booking {booking_id} (doctor calendar)", flush=True)
+
+        # Also sync to shared/head calendar if configured
+        _sync_to_shared_calendar(admin_id, event, booking_id)
+
         return gcal_event_id
 
     except Exception as e:
@@ -386,6 +411,77 @@ def delete_gcal_event(booking_id):
     except Exception as e:
         print(f"[gcal] Failed to delete event {gcal_event_id} for booking {booking_id}: {e}", flush=True)
         return False
+
+
+def _has_shared_calendar(admin_id):
+    """Quick check if a shared/head calendar token is configured for this admin."""
+    conn = db.get_db()
+    try:
+        row = conn.execute(
+            "SELECT shared_refresh_token FROM gcal_settings WHERE admin_id=%s",
+            (admin_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+    return bool(row and row["shared_refresh_token"])
+
+
+def _get_shared_service(admin_id):
+    """Build a Google Calendar API service using the shared/head calendar token."""
+    conn = db.get_db()
+    try:
+        row = conn.execute(
+            "SELECT shared_refresh_token, shared_calendar_id, gcal_client_id, gcal_client_secret FROM gcal_settings WHERE admin_id=%s",
+            (admin_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not row:
+        return None, None
+    data = dict(row)
+    if not data.get("shared_refresh_token"):
+        return None, None
+
+    try:
+        from google.oauth2.credentials import Credentials
+        from google.auth.transport.requests import Request
+        from googleapiclient.discovery import build
+
+        creds = Credentials(
+            token=None,
+            refresh_token=data["shared_refresh_token"],
+            token_uri=GOOGLE_TOKEN_URL,
+            client_id=data["gcal_client_id"],
+            client_secret=data["gcal_client_secret"],
+            scopes=SCOPES,
+        )
+        if not creds.valid:
+            creds.refresh(Request())
+
+        service = build("calendar", "v3", credentials=creds)
+        calendar_id = data.get("shared_calendar_id") or "primary"
+        return service, calendar_id
+    except Exception as e:
+        print(f"[gcal] Failed to build shared calendar service for admin {admin_id}: {e}", flush=True)
+        return None, None
+
+
+def _sync_to_shared_calendar(admin_id, event, booking_id):
+    """Sync an event to the shared/head calendar (if configured).
+    This ensures ALL bookings appear on the head calendar regardless of doctor."""
+    service, calendar_id = _get_shared_service(admin_id)
+    if not service:
+        return None
+
+    try:
+        created = service.events().insert(calendarId=calendar_id, body=event).execute()
+        gcal_shared_id = created.get("id", "")
+        print(f"[gcal] Created shared/head event {gcal_shared_id} for booking {booking_id}", flush=True)
+        return gcal_shared_id
+    except Exception as e:
+        print(f"[gcal] Failed to sync booking {booking_id} to shared calendar: {e}", flush=True)
+        return None
 
 
 def get_busy_slots(doctor_id, date, admin_id=None, timezone=None):

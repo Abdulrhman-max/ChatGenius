@@ -129,13 +129,34 @@ def connect_calendly(api_key, admin_id):
     try:
         resp = requests.get(
             f"{CALENDLY_API_BASE}/users/me",
-            headers={"Authorization": f"Bearer {api_key}"},
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
             timeout=15,
         )
         if resp.status_code == 401:
-            return {"error": "Invalid Calendly API token"}
+            return {"error": "Invalid Calendly API token. Make sure you're using a Personal Access Token from calendly.com/integrations/api_webhooks"}
+        if resp.status_code == 403:
+            detail = ""
+            required_scopes = []
+            try:
+                body = resp.json()
+                detail = body.get("message", "") or body.get("title", "") or ""
+                required_scopes = body.get("required_scopes", [])
+            except Exception:
+                detail = resp.text[:200]
+            logger.error(f"[calendly] 403 for admin {admin_id}: {detail} | required_scopes={required_scopes}")
+            scope_hint = f" Required scopes: {', '.join(required_scopes)}." if required_scopes else ""
+            return {"error": f"Calendly 403: Missing required scopes.{scope_hint} Please regenerate your token at calendly.com/integrations/api_webhooks and check ALL scope boxes (users:read, organization:read, webhooks:write, etc)."}
         resp.raise_for_status()
         user_data = resp.json().get("resource", {})
+    except requests.ConnectionError as e:
+        logger.error(f"[calendly] Connection error for admin {admin_id}: {e}")
+        return {"error": "Cannot reach Calendly API. Check server internet/firewall settings."}
+    except requests.Timeout:
+        logger.error(f"[calendly] Timeout connecting to Calendly for admin {admin_id}")
+        return {"error": "Calendly API timed out. Please try again."}
     except requests.RequestException as e:
         logger.error(f"[calendly] Failed to validate token for admin {admin_id}: {e}")
         return {"error": f"Could not connect to Calendly: {str(e)}"}

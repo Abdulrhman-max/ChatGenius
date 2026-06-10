@@ -2,7 +2,7 @@
 Two-Factor Authentication Engine for ChatGenius.
 Supports SMS OTP and Email OTP methods.
 """
-import random
+import secrets
 import logging
 from datetime import datetime, timedelta
 
@@ -17,7 +17,7 @@ SESSION_TIMEOUT_HOURS = 8
 
 def generate_otp():
     """Generate a 6-digit OTP code."""
-    return str(random.randint(100000, 999999))
+    return str(secrets.randbelow(900000) + 100000)
 
 
 def send_otp(user_id, method='email'):

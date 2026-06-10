@@ -29,6 +29,10 @@ def on_noshow_detected(booking_id):
     admin_id = booking.get("admin_id", 0)
     patient_id = booking.get("patient_id", 0)
 
+    # No-show recovery is dental-only
+    if db.get_company_type(admin_id) not in ("dental", ""):
+        return None
+
     # Get patient no-show count
     noshow_count = 1
     if patient_id:
@@ -44,7 +48,13 @@ def on_noshow_detected(booking_id):
         logger.info(f"No-show recovery: auto-recovery disabled for admin {admin_id}")
         return None
 
-    delay_minutes = policy.get("recovery_delay_minutes", 15)
+    # Check reminder_config for noshow_recovery_delay_hours override
+    rc = db.get_reminder_config(admin_id)
+    noshow_delay_hours = rc.get("noshow_recovery_delay_hours", 0)
+    if noshow_delay_hours:
+        delay_minutes = noshow_delay_hours * 60
+    else:
+        delay_minutes = policy.get("recovery_delay_minutes", 15)
 
     # Create recovery record
     reschedule_token = secrets.token_urlsafe(32)
@@ -126,7 +136,7 @@ def send_recovery_message(recovery_id):
     html_body = _build_recovery_email(patient_name, booking, reschedule_url, cancel_url)
 
     try:
-        sent = email_svc._send_email(patient_email, subject, html_body)
+        sent = email_svc._send_email(patient_email, subject, html_body, admin_id=recovery.get("admin_id"))
     except Exception as e:
         logger.error(f"No-show recovery: email send error: {e}")
         sent = False
@@ -202,7 +212,6 @@ def _build_recovery_email(patient_name, booking, reschedule_url, cancel_url):
 <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;margin-top:24px;">
 <tr><td style="text-align:center;padding:0 20px;">
     <p style="color:#999;font-size:12px;line-height:1.5;margin:0;">
-        Powered by <strong style="color:#777;">ChatGenius AI</strong><br>
         <span style="color:#bbb;">Please do not reply to this email.</span>
     </p>
 </td></tr>

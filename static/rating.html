@@ -11,7 +11,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background: linear-gradient(135deg, #1A1A1A 0%, #1A1A1A 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -19,10 +19,10 @@
             padding: 1rem;
         }
         .card {
-            background: rgba(255,255,255,0.05);
+            background: rgba(243,244,246,1);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 24px;
+            border: 1px solid rgba(243,244,246,1);
+            border-radius: 8px;
             padding: 2.5rem;
             max-width: 500px;
             width: 100%;
@@ -39,7 +39,7 @@
             color: #fff;
         }
         .subtitle {
-            color: rgba(255,255,255,0.6);
+            color: rgba(107,114,128,1);
             margin-bottom: 2rem;
             font-size: 0.95rem;
         }
@@ -53,7 +53,7 @@
             font-size: 2.5rem;
             cursor: pointer;
             transition: all 0.2s;
-            color: rgba(255,255,255,0.2);
+            color: rgba(209,213,219,1);
         }
         .star:hover, .star.active {
             color: #fbbf24;
@@ -67,14 +67,14 @@
         label {
             display: block;
             font-size: 0.85rem;
-            color: rgba(255,255,255,0.7);
+            color: rgba(75,85,99,1);
             margin-bottom: 0.5rem;
         }
         textarea {
             width: 100%;
             padding: 1rem;
-            background: rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.04);
+            border: 1px solid rgba(243,244,246,1);
             border-radius: 12px;
             color: #fff;
             font-size: 0.95rem;
@@ -84,7 +84,7 @@
         }
         textarea:focus {
             outline: none;
-            border-color: #8b5cf6;
+            border-color: #8B5CF6;
         }
         .btn {
             width: 100%;
@@ -98,12 +98,12 @@
             margin-top: 1rem;
         }
         .btn-primary {
-            background: linear-gradient(135deg, #8b5cf6, #6366f1);
-            color: #fff;
+            background: linear-gradient(135deg, #ffffff, #e4e4e7);
+            color: #09090B;
         }
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(139,92,246,0.4);
+            box-shadow: 0 0 35px rgba(139,92,246,0.45);
         }
         .thank-you {
             display: none;
@@ -122,21 +122,21 @@
             margin-bottom: 1.5rem;
         }
         .stars-display .star { cursor: default; }
-        .rating-high { color: #34d399; }
-        .rating-low { color: #fbbf24; }
+        .rating-high { color: #1A1A2E; }
+        .rating-low { color: #6B7280; }
         .hidden { display: none !important; }
         .review-link {
             display: inline-block;
             margin-top: 1rem;
             padding: 0.75rem 1.5rem;
-            background: rgba(52,211,153,0.15);
-            border: 1px solid rgba(52,211,153,0.3);
+            background: #8B5CF6;
+            border: 1px solid #8B5CF6;
             border-radius: 12px;
-            color: #34d399;
+            color: #FFFFFF;
             text-decoration: none;
             font-weight: 500;
         }
-        .review-link:hover { background: rgba(52,211,153,0.25); }
+        .review-link:hover { background: rgba(209,213,219,1); }
     </style>
 </head>
 <body>
@@ -153,7 +153,7 @@
                 <span class="star" data-rating="4">☆</span>
                 <span class="star" data-rating="5">☆</span>
             </div>
-            <p id="ratingText" style="color: rgba(255,255,255,0.5); font-size: 0.9rem; min-height: 1.5rem;"></p>
+            <p id="ratingText" style="color: rgba(156,163,175,1); font-size: 0.9rem; min-height: 1.5rem;"></p>
             
             <div class="feedback-form" id="feedbackForm">
                 <label for="feedback">Share more details (optional):</label>
@@ -167,7 +167,7 @@
             <h2 id="thankTitle">Thank You!</h2>
             <p class="subtitle" id="thankMessage">Your feedback helps us improve.</p>
             <div id="reviewPrompt" class="hidden">
-                <p style="color: #34d399; margin-bottom: 1rem;">Would you like to share your experience publicly?</p>
+                <p style="color: #1A1A2E; margin-bottom: 1rem;">Would you like to share your experience publicly?</p>
                 <a href="#" class="review-link" id="googleReviewLink" target="_blank">
                     ⭐ Leave a Google Review
                 </a>

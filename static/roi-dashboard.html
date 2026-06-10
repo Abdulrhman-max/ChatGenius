@@ -11,22 +11,22 @@
         html { font-size: 90%; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --primary: #8b5cf6;
-            --primary-light: #a78bfa;
-            --success: #34d399;
-            --success-bg: rgba(52, 211, 153, 0.1);
-            --warning: #fbbf24;
-            --warning-bg: rgba(251, 191, 36, 0.1);
+            --primary: #8B5CF6;
+            --primary-light: #7C3AED;
+            --success: #10b981;
+            --success-bg: rgba(16, 185, 129, 0.1);
+            --warning: #f59e0b;
+            --warning-bg: rgba(245, 158, 11, 0.1);
             --danger: #ef4444;
             --danger-light: #f87171;
-            --bg: #0f0f1a;
-            --bg-light: #1a1a2e;
-            --card: rgba(255,255,255,0.03);
-            --card-hover: rgba(255,255,255,0.06);
-            --border: rgba(255,255,255,0.08);
-            --text: #f1f5f9;
-            --text-muted: #64748b;
-            --text-secondary: #94a3b8;
+            --bg: #F9FAFB;
+            --bg-light: #F3F4F6;
+            --card: rgba(249,250,251,1);
+            --card-hover: rgba(229,231,235,1);
+            --border: rgba(229,231,235,1);
+            --text: #1A1A2E;
+            --text-muted: #6B7280;
+            --text-secondary: #6B7280;
         }
         body {
             font-family: 'Inter', sans-serif;
@@ -41,17 +41,18 @@
             display: flex;
             align-items: center;
             gap: 1rem;
-            background: var(--bg);
+            background: #FFFFFF;
             position: sticky;
             top: 0;
             z-index: 100;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
         .header h1 { font-size: 1.2rem; font-weight: 700; }
         .header h1 span { color: var(--primary); }
         .back-btn {
             background: var(--card);
             border: 1px solid var(--border);
-            color: #fff;
+            color: #374151;
             padding: 0.5rem 1rem;
             border-radius: 8px;
             cursor: pointer;
@@ -84,8 +85,8 @@
 
         /* ROI Hero Section */
         .roi-hero {
-            background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
-            border-radius: 20px;
+            background: linear-gradient(135deg, var(--primary) 0%, #7C3AED 100%);
+            border-radius: 8px;
             padding: 2.5rem;
             text-align: center;
             margin-bottom: 2rem;
@@ -107,7 +108,7 @@
         }
         .roi-multiple .x { font-size: 2rem; opacity: 0.8; }
         .roi-subtitle {
-            color: rgba(255,255,255,0.9);
+            color: rgba(255,255,255,0.85);
             font-size: 1.1rem;
             margin-top: 0.5rem;
             position: relative;
@@ -138,14 +139,14 @@
         .revenue-card {
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 16px;
+            border-radius: 8px;
             padding: 1.5rem;
             transition: all 0.2s;
         }
         .revenue-card:hover { border-color: var(--primary); }
         .revenue-card.primary {
-            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%);
-            border-color: rgba(139, 92, 246, 0.3);
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+            border-color: #8B5CF6;
         }
         .revenue-card .label {
             font-size: 0.75rem; color: var(--text-muted);
@@ -162,17 +163,17 @@
         .revenue-card .subtext { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
 
         /* Section Headers */
-        .section { margin-bottom: 2rem; }
+        .section { margin-bottom: 2rem; ;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
         .section-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
         .section-icon {
             width: 32px; height: 32px; border-radius: 8px;
             display: flex; align-items: center; justify-content: center; font-size: 1rem;
         }
-        .section-icon.revenue { background: rgba(52, 211, 153, 0.15); color: var(--success); }
+        .section-icon.revenue { background: rgba(16, 185, 129, 0.15); color: var(--success); }
         .section-icon.loss { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
-        .section-icon.funnel { background: rgba(99, 102, 241, 0.15); color: #6366f1; }
-        .section-icon.insights { background: rgba(236, 72, 153, 0.15); color: #ec4899; }
-        .section-icon.patients { background: rgba(251, 191, 36, 0.15); color: var(--warning); }
+        .section-icon.funnel { background: rgba(139, 92, 246, 0.15); color: #8B5CF6; }
+        .section-icon.insights { background: rgba(107, 114, 128, 0.15); color: #4B5563; }
+        .section-icon.patients { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
         .section-icon.automation { background: rgba(139, 92, 246, 0.15); color: var(--primary); }
         .section-title { font-size: 1.1rem; font-weight: 600; }
 
@@ -180,7 +181,7 @@
         .chart-container {
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 16px;
+            border-radius: 8px;
             padding: 1.5rem;
             margin-bottom: 1.5rem;
         }
@@ -192,7 +193,7 @@
         .funnel-container {
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 16px;
+            border-radius: 8px;
             padding: 1.5rem;
         }
         .funnel-stage {
@@ -202,13 +203,13 @@
         .stage-label { font-size: 0.85rem; color: var(--text-secondary); min-width: 180px; }
         .stage-bar {
             height: 36px;
-            background: linear-gradient(90deg, var(--primary) 0%, #6366f1 100%);
+            background: linear-gradient(90deg, var(--primary) 0%, #D1D5DB 100%);
             border-radius: 8px;
             display: flex; align-items: center; justify-content: flex-end;
             padding: 0 0.75rem; min-width: 60px;
             transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .stage-bar .count { font-size: 0.85rem; font-weight: 600; color: #fff; }
+        .stage-bar .count { font-size: 0.85rem; font-weight: 600; color: #1A1A2E; }
         .stage-rate { font-size: 0.85rem; font-weight: 600; color: var(--success); min-width: 60px; text-align: right; }
         .stage-rate.na { color: var(--text-muted); }
 
@@ -225,7 +226,7 @@
             padding: 1.25rem;
             text-align: center;
             transition: all 0.2s;
-        }
+        ;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
         .stat-card:hover { border-color: var(--primary); }
         .stat-card .label {
             font-size: 0.7rem; color: var(--text-muted);
@@ -242,7 +243,7 @@
         .insights-list {
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 16px;
+            border-radius: 8px;
             padding: 1.5rem;
         }
         .insight-item {
@@ -267,7 +268,7 @@
         .loss-card {
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 16px;
+            border-radius: 8px;
             padding: 1.5rem;
             transition: all 0.2s;
         }
@@ -565,14 +566,14 @@
                         {
                             label: 'Revenue (' + currencySymbol + ')',
                             data: revenues,
-                            borderColor: '#8b5cf6',
-                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                            borderColor: '#ffffff',
+                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
                             borderWidth: 2.5,
                             fill: true,
                             tension: 0.4,
                             pointRadius: 4,
                             pointHoverRadius: 7,
-                            pointBackgroundColor: '#8b5cf6',
+                            pointBackgroundColor: '#ffffff',
                             pointBorderColor: '#fff',
                             pointBorderWidth: 2,
                             yAxisID: 'y',
@@ -580,14 +581,14 @@
                         {
                             label: 'Bookings',
                             data: bookings,
-                            borderColor: '#34d399',
-                            backgroundColor: 'rgba(52, 211, 153, 0.08)',
+                            borderColor: '#ffffff',
+                            backgroundColor: 'rgba(255, 255, 255, 0.08)',
                             borderWidth: 2,
                             fill: true,
                             tension: 0.4,
                             pointRadius: 3,
                             pointHoverRadius: 6,
-                            pointBackgroundColor: '#34d399',
+                            pointBackgroundColor: '#ffffff',
                             pointBorderColor: '#fff',
                             pointBorderWidth: 2,
                             yAxisID: 'y1',
@@ -600,13 +601,13 @@
                     interaction: { mode: 'index', intersect: false },
                     plugins: {
                         legend: {
-                            labels: { color: '#94a3b8', usePointStyle: true, padding: 20, font: { family: 'Inter', size: 12 } }
+                            labels: { color: '#374151', usePointStyle: true, padding: 20, font: { family: 'Inter', size: 12 } }
                         },
                         tooltip: {
-                            backgroundColor: '#1a1a2e',
-                            titleColor: '#f1f5f9',
-                            bodyColor: '#94a3b8',
-                            borderColor: 'rgba(255,255,255,0.1)',
+                            backgroundColor: '#1F2937',
+                            titleColor: '#F9FAFB',
+                            bodyColor: '#D1D5DB',
+                            borderColor: 'rgba(243,244,246,1)',
                             borderWidth: 1,
                             cornerRadius: 10,
                             padding: 12,
@@ -620,24 +621,24 @@
                     },
                     scales: {
                         x: {
-                            grid: { color: 'rgba(255,255,255,0.04)' },
+                            grid: { color: 'rgba(249,250,251,1)' },
                             ticks: { color: '#64748b', font: { family: 'Inter', size: 11 } }
                         },
                         y: {
                             position: 'left',
-                            grid: { color: 'rgba(255,255,255,0.04)' },
+                            grid: { color: 'rgba(249,250,251,1)' },
                             ticks: {
-                                color: '#a78bfa',
+                                color: '#374151',
                                 font: { family: 'Inter', size: 11 },
                                 callback: v => currencySymbol + v.toLocaleString()
                             },
-                            title: { display: true, text: 'Revenue', color: '#a78bfa', font: { family: 'Inter', size: 12 } }
+                            title: { display: true, text: 'Revenue', color: '#374151', font: { family: 'Inter', size: 12 } }
                         },
                         y1: {
                             position: 'right',
                             grid: { drawOnChartArea: false },
-                            ticks: { color: '#34d399', font: { family: 'Inter', size: 11 } },
-                            title: { display: true, text: 'Bookings', color: '#34d399', font: { family: 'Inter', size: 12 } }
+                            ticks: { color: '#374151', font: { family: 'Inter', size: 11 } },
+                            title: { display: true, text: 'Bookings', color: '#374151', font: { family: 'Inter', size: 12 } }
                         }
                     }
                 }
@@ -671,7 +672,7 @@
                         label: 'No-Shows',
                         data: counts,
                         backgroundColor: 'rgba(239, 68, 68, 0.6)',
-                        borderColor: '#ef4444',
+                        borderColor: '#D1D5DB',
                         borderWidth: 1.5,
                         borderRadius: 6,
                         hoverBackgroundColor: 'rgba(239, 68, 68, 0.85)',
@@ -682,13 +683,13 @@
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            labels: { color: '#94a3b8', usePointStyle: true, padding: 20, font: { family: 'Inter', size: 12 } }
+                            labels: { color: '#374151', usePointStyle: true, padding: 20, font: { family: 'Inter', size: 12 } }
                         },
                         tooltip: {
-                            backgroundColor: '#1a1a2e',
-                            titleColor: '#f1f5f9',
-                            bodyColor: '#94a3b8',
-                            borderColor: 'rgba(255,255,255,0.1)',
+                            backgroundColor: '#1F2937',
+                            titleColor: '#F9FAFB',
+                            bodyColor: '#D1D5DB',
+                            borderColor: 'rgba(243,244,246,1)',
                             borderWidth: 1,
                             cornerRadius: 10,
                             padding: 12,
@@ -696,18 +697,18 @@
                     },
                     scales: {
                         x: {
-                            grid: { color: 'rgba(255,255,255,0.04)' },
+                            grid: { color: 'rgba(249,250,251,1)' },
                             ticks: { color: '#64748b', font: { family: 'Inter', size: 11 } }
                         },
                         y: {
                             beginAtZero: true,
-                            grid: { color: 'rgba(255,255,255,0.04)' },
+                            grid: { color: 'rgba(249,250,251,1)' },
                             ticks: {
-                                color: '#f87171',
+                                color: '#374151',
                                 font: { family: 'Inter', size: 11 },
                                 stepSize: 1
                             },
-                            title: { display: true, text: 'No-Shows', color: '#f87171', font: { family: 'Inter', size: 12 } }
+                            title: { display: true, text: 'No-Shows', color: '#374151', font: { family: 'Inter', size: 12 } }
                         }
                     }
                 }

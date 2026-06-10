@@ -88,7 +88,7 @@ _DENTAL_KEYWORDS = [
     "reminder", "no-show", "confirm", "cancel",
     "recall", "reactivation", "overdue", "checkup",
     "promotion", "offer", "discount", "special", "campaign",
-    "financing", "installment", "payment plan", "carecredit",
+    "installment", "payment plan", "tabby", "tamara",
     "upsell", "education", "treatment option",
     "pms", "dentrix", "eaglesoft", "open dental",
     "analytics", "dashboard", "report", "metrics",
@@ -99,7 +99,7 @@ _DENTAL_KEYWORDS = [
     "credit card", "visa", "mastercard", "charge", "fee", "bill",
     "refund", "money", "sar", "riyal", "budget", "invoice",
     "receipt", "insurance", "coverage", "claim", "copay", "deductible",
-    "installment", "plan", "finance", "emi", "bnpl",
+    "installment", "plan", "taqseet",
     # Clinic logistics (often no dental words)
     "locat", "address", "direction", "parking", "transport", "metro",
     "bus", "map", "gps", "where", "find you", "get to you",

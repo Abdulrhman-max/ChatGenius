@@ -111,7 +111,7 @@ _SYMPTOM_KEYWORDS = [
 _PRICING_KEYWORDS = [
     "cost", "price", "how much", "pricing", "fee", "charge", "expensive",
     "cheap", "afford", "dollar", "pay", "payment plan", "installment",
-    "financing", "finance", "how much does",
+    "taqseet", "how much does",
 ]
 
 _INSURANCE_KEYWORDS = [
