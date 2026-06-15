@@ -3371,7 +3371,7 @@ def get_stats(admin_id=0, doctor_id=0):
     }
 
 
-def get_stats_extended(admin_id):
+def get_stats_extended(admin_id, date_from=None, date_to=None):
     """Extended stats for overview: conversion rate, weekly/monthly comparisons, status breakdown."""
     conn = get_db()
     today = datetime.now()
@@ -3399,7 +3399,7 @@ def get_stats_extended(admin_id):
         booked_sessions = conn.execute(
             "SELECT COUNT(DISTINCT session_id) as c FROM chat_logs WHERE admin_id = %s AND resulted_in_booking = 1", (admin_id,)
         ).fetchone()["c"]
-        conversion_rate = round(booked_sessions / total_sessions * 100, 1) if total_sessions > 0 else 0
+        conversion_rate = min(100.0, round(booked_sessions / total_sessions * 100, 1)) if total_sessions > 0 else 0
 
         # This week bookings & leads
         week_bookings = conn.execute(
@@ -3441,38 +3441,61 @@ def get_stats_extended(admin_id):
             (admin_id, last_month_start, last_month_end)
         ).fetchone()["c"]
 
+        # Date filter clause for optional range
+        _df_clause = ""
+        _df_params = (admin_id,)
+        if date_from and date_to:
+            _df_clause = " AND date::date BETWEEN %s AND %s"
+            _df_params = (admin_id, date_from, date_to)
+
         # Status breakdown
         status_rows = conn.execute(
-            "SELECT status, COUNT(*) as c FROM bookings WHERE admin_id = %s GROUP BY status",
-            (admin_id,)
+            "SELECT status, COUNT(*) as c FROM bookings WHERE admin_id = %s" + _df_clause + " GROUP BY status",
+            _df_params
         ).fetchall()
         status_breakdown = {r["status"]: r["c"] for r in status_rows}
 
-        # Day-of-week distribution (all time)
+        # Day-of-week distribution (by appointment date)
         dow_rows = conn.execute(
-            "SELECT EXTRACT(DOW FROM created_at) as dow, COUNT(*) as c FROM bookings WHERE admin_id = %s AND status != 'cancelled' GROUP BY dow ORDER BY dow",
-            (admin_id,)
+            "SELECT EXTRACT(DOW FROM date::date) as dow, COUNT(*) as c FROM bookings WHERE admin_id = %s AND status != 'cancelled'" + _df_clause + " GROUP BY dow ORDER BY dow",
+            _df_params
         ).fetchall()
         dow_names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
         dow_distribution = [{"day": dow_names[int(r["dow"])], "count": r["c"]} for r in dow_rows]
 
         # Avg bookings per doctor
+        _bpd_join = " AND b.status != 'cancelled'"
+        _bpd_params = [admin_id]
+        if date_from and date_to:
+            _bpd_join += " AND b.date::date BETWEEN %s AND %s"
+            _bpd_params = [date_from, date_to, admin_id]
         doc_rows = conn.execute(
-            "SELECT d.name, COUNT(b.id) as c FROM doctors d LEFT JOIN bookings b ON b.doctor_id = d.id AND b.status != 'cancelled' WHERE d.admin_id = %s GROUP BY d.id, d.name ORDER BY c DESC",
-            (admin_id,)
+            "SELECT d.name, COUNT(b.id) as c FROM doctors d LEFT JOIN bookings b ON b.doctor_id = d.id" + _bpd_join + " WHERE d.admin_id = %s GROUP BY d.id, d.name ORDER BY c DESC",
+            tuple(_bpd_params)
         ).fetchall()
         bookings_per_doctor = [{"name": r["name"], "count": r["c"]} for r in doc_rows]
 
-        # Monthly trend (last 6 months)
-        monthly_rows = conn.execute(
-            "SELECT TO_CHAR(created_at, 'YYYY-MM') as month, COUNT(*) as bookings, "
-            "SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled, "
-            "SUM(CASE WHEN status = 'no_show' THEN 1 ELSE 0 END) as no_shows, "
-            "SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed "
-            "FROM bookings WHERE admin_id = %s AND created_at >= NOW() - INTERVAL '6 months' "
-            "GROUP BY month ORDER BY month",
-            (admin_id,)
-        ).fetchall()
+        # Monthly trend (by appointment date)
+        if date_from and date_to:
+            monthly_rows = conn.execute(
+                "SELECT TO_CHAR(date::date, 'YYYY-MM') as month, COUNT(*) as bookings, "
+                "SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled, "
+                "SUM(CASE WHEN status = 'no_show' THEN 1 ELSE 0 END) as no_shows, "
+                "SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed "
+                "FROM bookings WHERE admin_id = %s AND date::date BETWEEN %s AND %s "
+                "GROUP BY month ORDER BY month",
+                (admin_id, date_from, date_to)
+            ).fetchall()
+        else:
+            monthly_rows = conn.execute(
+                "SELECT TO_CHAR(date::date, 'YYYY-MM') as month, COUNT(*) as bookings, "
+                "SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled, "
+                "SUM(CASE WHEN status = 'no_show' THEN 1 ELSE 0 END) as no_shows, "
+                "SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed "
+                "FROM bookings WHERE admin_id = %s AND date::date >= (NOW()::date - INTERVAL '6 months') "
+                "GROUP BY month ORDER BY month",
+                (admin_id,)
+            ).fetchall()
         monthly_trend = [{"month": r["month"], "bookings": r["bookings"], "cancelled": r["cancelled"], "no_shows": r["no_shows"], "completed": r["completed"]} for r in monthly_rows]
 
     finally:
@@ -3887,15 +3910,8 @@ def get_roi_stats(admin_id, date_range="month"):
         ).fetchone()
         bookings_made = bookings_made_row["c"] if bookings_made_row else 0
 
-    # Conversion rates
-    visitor_to_chat = 100.0  # every visitor IS a chat (they opened chatbot)
-    chat_to_lead = round((leads_captured / chats_started * 100), 1) if chats_started > 0 else 0
-    lead_to_booking = round((bookings_made / leads_captured * 100), 1) if leads_captured > 0 else 0
-    bookings_per_100 = round((bookings_made / chats_started * 100), 1) if chats_started > 0 else 0
-
-    # AI success rate
+    # AI success rate — chatbot-attributed bookings
     if is_ecom:
-        # For ecommerce: orders / visitors
         ai_bookings = bookings_made
         ai_success_rate = round((ai_bookings / visitors * 100), 1) if visitors > 0 else 0
     else:
@@ -3906,6 +3922,14 @@ def get_roi_stats(admin_id, date_range="month"):
         ).fetchone()
         ai_bookings = ai_booking_row["c"] if ai_booking_row else 0
         ai_success_rate = round((ai_bookings / visitors * 100), 1) if visitors > 0 else 0
+
+    # Conversion rates — use chatbot-attributed bookings for funnel rates
+    # If no chatbot attribution data, fall back to total bookings but cap at 100%
+    funnel_bookings = ai_bookings if ai_bookings > 0 else bookings_made
+    visitor_to_chat = 100.0  # every visitor IS a chat (they opened chatbot)
+    chat_to_lead = min(round((leads_captured / chats_started * 100), 1), 100.0) if chats_started > 0 else 0
+    lead_to_booking = min(round((funnel_bookings / leads_captured * 100), 1), 100.0) if leads_captured > 0 else 0
+    bookings_per_100 = min(round((funnel_bookings / chats_started * 100), 1), 100.0) if chats_started > 0 else 0
 
     # ── 5. Loss Metrics ──
     if is_ecom:
@@ -3946,7 +3970,7 @@ def get_roi_stats(admin_id, date_range="month"):
             "SELECT date, status, service, revenue_amount, cancelled_at "
             "FROM bookings WHERE admin_id=%s AND status IN ('no_show','cancelled') "
             "AND (CASE "
-            "  WHEN status='cancelled' AND cancelled_at IS NOT NULL THEN cancelled_at::date "
+            "  WHEN status='cancelled' AND cancelled_at IS NOT NULL THEN cancelled_at::date::text "
             "  ELSE date "
             "END) BETWEEN %s AND %s",
             (admin_id, date_from, date_to)
@@ -4256,7 +4280,8 @@ def get_roi_stats(admin_id, date_range="month"):
             "visitors": visitors,
             "chats_started": chats_started,
             "leads_captured": leads_captured,
-            "bookings_made": bookings_made,
+            "bookings_made": funnel_bookings,
+            "total_bookings_all": bookings_made,
             "bookings_completed": bookings_completed,
             "visitor_to_chat_pct": visitor_to_chat,
             "chat_to_lead_pct": chat_to_lead,
@@ -5971,7 +5996,16 @@ def mark_session_booked(session_id):
 
 
 _analytics_cache = {}
-_CACHE_TTL = 300  # 5 minutes
+_CACHE_TTL = 30  # 30 seconds
+
+def invalidate_analytics_cache(admin_id=None):
+    """Clear analytics cache. Called when bookings change."""
+    if admin_id:
+        keys_to_remove = [k for k in _analytics_cache if k.startswith(f"{admin_id}:")]
+        for k in keys_to_remove:
+            del _analytics_cache[k]
+    else:
+        _analytics_cache.clear()
 
 
 def get_analytics(admin_id, date_from, date_to):
@@ -5998,14 +6032,14 @@ def _get_analytics_inner(conn, admin_id, date_from, date_to, cache_key, now):
         FROM chat_logs WHERE admin_id = %s AND created_at::date BETWEEN %s AND %s
         GROUP BY created_at::date ORDER BY day
     """, (admin_id, date_from, date_to)).fetchall()
-    leads_per_day = [{"date": r["day"], "count": r["count"]} for r in leads_rows]
+    leads_per_day = [{"date": str(r["day"]), "count": r["count"]} for r in leads_rows]
 
     total_sessions = conn.execute("""
         SELECT COUNT(DISTINCT session_id) as c FROM chat_logs
         WHERE admin_id = %s AND created_at::date BETWEEN %s AND %s
     """, (admin_id, date_from, date_to)).fetchone()["c"]
 
-    # 2. Conversion rate (sessions that booked / total sessions) per week
+    # 2. Conversion rate per week — merge chat sessions with actual bookings
     conversion_rows = conn.execute("""
         SELECT
             TO_CHAR(created_at, 'IYYY-"W"IW') as week,
@@ -6014,11 +6048,31 @@ def _get_analytics_inner(conn, admin_id, date_from, date_to, cache_key, now):
         FROM chat_logs WHERE admin_id = %s AND created_at::date BETWEEN %s AND %s
         GROUP BY week ORDER BY week
     """, (admin_id, date_from, date_to)).fetchall()
-    conversion_data = [{
-        "week": r["week"], "total_chats": r["total_chats"],
-        "total_bookings": r["booked"],
-        "rate": round(r["booked"] / r["total_chats"] * 100, 1) if r["total_chats"] > 0 else 0
-    } for r in conversion_rows]
+
+    # Also get actual bookings per week from bookings table
+    bookings_per_week_rows = conn.execute("""
+        SELECT TO_CHAR(date::date, 'IYYY-"W"IW') as week, COUNT(*) as count
+        FROM bookings WHERE admin_id = %s AND status != 'cancelled'
+        AND date::date BETWEEN %s AND %s
+        GROUP BY week ORDER BY week
+    """, (admin_id, date_from, date_to)).fetchall()
+    bookings_per_week_map = {r["week"]: r["count"] for r in bookings_per_week_rows}
+
+    # Merge: use actual bookings as source of truth
+    conversion_data = []
+    for r in conversion_rows:
+        actual_booked = bookings_per_week_map.get(r["week"], 0)
+        conversion_data.append({
+            "week": r["week"], "total_chats": r["total_chats"],
+            "total_bookings": actual_booked,
+            "chat_attributed": r["booked"],
+            "rate": min(100.0, round(actual_booked / r["total_chats"] * 100, 1)) if r["total_chats"] > 0 else 0
+        })
+    # Add weeks that have bookings but no chat sessions
+    for week, count in bookings_per_week_map.items():
+        if not any(c["week"] == week for c in conversion_data):
+            conversion_data.append({"week": week, "total_chats": 0, "total_bookings": count, "chat_attributed": 0, "rate": 0})
+    conversion_data.sort(key=lambda x: x["week"])
 
     total_booked_sessions = conn.execute("""
         SELECT COUNT(DISTINCT session_id) as c FROM chat_logs
@@ -6028,12 +6082,18 @@ def _get_analytics_inner(conn, admin_id, date_from, date_to, cache_key, now):
     # 3. Peak booking hours
     peak_rows = conn.execute("""
         SELECT hour24, COUNT(*) as count FROM (
-            SELECT CASE WHEN time LIKE '%%PM%%' AND SUBSTR(time, 1, 2) != '12' THEN CAST(SUBSTR(time, 1, 2) as INTEGER) + 12
-                        WHEN time LIKE '%%AM%%' AND SUBSTR(time, 1, 2) = '12' THEN 0
-                        ELSE CAST(SUBSTR(time, 1, 2) as INTEGER) END as hour24
+            SELECT CASE
+                WHEN time ~ '^\d{1,2}:\d{2}\s*(PM|pm)' AND CAST(SPLIT_PART(time, ':', 1) AS INTEGER) != 12
+                    THEN CAST(SPLIT_PART(time, ':', 1) AS INTEGER) + 12
+                WHEN time ~ '^\d{1,2}:\d{2}\s*(AM|am)' AND CAST(SPLIT_PART(time, ':', 1) AS INTEGER) = 12
+                    THEN 0
+                ELSE CAST(SPLIT_PART(time, ':', 1) AS INTEGER)
+            END as hour24
             FROM bookings WHERE admin_id = %s AND status != 'cancelled'
-            AND created_at::date BETWEEN %s AND %s
+            AND date::date BETWEEN %s AND %s
+            AND time IS NOT NULL AND time != ''
         ) sub
+        WHERE hour24 BETWEEN 0 AND 23
         GROUP BY hour24 ORDER BY hour24
     """, (admin_id, date_from, date_to)).fetchall()
 
@@ -6056,39 +6116,49 @@ def _get_analytics_inner(conn, admin_id, date_from, date_to, cache_key, now):
         "pct": round(r["count"] / total_intents * 100, 1) if total_intents > 0 else 0
     } for r in intent_rows]
 
-    # 5. No-show rate per week
+    # 5. No-show rate per week (by appointment date)
     noshow_rows = conn.execute("""
         SELECT
-            TO_CHAR(created_at, 'IYYY-"W"IW') as week,
+            TO_CHAR(date::date, 'IYYY-"W"IW') as week,
             COUNT(*) as total,
             SUM(CASE WHEN status = 'no_show' THEN 1 ELSE 0 END) as no_shows
         FROM bookings WHERE admin_id = %s AND status IN ('confirmed', 'no_show', 'completed')
-        AND created_at::date BETWEEN %s AND %s
+        AND date::date BETWEEN %s AND %s
         GROUP BY week ORDER BY week
     """, (admin_id, date_from, date_to)).fetchall()
     noshow_data = [{
-        "week": r["week"], "confirmed": r["total"], "no_shows": r["no_shows"],
+        "week": r["week"], "total": r["total"], "no_shows": r["no_shows"],
         "rate": round(r["no_shows"] / r["total"] * 100, 1) if r["total"] > 0 else 0
     } for r in noshow_rows]
 
-    # 6. Bookings per day
+    # 6. Bookings per day (by appointment date, not creation date)
     bookings_per_day_rows = conn.execute("""
-        SELECT created_at::date as day, COUNT(*) as count
+        SELECT date::date as day, COUNT(*) as count
         FROM bookings WHERE admin_id = %s AND status != 'cancelled'
-        AND created_at::date BETWEEN %s AND %s
-        GROUP BY created_at::date ORDER BY day
+        AND date::date BETWEEN %s AND %s
+        GROUP BY date::date ORDER BY day
     """, (admin_id, date_from, date_to)).fetchall()
-    bookings_per_day = [{"date": r["day"], "count": r["count"]} for r in bookings_per_day_rows]
+    bookings_per_day = [{"date": str(r["day"]), "count": r["count"]} for r in bookings_per_day_rows]
+
+    # Total bookings in period (from bookings table, not chat_logs)
+    actual_bookings_count = sum(r["count"] for r in bookings_per_day) if bookings_per_day else 0
+
+    # Conversion rate: chat sessions that resulted in a booking / total sessions
+    # Only use chat-attributed bookings (resulted_in_booking flag)
+    if total_booked_sessions > 0 and total_sessions > 0:
+        conv_rate = min(100.0, round(total_booked_sessions / total_sessions * 100, 1))
+    else:
+        conv_rate = 0
 
     result = {
         "leads_per_day": leads_per_day,
         "total_sessions": total_sessions,
         "conversion": conversion_data,
-        "conversion_rate": round(total_booked_sessions / total_sessions * 100, 1) if total_sessions > 0 else 0,
+        "conversion_rate": conv_rate,
         "peak_hours": peak_hours,
         "top_intents": top_intents,
         "noshow": noshow_data,
-        "total_bookings": total_bookings_period,
+        "total_bookings": actual_bookings_count,
         "total_booked_sessions": total_booked_sessions,
         "bookings_per_day": bookings_per_day,
     }

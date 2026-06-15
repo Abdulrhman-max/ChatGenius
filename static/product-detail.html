@@ -7,46 +7,56 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
     :root{
-        --navy:#FFFFFF;--navy-light:#F9FAFB;--navy-card:#FFFFFF;
+        --navy:#0a0a0a;--navy-light:#111113;--navy-card:#141417;
         --cyan:#06B6D4;--cyan-glow:rgba(6,182,212,0.1);
-        --white:#1A1A2E;--gray:#6B7280;--green:#10b981;--yellow:#f59e0b;--red:#ef4444;
-        --gradient:linear-gradient(135deg,#8B5CF6,#7C3AED,#6D28D9);
+        --white:#e5e7eb;--gray:#6B7280;--green:#10b981;--yellow:#f59e0b;--red:#ef4444;
+        --gradient:linear-gradient(135deg,#6366F1,#818cf8,#a5b4fc);
         --ease:cubic-bezier(0.22,1,0.36,1);
-        --card-bg:#FFFFFF;--card-border:#E5E7EB;
+        --card-bg:#141417;--card-border:#2a2a2e;
         --card-radius:16px;--section-radius:18px;
-        --purple:#8B5CF6;--amber:#f59e0b
+        --purple:#6366F1;--amber:#f59e0b
     }
-    ::selection{background:rgba(139,92,246,0.15)}
+    ::selection{background:rgba(99,102,241,0.25)}
     body{font-family:'Outfit','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--navy);color:var(--white);min-height:100vh;-webkit-font-smoothing:antialiased;margin:0;padding:0}
     body::after{content:'';position:fixed;inset:0;z-index:-1;opacity:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");pointer-events:none}
     ::-webkit-scrollbar{width:5px}
     ::-webkit-scrollbar-track{background:transparent}
-    ::-webkit-scrollbar-thumb{background:#FFFFFF;border-radius:8px}
+    ::-webkit-scrollbar-thumb{background:#141417;border-radius:8px}
     .container{max-width:1200px;margin:0 auto;padding:1.5rem 2rem}
     .section{background:var(--card-bg);border-radius:var(--section-radius);padding:1.5rem 1.75rem;border:1px solid var(--card-border);margin-bottom:1rem;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
-    .form-input,.form-textarea{width:100%;padding:0.65rem 1rem;border-radius:8px;border:1px solid #E5E7EB;background:#FFFFFF;color:var(--white);font-size:0.9rem;font-family:inherit;outline:none;transition:border-color .2s,box-shadow .2s;box-sizing:border-box}
+    .form-input,.form-textarea{width:100%;padding:0.65rem 1rem;border-radius:8px;border:1px solid #2a2a2e;background:#141417;color:var(--white);font-size:0.9rem;font-family:inherit;outline:none;transition:border-color .2s,box-shadow .2s;box-sizing:border-box}
     .form-input:focus,.form-textarea:focus{border-color:rgba(209,213,219,1);box-shadow:0 0 0 3px rgba(229,231,235,1)}
     .time-label{font-size:0.78rem;color:var(--gray);margin-bottom:0.35rem}
     h2{font-size:1.3rem;font-weight:700;color:var(--white)}
     h4{font-size:0.85rem;color:var(--white);font-weight:700}
-    .back-btn{background:#F3F4F6;border:1px solid #E5E7EB;color:var(--white);padding:0.4rem 0.8rem;border-radius:8px;font-size:0.82rem;cursor:pointer;display:inline-flex;align-items:center;gap:0.3rem;transition:all .2s;font-family:inherit;text-decoration:none}
-    .back-btn:hover{background:#F3F4F6}
-    .btn-save{background:#8B5CF6;color:#FFFFFF;border:none;padding:0.5rem 1.5rem;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;transition:all .2s;box-shadow:0 4px 16px rgba(139,92,246,0.25);font-family:inherit}
+    .back-btn{background:#1a1a1e;border:1px solid #2a2a2e;color:var(--white);padding:0.4rem 0.8rem;border-radius:8px;font-size:0.82rem;cursor:pointer;display:inline-flex;align-items:center;gap:0.3rem;transition:all .2s;font-family:inherit;text-decoration:none}
+    .back-btn:hover{background:#1a1a1e}
+    .btn-save{background:rgba(99,102,241,0.9);color:#FFFFFF;border:none;padding:0.5rem 1.5rem;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;transition:all .2s;box-shadow:0 4px 16px rgba(99,102,241,0.25);font-family:inherit}
     .btn-save:hover{transform:translateY(-2px)}
     .btn-delete{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#6B7280;padding:0.5rem 1.2rem;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit}
     .btn-delete:hover{background:rgba(239,68,68,0.2)}
-    .btn-add{background:#E5E7EB;border:1px solid rgba(209,213,219,1);color:#374151;padding:0.45rem 0.8rem;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit}
-    .btn-upload{background:#8B5CF6;color:#FFFFFF;border:none;padding:0.45rem 1rem;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:0.3rem;font-family:inherit}
-    .tag{display:inline-flex;align-items:center;gap:0.3rem;background:#F3F4F6;border:1px solid #D1D5DB;padding:2px 8px;border-radius:6px;font-size:0.78rem;color:#374151;margin:0 0.2rem 0.3rem 0}
+    .btn-add{background:#2a2a2e;border:1px solid #3a3a3e;color:#9ca3af;padding:0.45rem 0.8rem;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit}
+    .btn-upload{background:rgba(99,102,241,0.9);color:#FFFFFF;border:none;padding:0.45rem 1rem;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:0.3rem;font-family:inherit}
+    .tag{display:inline-flex;align-items:center;gap:0.3rem;background:#1a1a1e;border:1px solid #3a3a3e;padding:2px 8px;border-radius:6px;font-size:0.78rem;color:#9ca3af;margin:0 0.2rem 0.3rem 0}
     .tag button{background:none;border:none;color:#6B7280;cursor:pointer;font-size:0.85rem;padding:0;line-height:1}
     .toast{position:fixed;top:1.5rem;right:1.5rem;padding:0.7rem 1.2rem;border-radius:8px;font-size:0.85rem;font-weight:600;z-index:9999;animation:slideIn .3s var(--ease);font-family:inherit}
     .toast.success{background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#10b981}
     .toast.error{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#ef4444}
-    .toast.warning{background:#E5E7EB;border:1px solid #D1D5DB;color:#6B7280}
+    .toast.warning{background:#2a2a2e;border:1px solid #3a3a3e;color:#6B7280}
     @keyframes slideIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
     .loading-screen{display:flex;align-items:center;justify-content:center;min-height:60vh;color:var(--gray);font-size:0.95rem}
-    .spinner{width:20px;height:20px;border:2px solid #D1D5DB;border-top-color:#1A1A2E;border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block;margin-right:0.5rem}
+    .spinner{width:20px;height:20px;border:2px solid #3a3a3e;border-top-color:#e5e7eb;border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block;margin-right:0.5rem}
     @keyframes spin{to{transform:rotate(360deg)}}
+
+/* ═══ NEON BUTTONS (Global) ═══ */
+.btn-neon{position:relative;display:inline-flex;align-items:center;gap:.5rem;color:#FFFFFF;padding:.85rem 2.2rem;border-radius:9999px;font-weight:600;text-decoration:none;font-size:.95rem;border:1px solid rgba(99,102,241,0.3);cursor:pointer;font-family:inherit;background:rgba(99,102,241,0.9);transition:all .4s cubic-bezier(0.22,1,0.36,1);overflow:hidden;box-shadow:0 0 20px rgba(99,102,241,0.15)}
+.btn-neon::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(165,180,252,0.8),transparent);opacity:0;transition:opacity .5s;width:75%;margin:auto}
+.btn-neon::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(99,102,241,0.6),transparent);opacity:.3;width:75%;margin:auto;transition:opacity .5s}
+.btn-neon:hover{background:rgba(99,102,241,1);border-color:rgba(99,102,241,0.5);transform:translateY(-2px);box-shadow:0 0 35px rgba(99,102,241,0.3),0 4px 15px rgba(99,102,241,0.2);color:#FFFFFF}
+.btn-neon:hover::before{opacity:1}
+.btn-neon:hover::after{opacity:.7}
+.btn-neon.neon-outline{background:transparent;color:#4F46E5;border-color:rgba(99,102,241,0.3);box-shadow:none}
+.btn-neon.neon-outline:hover{background:rgba(99,102,241,0.08);color:#4338CA;border-color:rgba(99,102,241,0.5);box-shadow:0 0 25px rgba(99,102,241,0.12)}
 </style>
 </head>
 <body>
@@ -73,7 +83,7 @@
                 <div class="section" style="padding:1rem;margin-bottom:1rem">
                     <h4 style="margin:0 0 0.8rem">Images</h4>
                     <div id="pdPhotos" style="margin-bottom:0.8rem">
-                        <div style="width:100%;aspect-ratio:1;border-radius:12px;background:#FFFFFF;display:flex;align-items:center;justify-content:center">
+                        <div style="width:100%;aspect-ratio:1;border-radius:12px;background:#141417;display:flex;align-items:center;justify-content:center">
                             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(229,231,235,1)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
                         </div>
                     </div>
@@ -194,7 +204,7 @@
                 <div class="section" style="padding:1.25rem;margin-bottom:1rem">
                     <h4 style="margin:0 0 0.8rem">Variants <span style="color:var(--gray);font-weight:400;font-size:0.78rem">-- sizes, colors, configurations</span></h4>
                     <div id="pdVariantsList" style="margin-bottom:0.8rem"></div>
-                    <div style="background:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;padding:0.8rem;margin-top:0.3rem">
+                    <div style="background:#141417;border:1px solid #2a2a2e;border-radius:8px;padding:0.8rem;margin-top:0.3rem">
                         <div style="display:flex;gap:0.4rem;align-items:end;flex-wrap:wrap;margin-bottom:0.5rem">
                             <div><div class="time-label">Variant Name</div><input type="text" id="pdVarName" class="form-input" style="width:130px" placeholder="e.g. Medium Blue"></div>
                             <div><div class="time-label">SKU</div><input type="text" id="pdVarSku" class="form-input" style="width:90px" placeholder="SKU-M-BLU"></div>
@@ -350,15 +360,15 @@
     function renderPhotos(images) {
         var el = document.getElementById('pdPhotos');
         if (images.length > 0) {
-            el.innerHTML = '<img id="pdMainImg" src="' + images[0] + '" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px;border:1px solid #E5E7EB">' +
+            el.innerHTML = '<img id="pdMainImg" src="' + images[0] + '" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px;border:1px solid #2a2a2e">' +
                 '<div style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap">' + images.map(function(img, i) {
                     return '<div style="position:relative;display:inline-block">' +
                         '<img src="' + img + '" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:' + (i === 0 ? '2px solid #ffffff' : '1px solid rgba(243,244,246,1)') + ';cursor:pointer" onclick="document.getElementById(\'pdMainImg\').src=\'' + img + '\'">' +
-                        '<button onclick="event.stopPropagation();deletePhoto(\'' + img + '\')" style="position:absolute;top:-4px;right:-4px;background:rgba(0,0,0,0.06);border:none;color:#6B7280;width:16px;height:16px;border-radius:50%;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;line-height:1">&times;</button>' +
+                        '<button onclick="event.stopPropagation();deletePhoto(\'' + img + '\')" style="position:absolute;top:-4px;right:-4px;background:rgba(255,255,255,0.08);border:none;color:#6B7280;width:16px;height:16px;border-radius:50%;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;line-height:1">&times;</button>' +
                     '</div>';
                 }).join('') + '</div>';
         } else {
-            el.innerHTML = '<div style="width:100%;aspect-ratio:1;border-radius:12px;background:#FFFFFF;display:flex;align-items:center;justify-content:center"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(229,231,235,1)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>';
+            el.innerHTML = '<div style="width:100%;aspect-ratio:1;border-radius:12px;background:#141417;display:flex;align-items:center;justify-content:center"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(229,231,235,1)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>';
         }
     }
 
@@ -405,7 +415,7 @@
         if (!_specs.length) { el.innerHTML = '<div style="color:var(--gray);font-size:0.8rem;margin-bottom:0.5rem">No specs added yet.</div>'; return; }
         el.innerHTML = '<table style="width:100%;font-size:0.82rem;margin-bottom:0.6rem;border-collapse:collapse">' +
             _specs.map(function(s, i) {
-                return '<tr style="border-bottom:1px solid #E5E7EB">' +
+                return '<tr style="border-bottom:1px solid #2a2a2e">' +
                     '<td style="padding:0.3rem 0.5rem;color:var(--gray);font-weight:600;width:40%">' + escapeHtml(s.key) + '</td>' +
                     '<td style="padding:0.3rem 0.5rem;color:var(--white)">' + escapeHtml(s.value) + '</td>' +
                     '<td style="padding:0.3rem;width:30px"><button onclick="_specs.splice(' + i + ',1);renderSpecs()" style="background:none;border:none;color:#6B7280;cursor:pointer;font-size:0.9rem">&times;</button></td>' +
@@ -428,7 +438,7 @@
         var el = document.getElementById('pdVariantsList');
         if (!variants || !variants.length) { el.innerHTML = '<div style="color:var(--gray);font-size:0.8rem">No variants yet.</div>'; return; }
         el.innerHTML = '<table style="width:100%;font-size:0.82rem;border-collapse:collapse">' +
-            '<thead><tr style="background:#FFFFFF">' +
+            '<thead><tr style="background:#141417">' +
                 '<th style="padding:0.35rem 0.5rem;text-align:left;color:var(--gray);font-weight:600">Name</th>' +
                 '<th style="padding:0.35rem 0.5rem;text-align:left;color:var(--gray);font-weight:600">SKU</th>' +
                 '<th style="padding:0.35rem 0.5rem;text-align:left;color:var(--gray);font-weight:600">Options</th>' +
@@ -445,7 +455,7 @@
                 if (v.option_3_name && v.option_3_value) opts.push('<span style="color:var(--gray)">' + escapeHtml(v.option_3_name) + ':</span> ' + escapeHtml(v.option_3_value));
                 else if (v.option_3_value) opts.push(escapeHtml(v.option_3_value));
                 var optHtml = opts.length ? opts.join(' &middot; ') : '-';
-                return '<tr style="border-bottom:1px solid #E5E7EB">' +
+                return '<tr style="border-bottom:1px solid #2a2a2e">' +
                     '<td style="padding:0.35rem 0.5rem;color:var(--white)">' + escapeHtml(v.variant_name || '-') + '</td>' +
                     '<td style="padding:0.35rem 0.5rem;color:var(--gray);font-family:monospace;font-size:0.78rem">' + escapeHtml(v.variant_sku || '-') + '</td>' +
                     '<td style="padding:0.35rem 0.5rem;color:var(--white)">' + optHtml + '</td>' +

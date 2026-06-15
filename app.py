@@ -93,7 +93,7 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable static file caching in de
 
 # ── CORS for embedded chatbot ──
 from flask_cors import CORS
-CORS(app, resources={r"/chat": {"origins": "*"}, r"/static/chatbot-embed.js": {"origins": "*"}, r"/api/chatbot-customization/public/*": {"origins": "*"}, r"/api/proactive-config/public/*": {"origins": "*"}, r"/api/voice/*": {"origins": "*"}, r"/api/chat/poll": {"origins": "*"}, r"/api/chat/history": {"origins": "*"}, r"/api/webhooks/instagram": {"origins": "*"}, r"/api/track-visit": {"origins": "*"}})
+CORS(app, resources={r"/chat": {"origins": "*"}, r"/static/chatbot-embed.js": {"origins": "*"}, r"/api/chatbot-customization/public/*": {"origins": "*"}, r"/api/proactive-config/public/*": {"origins": "*"}, r"/api/voice/*": {"origins": "*"}, r"/api/chat/poll": {"origins": "*"}, r"/api/chat/history": {"origins": "*"}, r"/api/chat/upload-image": {"origins": "*"}, r"/api/chat-analytics/event": {"origins": "*"}, r"/api/webhooks/instagram": {"origins": "*"}, r"/api/track-visit": {"origins": "*"}})
 
 # ── Rate limiting ──
 from flask_limiter import Limiter
@@ -3232,6 +3232,11 @@ def handle_booking(session, user_message, corrected_message=None):
                 db.mark_session_booked(data["_session_id"])
             except Exception:
                 pass
+        # Invalidate analytics cache
+        try:
+            db.invalidate_analytics_cache(admin_id)
+        except Exception:
+            pass
 
         # Convert lead if one exists for this session
         try:
@@ -3572,6 +3577,12 @@ def handle_booking(session, user_message, corrected_message=None):
                 db.mark_session_booked(data["_session_id"])
             except Exception:
                 pass
+
+        # Invalidate analytics cache
+        try:
+            db.invalidate_analytics_cache(data.get("_admin_id", 0))
+        except Exception:
+            pass
 
         # ── Patient profile + pre-visit form ──
         form_token = None
@@ -13636,6 +13647,27 @@ def chat():
     if db.is_conversation_limit_reached(admin_id):
         return jsonify({"reply": "We're sorry, but our chat service has reached its monthly limit. Please contact the clinic directly for assistance or ask the clinic to upgrade their plan."})
 
+    # ── Image interpretation: if user uploaded a photo, describe it with vision AI ──
+    _session_obj = get_session(session_id)
+    _img_data = _session_obj.pop("_uploaded_image", None)
+    if _img_data and _img_data.get("base64"):
+        try:
+            from openai import OpenAI as _OAI
+            _vision_client = _OAI(api_key=dental_ai.OPENAI_API_KEY)
+            _vision_prompt = user_message if user_message else "What do you see in this image? Describe it briefly."
+            _vision_resp = _vision_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": [
+                    {"type": "text", "text": _vision_prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:{_img_data['mime_type']};base64,{_img_data['base64']}", "detail": "low"}}
+                ]}],
+                max_tokens=300
+            )
+            _img_description = _vision_resp.choices[0].message.content.strip()
+            user_message = f"[Photo description: {_img_description}]\n\nPatient's message: {user_message}"
+        except Exception as e:
+            print(f"[chat] Vision AI failed: {e}", flush=True)
+
     try:
         reply = process_message(session_id, user_message, admin_id=admin_id,
                                 customer_id=customer_id, customer_api_url=customer_api_url,
@@ -14298,7 +14330,9 @@ def api_stats_extended():
     if user.get("role") == "doctor":
         return jsonify({"error": "Doctors cannot access extended stats"}), 403
     admin_id = get_effective_admin_id(user)
-    return jsonify(db.get_stats_extended(admin_id))
+    date_from = request.args.get("from", "")
+    date_to = request.args.get("to", "")
+    return jsonify(db.get_stats_extended(admin_id, date_from=date_from or None, date_to=date_to or None))
 
 
 @app.route("/api/analytics", methods=["GET"])
@@ -14307,8 +14341,6 @@ def api_analytics():
     user = db.get_user_by_token(token)
     if not user:
         return jsonify({"error": "Not authenticated"}), 401
-    if user.get("role") == "doctor":
-        return jsonify({"error": "Doctors cannot access analytics"}), 403
     admin_id = get_effective_admin_id(user)
     date_from = request.args.get("from", (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d"))
     date_to = request.args.get("to", datetime.now().strftime("%Y-%m-%d"))
@@ -14373,7 +14405,7 @@ def api_doctor_revenue():
         rev = calc_rev(b["revenue_amount"], b["service"])
         if b["status"] in ("confirmed", "completed"):
             ds["revenue"] += rev
-        elif b["status"] in ("cancelled", "no_show"):
+        elif b["status"] == "no_show":
             ds["lost_revenue"] += rev
         if b["status"] == "completed":
             ds["completed"] += 1
@@ -25940,20 +25972,37 @@ def api_chat_analytics_event():
 
 @app.route("/api/chat/upload-image", methods=["POST"])
 def api_chat_upload_image():
-    """Public endpoint — widget sends an image for visual product search."""
+    """Public endpoint — widget sends an image for AI interpretation or visual search."""
     sid = (request.form.get("session_id") or "").strip()
-    if not sid or sid not in sessions:
+    if not sid:
         return jsonify({"ok": False, "error": "Invalid session"}), 400
+    # Auto-create session if it doesn't exist yet (image may be sent before first chat)
+    _session_obj = get_session(sid)
     description = (request.form.get("description") or "").strip()
     image_file = request.files.get("image")
     if not image_file and not description:
         return jsonify({"ok": False, "error": "No image or description provided"}), 400
-    # Store image metadata in the session so the next chat message picks it up
-    sessions[sid]["_uploaded_image"] = {
-        "description": description or (image_file.filename if image_file else ""),
-        "filename": image_file.filename if image_file else "",
+
+    image_b64 = ""
+    mime_type = "image/jpeg"
+    filename = ""
+    if image_file:
+        import base64
+        filename = image_file.filename or "photo.jpg"
+        mime_type = image_file.content_type or "image/jpeg"
+        raw = image_file.read()
+        # Limit to 5MB
+        if len(raw) > 5 * 1024 * 1024:
+            return jsonify({"ok": False, "error": "Image too large (max 5MB)"}), 400
+        image_b64 = base64.b64encode(raw).decode("utf-8")
+
+    _session_obj["_uploaded_image"] = {
+        "description": description or filename,
+        "filename": filename,
+        "base64": image_b64,
+        "mime_type": mime_type,
     }
-    return jsonify({"ok": True, "message": "Image received. Send a message to see results."})
+    return jsonify({"ok": True, "message": "Image received."})
 
 
 @app.route("/api/chat-analytics/overview", methods=["GET"])

@@ -12,8 +12,8 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Outfit', sans-serif;
-            background:#F9FAFB;
-            color: #1A1A2E;
+            background:#0a0a0a;
+            color: #e5e7eb;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -45,7 +45,7 @@
             .checkout-container { grid-template-columns: 1fr; max-width: 440px; }
         }
         .order-summary {
-            background: rgba(249,250,251,1);
+            background: rgba(20,20,23,1);
             padding: 2.5rem;
             border-right: 1px solid rgba(249,250,251,1);
             display: flex; flex-direction: column; justify-content: center;
@@ -55,21 +55,21 @@
             color: #6B7280; text-decoration: none; font-size: 0.82rem; font-weight: 600;
             margin-bottom: 1.5rem; transition: color .2s;
         }
-        .order-back:hover { color: #1A1A2E; }
+        .order-back:hover { color: #e5e7eb; }
         .order-logo { font-size: 1.1rem; font-weight: 800; margin-bottom: 2rem; }
         .order-logo span {
-            background: linear-gradient(135deg, #8B5CF6, #7C3AED, #6D28D9);
+            background: linear-gradient(135deg, #0A0A0A, #0A0A0A, #111827);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
         }
         .order-plan-badge {
             display: inline-block; padding: 0.3rem 0.9rem; border-radius: 6px;
             font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
-            background: rgba(139,92,246,0.1); color: #8B5CF6; margin-bottom: 0.6rem;
+            background: rgba(10,10,10,0.1); color: #e5e7eb; margin-bottom: 0.6rem;
         }
         .order-plan-name { font-size: 1.6rem; font-weight: 900; margin-bottom: 0.3rem; }
         .order-price {
             font-size: 2.8rem; font-weight: 900; line-height: 1.1;
-            background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+            background: linear-gradient(135deg, #0A0A0A, #0A0A0A);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
         }
         .order-price small { font-size: 1rem; font-weight: 500; -webkit-text-fill-color: #6B7280; }
@@ -83,7 +83,7 @@
         }
         .order-features li::before {
             content: ''; width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
-            background: rgba(229,231,235,1);
+            background: rgba(30,30,34,1);
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='8' fill='none'%3E%3Cpath d='M1 4l2.5 2.5L9 1' stroke='%2334d399' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
             background-repeat: no-repeat; background-position: center;
         }
@@ -93,7 +93,7 @@
             border-radius: 12px; font-size: 0.78rem; color: #10b981; text-align: center; font-weight: 600;
         }
         .payment-form-side {
-            background: rgba(255,255,255,1);
+            background: rgba(20,20,23,1);
             padding: 2.5rem;
             display: flex; flex-direction: column; justify-content: center;
         }
@@ -112,7 +112,7 @@
             display: block; text-align: center; margin-top: 1rem;
             color: #6B7280; font-size: 0.82rem; text-decoration: none; font-weight: 600; transition: color .2s;
         }
-        .cancel-link:hover { color: #1A1A2E; }
+        .cancel-link:hover { color: #e5e7eb; }
         .subscribe-btn {
             width: 100%; padding: 1rem; border: none; border-radius: 8px; cursor: pointer;
             background: linear-gradient(135deg, #71717a, #52525b); color: #fff;
@@ -124,7 +124,17 @@
         .subscribe-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 35px rgba(0,112,186,0.4); }
         .subscribe-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
         @keyframes spin { to { transform: rotate(360deg); } }
-    </style>
+    
+/* ═══ NEON BUTTONS (Global) ═══ */
+.btn-neon{position:relative;display:inline-flex;align-items:center;gap:.5rem;color:#FFFFFF;padding:.85rem 2.2rem;border-radius:9999px;font-weight:600;text-decoration:none;font-size:.95rem;border:1px solid rgba(99,102,241,0.3);cursor:pointer;font-family:inherit;background:rgba(99,102,241,0.9);transition:all .4s cubic-bezier(0.22,1,0.36,1);overflow:hidden;box-shadow:0 0 20px rgba(99,102,241,0.15)}
+.btn-neon::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(165,180,252,0.8),transparent);opacity:0;transition:opacity .5s;width:75%;margin:auto}
+.btn-neon::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(99,102,241,0.6),transparent);opacity:.3;width:75%;margin:auto;transition:opacity .5s}
+.btn-neon:hover{background:rgba(99,102,241,1);border-color:rgba(99,102,241,0.5);transform:translateY(-2px);box-shadow:0 0 35px rgba(99,102,241,0.3),0 4px 15px rgba(99,102,241,0.2);color:#FFFFFF}
+.btn-neon:hover::before{opacity:1}
+.btn-neon:hover::after{opacity:.7}
+.btn-neon.neon-outline{background:transparent;color:#4F46E5;border-color:rgba(99,102,241,0.3);box-shadow:none}
+.btn-neon.neon-outline:hover{background:rgba(99,102,241,0.08);color:#4338CA;border-color:rgba(99,102,241,0.5);box-shadow:0 0 25px rgba(99,102,241,0.12)}
+</style>
 </head>
 <body>
 
@@ -149,7 +159,7 @@
                 Subscribe with PayPal
             </button>
             <div id="subscribeSpinner" style="display:none;text-align:center;padding:1.5rem 0;">
-                <div style="width:36px;height:36px;border:3px solid rgba(209,213,219,1);border-top-color:#1A1A2E;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 0.8rem;"></div>
+                <div style="width:36px;height:36px;border:3px solid rgba(209,213,219,1);border-top-color:#e5e7eb;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 0.8rem;"></div>
                 <div style="color:#6B7280;font-size:0.88rem;">Redirecting to PayPal...</div>
             </div>
         </div>

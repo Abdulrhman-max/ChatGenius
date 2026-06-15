@@ -10,11 +10,11 @@
         html { font-size: 90%; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --primary: #8B5CF6;
-            --bg-dark: #F9FAFB;
+            --primary: #6366F1;
+            --bg-dark: #0a0a0a;
             --bg-sidebar: rgba(255,255,255,1);
             --border: rgba(229,231,235,1);
-            --text: #1A1A2E;
+            --text: #e5e7eb;
             --text-muted: #6B7280;
             --success: #10b981;
             --danger: #ef4444;
@@ -74,8 +74,8 @@
             cursor: pointer;
             transition: background 0.2s;
         }
-        .conversation:hover { background: rgba(249,250,251,1); }
-        .conversation.active { background: rgba(243,244,246,1); border-left: 3px solid var(--primary); }
+        .conversation:hover { background: rgba(20,20,23,1); }
+        .conversation.active { background: rgba(26,26,30,1); border-left: 3px solid var(--primary); }
         .conversation-name {
             font-weight: 600;
             font-size: 0.9rem;
@@ -114,7 +114,7 @@
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: linear-gradient(135deg, var(--primary), #C4B5FD);
+            background: linear-gradient(135deg, var(--primary), #6B7280);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -144,7 +144,7 @@
             border-bottom-right-radius: 4px;
         }
         .message.received {
-            background: rgba(229,231,235,1);
+            background: rgba(30,30,34,1);
             align-self: flex-start;
             border-bottom-left-radius: 4px;
         }
@@ -183,7 +183,7 @@
             align-items: center;
             justify-content: center;
         }
-        .send-btn:hover { background: #d4d4d8; color: #374151; }
+        .send-btn:hover { background: #3a3a3e; color: #9ca3af; }
         .empty-state {
             flex: 1;
             display: flex;
@@ -194,14 +194,24 @@
         }
         .empty-state-icon { font-size: 4rem; margin-bottom: 1rem; }
         .auto-reply-badge {
-            background: rgba(229,231,235,1);
+            background: rgba(30,30,34,1);
             color: var(--success);
             font-size: 0.7rem;
             padding: 0.2rem 0.5rem;
             border-radius: 4px;
             margin-left: 0.5rem;
         }
-    </style>
+    
+/* ═══ NEON BUTTONS (Global) ═══ */
+.btn-neon{position:relative;display:inline-flex;align-items:center;gap:.5rem;color:#FFFFFF;padding:.85rem 2.2rem;border-radius:9999px;font-weight:600;text-decoration:none;font-size:.95rem;border:1px solid rgba(99,102,241,0.3);cursor:pointer;font-family:inherit;background:rgba(99,102,241,0.9);transition:all .4s cubic-bezier(0.22,1,0.36,1);overflow:hidden;box-shadow:0 0 20px rgba(99,102,241,0.15)}
+.btn-neon::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(165,180,252,0.8),transparent);opacity:0;transition:opacity .5s;width:75%;margin:auto}
+.btn-neon::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(99,102,241,0.6),transparent);opacity:.3;width:75%;margin:auto;transition:opacity .5s}
+.btn-neon:hover{background:rgba(99,102,241,1);border-color:rgba(99,102,241,0.5);transform:translateY(-2px);box-shadow:0 0 35px rgba(99,102,241,0.3),0 4px 15px rgba(99,102,241,0.2);color:#FFFFFF}
+.btn-neon:hover::before{opacity:1}
+.btn-neon:hover::after{opacity:.7}
+.btn-neon.neon-outline{background:transparent;color:#4F46E5;border-color:rgba(99,102,241,0.3);box-shadow:none}
+.btn-neon.neon-outline:hover{background:rgba(99,102,241,0.08);color:#4338CA;border-color:rgba(99,102,241,0.5);box-shadow:0 0 25px rgba(99,102,241,0.12)}
+</style>
 </head>
 <body>
     <div class="sidebar">

@@ -184,7 +184,7 @@
         '#cg-input::placeholder{color:#9CA3AF}',
         '#cg-input:focus{box-shadow:none}',
         '#cg-input-bottom{display:flex;align-items:center;padding:4px 10px 10px 14px}',
-        '.cg-input-actions{display:flex;gap:4px;flex:1}',
+        '.cg-input-actions{display:flex;gap:4px;flex:1;position:relative}',
         '.cg-input-action{background:none;border:none;cursor:pointer;padding:6px;border-radius:8px;font-size:16px;line-height:1;color:#9CA3AF;transition:all .2s}',
         '.cg-input-action:hover{color:#4B5563;background:rgba(0,0,0,0.04)}',
         '#cg-send{background:#E5E7EB;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .3s cubic-bezier(.16,1,.3,1);flex-shrink:0;margin-left:auto}',
@@ -199,6 +199,39 @@
         '#cg-mic.recording svg{fill:#ef4444}',
         '@keyframes cgMicPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.15)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}',
         '#cg-mic-status{display:none;font-size:10px;color:#6b7280;text-align:center;padding:2px 14px;background:transparent;flex-shrink:0}',
+
+        // Voice inline input (replaces input area)
+        '#cg-voice-inline{display:none;flex-direction:column;align-items:center;gap:6px;padding:12px 16px;background:#ffffff;border-top:1px solid #e5e7eb;animation:cgFadeIn .25s ease}',
+        '#cg-voice-inline.active{display:flex}',
+        '#cg-voice-inline .cg-vi-stop{width:48px;height:48px;border-radius:12px;border:none;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s}',
+        '#cg-voice-inline .cg-vi-stop:hover{background:rgba(0,0,0,0.05)}',
+        '#cg-voice-inline .cg-vi-stop .cg-vi-square{width:18px;height:18px;border-radius:4px;background:#374151;animation:cgViSpin 3s linear infinite}',
+        '@keyframes cgViSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}',
+        '#cg-voice-inline .cg-vi-timer{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:rgba(55,65,81,0.7);transition:opacity .3s}',
+        '#cg-voice-inline .cg-vi-bars{height:16px;width:220px;display:flex;align-items:center;justify-content:center;gap:1.5px}',
+        '#cg-voice-inline .cg-vi-bar{width:2px;border-radius:2px;background:rgba(55,65,81,0.15);min-height:3px;transition:height 80ms ease}',
+        '#cg-voice-inline .cg-vi-bar.active{background:rgba(55,65,81,0.45);animation:cgViPulse 1.2s ease infinite}',
+        '@keyframes cgViPulse{0%,100%{opacity:.5}50%{opacity:1}}',
+        '#cg-voice-inline .cg-vi-hint{font-size:11px;color:rgba(55,65,81,0.7)}',
+        '@keyframes cgFadeIn{from{opacity:0}to{opacity:1}}',
+
+        // Emoji picker
+        '#cg-emoji-picker{display:none;position:absolute;bottom:44px;left:0;width:260px;max-height:200px;overflow-y:auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.12);padding:8px;z-index:10;animation:cgFadeIn .15s ease}',
+        '#cg-emoji-picker.open{display:block}',
+        '.cg-emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:2px}',
+        '.cg-emoji-item{background:none;border:none;cursor:pointer;font-size:18px;padding:4px;border-radius:6px;transition:background .15s;text-align:center;line-height:1.2}',
+        '.cg-emoji-item:hover{background:rgba(0,0,0,0.06)}',
+
+        // Image in chat
+        '.cg-msg-img{max-width:200px;max-height:200px;border-radius:10px;margin-bottom:4px;display:block;object-fit:cover}',
+
+        // Image preview strip inside input container
+        '#cg-img-preview{display:none;padding:8px 12px 0;position:relative}',
+        '#cg-img-preview.active{display:flex;align-items:center;gap:8px}',
+        '#cg-img-preview img{width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb}',
+        '#cg-img-preview .cg-img-name{flex:1;font-size:11px;color:#6B7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+        '#cg-img-preview .cg-img-remove{background:none;border:none;cursor:pointer;color:#9CA3AF;padding:4px;border-radius:6px;transition:all .2s;display:flex;align-items:center;justify-content:center}',
+        '#cg-img-preview .cg-img-remove:hover{color:#ef4444;background:rgba(239,68,68,0.08)}',
 
         // Powered by (Intercom privacy text style)
         '#cg-powered{text-align:center;padding:6px 16px;font-size:10px;color:#9CA3AF;background:#FFFFFF;letter-spacing:0.01em;border-top:none}',
@@ -438,17 +471,25 @@
         '  <div id="cg-messages"></div>',
         '  <div id="cg-input-area">',
         '    <div id="cg-input-container">',
+        '      <div id="cg-img-preview"><img id="cg-img-thumb" src="" alt=""><span class="cg-img-name" id="cg-img-name"></span><button class="cg-img-remove" id="cg-img-remove" title="Remove photo"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>',
         '      <textarea id="cg-input" placeholder="Ask a question..." autocomplete="off" rows="1"></textarea>',
         '      <div id="cg-input-bottom">',
         '        <div class="cg-input-actions">',
-        '          <button class="cg-input-action" title="Attach file"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6h-1.5v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6H16.5z"/></svg></button>',
-        '          <button class="cg-input-action" title="Emoji"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-3.5-9c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm7 0c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg></button>',
-        '          <button class="cg-input-action" title="GIF" style="font-size:12px;font-weight:700;letter-spacing:0.5px">GIF</button>',
+        '          <button class="cg-input-action" id="cg-attach" title="Send photo"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg></button>',
+        '          <input type="file" id="cg-file-input" accept="image/*" style="display:none">',
+        '          <button class="cg-input-action" id="cg-emoji-btn" title="Emoji"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-3.5-9c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm7 0c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg></button>',
+        '          <div id="cg-emoji-picker"></div>',
         '          <button class="cg-input-action" id="cg-mic" title="Voice input" style="display:none"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg></button>',
         '        </div>',
         '        <button id="cg-send"><svg viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" transform="rotate(-90 12 12)"/></svg></button>',
         '      </div>',
         '    </div>',
+        '  </div>',
+        '  <div id="cg-voice-inline">',
+        '    <button class="cg-vi-stop" id="cg-voice-stop" title="Stop recording"><div class="cg-vi-square"></div></button>',
+        '    <span class="cg-vi-timer" id="cg-voice-timer">00:00</span>',
+        '    <div class="cg-vi-bars" id="cg-voice-bars"></div>',
+        '    <p class="cg-vi-hint" id="cg-voice-hint">Listening...</p>',
         '  </div>',
         '  <div id="cg-mic-status"></div>',
         '  <div id="cg-powered">By chatting, you agree to our <a href="https://chatgenius.ai/privacy" target="_blank">Privacy Policy</a></div>',
@@ -467,6 +508,12 @@
     var closeBtn = shadow.getElementById('cg-close-btn');
     var micBtn = shadow.getElementById('cg-mic');
     var micStatus = shadow.getElementById('cg-mic-status');
+    var voiceInline = shadow.getElementById('cg-voice-inline');
+    var voiceTimer = shadow.getElementById('cg-voice-timer');
+    var voiceBarsContainer = shadow.getElementById('cg-voice-bars');
+    var voiceStopBtn = shadow.getElementById('cg-voice-stop');
+    var voiceHint = shadow.getElementById('cg-voice-hint');
+    var inputArea = shadow.getElementById('cg-input-area');
     var isOpen = false;
     var sending = false;
     var _cgCart = [];  // Track cart items for exit-intent recovery
@@ -478,6 +525,118 @@
     var _lastInputWasVoice = false;
     var _voiceSession = false; // stays true while booking flow continues from voice
     var _typewriterTimer = null;
+    var _voiceTimerInterval = null;
+    var _voiceAnalyser = null;
+    var _voiceAnimFrame = null;
+    var _voiceBars = [];
+
+    // Create visualizer bars
+    if (voiceBarsContainer) {
+        for (var b = 0; b < 48; b++) {
+            var bar = document.createElement('div');
+            bar.className = 'cg-vi-bar';
+            bar.style.height = '3px';
+            voiceBarsContainer.appendChild(bar);
+            _voiceBars.push(bar);
+        }
+    }
+
+    // Voice stop button
+    if (voiceStopBtn) {
+        voiceStopBtn.addEventListener('click', function() { if (_micRecording) stopMicRecording(); });
+    }
+
+    // ── Emoji Picker ──
+    var emojiBtn = shadow.getElementById('cg-emoji-btn');
+    var emojiPicker = shadow.getElementById('cg-emoji-picker');
+    var _emojiPopulated = false;
+    var _emojis = ['😀','😂','🥰','😍','😊','😎','🤔','😅','😢','😭','🥺','😤','🔥','❤️','💙','💜','🩷','💛','👍','👎','👏','🙏','💪','✅','❌','⭐','🎉','🎊','📸','🦷','😁','😬','🤗','🥳','😇','🤩','🫡','👀','💯','🙌','✨','💖','🫶','🤝','📞','📅','💊','🏥','🩺','💉','🪥','😷','🤒','🤕','💆','🧑‍⚕️','👨‍⚕️','👩‍⚕️','🏨','💬','📝','🕐','📍'];
+
+    function populateEmojis() {
+        if (_emojiPopulated || !emojiPicker) return;
+        var grid = document.createElement('div');
+        grid.className = 'cg-emoji-grid';
+        _emojis.forEach(function(em) {
+            var btn = document.createElement('button');
+            btn.className = 'cg-emoji-item';
+            btn.textContent = em;
+            btn.type = 'button';
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (input) {
+                    var start = input.selectionStart || input.value.length;
+                    var end = input.selectionEnd || input.value.length;
+                    input.value = input.value.substring(0, start) + em + input.value.substring(end);
+                    input.focus();
+                    input.selectionStart = input.selectionEnd = start + em.length;
+                }
+                emojiPicker.classList.remove('open');
+            });
+            grid.appendChild(btn);
+        });
+        emojiPicker.appendChild(grid);
+        _emojiPopulated = true;
+    }
+
+    if (emojiBtn && emojiPicker) {
+        emojiBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            populateEmojis();
+            emojiPicker.classList.toggle('open');
+        });
+        // Close emoji picker when clicking elsewhere in shadow DOM
+        shadow.addEventListener('click', function(e) {
+            if (e.target !== emojiBtn && !emojiPicker.contains(e.target)) {
+                emojiPicker.classList.remove('open');
+            }
+        });
+    }
+
+    // ── Photo Attachment ──
+    var attachBtn = shadow.getElementById('cg-attach');
+    var fileInput = shadow.getElementById('cg-file-input');
+    var imgPreview = shadow.getElementById('cg-img-preview');
+    var imgThumb = shadow.getElementById('cg-img-thumb');
+    var imgName = shadow.getElementById('cg-img-name');
+    var imgRemove = shadow.getElementById('cg-img-remove');
+    var _pendingFile = null; // the File object waiting to be sent
+    var _pendingObjUrl = null;
+
+    function clearImagePreview() {
+        _pendingFile = null;
+        if (_pendingObjUrl) { URL.revokeObjectURL(_pendingObjUrl); _pendingObjUrl = null; }
+        if (imgPreview) imgPreview.classList.remove('active');
+        if (imgThumb) imgThumb.src = '';
+        if (imgName) imgName.textContent = '';
+        if (fileInput) fileInput.value = '';
+    }
+
+    if (attachBtn && fileInput) {
+        attachBtn.addEventListener('click', function() { fileInput.click(); });
+        fileInput.addEventListener('change', function() {
+            var file = fileInput.files && fileInput.files[0];
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) {
+                addMessage('Image too large (max 5MB). Please choose a smaller photo.', false);
+                fileInput.value = '';
+                return;
+            }
+            // Show preview strip in input area
+            _pendingFile = file;
+            _pendingObjUrl = URL.createObjectURL(file);
+            if (imgThumb) imgThumb.src = _pendingObjUrl;
+            if (imgName) imgName.textContent = file.name;
+            if (imgPreview) imgPreview.classList.add('active');
+            if (input) { input.placeholder = 'Add a message about this photo...'; input.focus(); }
+        });
+    }
+
+    if (imgRemove) {
+        imgRemove.addEventListener('click', function() {
+            clearImagePreview();
+            if (input) input.placeholder = 'Ask a question...';
+        });
+    }
 
     // ── Return Visit Tracking ──
     var VISIT_COUNT_KEY = 'cg_visit_count_' + ADMIN_ID;
@@ -680,6 +839,7 @@
             if (messages) messages.innerHTML = '';
             _voiceSession = false; _lastInputWasVoice = false;
             if (_micRecording) stopMicRecording();
+            resetMicUI();
             if (window.speechSynthesis) try { window.speechSynthesis.cancel(); } catch(e) {}
             if (_typewriterTimer) { clearInterval(_typewriterTimer); _typewriterTimer = null; }
             addMessage(WELCOME, false);
@@ -807,13 +967,33 @@
     var _pendingDisplayText = null; // translated label to show in chat bubble
     function send(fromVoice) {
         var text = input.value.trim();
-        if (!text || sending) return;
+        var hasImage = !!_pendingFile;
+        if ((!text && !hasImage) || sending) return;
         input.value = '';
         input.style.height = 'auto';
         var wasVoice = fromVoice || _lastInputWasVoice || _voiceSession;
         if (fromVoice || _lastInputWasVoice) _voiceSession = true;
         _lastInputWasVoice = false;
-        addMessage(_pendingDisplayText || text, true);
+
+        // Show user message with optional image
+        if (hasImage && _pendingObjUrl) {
+            var imgMsg = document.createElement('div');
+            imgMsg.className = 'cg-msg cg-msg-user';
+            imgMsg.style.animation = getMsgAnimation();
+            var imgEl = document.createElement('img');
+            imgEl.className = 'cg-msg-img';
+            imgEl.src = _pendingObjUrl;
+            imgEl.alt = 'Photo';
+            imgMsg.appendChild(imgEl);
+            if (text) {
+                var textSpan = document.createElement('span');
+                textSpan.textContent = text;
+                imgMsg.appendChild(textSpan);
+            }
+            if (messages) { messages.appendChild(imgMsg); requestAnimationFrame(function() { messages.scrollTop = messages.scrollHeight; }); }
+        } else {
+            addMessage(_pendingDisplayText || text, true);
+        }
         _pendingDisplayText = null;
         _messageCount++;
         if (!_chatStartTime) _chatStartTime = Date.now();
@@ -829,10 +1009,34 @@
         messages.appendChild(typing);
         messages.scrollTop = messages.scrollHeight;
 
-        fetch(SERVER + '/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: text, session_id: sessionId, admin_id: ADMIN_ID, customer_id: (window.ChatGeniusConfig || {}).customerId || CUSTOMER_ID, customer_api_url: (window.ChatGeniusConfig || {}).customerApiUrl || CUSTOMER_API_URL, language: _detectedLang, visit_count: _visitCount })
+        // If image is attached, upload it first, then send chat message
+        var chatText = text || 'What do you see in this photo?';
+        var imageFile = _pendingFile;
+        clearImagePreview();
+        if (input) input.placeholder = 'Ask a question...';
+
+        var uploadPromise;
+        if (imageFile) {
+            var fd = new FormData();
+            fd.append('image', imageFile);
+            fd.append('session_id', sessionId);
+            fd.append('admin_id', ADMIN_ID);
+            fd.append('description', imageFile.name);
+            uploadPromise = fetch(SERVER + '/api/chat/upload-image', { method: 'POST', body: fd })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (!data.ok) { console.warn('Image upload failed:', data.error); }
+                });
+        } else {
+            uploadPromise = Promise.resolve();
+        }
+
+        uploadPromise.then(function() {
+            return fetch(SERVER + '/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: chatText, session_id: sessionId, admin_id: ADMIN_ID, customer_id: (window.ChatGeniusConfig || {}).customerId || CUSTOMER_ID, customer_api_url: (window.ChatGeniusConfig || {}).customerApiUrl || CUSTOMER_API_URL, language: _detectedLang, visit_count: _visitCount })
+            });
         })
         .then(function(r) {
             // Bug fix #6: Handle non-OK responses gracefully
@@ -969,7 +1173,46 @@
             _micChunks = [];
             _micRecording = true;
             if (micBtn) micBtn.classList.add('recording');
-            if (micStatus) { micStatus.style.display = 'block'; micStatus.textContent = 'Recording... tap mic to stop'; }
+
+            // Show inline voice UI, hide normal input
+            if (inputArea) inputArea.style.display = 'none';
+            if (voiceInline) voiceInline.classList.add('active');
+            if (voiceHint) voiceHint.textContent = 'Listening...';
+
+            // Start timer
+            var startTime = Date.now();
+            if (voiceTimer) voiceTimer.textContent = '00:00';
+            _voiceTimerInterval = setInterval(function() {
+                var elapsed = Math.floor((Date.now() - startTime) / 1000);
+                var m = Math.floor(elapsed / 60);
+                var s = elapsed % 60;
+                if (voiceTimer) voiceTimer.textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+            }, 200);
+
+            // Mark bars as active
+            for (var bi = 0; bi < _voiceBars.length; bi++) { _voiceBars[bi].classList.add('active'); }
+
+            // Set up audio analyser for visualizer bars
+            try {
+                var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                var source = audioCtx.createMediaStreamSource(stream);
+                _voiceAnalyser = audioCtx.createAnalyser();
+                _voiceAnalyser.fftSize = 128;
+                source.connect(_voiceAnalyser);
+                var bufLen = _voiceAnalyser.frequencyBinCount;
+                var dataArr = new Uint8Array(bufLen);
+                function drawBars() {
+                    _voiceAnimFrame = requestAnimationFrame(drawBars);
+                    _voiceAnalyser.getByteFrequencyData(dataArr);
+                    for (var i = 0; i < _voiceBars.length; i++) {
+                        var idx = Math.floor(i * bufLen / _voiceBars.length);
+                        var val = dataArr[idx] || 0;
+                        var h = Math.max(3, (val / 255) * 14);
+                        _voiceBars[i].style.height = h + 'px';
+                    }
+                }
+                drawBars();
+            } catch(e) { /* analyser not critical */ }
 
             var mimeType = 'audio/webm;codecs=opus';
             if (typeof MediaRecorder !== 'undefined' && !MediaRecorder.isTypeSupported(mimeType)) mimeType = 'audio/webm';
@@ -1000,16 +1243,30 @@
         _micRecording = false;
         if (micBtn) micBtn.classList.remove('recording');
         if (_micRecorder && _micRecorder.state !== 'inactive') _micRecorder.stop();
+        // Clean up voice inline visuals
+        if (_voiceTimerInterval) { clearInterval(_voiceTimerInterval); _voiceTimerInterval = null; }
+        if (_voiceAnimFrame) { cancelAnimationFrame(_voiceAnimFrame); _voiceAnimFrame = null; }
+        _voiceAnalyser = null;
+        for (var i = 0; i < _voiceBars.length; i++) { _voiceBars[i].style.height = '3px'; _voiceBars[i].classList.remove('active'); }
     }
 
     function resetMicUI() {
         _micRecording = false;
         if (micBtn) micBtn.classList.remove('recording');
         if (micStatus) { micStatus.style.display = 'none'; micStatus.textContent = ''; }
+        // Hide inline voice UI, restore input area
+        if (voiceInline) voiceInline.classList.remove('active');
+        if (inputArea) inputArea.style.display = '';
+        if (_voiceTimerInterval) { clearInterval(_voiceTimerInterval); _voiceTimerInterval = null; }
+        if (_voiceAnimFrame) { cancelAnimationFrame(_voiceAnimFrame); _voiceAnimFrame = null; }
+        _voiceAnalyser = null;
+        if (voiceTimer) voiceTimer.textContent = '00:00';
+        for (var i = 0; i < _voiceBars.length; i++) { _voiceBars[i].style.height = '3px'; _voiceBars[i].classList.remove('active'); }
     }
 
     function transcribeAndSend(audioBlob) {
-        if (micStatus) { micStatus.style.display = 'block'; micStatus.textContent = 'Transcribing...'; }
+        // Show transcribing state in the inline voice UI
+        if (voiceHint) voiceHint.textContent = 'Transcribing...';
 
         var formData = new FormData();
         formData.append('audio', audioBlob, 'voice.webm');

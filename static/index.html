@@ -12,17 +12,17 @@
         html{font-size:90%}
         *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
         :root{
-            --bg:#F9FAFB;--bg2:#F9FAFB;--card:#FFFFFF;--card-hover:#F3F4F6;
-            --border:#E5E7EB;--border-hover:#D1D5DB;
-            --purple:#8B5CF6;--indigo:#6366F1;--blue:#3B82F6;--cyan:#06B6D4;--green:#10b981;--amber:#f59e0b;--red:#ef4444;
-            --gradient:linear-gradient(135deg,#8B5CF6,#7C3AED);
-            --gradient2:linear-gradient(135deg,#8B5CF6,#6D28D9);
-            --gradient3:linear-gradient(135deg,#8B5CF6,#5B21B6);
-            --text:#1A1A2E;--text-muted:#6B7280;--text-dim:#6B7280;
+            --bg:#0a0a0a;--bg2:#111113;--card:#141417;--card-hover:#1a1a1e;
+            --border:#2a2a2e;--border-hover:#3a3a3e;
+            --purple:#6366F1;--indigo:#6366F1;--blue:#3B82F6;--cyan:#06B6D4;--green:#10b981;--amber:#f59e0b;--red:#ef4444;
+            --gradient:linear-gradient(135deg,#6366F1,#818cf8);
+            --gradient2:linear-gradient(135deg,#6366F1,#a5b4fc);
+            --gradient3:linear-gradient(135deg,#6366F1,#a5b4fc);
+            --text:#e5e7eb;--text-muted:#6B7280;--text-dim:#6B7280;
             --ease:cubic-bezier(0.22,1,0.36,1);
             --glow:0 4px 12px rgba(0,0,0,0.05);
         }
-        ::selection{background:rgba(139,92,246,0.15)}
+        ::selection{background:rgba(99,102,241,0.25)}
         html{scroll-behavior:smooth}
         body{font-family:'Inter','Outfit',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;overflow-x:hidden;-webkit-font-smoothing:antialiased}
         body::after{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:0;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
@@ -30,9 +30,9 @@
         /* Aurora — monochrome subtle glow */
         .aurora{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
         .aurora div{position:absolute;border-radius:50%;filter:blur(150px);opacity:0.02;animation:aurMove 25s ease-in-out infinite}
-        .aurora div:nth-child(1){width:60vw;height:60vw;top:-20%;left:-15%;background:radial-gradient(circle,#E0E7FF,#F3F4F6);animation-duration:28s}
-        .aurora div:nth-child(2){width:50vw;height:50vw;top:30%;right:-15%;background:radial-gradient(circle,#DDD6FE,#F9FAFB);animation-duration:34s;animation-delay:-8s}
-        .aurora div:nth-child(3){width:45vw;height:45vw;bottom:-15%;left:20%;background:radial-gradient(circle,#C7D2FE,#F9FAFB);animation-duration:30s;animation-delay:-15s}
+        .aurora div:nth-child(1){width:60vw;height:60vw;top:-20%;left:-15%;background:radial-gradient(circle,#E0E7FF,#1a1a1e);animation-duration:28s}
+        .aurora div:nth-child(2){width:50vw;height:50vw;top:30%;right:-15%;background:radial-gradient(circle,#2a2a2e,#0a0a0a);animation-duration:34s;animation-delay:-8s}
+        .aurora div:nth-child(3){width:45vw;height:45vw;bottom:-15%;left:20%;background:radial-gradient(circle,#C7D2FE,#0a0a0a);animation-duration:30s;animation-delay:-15s}
         @keyframes aurMove{0%{transform:translate(0,0) rotate(0) scale(1)}33%{transform:translate(40px,-30px) rotate(120deg) scale(1.06)}66%{transform:translate(-30px,20px) rotate(240deg) scale(.95)}100%{transform:translate(0,0) rotate(360deg) scale(1)}}
 
         /* Animations */
@@ -48,33 +48,44 @@
         .anim{opacity:0;transform:translateY(30px);transition:opacity .8s var(--ease),transform .8s var(--ease)}.anim.visible{opacity:1;transform:translateY(0)}
 
         /* ═══ NAV ═══ */
-        nav{position:fixed;top:0;width:100%;z-index:1000;background:rgba(255,255,255,0.85);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);border-bottom:1px solid #E5E7EB;transition:all .4s var(--ease)}
-        nav.scrolled{background:rgba(255,255,255,0.95);border-bottom-color:#E5E7EB}
+        nav{position:fixed;top:0;width:100%;z-index:1000;background:transparent;backdrop-filter:blur(0);-webkit-backdrop-filter:blur(0);border-bottom:1px solid transparent;transition:all .4s var(--ease)}
+        nav.scrolled{background:rgba(20,20,23,0.95);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);border-bottom-color:#2a2a2e}
+        nav:not(.scrolled) .logo{color:#FFFFFF}
+        nav:not(.scrolled) .nav-links a{color:rgba(255,255,255,0.6)}
+        nav:not(.scrolled) .nav-links a:hover{color:#FFFFFF}
+        nav:not(.scrolled) .nav-btn-outline{border-color:rgba(255,255,255,0.2);color:#FFFFFF}
+        nav:not(.scrolled) .nav-btn-outline:hover{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.3)}
+        nav:not(.scrolled) .nav-btn{background:rgba(99,102,241,0.8);border:1px solid rgba(99,102,241,0.4);box-shadow:0 0 15px rgba(99,102,241,0.2)}
+        nav:not(.scrolled) .nav-btn:hover{background:rgba(99,102,241,1);box-shadow:0 0 30px rgba(99,102,241,0.4)}
+        nav:not(.scrolled) .hamburger{color:#FFFFFF}
         .nav-inner{max-width:1200px;margin:auto;display:flex;align-items:center;justify-content:space-between;height:72px;padding:0 2rem}
         .logo{font-size:1.5rem;font-weight:800;letter-spacing:-.5px;text-decoration:none;color:var(--text)}
-        .logo span{background:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .logo span{background:linear-gradient(135deg,#1A1A2E,#374151,#6B7280);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
         .nav-links{display:flex;gap:1.25rem;list-style:none;align-items:center;flex-wrap:wrap}
         .nav-links a{color:var(--text-muted);text-decoration:none;font-size:.88rem;font-weight:500;transition:color .3s;position:relative}
-        .nav-links a::after{content:'';position:absolute;bottom:-4px;left:50%;width:0;height:1px;background:#8B5CF6;transition:all .3s var(--ease);transform:translateX(-50%)}
-        .nav-links a:hover{color:#1A1A2E}
+        .nav-links a::after{content:'';position:absolute;bottom:-4px;left:50%;width:0;height:1px;background:rgba(99,102,241,0.9);transition:all .3s var(--ease);transform:translateX(-50%)}
+        .nav-links a:hover{color:#e5e7eb}
         .nav-links a:hover::after{width:100%}
         .nav-links>li{position:relative}
         .nav-dropdown-trigger{cursor:pointer;display:flex;align-items:center;gap:4px}
         .nav-dropdown-trigger::after{content:'';display:none}
         .nav-dropdown-trigger svg{width:12px;height:12px;opacity:.5;transition:transform .3s}
-        .nav-dropdown{position:absolute;top:calc(100% + 12px);left:50%;transform:translateX(-50%) translateY(8px);min-width:220px;background:#FFFFFF;backdrop-filter:blur(24px);border:1px solid #E5E7EB;border-radius:8px;padding:.5rem;opacity:0;visibility:hidden;transition:all .25s var(--ease);z-index:1001;box-shadow:0 4px 16px rgba(0,0,0,0.08)}
+        .nav-dropdown{position:absolute;top:calc(100% + 12px);left:50%;transform:translateX(-50%) translateY(8px);min-width:220px;background:#141417;backdrop-filter:blur(24px);border:1px solid #2a2a2e;border-radius:8px;padding:.5rem;opacity:0;visibility:hidden;transition:all .25s var(--ease);z-index:1001;box-shadow:0 4px 16px rgba(0,0,0,0.08)}
         .nav-links>li:hover .nav-dropdown{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
         .nav-links>li:hover .nav-dropdown-trigger svg{transform:rotate(180deg)}
         .nav-dropdown a{display:flex;align-items:center;gap:.6rem;padding:.55rem .85rem;border-radius:6px;font-size:.82rem;color:var(--text-muted);transition:all .2s}
         .nav-dropdown a::after{display:none}
-        .nav-dropdown a:hover{background:#F9FAFB;color:#1A1A2E}
+        .nav-dropdown a:hover{background:#0a0a0a;color:#e5e7eb}
         .nav-dropdown a small{font-size:.7rem;color:var(--text-dim);display:block;margin-top:1px}
         .nav-dd-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0}
-        .nav-btn{background:#8B5CF6;color:#FFFFFF;border:none;padding:.6rem 1.6rem;border-radius:6px;font-weight:600;cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .35s var(--ease);box-shadow:0 0 20px rgba(139,92,246,0.25);text-decoration:none;display:inline-flex;align-items:center;gap:.4rem}
-        .nav-btn:hover{transform:translateY(-2px);box-shadow:0 0 35px rgba(139,92,246,0.45)}
-        .nav-btn-outline{background:transparent;border:1px solid #D1D5DB;color:var(--text);padding:.55rem 1.4rem;border-radius:6px;font-weight:500;cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .3s var(--ease);text-decoration:none}
-        .nav-btn-outline:hover{border-color:#6B7280;background:#F9FAFB}
-        .hamburger{display:none;background:none;border:none;color:#1A1A2E;font-size:1.5rem;cursor:pointer;padding:.5rem}
+        .nav-btn{background:rgba(99,102,241,0.9);color:#FFFFFF;border:1px solid rgba(99,102,241,0.3);padding:.6rem 1.6rem;border-radius:9999px;font-weight:600;cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .35s var(--ease);box-shadow:0 0 15px rgba(99,102,241,0.15);text-decoration:none;display:inline-flex;align-items:center;gap:.4rem;position:relative;overflow:hidden}
+        .nav-btn::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(165,180,252,0.8),transparent);opacity:0;transition:opacity .5s;width:75%;margin:auto}
+        .nav-btn::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(99,102,241,0.6),transparent);opacity:.3;width:75%;margin:auto;transition:opacity .5s}
+        .nav-btn:hover{transform:translateY(-2px);box-shadow:0 0 30px rgba(99,102,241,0.3);background:rgba(99,102,241,1);border-color:rgba(99,102,241,0.5)}
+        .nav-btn:hover::before{opacity:1}.nav-btn:hover::after{opacity:.7}
+        .nav-btn-outline{background:transparent;border:1px solid #3a3a3e;color:var(--text);padding:.55rem 1.4rem;border-radius:6px;font-weight:500;cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .3s var(--ease);text-decoration:none}
+        .nav-btn-outline:hover{border-color:#6B7280;background:#0a0a0a}
+        .hamburger{display:none;background:none;border:none;color:#e5e7eb;font-size:1.5rem;cursor:pointer;padding:.5rem}
         .mobile-menu{display:none;position:fixed;top:72px;left:0;right:0;background:rgba(255,255,255,0.98);backdrop-filter:blur(20px);padding:1.5rem 2rem;border-bottom:1px solid var(--border);flex-direction:column;gap:1rem}
         .mobile-menu.open{display:flex}
         .mobile-menu a{color:var(--text-muted);text-decoration:none;font-size:1rem;padding:.75rem 0;border-bottom:1px solid var(--border);font-weight:500}
@@ -83,45 +94,108 @@
         /* ═══ SHARED ═══ */
         section{padding:7rem 2rem;position:relative}
         .container{max-width:1140px;margin:auto}
-        .section-label{text-transform:uppercase;font-size:.7rem;letter-spacing:4px;font-weight:700;margin-bottom:1rem;display:inline-block;padding:.4rem 1.2rem;border-radius:4px;background:rgba(139,92,246,0.08);color:#7C3AED;border:1px solid rgba(139,92,246,0.12)}
+        .section-label{text-transform:uppercase;font-size:.7rem;letter-spacing:4px;font-weight:700;margin-bottom:1rem;display:inline-block;padding:.4rem 1.2rem;border-radius:4px;background:rgba(99,102,241,0.1);color:#a5b4fc;border:1px solid rgba(99,102,241,0.2)}
         .section-title{font-size:clamp(2rem,4.5vw,3rem);font-weight:800;margin-bottom:1rem;letter-spacing:-.03em;line-height:1.15}
         .section-sub{color:var(--text-muted);max-width:620px;margin:0 auto 3.5rem;font-size:1.05rem;line-height:1.85}
-        .btn-primary{display:inline-flex;align-items:center;gap:.5rem;color:#FFFFFF;padding:.95rem 2.4rem;border-radius:6px;font-weight:700;text-decoration:none;font-size:1rem;border:none;cursor:pointer;font-family:inherit;background:#8B5CF6;transition:all .4s var(--ease);box-shadow:0 0 20px rgba(139,92,246,0.3);position:relative;overflow:hidden}
-        .btn-primary::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent);background-size:200% 100%;animation:shimmer 3s ease infinite}
-        .btn-primary:hover{transform:translateY(-3px);box-shadow:0 0 35px rgba(139,92,246,0.45)}
-        .btn-secondary{display:inline-flex;align-items:center;gap:.5rem;color:#374151;padding:.95rem 2.4rem;border-radius:6px;font-weight:600;text-decoration:none;font-size:1rem;border:1px solid #D1D5DB;cursor:pointer;font-family:inherit;background:#FFFFFF;backdrop-filter:blur(8px);transition:all .35s var(--ease)}
-        .btn-secondary:hover{background:#F3F4F6;border-color:#D1D5DB;transform:translateY(-2px)}
-        .gradient-text{background:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-        .gradient-text-animated{background:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .btn-primary{display:inline-flex;align-items:center;gap:.5rem;color:#FFFFFF;padding:.95rem 2.4rem;border-radius:9999px;font-weight:700;text-decoration:none;font-size:1rem;border:1px solid rgba(99,102,241,0.3);cursor:pointer;font-family:inherit;background:rgba(99,102,241,0.9);transition:all .4s var(--ease);box-shadow:0 0 20px rgba(99,102,241,0.15);position:relative;overflow:hidden}
+        .btn-primary::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(165,180,252,0.8),transparent);opacity:0;transition:opacity .5s;width:75%;margin:auto}
+        .btn-primary::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(99,102,241,0.6),transparent);opacity:.3;width:75%;margin:auto;transition:opacity .5s}
+        .btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 35px rgba(99,102,241,0.3);background:rgba(99,102,241,1);border-color:rgba(99,102,241,0.5)}
+        .btn-primary:hover::before{opacity:1}.btn-primary:hover::after{opacity:.7}
+        .btn-secondary{display:inline-flex;align-items:center;gap:.5rem;color:#9ca3af;padding:.95rem 2.4rem;border-radius:6px;font-weight:600;text-decoration:none;font-size:1rem;border:1px solid #3a3a3e;cursor:pointer;font-family:inherit;background:#141417;backdrop-filter:blur(8px);transition:all .35s var(--ease)}
+        .btn-secondary:hover{background:#1a1a1e;border-color:#3a3a3e;transform:translateY(-2px)}
+        .gradient-text{background:linear-gradient(135deg,#1A1A2E,#374151,#6B7280);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .gradient-text-animated{background:linear-gradient(135deg,#1A1A2E,#374151,#6B7280);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 
-        /* ═══ 1. HERO ═══ */
-        #hero{min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding-top:72px;position:relative;overflow:hidden}
-        #hero::after{content:'';position:absolute;bottom:0;left:0;right:0;height:200px;background:linear-gradient(to top,#FFFFFF,transparent);pointer-events:none}
-        .hero-badge{display:inline-flex;align-items:center;gap:.6rem;background:rgba(139,92,246,0.08);color:#7C3AED;padding:.55rem 1.4rem;border-radius:4px;font-size:.82rem;font-weight:600;margin-bottom:2.5rem;border:1px solid rgba(139,92,246,0.12);backdrop-filter:blur(8px);animation:fadeUp .7s var(--ease) both}
-        .hero-badge .dot{width:8px;height:8px;border-radius:50%;background:#8B5CF6;box-shadow:0 0 10px rgba(139,92,246,0.6);animation:pulse 2s infinite}
-        .hero-title{font-size:clamp(2.6rem,6.5vw,4.8rem);font-weight:900;line-height:1.05;margin-bottom:1.75rem;letter-spacing:-.04em;animation:fadeUp .7s var(--ease) .1s both}
-        .hero-sub{color:var(--text-muted);font-size:clamp(1.05rem,2vw,1.2rem);max-width:580px;margin:0 auto 2.5rem;line-height:1.85;animation:fadeUp .7s var(--ease) .2s both}
-        .hero-btns{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;animation:fadeUp .7s var(--ease) .3s both}
-        .hero-trust{margin-top:2.5rem;display:flex;align-items:center;justify-content:center;gap:.6rem;color:var(--text-dim);font-size:.85rem;font-weight:500;animation:fadeUp .7s var(--ease) .4s both}
-        .hero-trust svg{opacity:.5}
-        .hero-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;margin-top:5rem;animation:fadeUp .7s var(--ease) .5s both}
-        .hero-metric{text-align:center;padding:1.5rem;background:#FFFFFF;border-radius:8px;border:1px solid #E5E7EB;backdrop-filter:blur(10px);transition:all .35s var(--ease);perspective:800px}
-        .hero-metric:hover{border-color:#D1D5DB;transform:translateY(-4px);box-shadow:0 4px 16px rgba(0,0,0,0.06)}
-        .hero-metric-num{font-size:2.2rem;font-weight:900;letter-spacing:-.02em;margin-bottom:.25rem;color:#1A1A2E}
-        .hero-metric-label{font-size:.78rem;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:1.5px}
+        /* ═══ 1. HERO — Dark Geometric ═══ */
+        #hero{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;text-align:center;padding-top:120px;position:relative;overflow:hidden;background:#000000}
+        #hero::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,#000 0%,transparent 30%,transparent 70%,rgba(0,0,0,0.6) 100%);pointer-events:none;z-index:2}
+        #hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 20%,rgba(99,102,241,0.06),transparent 60%),radial-gradient(ellipse at 70% 80%,rgba(244,63,94,0.04),transparent 60%);pointer-events:none;z-index:1}
+        .hero-grid{position:absolute;inset:0;z-index:0;opacity:0.6;height:600px;background:linear-gradient(to right,#333 1px,transparent 1px),linear-gradient(to bottom,#333 1px,transparent 1px);background-size:6rem 5rem;-webkit-mask-image:radial-gradient(ellipse 80% 50% at 50% 0%,#000 70%,transparent 110%);mask-image:radial-gradient(ellipse 80% 50% at 50% 0%,#000 70%,transparent 110%)}
+        .hero-radial{position:absolute;left:50%;bottom:-60px;transform:translateX(-50%);width:140%;height:750px;border-radius:100%;background:radial-gradient(closest-side,#000 82%,#fff);z-index:3;pointer-events:none}
+        .hero-glow-img{position:absolute;left:50%;transform:translateX(-50%);width:90%;max-width:900px;pointer-events:none;z-index:4;opacity:0.6}
+        .hero-dashboard-preview{position:relative;z-index:10;width:100%;max-width:1000px;margin:3rem auto 0;animation:fadeUp 1s var(--ease) 1.5s both;perspective:2000px}
+        .hero-dashboard-preview img{width:100%;border-radius:12px;box-shadow:0 20px 80px rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.08)}
+        .hero-dashboard-fade{position:absolute;bottom:0;left:0;right:0;height:120px;background:linear-gradient(to top,#000,transparent);z-index:11;pointer-events:none}
+        .hero-content{position:relative;z-index:10}
+
+        /* Floating shapes */
+        @keyframes shapeFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(15px)}}
+        @keyframes shapeEntry{from{opacity:0;transform:translateY(-150px) rotate(var(--rot-start))}to{opacity:1;transform:translateY(0) rotate(var(--rot))}}
+        .hero-shape{position:absolute;border-radius:9999px;background:linear-gradient(to right,var(--shape-color),transparent);backdrop-filter:blur(2px);border:2px solid rgba(255,255,255,0.15);box-shadow:0 8px 32px rgba(255,255,255,0.1);opacity:0;animation:shapeEntry 2.4s cubic-bezier(0.23,0.86,0.39,0.96) forwards,shapeFloat 12s ease-in-out infinite;z-index:1}
+        .hero-shape::after{content:'';position:absolute;inset:0;border-radius:9999px;background:radial-gradient(circle at 50% 50%,rgba(255,255,255,0.2),transparent 70%)}
+        .hero-shape-1{width:600px;height:140px;--shape-color:rgba(99,102,241,0.15);--rot:12deg;--rot-start:-3deg;left:-10%;top:15%;animation-delay:0.3s}
+        .hero-shape-2{width:500px;height:120px;--shape-color:rgba(244,63,94,0.15);--rot:-15deg;--rot-start:-30deg;right:-5%;top:70%;animation-delay:0.5s}
+        .hero-shape-3{width:300px;height:80px;--shape-color:rgba(139,92,246,0.15);--rot:-8deg;--rot-start:-23deg;left:5%;bottom:5%;animation-delay:0.4s}
+        .hero-shape-4{width:200px;height:60px;--shape-color:rgba(245,158,11,0.15);--rot:20deg;--rot-start:5deg;right:15%;top:10%;animation-delay:0.6s}
+        .hero-shape-5{width:150px;height:40px;--shape-color:rgba(6,182,212,0.15);--rot:-25deg;--rot-start:-40deg;left:20%;top:5%;animation-delay:0.7s}
+
+        .hero-badge{display:inline-flex;align-items:center;gap:.6rem;background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.6);padding:.55rem 1.4rem;border-radius:9999px;font-size:.82rem;font-weight:500;margin-bottom:2.5rem;border:1px solid rgba(255,255,255,0.08);letter-spacing:.5px;animation:fadeUp .7s var(--ease) .5s both}
+        .hero-badge .dot{width:8px;height:8px;border-radius:50%;background:rgba(244,63,94,0.8);box-shadow:0 0 10px rgba(244,63,94,0.6);animation:pulse 2s infinite}
+        .hero-title{font-size:clamp(2.6rem,6.5vw,5rem);font-weight:900;line-height:1.05;margin-bottom:1.75rem;letter-spacing:-.04em;animation:fadeUp 1s var(--ease) .7s both}
+        .hero-title .hero-line1{background:linear-gradient(to bottom,#FFFFFF,rgba(255,255,255,0.8));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .hero-title .hero-line2{background:linear-gradient(to right,#a5b4fc,rgba(255,255,255,0.9),#fda4af);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .hero-sub{color:rgba(255,255,255,0.4);font-size:clamp(1rem,2vw,1.15rem);max-width:560px;margin:0 auto 2.5rem;line-height:1.85;font-weight:300;letter-spacing:.3px;animation:fadeUp 1s var(--ease) .9s both}
+        .hero-btns{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;animation:fadeUp 1s var(--ease) 1.1s both}
+        .hero-trust{margin-top:2rem;display:flex;align-items:center;justify-content:center;gap:.6rem;color:rgba(255,255,255,0.3);font-size:.82rem;font-weight:400;animation:fadeUp .7s var(--ease) 1.3s both}
+
+        /* Neon buttons — universal (works on light backgrounds) */
+        .btn-neon{position:relative;display:inline-flex;align-items:center;gap:.5rem;color:#FFFFFF;padding:.95rem 2.4rem;border-radius:9999px;font-weight:600;text-decoration:none;font-size:1rem;border:1px solid rgba(99,102,241,0.3);cursor:pointer;font-family:inherit;background:rgba(99,102,241,0.9);transition:all .4s var(--ease);overflow:hidden;box-shadow:0 0 20px rgba(99,102,241,0.15)}
+        .btn-neon::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(165,180,252,0.8),transparent);opacity:0;transition:opacity .5s;width:75%;margin:auto}
+        .btn-neon::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(99,102,241,0.6),transparent);opacity:.3;width:75%;margin:auto;transition:opacity .5s}
+        .btn-neon:hover{background:rgba(99,102,241,1);border-color:rgba(99,102,241,0.5);transform:translateY(-2px);box-shadow:0 0 35px rgba(99,102,241,0.3),0 4px 15px rgba(99,102,241,0.2);color:#FFFFFF}
+        .btn-neon:hover::before{opacity:1}
+        .btn-neon:hover::after{opacity:.7}
+        .btn-neon.neon-outline{background:transparent;color:#4F46E5;border-color:rgba(99,102,241,0.3);box-shadow:none}
+        .btn-neon.neon-outline:hover{background:rgba(99,102,241,0.08);color:#4338CA;border-color:rgba(99,102,241,0.5);box-shadow:0 0 25px rgba(99,102,241,0.12)}
+        /* Dark-bg hero neon variant */
+        #hero .btn-neon{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.2);box-shadow:none}
+        #hero .btn-neon:hover{background:rgba(255,255,255,0);border-color:rgba(99,102,241,0.4);box-shadow:0 0 30px rgba(99,102,241,0.15)}
+        #hero .btn-neon.solid{background:rgba(99,102,241,0.9);border-color:transparent}
+        #hero .btn-neon.solid:hover{background:rgba(99,102,241,1);border-color:rgba(255,255,255,0.3);box-shadow:0 0 40px rgba(99,102,241,0.4)}
+
+        /* ═══ TRUSTED BY SLIDER ═══ */
+        #trusted-by{background:#030303;padding:4rem 2rem 5rem;position:relative;overflow:hidden}
+        #trusted-by::after{content:'';position:absolute;bottom:0;left:0;right:0;height:120px;background:linear-gradient(to bottom,#030303,#0a0a0a);pointer-events:none}
+        .trusted-title{text-align:center;color:rgba(255,255,255,0.4);font-size:.85rem;font-weight:500;letter-spacing:2px;text-transform:uppercase;margin-bottom:2rem}
+        .logo-slider{position:relative;overflow:hidden;height:50px;mask-image:linear-gradient(to right,transparent,white 15%,white 85%,transparent);-webkit-mask-image:linear-gradient(to right,transparent,white 15%,white 85%,transparent)}
+        .logo-track{display:flex;gap:4rem;align-items:center;animation:slideLogos 30s linear infinite;width:max-content}
+        @keyframes slideLogos{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+        .logo-track svg,.logo-track img{height:28px;opacity:.4;filter:brightness(0) invert(1);transition:opacity .3s}
+        .logo-track svg:hover,.logo-track img:hover{opacity:.8}
+
+        /* Sparkle BG */
+        .sparkle-section{position:relative;overflow:hidden}
+        .sparkle-section::before{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:100%;height:400px;background:radial-gradient(ellipse at bottom center,rgba(99,102,241,0.08),transparent 70%);pointer-events:none}
+
+        /* ═══ ANALYTICS PREVIEW ═══ */
+        #analytics-preview{text-align:center;padding:6rem 2rem;background:#0a0a0a}
+        .analytics-card{max-width:900px;margin:2.5rem auto 0;background:#141417;border-radius:16px;border:1px solid #2a2a2e;padding:2.5rem;box-shadow:0 4px 24px rgba(0,0,0,0.04)}
+        .analytics-card canvas{width:100%!important;height:280px!important}
+        .analytics-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;margin-top:2rem;padding-top:2rem;border-top:1px solid #2a2a2e}
+        .analytics-stat{text-align:center}
+        .analytics-stat-num{font-size:1.8rem;font-weight:800;color:#e5e7eb}
+        .analytics-stat-label{font-size:.75rem;color:#6B7280;text-transform:uppercase;letter-spacing:1px;margin-top:.25rem}
+
+        /* Hero metrics — dark version */
+        .hero-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;margin-top:4rem;animation:fadeUp .7s var(--ease) 1.4s both}
+        .hero-metric{text-align:center;padding:1.25rem;background:rgba(255,255,255,0.03);border-radius:12px;border:1px solid rgba(255,255,255,0.08);backdrop-filter:blur(10px);transition:all .35s var(--ease)}
+        .hero-metric:hover{border-color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);transform:translateY(-4px)}
+        .hero-metric-num{font-size:2rem;font-weight:900;letter-spacing:-.02em;margin-bottom:.2rem;background:linear-gradient(to bottom,#FFFFFF,rgba(255,255,255,0.7));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .hero-metric-label{font-size:.72rem;color:rgba(255,255,255,0.4);font-weight:500;text-transform:uppercase;letter-spacing:1.5px}
 
         /* ═══ 2. PROBLEM/SOLUTION ═══ */
         #problem{text-align:center}
         .compare-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:2rem;align-items:stretch;margin-top:2rem}
-        .compare-card{background:#FFFFFF;border-radius:8px;padding:2.5rem;border:1px solid #E5E7EB;backdrop-filter:blur(10px);text-align:left;transition:all .4s var(--ease)}
-        .compare-card:hover{border-color:#D1D5DB;box-shadow:0 4px 12px rgba(0,0,0,0.05)}
-        .compare-card.without{border-color:#E5E7EB}
-        .compare-card.with{border-color:#D1D5DB;background:#F9FAFB}
+        .compare-card{background:#141417;border-radius:8px;padding:2.5rem;border:1px solid #2a2a2e;backdrop-filter:blur(10px);text-align:left;transition:all .4s var(--ease)}
+        .compare-card:hover{border-color:#3a3a3e;box-shadow:0 4px 12px rgba(0,0,0,0.05)}
+        .compare-card.without{border-color:#3a3a3e}
+        .compare-card.with{border-color:#3a3a3e;background:#0a0a0a}
         .compare-card h3{font-size:1.15rem;font-weight:700;margin-bottom:1.5rem;display:flex;align-items:center;gap:.6rem}
         .compare-card.without h3{color:#ef4444}
         .compare-card.with h3{color:#10b981}
         .compare-list{list-style:none}
-        .compare-list li{padding:.7rem 0;display:flex;align-items:flex-start;gap:.75rem;font-size:.92rem;color:var(--text-muted);border-bottom:1px solid #E5E7EB}
+        .compare-list li{padding:.7rem 0;display:flex;align-items:flex-start;gap:.75rem;font-size:.92rem;color:var(--text-muted);border-bottom:1px solid #2a2a2e}
         .compare-list li:last-child{border:none}
         .compare-list .icon{flex-shrink:0;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;margin-top:2px}
         .compare-card.without .icon{background:rgba(239,68,68,0.1);color:#ef4444}
@@ -129,12 +203,12 @@
         .compare-arrow{display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--text-dim)}
 
         /* ═══ 3. HOW IT WORKS ═══ */
-        #howitworks{text-align:center;background:linear-gradient(180deg,transparent,rgba(139,92,246,0.02),transparent)}
+        #howitworks{text-align:center;background:linear-gradient(180deg,transparent,rgba(99,102,241,0.02),transparent)}
         .steps-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2rem;margin-top:2rem;position:relative}
-        .steps-grid::before{content:'';position:absolute;top:52px;left:15%;right:15%;height:1px;background:linear-gradient(90deg,transparent,#E5E7EB,#E5E7EB,transparent)}
-        .step-card{background:#FFFFFF;border-radius:8px;padding:2.5rem 2rem;border:1px solid #E5E7EB;position:relative;transition:all .45s var(--ease);backdrop-filter:blur(10px)}
-        .step-card:hover{transform:translateY(-8px) perspective(800px) rotateX(2deg);border-color:#D1D5DB;box-shadow:0 8px 24px rgba(0,0,0,0.08)}
-        .step-num{width:48px;height:48px;border-radius:50%;background:#8B5CF6;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:800;margin:0 auto 1.5rem;box-shadow:0 0 20px rgba(139,92,246,0.3);position:relative;z-index:2}
+        .steps-grid::before{content:'';position:absolute;top:52px;left:15%;right:15%;height:1px;background:linear-gradient(90deg,transparent,#2a2a2e,#2a2a2e,transparent)}
+        .step-card{background:#141417;border-radius:8px;padding:2.5rem 2rem;border:1px solid #2a2a2e;position:relative;transition:all .45s var(--ease);backdrop-filter:blur(10px)}
+        .step-card:hover{transform:translateY(-8px) perspective(800px) rotateX(2deg);border-color:#3a3a3e;box-shadow:0 8px 24px rgba(0,0,0,0.08)}
+        .step-num{width:48px;height:48px;border-radius:50%;background:rgba(99,102,241,0.9);color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:800;margin:0 auto 1.5rem;box-shadow:0 0 20px rgba(99,102,241,0.3);position:relative;z-index:2}
         .step-icon{font-size:2.5rem;margin-bottom:1rem}
         .step-card h3{font-size:1.1rem;font-weight:700;margin-bottom:.6rem}
         .step-card p{color:var(--text-muted);font-size:.9rem;line-height:1.8}
@@ -142,36 +216,36 @@
         /* ═══ 4. FEATURES ═══ */
         #features{text-align:center}
         .features-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.25rem}
-        .feature-card{background:#FFFFFF;border-radius:8px;padding:2rem 1.75rem;border:1px solid #E5E7EB;text-align:left;transition:all .45s var(--ease);position:relative;overflow:hidden;backdrop-filter:blur(10px)}
-        .feature-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#E5E7EB,transparent);opacity:0;transition:opacity .45s}
-        .feature-card:hover{transform:translateY(-4px) perspective(800px) rotateX(1deg);border-color:rgba(139,92,246,0.3);box-shadow:0 4px 12px rgba(0,0,0,0.05),0 0 30px rgba(139,92,246,0.06)}
+        .feature-card{background:#141417;border-radius:8px;padding:2rem 1.75rem;border:1px solid #2a2a2e;text-align:left;transition:all .45s var(--ease);position:relative;overflow:hidden;backdrop-filter:blur(10px)}
+        .feature-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#2a2a2e,transparent);opacity:0;transition:opacity .45s}
+        .feature-card:hover{transform:translateY(-4px) perspective(800px) rotateX(1deg);border-color:rgba(10,10,10,0.3);box-shadow:0 4px 12px rgba(0,0,0,0.05),0 0 30px rgba(10,10,10,0.06)}
         .feature-card:hover::before{opacity:1}
-        .feature-card-icon{width:48px;height:48px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.12);margin-bottom:1.25rem}
+        .feature-card-icon{width:48px;height:48px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;background:rgba(99,102,241,0.1);border:1px solid rgba(10,10,10,0.12);margin-bottom:1.25rem}
         .feature-card h3{font-size:1.05rem;margin-bottom:.4rem;font-weight:700}
         .feature-card p{color:var(--text-muted);font-size:.88rem;line-height:1.8}
-        .features-highlight{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:2rem;background:#FFFFFF;border-radius:8px;padding:3rem;border:1px solid #E5E7EB;margin-top:.5rem;align-items:center;text-align:left}
+        .features-highlight{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:2rem;background:#141417;border-radius:8px;padding:3rem;border:1px solid #2a2a2e;margin-top:.5rem;align-items:center;text-align:left}
         .features-highlight h3{font-size:1.6rem;font-weight:800;margin-bottom:.75rem}
         .features-highlight p{color:var(--text-muted);font-size:.95rem;line-height:1.85;margin-bottom:1.5rem}
         .features-highlight-list{list-style:none}
         .features-highlight-list li{padding:.4rem 0;font-size:.9rem;color:var(--text-muted);display:flex;align-items:center;gap:.6rem}
-        .features-highlight-list li::before{content:'';width:6px;height:6px;border-radius:50%;background:#ffffff;flex-shrink:0}
-        .features-highlight-visual{background:rgba(0,0,0,0.03);border-radius:8px;padding:1.5rem;border:1px solid #E5E7EB;min-height:280px;display:flex;flex-direction:column;gap:.5rem;overflow:hidden}
-        .fh-bar{height:8px;border-radius:4px;background:linear-gradient(90deg,#ffffff,#71717a);opacity:.8}
+        .features-highlight-list li::before{content:'';width:6px;height:6px;border-radius:50%;background:#141417;flex-shrink:0}
+        .features-highlight-visual{background:rgba(255,255,255,0.04);border-radius:8px;padding:1.5rem;border:1px solid #2a2a2e;min-height:280px;display:flex;flex-direction:column;gap:.5rem;overflow:hidden}
+        .fh-bar{height:8px;border-radius:4px;background:linear-gradient(90deg,#3a3a3e,#2a2a2e);opacity:.8}
         .fh-bar:nth-child(2){width:75%;opacity:.6}
         .fh-bar:nth-child(3){width:55%;opacity:.4}
         .fh-row{display:flex;gap:.5rem;margin-top:auto}
-        .fh-stat{flex:1;background:#FFFFFF;border-radius:8px;padding:1rem;text-align:center;border:1px solid #E5E7EB}
-        .fh-stat-num{font-size:1.3rem;font-weight:800;margin-bottom:.2rem;color:#1A1A2E}
+        .fh-stat{flex:1;background:#141417;border-radius:8px;padding:1rem;text-align:center;border:1px solid #2a2a2e}
+        .fh-stat-num{font-size:1.3rem;font-weight:800;margin-bottom:.2rem;color:#e5e7eb}
         .fh-stat-label{font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px}
 
         /* ═══ 4b. WHAT MAKES US DIFFERENT ═══ */
-        #differentiators{text-align:center;background:linear-gradient(180deg,transparent,rgba(139,92,246,0.02),transparent)}
+        #differentiators{text-align:center;background:linear-gradient(180deg,transparent,rgba(99,102,241,0.02),transparent)}
         .features-diff-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem}
         .features-diff-grid .feature-card{display:flex;flex-direction:column}
         .features-diff-grid .feature-card .diff-card-link{text-decoration:none;color:inherit;display:flex;flex-direction:column;flex:1}
         .tier-badge{display:inline-block;padding:0.2rem 0.6rem;border-radius:4px;font-size:0.65rem;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:0.75rem}
-        .tier-badge.pro{background:#F3F4F6;color:#374151;border:1px solid #E5E7EB}
-        .tier-badge.enterprise{background:#E5E7EB;color:#1A1A2E;border:1px solid #D1D5DB}
+        .tier-badge.pro{background:#1a1a1e;color:#9ca3af;border:1px solid #2a2a2e}
+        .tier-badge.enterprise{background:#2a2a2e;color:#e5e7eb;border:1px solid #3a3a3e}
         @media(max-width:900px){
             .features-diff-grid{grid-template-columns:repeat(2,1fr)}
         }
@@ -183,83 +257,74 @@
         }
 
         /* ═══ 5. LIVE DEMO ═══ */
-        #demo{text-align:center;background:linear-gradient(180deg,transparent,rgba(139,92,246,0.02),transparent)}
+        #demo{text-align:center;background:linear-gradient(180deg,transparent,rgba(99,102,241,0.02),transparent)}
         .demo-container{max-width:440px;margin:0 auto}
-        .chat-container{background:#FFFFFF;border-radius:8px;overflow:hidden;border:1px solid #E5E7EB;box-shadow:0 8px 32px rgba(0,0,0,0.08);backdrop-filter:blur(20px)}
-        .chat-header{background:#FFFFFF;padding:1.1rem 1.5rem;display:flex;align-items:center;gap:.75rem;border-bottom:1px solid #E5E7EB}
-        .chat-dot{width:10px;height:10px;border-radius:50%;background:#8B5CF6;box-shadow:0 0 10px rgba(139,92,246,0.6);animation:pulse 2s infinite}
+        .chat-container{background:#141417;border-radius:8px;overflow:hidden;border:1px solid #2a2a2e;box-shadow:0 8px 32px rgba(0,0,0,0.08);backdrop-filter:blur(20px)}
+        .chat-header{background:#141417;padding:1.1rem 1.5rem;display:flex;align-items:center;gap:.75rem;border-bottom:1px solid #2a2a2e}
+        .chat-dot{width:10px;height:10px;border-radius:50%;background:rgba(99,102,241,0.9);box-shadow:0 0 10px rgba(10,10,10,0.6);animation:pulse 2s infinite}
         .chat-header-info h4{font-size:.9rem;font-weight:700}.chat-header-info p{font-size:.72rem;color:var(--text-dim)}
         .chat-body{height:360px;overflow-y:auto;padding:1.25rem;display:flex;flex-direction:column;gap:.6rem;scroll-behavior:smooth}
-        .chat-body::-webkit-scrollbar{width:3px}.chat-body::-webkit-scrollbar-thumb{background:#F3F4F6;border-radius:3px}
+        .chat-body::-webkit-scrollbar{width:3px}.chat-body::-webkit-scrollbar-thumb{background:#1a1a1e;border-radius:3px}
         .chat-msg{max-width:82%;padding:.75rem 1.1rem;border-radius:8px;font-size:.88rem;line-height:1.7;opacity:0;animation:fadeUp .4s var(--ease) forwards}
-        .chat-msg.bot{background:#FFFFFF;align-self:flex-start;border-bottom-left-radius:2px;border:1px solid #E5E7EB}
-        .chat-msg.user{background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#FFFFFF;align-self:flex-end;border-bottom-right-radius:2px;box-shadow:0 4px 15px rgba(139,92,246,0.3)}
+        .chat-msg.bot{background:#141417;align-self:flex-start;border-bottom-left-radius:2px;border:1px solid #2a2a2e}
+        .chat-msg.user{background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#FFFFFF;align-self:flex-end;border-bottom-right-radius:2px;box-shadow:0 4px 15px rgba(10,10,10,0.3)}
         .chat-msg.typing{display:flex;gap:5px;align-items:center;padding:.75rem 1.2rem}
         .chat-msg.typing .dot{width:6px;height:6px;border-radius:50%;background:var(--text-dim);animation:typing 1.4s infinite}
         .chat-msg.typing .dot:nth-child(2){animation-delay:.2s}
         .chat-msg.typing .dot:nth-child(3){animation-delay:.4s}
-        .chat-input-bar{display:flex;align-items:center;gap:.5rem;padding:.75rem 1rem;border-top:1px solid #E5E7EB;background:#F9FAFB}
+        .chat-input-bar{display:flex;align-items:center;gap:.5rem;padding:.75rem 1rem;border-top:1px solid #2a2a2e;background:#0a0a0a}
         .chat-input-bar input{flex:1;background:none;border:none;color:var(--text);font-size:.88rem;font-family:inherit;outline:none}
         .chat-input-bar input::placeholder{color:var(--text-dim)}
-        .chat-input-bar button{background:#8B5CF6;border:none;color:#FFFFFF;width:36px;height:36px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:transform .2s}
+        .chat-input-bar button{background:rgba(99,102,241,0.9);border:none;color:#FFFFFF;width:36px;height:36px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:transform .2s}
         .chat-input-bar button:hover{transform:scale(1.1)}
 
         /* ═══ COMPARISON TABLE ═══ */
         #comparison{text-align:center}
         .compare-table{width:100%;max-width:900px;margin:0 auto;border-collapse:collapse;text-align:center}
-        .compare-table th,.compare-table td{padding:.85rem .75rem;font-size:.85rem;border-bottom:1px solid #E5E7EB}
+        .compare-table th,.compare-table td{padding:.85rem .75rem;font-size:.85rem;border-bottom:1px solid #2a2a2e}
         .compare-table th{font-weight:700;color:var(--text);font-size:.82rem;text-transform:uppercase;letter-spacing:1px;padding-bottom:1rem}
         .compare-table th:first-child{text-align:left;font-size:.85rem;text-transform:none;letter-spacing:0}
         .compare-table td:first-child{text-align:left;color:var(--text);font-weight:600;font-size:.88rem}
         .compare-table td{color:var(--text-muted)}
-        .compare-table .cg-col{background:#F9FAFB}
-        .compare-table th.cg-col{color:#1A1A2E}
+        .compare-table .cg-col{background:#0a0a0a}
+        .compare-table th.cg-col{color:#e5e7eb}
         .ct-yes{color:#10b981;font-weight:700}.ct-no{color:var(--text-dim);font-weight:500}.ct-partial{color:#f59e0b;font-weight:600}
 
-        /* ═══ 6. USE CASES ═══ */
-        #usecases{text-align:center}
-        .usecases-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1.25rem}
-        .usecase-card{background:#FFFFFF;border-radius:8px;padding:2rem 1.5rem;border:1px solid #E5E7EB;transition:all .4s var(--ease);cursor:default}
-        .usecase-card:hover{transform:translateY(-6px) perspective(800px) rotateX(1deg);border-color:#D1D5DB;box-shadow:0 8px 20px rgba(0,0,0,0.06)}
-        .usecase-icon{font-size:2.5rem;margin-bottom:1rem}
-        .usecase-card h3{font-size:1rem;font-weight:700;margin-bottom:.4rem}
-        .usecase-card p{color:var(--text-muted);font-size:.82rem;line-height:1.7}
-
         /* ═══ 7. SECURITY ═══ */
-        #security{text-align:center;background:linear-gradient(180deg,transparent,rgba(139,92,246,0.02),transparent)}
+        #security{text-align:center;background:linear-gradient(180deg,transparent,rgba(99,102,241,0.02),transparent)}
         .security-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem;max-width:1000px;margin:0 auto}
-        .security-card{background:#FFFFFF;border-radius:8px;padding:2rem 1.5rem;border:1px solid #E5E7EB;transition:all .4s var(--ease)}
-        .security-card:hover{border-color:#D1D5DB;transform:translateY(-4px);box-shadow:0 4px 12px rgba(0,0,0,0.05)}
-        .security-icon{width:52px;height:52px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:#FFFFFF;border:1px solid #E5E7EB;margin:0 auto 1.25rem}
+        .security-card{background:#141417;border-radius:8px;padding:2rem 1.5rem;border:1px solid #2a2a2e;transition:all .4s var(--ease)}
+        .security-card:hover{border-color:#3a3a3e;transform:translateY(-4px);box-shadow:0 4px 12px rgba(0,0,0,0.05)}
+        .security-icon{width:52px;height:52px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:#141417;border:1px solid #2a2a2e;margin:0 auto 1.25rem}
         .security-card h3{font-size:.95rem;font-weight:700;margin-bottom:.4rem}
         .security-card p{color:var(--text-muted);font-size:.82rem;line-height:1.7}
 
         /* ═══ 8. PRICING ═══ */
         #pricing{text-align:center}
         .pricing-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem;align-items:stretch}
-        .price-card{background:#FFFFFF;border-radius:8px;padding:2.5rem 2rem;border:1px solid #E5E7EB;display:flex;flex-direction:column;transition:all .45s var(--ease);position:relative;backdrop-filter:blur(10px)}
-        .price-card:hover{transform:translateY(-6px);box-shadow:0 8px 24px rgba(0,0,0,0.06);border-color:#D1D5DB}
-        .price-card.featured{border:1px solid #D1D5DB;background:#FFFFFF;box-shadow:0 8px 24px rgba(0,0,0,0.08)}
-        .price-card.featured::before{content:'Popular';position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:#8B5CF6;color:#FFFFFF;padding:.35rem 1.4rem;border-radius:4px;font-size:.7rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;box-shadow:0 0 20px rgba(139,92,246,0.3)}
+        .price-card{background:#141417;border-radius:8px;padding:2.5rem 2rem;border:1px solid #2a2a2e;display:flex;flex-direction:column;transition:all .45s var(--ease);position:relative;backdrop-filter:blur(10px)}
+        .price-card:hover{transform:translateY(-6px);box-shadow:0 8px 24px rgba(0,0,0,0.06);border-color:#3a3a3e}
+        .price-card.featured{border:1px solid #3a3a3e;background:#141417;box-shadow:0 8px 24px rgba(0,0,0,0.08)}
+        .price-card.featured::before{content:'Popular';position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:rgba(99,102,241,0.9);color:#FFFFFF;padding:.35rem 1.4rem;border-radius:4px;font-size:.7rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;box-shadow:0 0 20px rgba(99,102,241,0.3)}
         .price-name{font-size:.88rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:.75rem}
-        .price-amount{font-size:3rem;font-weight:900;margin-bottom:.25rem;letter-spacing:-.03em;color:#1A1A2E}
+        .price-amount{font-size:3rem;font-weight:900;margin-bottom:.25rem;letter-spacing:-.03em;color:#e5e7eb}
         .price-amount small{font-size:.95rem;font-weight:400;color:var(--text-dim)}
         .price-desc{color:var(--text-dim);font-size:.85rem;margin-bottom:2rem;line-height:1.6}
         .price-features{list-style:none;text-align:left;margin-bottom:2rem;flex:1}
         .price-features li{padding:.55rem 0;font-size:.88rem;color:var(--text-muted);display:flex;align-items:center;gap:.7rem}
         .price-features li::before{content:'';width:18px;height:18px;min-width:18px;border-radius:50%;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:center}
         .price-btn{display:block;text-align:center;padding:.85rem;border-radius:6px;font-weight:700;font-size:.92rem;text-decoration:none;transition:all .35s var(--ease);font-family:inherit;cursor:pointer;border:none}
-        .price-btn-primary{background:#8B5CF6;color:#FFFFFF;box-shadow:0 0 20px rgba(139,92,246,0.3)}
-        .price-btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 35px rgba(139,92,246,0.45)}
-        .price-btn-outline{background:transparent;color:var(--text);border:1px solid #E5E7EB}
-        .price-btn-outline:hover{border-color:#D1D5DB;background:#F9FAFB}
+        .price-btn-primary{background:rgba(99,102,241,0.9);color:#FFFFFF;box-shadow:0 0 15px rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:9999px;position:relative;overflow:hidden}
+        .price-btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 30px rgba(99,102,241,0.3);background:rgba(99,102,241,1);border-color:rgba(99,102,241,0.5)}
+        .price-btn-outline{background:transparent;color:var(--text);border:1px solid #2a2a2e}
+        .price-btn-outline:hover{border-color:#3a3a3e;background:#0a0a0a}
 
         /* ═══ 9. FAQ ═══ */
         #faq{text-align:center}
         .faq-list{max-width:720px;margin:0 auto;text-align:left}
-        .faq-item{border-bottom:1px solid #E5E7EB;overflow:hidden}
+        .faq-item{border-bottom:1px solid #2a2a2e;overflow:hidden}
         .faq-question{width:100%;background:none;border:none;color:var(--text);padding:1.25rem 0;font-size:1rem;font-weight:600;font-family:inherit;cursor:pointer;display:flex;justify-content:space-between;align-items:center;text-align:left;transition:color .3s}
-        .faq-question:hover{color:#7C3AED}
+        .faq-question:hover{color:#ffffff}
         .faq-question .arrow{font-size:.8rem;color:var(--text-dim);transition:transform .3s var(--ease)}
         .faq-item.open .faq-question .arrow{transform:rotate(180deg)}
         .faq-answer{max-height:0;overflow:hidden;transition:max-height .4s var(--ease);color:var(--text-muted);font-size:.92rem;line-height:1.85}
@@ -268,16 +333,16 @@
 
         /* ═══ 10. FINAL CTA ═══ */
         #final-cta{text-align:center;padding:6rem 2rem}
-        .cta-box{background:#FFFFFF;border-radius:8px;padding:5rem 2.5rem;border:1px solid #E5E7EB;position:relative;overflow:hidden;backdrop-filter:blur(16px)}
-        .cta-box::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(139,92,246,0.04),transparent 60%);pointer-events:none}
-        .cta-box::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#D1D5DB,transparent)}
+        .cta-box{background:#141417;border-radius:8px;padding:5rem 2.5rem;border:1px solid #2a2a2e;position:relative;overflow:hidden;backdrop-filter:blur(16px)}
+        .cta-box::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(10,10,10,0.04),transparent 60%);pointer-events:none}
+        .cta-box::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#3a3a3e,transparent)}
         .cta-box>*{position:relative;z-index:1}
 
         /* ═══ FOOTER ═══ */
-        footer{padding:3rem 2rem;border-top:1px solid #E5E7EB;background:rgba(255,255,255,0.95)}
+        footer{padding:3rem 2rem;border-top:1px solid #2a2a2e;background:rgba(20,20,23,0.95)}
         .footer-inner{max-width:1140px;margin:auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1.5rem}
         .footer-logo{font-size:1.2rem;font-weight:800;letter-spacing:-.5px}
-        .footer-logo span{background:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .footer-logo span{background:linear-gradient(135deg,#1A1A2E,#374151,#6B7280);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
         .footer-links{display:flex;gap:2rem;list-style:none;flex-wrap:wrap}
         .footer-links a{color:var(--text-dim);text-decoration:none;font-size:.85rem;transition:color .3s}
         .footer-links a:hover{color:var(--text)}
@@ -303,31 +368,31 @@
         }
 
         /* ═══ ROI CALCULATOR ═══ */
-        #roi-calc{text-align:center;background:linear-gradient(180deg,transparent,rgba(139,92,246,0.02),transparent)}
-        .roi-box{max-width:800px;margin:0 auto;background:#FFFFFF;border-radius:8px;padding:3rem;border:1px solid #E5E7EB;backdrop-filter:blur(10px)}
+        #roi-calc{text-align:center;background:linear-gradient(180deg,transparent,rgba(99,102,241,0.02),transparent)}
+        .roi-box{max-width:800px;margin:0 auto;background:#141417;border-radius:8px;padding:3rem;border:1px solid #2a2a2e;backdrop-filter:blur(10px)}
         .roi-inputs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem;margin:2rem 0}
         .roi-field label{display:block;font-size:.82rem;color:var(--text-muted);font-weight:600;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.5px}
-        .roi-field input[type=range]{width:100%;accent-color:#1A1A2E;margin:.5rem 0}
-        .roi-field .roi-val{font-size:1.5rem;font-weight:800;color:#1A1A2E}
-        .roi-result{background:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;padding:2rem;margin-top:1.5rem}
-        .roi-result-num{font-size:2.5rem;font-weight:900;margin-bottom:.25rem;color:#1A1A2E}
+        .roi-field input[type=range]{width:100%;accent-color:#e5e7eb;margin:.5rem 0}
+        .roi-field .roi-val{font-size:1.5rem;font-weight:800;color:#e5e7eb}
+        .roi-result{background:#141417;border:1px solid #2a2a2e;border-radius:8px;padding:2rem;margin-top:1.5rem}
+        .roi-result-num{font-size:2.5rem;font-weight:900;margin-bottom:.25rem;color:#e5e7eb}
         .roi-result-label{font-size:.9rem;color:var(--text-muted)}
         .roi-result-row{display:flex;justify-content:center;gap:3rem;margin-top:1rem}
         .roi-stat{text-align:center}
-        .roi-stat-num{font-size:1.3rem;font-weight:800;color:#1A1A2E}
+        .roi-stat-num{font-size:1.3rem;font-weight:800;color:#e5e7eb}
         .roi-stat-label{font-size:.75rem;color:var(--text-muted)}
 
         /* ═══ TESTIMONIALS ═══ */
         #testimonials{text-align:center;position:relative;overflow:hidden}
-        #testimonials::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(circle,rgba(249,250,251,1) 0%,transparent 70%);pointer-events:none}
+        #testimonials::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(circle,rgba(99,102,241,0.05) 0%,transparent 70%);pointer-events:none}
         .testimonials-grid{display:grid;grid-template-columns:1fr 1.2fr;gap:1.5rem;align-items:start}
-        .testimonial-card{position:relative;background:#FFFFFF;backdrop-filter:blur(10px);border-radius:8px;padding:2rem 2rem 1.75rem;border:1px solid #E5E7EB;text-align:left;transition:all .5s var(--ease);overflow:hidden}
-        .testimonial-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#D1D5DB,transparent);opacity:0;transition:opacity .5s}
-        .testimonial-card:hover{transform:translateY(-6px);border-color:#D1D5DB;box-shadow:0 4px 16px rgba(0,0,0,0.06),0 0 30px rgba(249,250,251,1)}
+        .testimonial-card{position:relative;background:#141417;backdrop-filter:blur(10px);border-radius:8px;padding:2rem 2rem 1.75rem;border:1px solid #2a2a2e;text-align:left;transition:all .5s var(--ease);overflow:hidden}
+        .testimonial-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#3a3a3e,transparent);opacity:0;transition:opacity .5s}
+        .testimonial-card:hover{transform:translateY(-6px);border-color:#3a3a3e;box-shadow:0 4px 16px rgba(0,0,0,0.3),0 0 30px rgba(249,250,251,1)}
         .testimonial-card:hover::before{opacity:1}
-        .testimonial-card--hero{background:#FFFFFF;border-color:#E5E7EB}
+        .testimonial-card--hero{background:#141417;border-color:#3a3a3e}
         .testimonial-card--story{grid-row:span 2}
-        .testimonial-card--story .testimonial-story-label{display:inline-flex;align-items:center;gap:.4rem;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#1A1A2E;margin-bottom:1rem;padding:.35rem .85rem;background:#F9FAFB;border-radius:4px;border:1px solid #E5E7EB}
+        .testimonial-card--story .testimonial-story-label{display:inline-flex;align-items:center;gap:.4rem;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#e5e7eb;margin-bottom:1rem;padding:.35rem .85rem;background:#0a0a0a;border-radius:4px;border:1px solid #2a2a2e}
         .testimonial-quote-icon{position:absolute;top:1.25rem;right:1.5rem;width:32px;height:32px;opacity:.08}
         .testimonial-stars{display:flex;gap:2px;margin-bottom:1rem}
         .testimonial-stars svg{width:16px;height:16px;fill:#fbbf24}
@@ -336,33 +401,25 @@
         .testimonial-quote--moment{font-size:1.08rem;color:var(--text);line-height:1.6;font-style:normal}
         .testimonial-quote--story{font-style:normal;font-size:.9rem;color:var(--text-muted);line-height:1.9}
         .testimonial-highlight{display:inline;background:linear-gradient(transparent 60%,rgba(229,231,235,1) 60%)}
-        .testimonial-divider{width:40px;height:1px;background:linear-gradient(90deg,#ffffff,#71717a);margin:1.25rem 0}
+        .testimonial-divider{width:40px;height:1px;background:linear-gradient(90deg,#3a3a3e,#2a2a2e);margin:1.25rem 0}
         .testimonial-author{display:flex;align-items:center;gap:.85rem}
-        .testimonial-avatar{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.95rem;color:#09090B;background:#ffffff;box-shadow:0 4px 12px rgba(0,0,0,0.3);flex-shrink:0}
+        .testimonial-avatar{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.95rem;color:#09090B;background:#141417;box-shadow:0 4px 12px rgba(0,0,0,0.3);flex-shrink:0}
         .testimonial-name{font-size:.9rem;font-weight:700;color:var(--text);display:flex;align-items:center;gap:.5rem}
         .testimonial-name a{color:var(--text-dim);text-decoration:none;transition:color .3s;display:inline-flex;align-items:center}
-        .testimonial-name a:hover{color:#1A1A2E}
+        .testimonial-name a:hover{color:#e5e7eb}
         .testimonial-role{font-size:.78rem;color:var(--text-dim);margin-top:.15rem}
         .testimonial-metric{display:inline-flex;align-items:center;gap:.4rem;background:rgba(16,185,129,0.08);color:#10b981;font-size:.8rem;font-weight:700;padding:.35rem .9rem;border-radius:4px;margin-top:.5rem;border:1px solid rgba(16,185,129,0.15)}
         .testimonial-metric svg{width:14px;height:14px;stroke:#10b981;fill:none;stroke-width:2}
-
-        /* ═══ INTEGRATIONS ═══ */
-        #integrations{text-align:center;background:linear-gradient(180deg,transparent,rgba(139,92,246,0.02),transparent)}
-        .integrations-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem;max-width:800px;margin:0 auto}
-        .integration-card{background:#FFFFFF;border-radius:8px;padding:1.5rem 1rem;border:1px solid #E5E7EB;transition:all .35s var(--ease);text-align:center}
-        .integration-card:hover{border-color:#D1D5DB;transform:translateY(-3px);box-shadow:0 0 20px rgba(249,250,251,1)}
-        .integration-icon{font-size:2rem;margin-bottom:.5rem}
-        .integration-card h4{font-size:.82rem;font-weight:600;color:var(--text-muted)}
 
         /* ═══ DOCTOR PORTAL ═══ */
         #doctor-portal{text-align:center}
         .portal-grid{display:grid;grid-template-columns:1fr 1fr;gap:2.5rem;align-items:center;text-align:left}
         .portal-features{list-style:none}
         .portal-features li{padding:.6rem 0;font-size:.92rem;color:var(--text-muted);display:flex;align-items:center;gap:.75rem}
-        .portal-features li::before{content:'';width:8px;height:8px;border-radius:50%;background:#ffffff;flex-shrink:0}
-        .portal-visual{background:#FFFFFF;border-radius:8px;padding:2rem;border:1px solid #E5E7EB;min-height:320px}
-        .portal-mock-row{display:flex;align-items:center;gap:1rem;padding:.75rem 1rem;border-radius:6px;background:#FFFFFF;margin-bottom:.5rem;border:1px solid #E5E7EB}
-        .portal-mock-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#09090B;background:#ffffff}
+        .portal-features li::before{content:'';width:8px;height:8px;border-radius:50%;background:#141417;flex-shrink:0}
+        .portal-visual{background:#141417;border-radius:8px;padding:2rem;border:1px solid #2a2a2e;min-height:320px}
+        .portal-mock-row{display:flex;align-items:center;gap:1rem;padding:.75rem 1rem;border-radius:6px;background:#141417;margin-bottom:.5rem;border:1px solid #2a2a2e}
+        .portal-mock-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#09090B;background:#141417}
         .portal-mock-info{flex:1}
         .portal-mock-name{font-size:.82rem;font-weight:600}
         .portal-mock-detail{font-size:.72rem;color:var(--text-dim)}
@@ -371,52 +428,52 @@
         /* ═══ INDUSTRY CARDS ═══ */
         #industries{text-align:center}
         .industries-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem}
-        .industry-card{background:#FFFFFF;border-radius:8px;padding:2.5rem 2rem;border:1px solid #E5E7EB;text-align:left;transition:all .45s var(--ease)}
-        .industry-card:hover{transform:translateY(-6px) perspective(800px) rotateX(1deg);border-color:#D1D5DB;box-shadow:0 24px 48px rgba(0,0,0,0.3),0 0 25px rgba(249,250,251,1)}
+        .industry-card{background:#141417;border-radius:8px;padding:2.5rem 2rem;border:1px solid #2a2a2e;text-align:left;transition:all .45s var(--ease)}
+        .industry-card:hover{transform:translateY(-6px) perspective(800px) rotateX(1deg);border-color:#3a3a3e;box-shadow:0 24px 48px rgba(0,0,0,0.3),0 0 25px rgba(249,250,251,1)}
         .industry-card-icon{font-size:2.5rem;margin-bottom:1rem}
         .industry-card h3{font-size:1.15rem;font-weight:700;margin-bottom:.5rem}
         .industry-card p{color:var(--text-muted);font-size:.88rem;margin-bottom:1rem;line-height:1.7}
         .industry-card ul{list-style:none;margin-bottom:1.25rem}
         .industry-card ul li{font-size:.82rem;color:var(--text-muted);padding:.3rem 0;padding-left:1.2rem;position:relative}
-        .industry-card ul li::before{content:'';position:absolute;left:0;top:.55rem;width:6px;height:6px;border-radius:50%;background:#ffffff}
-        .industry-link{color:#374151;font-size:.88rem;font-weight:600;text-decoration:none;transition:color .2s}
-        .industry-link:hover{color:#7C3AED;text-decoration:none}
+        .industry-card ul li::before{content:'';position:absolute;left:0;top:.55rem;width:6px;height:6px;border-radius:50%;background:#141417}
+        .industry-link{color:#9ca3af;font-size:.88rem;font-weight:600;text-decoration:none;transition:color .2s}
+        .industry-link:hover{color:#a5b4fc;text-decoration:none}
 
         /* ═══ FLOATING CHATBOT ═══ */
-        .chat-widget-btn{position:fixed;bottom:24px;right:24px;width:60px;height:60px;border-radius:50%;background:#8B5CF6;border:none;cursor:pointer;z-index:10000;display:flex;align-items:center;justify-content:center;box-shadow:0 0 30px rgba(139,92,246,0.4);transition:transform .3s,box-shadow .3s;opacity:0;pointer-events:none}
+        .chat-widget-btn{position:fixed;bottom:24px;right:24px;width:60px;height:60px;border-radius:50%;background:rgba(99,102,241,0.9);border:none;cursor:pointer;z-index:10000;display:flex;align-items:center;justify-content:center;box-shadow:0 0 30px rgba(10,10,10,0.4);transition:transform .3s,box-shadow .3s;opacity:0;pointer-events:none}
         .chat-widget-btn.visible{opacity:1;pointer-events:auto}
         .chat-widget-btn.bounce{animation:widgetBounce 1s var(--ease) 3}
         @keyframes widgetBounce{0%,100%{transform:translateY(0)}30%{transform:translateY(-12px)}50%{transform:translateY(-4px)}70%{transform:translateY(-8px)}}
-        .chat-widget-btn:hover{transform:scale(1.1);box-shadow:0 0 40px rgba(139,92,246,0.5)}
+        .chat-widget-btn:hover{transform:scale(1.1);box-shadow:0 0 40px rgba(10,10,10,0.5)}
         .chat-widget-btn svg{width:28px;height:28px;fill:#ffffff}
-        .chat-widget-window{position:fixed;bottom:96px;right:24px;width:380px;height:500px;background:#FFFFFF;border-radius:8px;border:1px solid #E5E7EB;box-shadow:0 30px 80px rgba(0,0,0,0.7);z-index:10000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(20px) scale(0.95);opacity:0;pointer-events:none;transition:transform .4s cubic-bezier(.16,1,.3,1),opacity .4s cubic-bezier(.16,1,.3,1)}
+        .chat-widget-window{position:fixed;bottom:96px;right:24px;width:380px;height:500px;background:#141417;border-radius:8px;border:1px solid #2a2a2e;box-shadow:0 30px 80px rgba(0,0,0,0.7);z-index:10000;display:flex;flex-direction:column;overflow:hidden;transform:translateY(20px) scale(0.95);opacity:0;pointer-events:none;transition:transform .4s cubic-bezier(.16,1,.3,1),opacity .4s cubic-bezier(.16,1,.3,1)}
         .chat-widget-window.open{transform:translateY(0) scale(1);opacity:1;pointer-events:auto}
-        .cw-demo-badge{background:#F3F4F6;color:#6B7280;font-size:.65rem;font-weight:700;padding:.15rem .5rem;border-radius:4px;letter-spacing:.5px}
+        .cw-demo-badge{background:#1a1a1e;color:#6B7280;font-size:.65rem;font-weight:700;padding:.15rem .5rem;border-radius:4px;letter-spacing:.5px}
         .cw-quick-btns{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem}
-        .cw-quick-btn{background:#FFFFFF;border:1px solid #E5E7EB;border-radius:4px;padding:.35rem .75rem;font-size:.75rem;color:#374151;cursor:pointer;font-family:inherit;transition:all .2s}
-        .cw-quick-btn:hover{background:#F3F4F6;color:#1A1A2E}
-        .cwh{padding:1rem 1.25rem;background:#FFFFFF;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;gap:.6rem}
-        .cwh-dot{width:8px;height:8px;border-radius:50%;background:#8B5CF6;box-shadow:0 0 10px rgba(139,92,246,0.6)}
+        .cw-quick-btn{background:#141417;border:1px solid #2a2a2e;border-radius:4px;padding:.35rem .75rem;font-size:.75rem;color:#9ca3af;cursor:pointer;font-family:inherit;transition:all .2s}
+        .cw-quick-btn:hover{background:#1a1a1e;color:#e5e7eb}
+        .cwh{padding:1rem 1.25rem;background:#141417;border-bottom:1px solid #2a2a2e;display:flex;align-items:center;gap:.6rem}
+        .cwh-dot{width:8px;height:8px;border-radius:50%;background:rgba(99,102,241,0.9);box-shadow:0 0 10px rgba(10,10,10,0.6)}
         .cwh h4{font-size:.85rem;font-weight:700;flex:1}
         .cwh-close{background:none;border:none;color:var(--text-dim);font-size:1.2rem;cursor:pointer;padding:4px}
         .cw-body{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.5rem}
-        .cw-body::-webkit-scrollbar{width:3px}.cw-body::-webkit-scrollbar-thumb{background:#F3F4F6;border-radius:3px}
+        .cw-body::-webkit-scrollbar{width:3px}.cw-body::-webkit-scrollbar-thumb{background:#1a1a1e;border-radius:3px}
         .cw-msg{max-width:85%;padding:.65rem 1rem;border-radius:6px;font-size:.85rem;line-height:1.7}
-        .cw-msg.bot{background:#FFFFFF;align-self:flex-start;border:1px solid #E5E7EB}
+        .cw-msg.bot{background:#141417;align-self:flex-start;border:1px solid #2a2a2e}
         .cw-msg.user{background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#FFFFFF;align-self:flex-end}
-        .cw-input{display:flex;gap:.4rem;padding:.75rem;border-top:1px solid #E5E7EB}
-        .cw-input input{flex:1;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:6px;padding:.55rem .8rem;color:var(--text);font-size:.85rem;font-family:inherit;outline:none}
-        .cw-input button{background:#8B5CF6;border:none;color:#FFFFFF;width:36px;height:36px;border-radius:6px;cursor:pointer;font-size:1rem}
+        .cw-input{display:flex;gap:.4rem;padding:.75rem;border-top:1px solid #2a2a2e}
+        .cw-input input{flex:1;background:#141417;border:1px solid #2a2a2e;border-radius:6px;padding:.55rem .8rem;color:var(--text);font-size:.85rem;font-family:inherit;outline:none}
+        .cw-input button{background:rgba(99,102,241,0.9);border:none;color:#FFFFFF;width:36px;height:36px;border-radius:6px;cursor:pointer;font-size:1rem}
 
         /* ═══ EXIT POPUP ═══ */
-        .exit-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.06);z-index:20000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px)}
+        .exit-overlay{position:fixed;inset:0;background:rgba(255,255,255,0.08);z-index:20000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px)}
         .exit-overlay.show{display:flex}
-        .exit-popup{background:#F9FAFB;border-radius:8px;padding:3rem;max-width:480px;width:90%;border:1px solid #E5E7EB;box-shadow:0 40px 100px rgba(0,0,0,0.7);text-align:center;position:relative}
+        .exit-popup{background:#0a0a0a;border-radius:8px;padding:3rem;max-width:480px;width:90%;border:1px solid #2a2a2e;box-shadow:0 40px 100px rgba(0,0,0,0.7);text-align:center;position:relative}
         .exit-popup h2{font-size:1.5rem;font-weight:800;margin-bottom:.5rem}
         .exit-popup p{color:var(--text-muted);font-size:.92rem;margin-bottom:1.5rem;line-height:1.7}
         .exit-popup-form{display:flex;gap:.5rem}
-        .exit-popup-form input{flex:1;padding:.75rem 1rem;border-radius:6px;border:1px solid #E5E7EB;background:#FFFFFF;color:var(--text);font-size:.9rem;font-family:inherit;outline:none}
-        .exit-popup-form button{padding:.75rem 1.5rem;border-radius:6px;border:none;background:#8B5CF6;color:#FFFFFF;font-weight:700;font-size:.9rem;cursor:pointer;white-space:nowrap}
+        .exit-popup-form input{flex:1;padding:.75rem 1rem;border-radius:6px;border:1px solid #2a2a2e;background:#141417;color:var(--text);font-size:.9rem;font-family:inherit;outline:none}
+        .exit-popup-form button{padding:.75rem 1.5rem;border-radius:6px;border:none;background:rgba(99,102,241,0.9);color:#FFFFFF;font-weight:700;font-size:.9rem;cursor:pointer;white-space:nowrap}
         .exit-close{position:absolute;top:1rem;right:1rem;background:none;border:none;color:var(--text-dim);font-size:1.5rem;cursor:pointer;line-height:1}
 
         /* ═══ ENHANCED FOOTER ═══ */
@@ -426,9 +483,9 @@
         .footer-col a:hover{color:var(--text)}
         .footer-col p{color:var(--text-dim);font-size:.85rem;line-height:1.7}
         .footer-newsletter{display:flex;gap:.5rem;margin-top:.75rem}
-        .footer-newsletter input{flex:1;padding:.55rem .8rem;border-radius:6px;border:1px solid #E5E7EB;background:#FFFFFF;color:var(--text);font-size:.82rem;font-family:inherit;outline:none}
-        .footer-newsletter button{padding:.55rem 1rem;border-radius:6px;border:none;background:#8B5CF6;color:#FFFFFF;font-size:.82rem;font-weight:600;cursor:pointer}
-        .footer-bottom{border-top:1px solid #E5E7EB;padding-top:1.5rem;display:flex;justify-content:space-between;align-items:center}
+        .footer-newsletter input{flex:1;padding:.55rem .8rem;border-radius:6px;border:1px solid #2a2a2e;background:#141417;color:var(--text);font-size:.82rem;font-family:inherit;outline:none}
+        .footer-newsletter button{padding:.55rem 1rem;border-radius:6px;border:none;background:rgba(99,102,241,0.9);color:#FFFFFF;font-size:.82rem;font-weight:600;cursor:pointer}
+        .footer-bottom{border-top:1px solid #2a2a2e;padding-top:1.5rem;display:flex;justify-content:space-between;align-items:center}
 
         @media(max-width:900px){
             .roi-inputs{grid-template-columns:1fr}
@@ -450,40 +507,36 @@
             .roi-result-row{flex-direction:column;gap:1rem}
             .new-section-grid-3{grid-template-columns:1fr!important}
             .new-section-grid-5{grid-template-columns:repeat(2,1fr)!important}
-            .channel-flow{flex-direction:column}
+
             .dev-section-grid{grid-template-columns:1fr!important}
             .compare-mini{overflow-x:auto}
         }
         @media(max-width:900px){
             .new-section-grid-3{grid-template-columns:1fr}
             .new-section-grid-5{grid-template-columns:repeat(3,1fr)}
-            .channel-flow{flex-wrap:wrap}
+
             .dev-section-grid{grid-template-columns:1fr}
         }
 
         /* ═══ NEW SECTIONS ═══ */
-        .ai-resolution-bar{height:32px;border-radius:4px;background:#FFFFFF;overflow:hidden;position:relative;margin-bottom:.5rem}
+        .ai-resolution-bar{height:32px;border-radius:4px;background:#141417;overflow:hidden;position:relative;margin-bottom:.5rem}
         .ai-resolution-fill{height:100%;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding-right:1rem;font-size:.82rem;font-weight:700;transition:width 1.5s var(--ease)}
-        .channel-icon-card{display:flex;flex-direction:column;align-items:center;gap:.5rem;padding:1.25rem 1rem;background:#FFFFFF;border-radius:8px;border:1px solid #E5E7EB;transition:all .35s var(--ease);text-align:center}
-        .channel-icon-card:hover{border-color:#D1D5DB;transform:translateY(-4px);box-shadow:0 0 20px rgba(249,250,251,1)}
-        .channel-icon-card svg{width:32px;height:32px}
-        .channel-icon-card span{font-size:.78rem;font-weight:600;color:var(--text-muted)}
-        .trust-badge{display:flex;flex-direction:column;align-items:center;gap:.75rem;padding:1.5rem 1rem;background:#FFFFFF;border-radius:8px;border:1px solid #E5E7EB;transition:all .35s;text-align:center}
-        .trust-badge:hover{border-color:#D1D5DB;transform:translateY(-3px)}
-        .trust-badge-icon{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.3rem;background:#FFFFFF;border:1px solid #E5E7EB}
+        .trust-badge{display:flex;flex-direction:column;align-items:center;gap:.75rem;padding:1.5rem 1rem;background:#141417;border-radius:8px;border:1px solid #2a2a2e;transition:all .35s;text-align:center}
+        .trust-badge:hover{border-color:#3a3a3e;transform:translateY(-3px)}
+        .trust-badge-icon{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.3rem;background:#141417;border:1px solid #2a2a2e}
         .trust-badge h4{font-size:.88rem;font-weight:700}
-        .code-block{background:rgba(0,0,0,0.04);border-radius:8px;padding:1.5rem;border:1px solid #E5E7EB;font-family:'Menlo','Monaco','Courier New',monospace;font-size:.78rem;line-height:1.9;color:#374151;overflow-x:auto;text-align:left}
-        .code-block .kw{color:#1A1A2E}.code-block .str{color:#6B7280}.code-block .cm{color:#52525b}.code-block .fn{color:#374151}
+        .code-block{background:rgba(255,255,255,0.06);border-radius:8px;padding:1.5rem;border:1px solid #2a2a2e;font-family:'Menlo','Monaco','Courier New',monospace;font-size:.78rem;line-height:1.9;color:#9ca3af;overflow-x:auto;text-align:left}
+        .code-block .kw{color:#e5e7eb}.code-block .str{color:#6B7280}.code-block .cm{color:#52525b}.code-block .fn{color:#9ca3af}
         .agent-scroll{display:flex;gap:1rem;overflow-x:auto;padding-bottom:1rem;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
-        .agent-scroll::-webkit-scrollbar{height:4px}.agent-scroll::-webkit-scrollbar-thumb{background:#F3F4F6;border-radius:4px}
-        .agent-mini-card{min-width:200px;max-width:200px;scroll-snap-align:start;background:#FFFFFF;border-radius:8px;padding:1.25rem;border:1px solid #E5E7EB;transition:all .35s;flex-shrink:0}
-        .agent-mini-card:hover{border-color:#D1D5DB;transform:translateY(-3px)}
+        .agent-scroll::-webkit-scrollbar{height:4px}.agent-scroll::-webkit-scrollbar-thumb{background:#1a1a1e;border-radius:4px}
+        .agent-mini-card{min-width:200px;max-width:200px;scroll-snap-align:start;background:#141417;border-radius:8px;padding:1.25rem;border:1px solid #2a2a2e;transition:all .35s;flex-shrink:0}
+        .agent-mini-card:hover{border-color:#3a3a3e;transform:translateY(-3px)}
         .agent-mini-card .agent-icon{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:.75rem}
         .agent-mini-card h4{font-size:.88rem;font-weight:700;margin-bottom:.25rem}
         .agent-mini-card p{font-size:.75rem;color:var(--text-muted);line-height:1.6}
         .integration-logo-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:1rem;max-width:900px;margin:0 auto}
-        .integration-logo{display:flex;flex-direction:column;align-items:center;gap:.5rem;padding:1rem .75rem;background:#FFFFFF;border-radius:8px;border:1px solid #E5E7EB;transition:all .3s;text-align:center}
-        .integration-logo:hover{border-color:#D1D5DB;transform:translateY(-3px)}
+        .integration-logo{display:flex;flex-direction:column;align-items:center;gap:.5rem;padding:1rem .75rem;background:#141417;border-radius:8px;border:1px solid #2a2a2e;transition:all .3s;text-align:center}
+        .integration-logo:hover{border-color:#3a3a3e;transform:translateY(-3px)}
         .integration-logo span{font-size:1.6rem}
         .integration-logo small{font-size:.72rem;color:var(--text-muted);font-weight:600}
         @media(max-width:900px){.integration-logo-grid{grid-template-columns:repeat(4,1fr)}}
@@ -491,9 +544,9 @@
 
         /* ═══ Setup Roadmap ═══ */
         .roadmap-tabs{display:flex;gap:.5rem;justify-content:center;margin-bottom:3rem;flex-wrap:wrap}
-        .roadmap-tab{padding:.7rem 2rem;border-radius:6px;font-size:.92rem;font-weight:700;cursor:pointer;border:1px solid #E5E7EB;background:#FFFFFF;color:var(--text-muted);transition:all .3s var(--ease);font-family:inherit}
-        .roadmap-tab:hover{border-color:#D1D5DB;color:var(--text)}
-        .roadmap-tab.active{background:#8B5CF6;color:#FFFFFF;border-color:transparent;box-shadow:0 0 20px rgba(139,92,246,0.3)}
+        .roadmap-tab{padding:.7rem 2rem;border-radius:6px;font-size:.92rem;font-weight:700;cursor:pointer;border:1px solid #2a2a2e;background:#141417;color:var(--text-muted);transition:all .3s var(--ease);font-family:inherit}
+        .roadmap-tab:hover{border-color:#3a3a3e;color:var(--text)}
+        .roadmap-tab.active{background:rgba(99,102,241,0.9);color:#FFFFFF;border-color:transparent;box-shadow:0 0 20px rgba(99,102,241,0.3)}
         .roadmap-panel{display:none}
         .roadmap-panel.active{display:block}
         .roadmap-timeline{position:relative;max-width:780px;margin:0 auto}
@@ -501,54 +554,54 @@
         .rm-step{position:relative;padding-left:72px;margin-bottom:2.5rem}
         .rm-step:last-child{margin-bottom:0}
         .rm-step-num{position:absolute;left:8px;top:0;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1rem;color:#09090B;z-index:2}
-        .rm-step-num.purple{background:#ffffff;box-shadow:0 0 20px rgba(209,213,219,1)}
+        .rm-step-num.purple{background:#141417;box-shadow:0 0 20px rgba(209,213,219,1)}
         .rm-step-num.blue{background:#6366F1;box-shadow:0 0 15px rgba(243,244,246,1)}
         .rm-step-num.cyan{background:#06B6D4;box-shadow:0 0 15px rgba(229,231,235,1)}
         .rm-step-num.green{background:#10B981;box-shadow:0 0 15px rgba(229,231,235,1)}
-        .rm-step-num.amber{background:#71717a;color:#1A1A2E;box-shadow:0 0 15px rgba(243,244,246,1)}
-        .rm-step-card{background:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;padding:1.5rem 1.75rem;transition:all .35s var(--ease)}
-        .rm-step-card:hover{border-color:#D1D5DB;transform:translateX(6px);box-shadow:0 0 20px rgba(249,250,251,1)}
+        .rm-step-num.amber{background:#71717a;color:#e5e7eb;box-shadow:0 0 15px rgba(243,244,246,1)}
+        .rm-step-card{background:#141417;border:1px solid #2a2a2e;border-radius:8px;padding:1.5rem 1.75rem;transition:all .35s var(--ease)}
+        .rm-step-card:hover{border-color:#3a3a3e;transform:translateX(6px);box-shadow:0 0 20px rgba(249,250,251,1)}
         .rm-step-card h3{font-size:1.1rem;font-weight:800;margin-bottom:.5rem;display:flex;align-items:center;gap:.6rem}
         .rm-step-card h3 span{font-size:1.1rem}
         .rm-step-card p{color:var(--text-muted);font-size:.9rem;line-height:1.75;margin:0}
         .rm-step-card .rm-tag{display:inline-block;padding:.2rem .65rem;border-radius:4px;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:.6rem}
         .rm-tag-auto{background:rgba(16,185,129,0.08);color:#10b981;border:1px solid rgba(16,185,129,0.2)}
-        .rm-tag-quick{background:#FFFFFF;color:#6B7280;border:1px solid #E5E7EB}
-        .rm-tag-paste{background:#FFFFFF;color:#6B7280;border:1px solid #E5E7EB}
+        .rm-tag-quick{background:#141417;color:#6B7280;border:1px solid #2a2a2e}
+        .rm-tag-paste{background:#141417;color:#6B7280;border:1px solid #2a2a2e}
         .rm-done-banner{text-align:center;margin-top:2.5rem;padding:2rem;background:rgba(16,185,129,0.03);border:1px solid rgba(16,185,129,0.12);border-radius:8px}
         .rm-done-banner h3{font-size:1.3rem;font-weight:800;margin-bottom:.4rem;color:#10b981}
         .rm-done-banner p{color:var(--text-muted);font-size:.92rem;margin:0 0 1rem}
         .rm-time{display:inline-flex;align-items:center;gap:.4rem;font-size:.78rem;font-weight:600;color:var(--text-dim);margin-top:.75rem}
         .rm-time svg{opacity:.5}
-        .rm-preview{margin-top:1rem;border-radius:12px;overflow:hidden;border:1px solid #E5E7EB;background:rgba(0,0,0,0.2)}
-        .rm-preview-bar{display:flex;align-items:center;gap:6px;padding:6px 12px;background:#FFFFFF;border-bottom:1px solid rgba(243,244,246,1)}
+        .rm-preview{margin-top:1rem;border-radius:12px;overflow:hidden;border:1px solid #2a2a2e;background:rgba(0,0,0,0.2)}
+        .rm-preview-bar{display:flex;align-items:center;gap:6px;padding:6px 12px;background:#141417;border-bottom:1px solid #2a2a2e}
         .rm-preview-dot{width:8px;height:8px;border-radius:50%}
         .rm-preview-body{padding:12px 14px;font-size:.78rem;color:var(--text-dim);line-height:1.7}
-        .rm-preview-body .rm-field{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;margin-bottom:6px;font-size:.75rem;color:var(--text-muted)}
+        .rm-preview-body .rm-field{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#141417;border:1px solid #2a2a2e;border-radius:8px;margin-bottom:6px;font-size:.75rem;color:var(--text-muted)}
         .rm-preview-body .rm-field-label{color:var(--text-dim);min-width:90px;font-weight:600;font-size:.7rem;text-transform:uppercase;letter-spacing:.5px}
         .rm-preview-body .rm-field-val{color:var(--text-muted)}
         .rm-product-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
-        .rm-product-card{background:#FFFFFF;border:1px solid #E5E7EB;border-radius:10px;padding:10px;text-align:center}
+        .rm-product-card{background:#141417;border:1px solid #2a2a2e;border-radius:10px;padding:10px;text-align:center}
         .rm-product-img{width:100%;aspect-ratio:1;border-radius:8px;margin-bottom:6px;display:flex;align-items:center;justify-content:center;font-size:2rem}
         .rm-product-name{font-size:.72rem;font-weight:700;color:var(--text);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .rm-product-price{font-size:.7rem;color:#34d399;font-weight:700}
         .rm-product-variants{font-size:.62rem;color:var(--text-dim);margin-top:2px}
         .rm-chat-bubble{padding:8px 12px;border-radius:12px;font-size:.78rem;line-height:1.6;margin-bottom:6px;max-width:85%}
-        .rm-chat-user{background:#F3F4F6;color:#374151;border:1px solid #E5E7EB;margin-left:auto;border-bottom-right-radius:4px}
-        .rm-chat-bot{background:#FFFFFF;color:var(--text-muted);border:1px solid #E5E7EB;border-bottom-left-radius:4px}
-        .rm-code-box{background:rgba(0,0,0,0.03);border:1px solid #E5E7EB;border-radius:6px;padding:10px 12px;font-family:'SF Mono',monospace;font-size:.7rem;color:#6B7280;line-height:1.8;overflow-x:auto;margin-top:8px}
-        .rm-doc-row{display:flex;align-items:center;gap:10px;padding:8px 10px;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;margin-bottom:6px}
-        .rm-doc-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;color:#1A1A2E;flex-shrink:0}
+        .rm-chat-user{background:#1a1a1e;color:#9ca3af;border:1px solid #2a2a2e;margin-left:auto;border-bottom-right-radius:4px}
+        .rm-chat-bot{background:#141417;color:var(--text-muted);border:1px solid #2a2a2e;border-bottom-left-radius:4px}
+        .rm-code-box{background:rgba(255,255,255,0.04);border:1px solid #2a2a2e;border-radius:6px;padding:10px 12px;font-family:'SF Mono',monospace;font-size:.7rem;color:#6B7280;line-height:1.8;overflow-x:auto;margin-top:8px}
+        .rm-doc-row{display:flex;align-items:center;gap:10px;padding:8px 10px;background:#141417;border:1px solid #2a2a2e;border-radius:8px;margin-bottom:6px}
+        .rm-doc-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;color:#e5e7eb;flex-shrink:0}
         .rm-doc-info{font-size:.75rem;line-height:1.5}
         .rm-doc-name{font-weight:700;color:var(--text)}
         .rm-doc-spec{color:var(--text-dim);font-size:.68rem}
-        .rm-svc-row{display:flex;justify-content:space-between;align-items:center;padding:5px 10px;background:#FFFFFF;border-radius:6px;margin-bottom:4px;font-size:.72rem}
+        .rm-svc-row{display:flex;justify-content:space-between;align-items:center;padding:5px 10px;background:#141417;border-radius:6px;margin-bottom:4px;font-size:.72rem}
         .rm-svc-name{color:var(--text-muted);font-weight:600}
         .rm-svc-price{color:#34d399;font-weight:700}
-        .rm-order-row{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;margin-bottom:5px;font-size:.72rem}
+        .rm-order-row{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#141417;border:1px solid #2a2a2e;border-radius:8px;margin-bottom:5px;font-size:.72rem}
         .rm-order-status{padding:2px 8px;border-radius:4px;font-size:.62rem;font-weight:700;text-transform:uppercase}
         .rm-features-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:8px}
-        .rm-feature-pill{display:flex;align-items:center;gap:6px;padding:6px 10px;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;font-size:.7rem;color:var(--text-muted)}
+        .rm-feature-pill{display:flex;align-items:center;gap:6px;padding:6px 10px;background:#141417;border:1px solid #2a2a2e;border-radius:8px;font-size:.7rem;color:var(--text-muted)}
         .rm-feature-pill span{font-size:.85rem}
         @media(max-width:640px){
             .rm-step{padding-left:60px;margin-bottom:2rem}
@@ -572,36 +625,36 @@
             <li>
                 <a href="#" class="nav-dropdown-trigger" onclick="return false">Product <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
                 <div class="nav-dropdown">
-                    <a href="#features"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#9889;</span><div>Features<small>All platform capabilities</small></div></a>
-                    <a href="/ai-technology"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#129302;</span><div>AI Technology<small>Model transparency</small></div></a>
-                    <a href="/integrations"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128268;</span><div>Integrations<small>Connect your stack</small></div></a>
-                    <a href="/trust-center"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128274;</span><div>Trust Center<small>Security &amp; compliance</small></div></a>
-                    <a href="/agent-marketplace"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#129302;</span><div>Agent Marketplace<small>Pre-built AI agents</small></div></a>
-                    <a href="/voice-agent"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#127908;</span><div>Voice AI<small>Voice-powered calls</small></div></a>
-                    <a href="/mobile-app"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128241;</span><div>Mobile App<small>iOS &amp; Android</small></div></a>
+                    <a href="#features"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#9889;</span><div>Features<small>All platform capabilities</small></div></a>
+                    <a href="/ai-technology"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#129302;</span><div>AI Technology<small>Model transparency</small></div></a>
+                    <a href="/integrations"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#128268;</span><div>Integrations<small>Connect your stack</small></div></a>
+                    <a href="/trust-center"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#128274;</span><div>Trust Center<small>Security &amp; compliance</small></div></a>
+                    <a href="/agent-marketplace"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#129302;</span><div>Agent Marketplace<small>Pre-built AI agents</small></div></a>
+                    <a href="/voice-agent"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#127908;</span><div>Voice AI<small>Voice-powered calls</small></div></a>
+                    <a href="/mobile-app"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#128241;</span><div>Mobile App<small>iOS &amp; Android</small></div></a>
                 </div>
             </li>
             <li><a href="/pricing-plans">Pricing</a></li>
             <li>
                 <a href="#" class="nav-dropdown-trigger" onclick="return false">Resources <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
                 <div class="nav-dropdown">
-                    <a href="/developers"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128187;</span><div>API Docs<small>Developer portal</small></div></a>
-                    <a href="/compare"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128200;</span><div>Compare<small>vs Intercom, Tidio</small></div></a>
-                    <a href="/partners"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#129309;</span><div>Partner Program<small>Earn commissions</small></div></a>
-                    <a href="/blog"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128221;</span><div>Blog &amp; Guides<small>Tips &amp; insights</small></div></a>
-                    <a href="/case-studies"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128202;</span><div>Case Studies<small>Real results</small></div></a>
+                    <a href="/developers"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#128187;</span><div>API Docs<small>Developer portal</small></div></a>
+                    <a href="/compare"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#128200;</span><div>Compare<small>vs Intercom, Tidio</small></div></a>
+                    <a href="/partners"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#129309;</span><div>Partner Program<small>Earn commissions</small></div></a>
+                    <a href="/blog"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#128221;</span><div>Blog &amp; Guides<small>Tips &amp; insights</small></div></a>
+                    <a href="/case-studies"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#128202;</span><div>Case Studies<small>Real results</small></div></a>
                 </div>
             </li>
             <li>
                 <a href="#" class="nav-dropdown-trigger" onclick="return false">Use Cases <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
                 <div class="nav-dropdown">
-                    <a href="/for-dental-clinics"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#129463;</span><div>Dental Clinics<small>Bookings &amp; recalls</small></div></a>
-                    <a href="/for-medical-practices"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#127973;</span><div>Medical Practices<small>Patient engagement</small></div></a>
-                    <a href="/for-salons-spas"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128135;</span><div>Salons &amp; Spas<small>Beauty appointments</small></div></a>
+                    <a href="/for-dental-clinics"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#129463;</span><div>Dental Clinics<small>Bookings &amp; recalls</small></div></a>
+                    <a href="/for-medical-practices"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#127973;</span><div>Medical Practices<small>Patient engagement</small></div></a>
+                    <a href="/for-salons-spas"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#128135;</span><div>Salons &amp; Spas<small>Beauty appointments</small></div></a>
                 </div>
             </li>
             <li><a href="/login" class="nav-btn-outline">Log In</a></li>
-            <li><a href="/login?signup=1" class="nav-btn">Start Free</a></li>
+            <li><a href="/login?signup=1" class="nav-btn btn-neon">Start Free</a></li>
         </ul>
         <button class="hamburger" onclick="document.querySelector('.mobile-menu').classList.toggle('open')">&#9776;</button>
     </div>
@@ -623,40 +676,242 @@
         <a href="/for-medical-practices">Medical</a>
         <a href="/for-salons-spas">Salons</a>
         <a href="/login">Log In</a>
-        <a href="/login?signup=1" style="color:#1A1A2E;font-weight:700">Start Free</a>
+        <a href="/login?signup=1" style="color:#e5e7eb;font-weight:700">Start Free</a>
     </div>
 </nav>
 
-<!-- ═══ 1. HERO ═══ -->
+<!-- ═══ 1. HERO — Dark Geometric ═══ -->
 <section id="hero">
-    <div class="container">
-        <div class="hero-badge"><span class="dot"></span> Built for dental &amp; healthcare practices</div>
-        <h1 class="hero-title">Your Front Desk Just<br>Got a <span class="gradient-text-animated">Night Shift</span></h1>
-        <p class="hero-sub">ChatGenius books cleanings at 2 AM, reschedules no-shows before coffee, and flags patients asking about implants — so your team wakes up to a full calendar.</p>
+    <!-- Grid background -->
+    <div class="hero-grid"></div>
+    <!-- Floating geometric shapes -->
+    <div class="hero-shape hero-shape-1"></div>
+    <div class="hero-shape hero-shape-2"></div>
+    <div class="hero-shape hero-shape-3"></div>
+    <div class="hero-shape hero-shape-4"></div>
+    <div class="hero-shape hero-shape-5"></div>
+
+    <div class="container hero-content">
+        <div class="hero-badge"><span class="dot"></span> AI-Powered Patient Engagement</div>
+        <h1 class="hero-title">
+            <span class="hero-line1">Your AI Receptionist</span><br>
+            <span class="hero-line2">Never Sleeps</span>
+        </h1>
+        <p class="hero-sub">Book appointments at 2 AM. Recall lapsed patients automatically. Cut no-shows by 40%. ChatGenius turns every missed call into revenue &mdash; while your team sleeps.</p>
         <div class="hero-btns">
-            <a href="/login?signup=1" class="btn-primary">Start 14-Day Free Trial &rarr;</a>
-            <a href="#roi-calc" class="btn-secondary" style="border-color:rgba(52,211,153,0.25);color:var(--green)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg> Free Guide: 5 Ways Clinics Lose $10K/Month</a>
+            <a href="/login?signup=1" class="btn-neon solid" style="border-radius:10px">Get Started &rarr;</a>
         </div>
         <p class="hero-trust">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            Paste one line of code &mdash; Live in 10 minutes &mdash; No credit card required
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            One line of code &middot; Live in 10 min &middot; No credit card
         </p>
         <div class="hero-metrics">
             <div class="hero-metric">
-                <div class="hero-metric-num gradient-text">&lt;2s</div>
+                <div class="hero-metric-num">&lt;2s</div>
                 <div class="hero-metric-label">Response Time</div>
             </div>
             <div class="hero-metric">
-                <div class="hero-metric-num gradient-text">24/7</div>
+                <div class="hero-metric-num">24/7</div>
                 <div class="hero-metric-label">Always Online</div>
             </div>
             <div class="hero-metric">
-                <div class="hero-metric-num gradient-text">10+</div>
-                <div class="hero-metric-label">Languages</div>
+                <div class="hero-metric-num">40%</div>
+                <div class="hero-metric-label">Fewer No-Shows</div>
             </div>
             <div class="hero-metric">
-                <div class="hero-metric-num gradient-text">99.9%</div>
-                <div class="hero-metric-label">Uptime SLA</div>
+                <div class="hero-metric-num">$12K+</div>
+                <div class="hero-metric-label">Avg Monthly ROI</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard preview with glow -->
+    <div class="hero-dashboard-preview">
+        <img src="/static/img/dashboard-preview.png" alt="ChatGenius Dashboard Preview" onerror="this.parentElement.style.display='none'">
+        <div class="hero-dashboard-fade"></div>
+    </div>
+
+    <!-- Radial cutoff at bottom -->
+    <div class="hero-radial"></div>
+</section>
+
+<!-- ═══ TRUSTED BY ═══ -->
+<section id="trusted-by" class="sparkle-section">
+    <div class="container">
+        <div class="trusted-title">Integrates With Your Favorite Tools</div>
+        <div class="logo-slider">
+            <div class="logo-track">
+                <svg viewBox="0 0 120 30" fill="white" style="height:22px"><text x="0" y="22" font-family="Inter,sans-serif" font-weight="800" font-size="20">WhatsApp</text></svg>
+                <svg viewBox="0 0 110 30" fill="white" style="height:22px"><text x="0" y="22" font-family="Inter,sans-serif" font-weight="800" font-size="20">Instagram</text></svg>
+                <svg viewBox="0 0 80 30" fill="white" style="height:22px"><text x="0" y="22" font-family="Inter,sans-serif" font-weight="800" font-size="20">Twilio</text></svg>
+                <svg viewBox="0 0 100 30" fill="white" style="height:22px"><text x="0" y="22" font-family="Inter,sans-serif" font-weight="800" font-size="20">Calendly</text></svg>
+                <svg viewBox="0 0 100 30" fill="white" style="height:22px"><text x="0" y="22" font-family="Inter,sans-serif" font-weight="800" font-size="20">Mailchimp</text></svg>
+                <svg viewBox="0 0 70 30" fill="white" style="height:22px"><text x="0" y="22" font-family="Inter,sans-serif" font-weight="800" font-size="20">Zapier</text></svg>
+                <svg viewBox="0 0 130 30" fill="white" style="height:22px"><text x="0" y="22" font-family="Inter,sans-serif" font-weight="800" font-size="20">Google Cal</text></svg>
+                <svg viewBox="0 0 70 30" fill="white" style="height:22px"><text x="0" y="22" font-family="Inter,sans-serif" font-weight="800" font-size="20">Dentrix</text></svg>
+                <!-- Duplicate for seamless loop -->
+                <svg viewBox="0 0 120 30" fill="white" style="height:22px"><text x="0" y="22" font-family="Inter,sans-serif" font-weight="800" font-size="20">WhatsApp</text></svg>
+                <svg viewBox="0 0 110 30" fill="white" style="height:22px"><text x="0" y="22" font-family="Inter,sans-serif" font-weight="800" font-size="20">Instagram</text></svg>
+                <svg viewBox="0 0 80 30" fill="white" style="height:22px"><text x="0" y="22" font-family="Inter,sans-serif" font-weight="800" font-size="20">Twilio</text></svg>
+                <svg viewBox="0 0 100 30" fill="white" style="height:22px"><text x="0" y="22" font-family="Inter,sans-serif" font-weight="800" font-size="20">Calendly</text></svg>
+                <svg viewBox="0 0 100 30" fill="white" style="height:22px"><text x="0" y="22" font-family="Inter,sans-serif" font-weight="800" font-size="20">Mailchimp</text></svg>
+                <svg viewBox="0 0 70 30" fill="white" style="height:22px"><text x="0" y="22" font-family="Inter,sans-serif" font-weight="800" font-size="20">Zapier</text></svg>
+                <svg viewBox="0 0 130 30" fill="white" style="height:22px"><text x="0" y="22" font-family="Inter,sans-serif" font-weight="800" font-size="20">Google Cal</text></svg>
+                <svg viewBox="0 0 70 30" fill="white" style="height:22px"><text x="0" y="22" font-family="Inter,sans-serif" font-weight="800" font-size="20">Dentrix</text></svg>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ ANALYTICS PREVIEW ═══ -->
+<section id="analytics-preview">
+    <div class="container">
+        <div class="section-label">Real-Time Intelligence</div>
+        <h2 class="section-title">See Every Metric That Matters</h2>
+        <p class="section-sub">Track bookings, leads, conversions, and revenue in real time. Know exactly how your AI assistant is performing &mdash; down to the dollar.</p>
+        <div class="analytics-card">
+            <canvas id="heroChart"></canvas>
+            <div class="analytics-stats">
+                <div class="analytics-stat">
+                    <div class="analytics-stat-num">247</div>
+                    <div class="analytics-stat-label">Bookings / Month</div>
+                </div>
+                <div class="analytics-stat">
+                    <div class="analytics-stat-num">89%</div>
+                    <div class="analytics-stat-label">AI Resolution</div>
+                </div>
+                <div class="analytics-stat">
+                    <div class="analytics-stat-num">$12.4K</div>
+                    <div class="analytics-stat-label">Monthly ROI</div>
+                </div>
+                <div class="analytics-stat">
+                    <div class="analytics-stat-num">1.8s</div>
+                    <div class="analytics-stat-label">Avg Response</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+// Analytics preview chart
+document.addEventListener('DOMContentLoaded', function(){
+    var ctx = document.getElementById('heroChart');
+    if(!ctx || typeof Chart === 'undefined') return;
+    new Chart(ctx.getContext('2d'), {
+        type:'line',
+        data:{
+            labels:['Jan','Feb','Mar','Apr','May','Jun'],
+            datasets:[
+                {label:'Bookings',data:[120,210,180,160,190,247],borderColor:'rgba(239,68,68,0.6)',backgroundColor:'rgba(239,68,68,0.08)',fill:true,tension:0.4,borderWidth:2,pointRadius:0},
+                {label:'AI Conversations',data:[80,140,120,100,130,165],borderColor:'rgba(6,182,212,0.6)',backgroundColor:'rgba(6,182,212,0.08)',fill:true,tension:0.4,borderWidth:2,pointRadius:0}
+            ]
+        },
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#9CA3AF',font:{size:12}}},y:{display:false}},interaction:{intersect:false,mode:'index'}}
+    });
+});
+</script>
+
+
+<!-- ═══ DISPLAY CARDS — Feature Showcase ═══ -->
+<section id="feature-showcase" style="text-align:center;background:linear-gradient(180deg,transparent,rgba(99,102,241,0.02),transparent)">
+<style>
+.showcase-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:3rem}
+.showcase-card{background:#141417;border-radius:16px;padding:0;border:1px solid #2a2a2e;overflow:hidden;transition:all .5s var(--ease);position:relative}
+.showcase-card:hover{transform:translateY(-8px) perspective(1000px) rotateX(2deg);box-shadow:0 20px 50px rgba(0,0,0,0.08);border-color:#3a3a3e}
+.showcase-card-visual{height:180px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.showcase-card-visual::after{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,transparent 60%,#0a0a0a)}
+.showcase-card-body{padding:1.5rem 1.75rem 2rem;text-align:left}
+.showcase-card-tag{display:inline-block;padding:.2rem .7rem;border-radius:4px;font-size:.65rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:.75rem}
+.showcase-card h3{font-size:1.1rem;font-weight:800;margin-bottom:.5rem;letter-spacing:-.01em}
+.showcase-card p{color:#6B7280;font-size:.88rem;line-height:1.8}
+.showcase-card-big{grid-column:span 2;display:grid;grid-template-columns:1fr 1fr;overflow:hidden}
+.showcase-card-big .showcase-card-visual{height:auto;min-height:260px}
+.showcase-card-big .showcase-card-visual::after{background:linear-gradient(to right,transparent 60%,#0a0a0a)}
+.showcase-card-big .showcase-card-body{display:flex;flex-direction:column;justify-content:center;padding:2.5rem}
+/* Visual decoration inside cards */
+.sc-wave{position:absolute;width:200%;height:200%;top:10%;left:-50%;background:conic-gradient(from 0deg,rgba(99,102,241,0.08),rgba(244,63,94,0.08),rgba(6,182,212,0.08),rgba(99,102,241,0.08));animation:scSpin 20s linear infinite;border-radius:40%}
+@keyframes scSpin{to{transform:rotate(360deg)}}
+.sc-grid-dots{position:absolute;inset:0;background-image:radial-gradient(circle,rgba(0,0,0,0.06) 1px,transparent 1px);background-size:20px 20px}
+.sc-float-icon{position:absolute;font-size:3rem;opacity:.15;animation:float 6s ease-in-out infinite}
+.sc-pulse-ring{position:absolute;width:80px;height:80px;border-radius:50%;border:2px solid rgba(99,102,241,0.15);animation:scPulse 3s ease-in-out infinite}
+@keyframes scPulse{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(1.4);opacity:0}}
+@media(max-width:900px){.showcase-grid{grid-template-columns:1fr}.showcase-card-big{grid-column:span 1;grid-template-columns:1fr}.showcase-card-big .showcase-card-visual{min-height:180px}}
+</style>
+    <div class="container">
+        <div class="section-label">Platform Capabilities</div>
+        <h2 class="section-title">Built for <span class="gradient-text">Growth</span></h2>
+        <p class="section-sub">Every tool you need to automate patient engagement, from first contact to rebooking.</p>
+
+        <div class="showcase-grid">
+            <!-- Big card: Voice AI -->
+            <div class="showcase-card showcase-card-big">
+                <div class="showcase-card-visual" style="background:linear-gradient(135deg,#EEF2FF,#F0FDFA)">
+                    <div class="sc-wave"></div>
+                    <div class="sc-grid-dots"></div>
+                    <svg style="position:relative;z-index:2;opacity:.6" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="#6366F1" stroke-width="1" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                </div>
+                <div class="showcase-card-body">
+                    <span class="showcase-card-tag" style="background:rgba(99,102,241,0.1);color:#6366F1">Voice AI</span>
+                    <h3>Human-Like Voice Calls</h3>
+                    <p>Your AI receptionist answers calls, books appointments, and handles inquiries with natural conversation. Patients can't tell the difference.</p>
+                    <a href="/voice-agent" class="btn-neon" style="margin-top:1.5rem;padding:.7rem 1.8rem;font-size:.88rem;width:fit-content">Explore Voice AI &rarr;</a>
+                </div>
+            </div>
+
+            <!-- Flow Builder -->
+            <div class="showcase-card">
+                <div class="showcase-card-visual" style="background:linear-gradient(135deg,#FFF7ED,#FEF3C7)">
+                    <div class="sc-grid-dots"></div>
+                    <svg style="position:relative;z-index:2;opacity:.5" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="8" y="14" width="7" height="7" rx="1"/><path d="M6.5 10v1.5a1 1 0 0 0 1 1h2M17.5 10v1.5a1 1 0 0 1-1 1h-2"/></svg>
+                </div>
+                <div class="showcase-card-body">
+                    <span class="showcase-card-tag" style="background:rgba(245,158,11,0.1);color:#D97706">Drag & Drop</span>
+                    <h3>Visual Flow Builder</h3>
+                    <p>Design conversation flows without code. Drag, drop, connect nodes, and deploy in minutes.</p>
+                </div>
+            </div>
+
+            <!-- Smart Scheduling -->
+            <div class="showcase-card">
+                <div class="showcase-card-visual" style="background:linear-gradient(135deg,#ECFDF5,#D1FAE5)">
+                    <div class="sc-grid-dots"></div>
+                    <svg style="position:relative;z-index:2;opacity:.5" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
+                </div>
+                <div class="showcase-card-body">
+                    <span class="showcase-card-tag" style="background:rgba(16,185,129,0.1);color:#059669">Scheduling</span>
+                    <h3>Smart Appointment AI</h3>
+                    <p>Auto-book, reschedule, and send reminders. Syncs with your calendar in real time.</p>
+                </div>
+            </div>
+
+            <!-- Patient Recall -->
+            <div class="showcase-card">
+                <div class="showcase-card-visual" style="background:linear-gradient(135deg,#FFF1F2,#FFE4E6)">
+                    <div class="sc-grid-dots"></div>
+                    <svg style="position:relative;z-index:2;opacity:.5" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#F43F5E" stroke-width="1.5" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                </div>
+                <div class="showcase-card-body">
+                    <span class="showcase-card-tag" style="background:rgba(244,63,94,0.1);color:#E11D48">Reactivation</span>
+                    <h3>Patient Recall Engine</h3>
+                    <p>Automatically re-engage lapsed patients with personalized outreach across SMS, email, and WhatsApp.</p>
+                </div>
+            </div>
+
+            <!-- Big card: Analytics -->
+            <div class="showcase-card showcase-card-big">
+                <div class="showcase-card-visual" style="background:linear-gradient(135deg,#ECFEFF,#CFFAFE)">
+                    <div class="sc-wave" style="background:conic-gradient(from 90deg,rgba(6,182,212,0.08),rgba(14,165,233,0.08),rgba(59,130,246,0.08),rgba(6,182,212,0.08))"></div>
+                    <div class="sc-grid-dots"></div>
+                    <svg style="position:relative;z-index:2;opacity:.5" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="#06B6D4" stroke-width="1" stroke-linecap="round"><path d="M18 20V10M12 20V4M6 20v-6"/><rect x="2" y="2" width="20" height="20" rx="2" stroke-width=".5"/></svg>
+                </div>
+                <div class="showcase-card-body">
+                    <span class="showcase-card-tag" style="background:rgba(6,182,212,0.1);color:#0891B2">Analytics</span>
+                    <h3>Revenue Intelligence Dashboard</h3>
+                    <p>Track every conversation, booking, and dollar. See which channels drive ROI, spot trends before they happen, and make data-driven decisions with real-time insights.</p>
+                    <a href="/login?signup=1" class="btn-neon" style="margin-top:1.5rem;padding:.7rem 1.8rem;font-size:.88rem;width:fit-content">View Dashboard &rarr;</a>
+                </div>
             </div>
         </div>
     </div>
@@ -667,35 +922,35 @@
 <style>
 .md-container{max-width:1140px;margin:auto}
 .md-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:2rem;margin-top:2.5rem}
-.md-card{background:#FFFFFF;border:1px solid #E5E7EB;border-radius:16px;padding:2rem;transition:border-color .3s}
-.md-card:hover{border-color:rgba(139,92,246,0.2)}
-.md-card h3{font-size:1.15rem;font-weight:700;margin-bottom:1.2rem;color:#1A1A2E;display:flex;align-items:center;gap:.6rem}
+.md-card{background:#141417;border:1px solid #2a2a2e;border-radius:16px;padding:2rem;transition:border-color .3s}
+.md-card:hover{border-color:rgba(10,10,10,0.2)}
+.md-card h3{font-size:1.15rem;font-weight:700;margin-bottom:1.2rem;color:#e5e7eb;display:flex;align-items:center;gap:.6rem}
 .md-card h3 .md-icon{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
 .md-table{width:100%;border-collapse:collapse;font-size:.85rem}
-.md-table thead th{text-align:left;padding:.6rem .75rem;color:#6B7280;font-weight:600;font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #E5E7EB}
-.md-table tbody td{padding:.55rem .75rem;border-bottom:1px solid #E5E7EB;color:#cbd5e1}
-.md-table tbody tr:hover{background:rgba(139,92,246,0.04)}
-.md-val{font-weight:700;color:#1A1A2E}
+.md-table thead th{text-align:left;padding:.6rem .75rem;color:#6B7280;font-weight:600;font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #2a2a2e}
+.md-table tbody td{padding:.55rem .75rem;border-bottom:1px solid #2a2a2e;color:#cbd5e1}
+.md-table tbody tr:hover{background:rgba(99,102,241,0.06)}
+.md-val{font-weight:700;color:#e5e7eb}
 .md-green{color:#34d399}.md-red{color:#f87171}.md-amber{color:#fbbf24}.md-purple{color:#a78bfa}.md-cyan{color:#22d3ee}
 .md-full{grid-column:1/-1}
 .md-stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;margin-bottom:1.5rem}
-.md-stat{background:#FFFFFF;border-radius:12px;padding:1rem;text-align:center}
+.md-stat{background:#141417;border-radius:12px;padding:1rem;text-align:center}
 .md-stat-val{font-size:1.6rem;font-weight:800;line-height:1.2}
 .md-stat-label{font-size:.72rem;color:#6B7280;margin-top:.25rem}
-.md-pain{display:flex;gap:.5rem;align-items:flex-start;padding:.6rem 0;border-bottom:1px solid #E5E7EB}
+.md-pain{display:flex;gap:.5rem;align-items:flex-start;padding:.6rem 0;border-bottom:1px solid #2a2a2e}
 .md-pain:last-child{border-bottom:none}
 .md-pain-icon{font-size:.9rem;margin-top:2px;flex-shrink:0}
 .md-pain-text{font-size:.85rem;color:#cbd5e1;line-height:1.5}
-.md-pain-text strong{color:#1A1A2E}
-.md-highlight{background:linear-gradient(135deg,rgba(139,92,246,0.08),rgba(99,102,241,0.08));border:1px solid rgba(139,92,246,0.15);border-radius:12px;padding:1.2rem;margin-top:1rem;font-size:.85rem;color:#7C3AED;line-height:1.6}
+.md-pain-text strong{color:#e5e7eb}
+.md-highlight{background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.15);border-radius:12px;padding:1.2rem;margin-top:1rem;font-size:.85rem;color:#e5e7eb;line-height:1.6}
 .md-funnel-step{display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem}
-.md-funnel-bar{height:28px;border-radius:8px;display:flex;align-items:center;padding:0 .75rem;font-size:.78rem;font-weight:600;color:#1A1A2E;white-space:nowrap}
+.md-funnel-bar{height:28px;border-radius:8px;display:flex;align-items:center;padding:0 .75rem;font-size:.78rem;font-weight:600;color:#e5e7eb;white-space:nowrap}
 .md-funnel-label{font-size:.78rem;color:#6B7280;min-width:120px;text-align:right}
 .md-funnel-pct{font-size:.72rem;color:#6B7280;margin-left:.5rem}
 .md-stars{display:flex;gap:.15rem}
 .md-star{width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:.75rem}
 .md-star.filled{color:#fbbf24}
-.md-star.empty{color:#374151}
+.md-star.empty{color:#9ca3af}
 @media(max-width:768px){.md-grid{grid-template-columns:1fr}.md-stat-row{grid-template-columns:repeat(2,1fr)}}
 </style>
 <div class="md-container">
@@ -707,7 +962,7 @@
 
         <!-- 1. Market Opportunity -->
         <div class="md-card">
-            <h3><span class="md-icon" style="background:rgba(139,92,246,0.12)">&#128200;</span> Market Size &amp; Opportunity</h3>
+            <h3><span class="md-icon" style="background:rgba(10,10,10,0.12)">&#128200;</span> Market Size &amp; Opportunity</h3>
             <table class="md-table">
                 <thead><tr><th>Metric</th><th>Value</th></tr></thead>
                 <tbody>
@@ -735,7 +990,7 @@
             <h3><span class="md-icon" style="background:rgba(6,182,212,0.12)">&#128202;</span> The Conversion Funnel — Where Money Leaks</h3>
             <p style="font-size:.82rem;color:#6B7280;margin-bottom:1rem">From 1,000 ad impressions, here's what typically happens:</p>
             <div style="max-width:700px">
-                <div class="md-funnel-step"><span class="md-funnel-label">Ad Impressions</span><div class="md-funnel-bar" style="width:100%;background:linear-gradient(90deg,rgba(139,92,246,0.6),rgba(99,102,241,0.4))">1,000</div></div>
+                <div class="md-funnel-step"><span class="md-funnel-label">Ad Impressions</span><div class="md-funnel-bar" style="width:100%;background:linear-gradient(90deg,rgba(10,10,10,0.6),rgba(99,102,241,0.4))">1,000</div></div>
                 <div class="md-funnel-step"><span class="md-funnel-label">Website Clicks</span><div class="md-funnel-bar" style="width:40%;background:linear-gradient(90deg,rgba(99,102,241,0.6),rgba(59,130,246,0.4))">40</div><span class="md-funnel-pct">4% CTR</span></div>
                 <div class="md-funnel-step"><span class="md-funnel-label">Leads</span><div class="md-funnel-bar" style="width:18%;background:linear-gradient(90deg,rgba(6,182,212,0.6),rgba(34,211,153,0.4))">4</div><span class="md-funnel-pct">10% of clicks</span></div>
                 <div class="md-funnel-step"><span class="md-funnel-label">Answered</span><div class="md-funnel-bar" style="width:14%;background:rgba(34,211,153,0.5)">3</div><span class="md-funnel-pct">75% answered</span></div>
@@ -799,7 +1054,7 @@
 
         <!-- 7. Competitive Edge -->
         <div class="md-card md-full">
-            <h3><span class="md-icon" style="background:rgba(139,92,246,0.12)">&#9889;</span> Why ChatGenius X Wins</h3>
+            <h3><span class="md-icon" style="background:rgba(10,10,10,0.12)">&#9889;</span> Why ChatGenius X Wins</h3>
             <table class="md-table">
                 <thead><tr><th>Competitor Type</th><th>Their Weakness</th><th>ChatGenius X Advantage</th></tr></thead>
                 <tbody>
@@ -855,7 +1110,7 @@
                             <div class="rm-preview-body">
                                 <div class="rm-field"><span class="rm-field-label">Email</span><span class="rm-field-val">dr.smith@brightsmile.com</span></div>
                                 <div class="rm-field"><span class="rm-field-label">Password</span><span class="rm-field-val">••••••••••••</span></div>
-                                <div class="rm-field"><span class="rm-field-label">Type</span><span class="rm-field-val" style="color:#7C3AED;font-weight:700">🦷 Dental / Healthcare</span></div>
+                                <div class="rm-field"><span class="rm-field-label">Type</span><span class="rm-field-val" style="color:#e5e7eb;font-weight:700">🦷 Dental / Healthcare</span></div>
                             </div>
                         </div>
                         <span class="rm-tag rm-tag-quick">30 seconds</span>
@@ -895,7 +1150,7 @@
                                 <div class="rm-doc-row"><div class="rm-doc-avatar" style="background:linear-gradient(135deg,#8b5cf6,#6366f1)">AS</div><div class="rm-doc-info"><div class="rm-doc-name">Dr. Ahmed Smith</div><div class="rm-doc-spec">General Dentistry &bull; Mon–Fri &bull; 8:00 AM – 5:00 PM</div></div></div>
                                 <div class="rm-doc-row"><div class="rm-doc-avatar" style="background:linear-gradient(135deg,#3b82f6,#06b6d4)">SJ</div><div class="rm-doc-info"><div class="rm-doc-name">Dr. Sarah Johnson</div><div class="rm-doc-spec">Orthodontics (Invisalign) &bull; Mon, Wed, Fri &bull; 9:00 AM – 4:00 PM</div></div></div>
                                 <div class="rm-doc-row"><div class="rm-doc-avatar" style="background:linear-gradient(135deg,#10b981,#34d399)">MR</div><div class="rm-doc-info"><div class="rm-doc-name">Dr. Michael Rivera</div><div class="rm-doc-spec">Oral Surgery &amp; Implants &bull; Tue, Thu &bull; 10:00 AM – 6:00 PM</div></div></div>
-                                <div style="text-align:center;margin-top:10px;padding:8px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.12);border-radius:8px;font-size:.72rem;color:#7C3AED;font-weight:600">📄 Or upload a PDF — AI auto-creates all doctor profiles</div>
+                                <div style="text-align:center;margin-top:10px;padding:8px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.15);border-radius:8px;font-size:.72rem;color:#e5e7eb;font-weight:600">📄 Or upload a PDF — AI auto-creates all doctor profiles</div>
                             </div>
                         </div>
                         <span class="rm-tag rm-tag-auto">AI auto-reads PDFs</span>
@@ -953,7 +1208,7 @@
             <div class="rm-done-banner anim">
                 <h3>✅ You're Live!</h3>
                 <p>Your AI chatbot is now answering patient questions, booking appointments, capturing leads, and sending reminders — 24/7, while you sleep.</p>
-                <a href="/login?signup=1" class="btn-primary" style="font-size:.92rem;padding:.8rem 2rem">Start Free Trial &rarr;</a>
+                <a href="/login?signup=1" class="btn-neon" style="font-size:.92rem;padding:.8rem 2rem">Start Free Trial &rarr;</a>
                 <div class="rm-time"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Average setup time: 10–15 minutes</div>
             </div>
         </div>
@@ -1005,7 +1260,7 @@
                             <div class="rm-preview-body">
                                 <div class="rm-product-grid">
                                     <div class="rm-product-card">
-                                        <div class="rm-product-img" style="background:linear-gradient(135deg,rgba(139,92,246,0.1),rgba(59,130,246,0.08))">👟</div>
+                                        <div class="rm-product-img" style="background:linear-gradient(135deg,rgba(10,10,10,0.1),rgba(59,130,246,0.08))">👟</div>
                                         <div class="rm-product-name">Air Max Runners</div>
                                         <div class="rm-product-price">$129.99</div>
                                         <div class="rm-product-variants">6 colors &bull; 8 sizes</div>
@@ -1042,7 +1297,7 @@
                                     </div>
                                 </div>
                                 <div style="margin-top:10px;font-size:.72rem;color:var(--text-dim);line-height:1.6">Each product includes: <strong style="color:var(--text-muted)">name, description, price, sale price, images, variants</strong> (color, size, material, etc.), <strong style="color:var(--text-muted)">SKU, stock status, category, brand, weight</strong></div>
-                                <div style="text-align:center;margin-top:10px;padding:8px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.12);border-radius:8px;font-size:.72rem;color:#7C3AED;font-weight:600">🔄 Or connect Shopify / WooCommerce — auto-syncs your full catalog</div>
+                                <div style="text-align:center;margin-top:10px;padding:8px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.15);border-radius:8px;font-size:.72rem;color:#e5e7eb;font-weight:600">🔄 Or connect Shopify / WooCommerce — auto-syncs your full catalog</div>
                             </div>
                         </div>
                         <span class="rm-tag rm-tag-auto">Auto-sync from Shopify &amp; WooCommerce</span>
@@ -1086,7 +1341,7 @@
                             <div class="rm-preview-bar"><div class="rm-preview-dot" style="background:#f87171"></div><div class="rm-preview-dot" style="background:#fbbf24"></div><div class="rm-preview-dot" style="background:#34d399"></div><span style="font-size:.65rem;color:var(--text-dim);margin-left:6px">Orders Dashboard</span></div>
                             <div class="rm-preview-body">
                                 <div class="rm-order-row"><span style="color:var(--text);font-weight:700">#ORD-1042</span><span style="color:var(--text-muted);flex:1">Sarah Johnson &bull; 3 items</span><span style="color:#34d399;font-weight:700">$234.98</span><span class="rm-order-status" style="background:rgba(52,211,153,0.1);color:#34d399;border:1px solid rgba(52,211,153,0.15)">Delivered</span></div>
-                                <div class="rm-order-row"><span style="color:var(--text);font-weight:700">#ORD-1043</span><span style="color:var(--text-muted);flex:1">Mike Chen &bull; 1 item</span><span style="color:#34d399;font-weight:700">$199.99</span><span class="rm-order-status" style="background:rgba(139,92,246,0.1);color:#a78bfa;border:1px solid rgba(139,92,246,0.15)">Shipped</span></div>
+                                <div class="rm-order-row"><span style="color:var(--text);font-weight:700">#ORD-1043</span><span style="color:var(--text-muted);flex:1">Mike Chen &bull; 1 item</span><span style="color:#34d399;font-weight:700">$199.99</span><span class="rm-order-status" style="background:rgba(10,10,10,0.1);color:#a78bfa;border:1px solid rgba(10,10,10,0.15)">Shipped</span></div>
                                 <div class="rm-order-row"><span style="color:var(--text);font-weight:700">#ORD-1044</span><span style="color:var(--text-muted);flex:1">Emma Davis &bull; 2 items</span><span style="color:#34d399;font-weight:700">$164.98</span><span class="rm-order-status" style="background:rgba(59,130,246,0.1);color:#60a5fa;border:1px solid rgba(59,130,246,0.15)">Processing</span></div>
                                 <div class="rm-order-row"><span style="color:var(--text);font-weight:700">#ORD-1045</span><span style="color:var(--text-muted);flex:1">James Wilson &bull; 5 items</span><span style="color:#34d399;font-weight:700">$412.95</span><span class="rm-order-status" style="background:rgba(251,191,36,0.1);color:#fbbf24;border:1px solid rgba(251,191,36,0.15)">Pending</span></div>
                                 <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
@@ -1121,7 +1376,7 @@
             <div class="rm-done-banner anim">
                 <h3>✅ Your Store Has a 24/7 Sales Team!</h3>
                 <p>Your AI shopping assistant is now helping customers find products, answering questions, tracking orders, capturing leads, and boosting conversions — around the clock.</p>
-                <a href="/login?signup=1" class="btn-primary" style="font-size:.92rem;padding:.8rem 2rem">Start Free Trial &rarr;</a>
+                <a href="/login?signup=1" class="btn-neon" style="font-size:.92rem;padding:.8rem 2rem">Start Free Trial &rarr;</a>
                 <div class="rm-time"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Average setup time: 10–15 minutes</div>
             </div>
         </div>
@@ -1136,11 +1391,11 @@
         <p class="section-sub">No human needed for over half of patient inquiries. That means fewer interruptions for your staff and instant answers for your patients.</p>
         <div style="max-width:600px;margin:0 auto" class="anim">
             <div style="display:flex;justify-content:space-between;margin-bottom:.3rem;font-size:.82rem;font-weight:600"><span style="color:var(--text-muted)">Industry Average</span><span style="color:var(--text-muted)">40%</span></div>
-            <div class="ai-resolution-bar"><div class="ai-resolution-fill" id="aiBarIndustry" style="width:0;background:#F3F4F6"><span style="color:var(--text-dim)">40%</span></div></div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:.3rem;margin-top:1rem;font-size:.82rem;font-weight:600"><span style="color:#7C3AED">ChatGenius AI</span><span style="color:#7C3AED">55%+</span></div>
-            <div class="ai-resolution-bar" style="border:1px solid rgba(139,92,246,0.15)"><div class="ai-resolution-fill" id="aiBarCG" style="width:0;background:var(--gradient)"><span>55%+</span></div></div>
+            <div class="ai-resolution-bar"><div class="ai-resolution-fill" id="aiBarIndustry" style="width:0;background:#1a1a1e"><span style="color:var(--text-dim)">40%</span></div></div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:.3rem;margin-top:1rem;font-size:.82rem;font-weight:600"><span style="color:#e5e7eb">ChatGenius AI</span><span style="color:#e5e7eb">55%+</span></div>
+            <div class="ai-resolution-bar" style="border:1px solid rgba(10,10,10,0.15)"><div class="ai-resolution-fill" id="aiBarCG" style="width:0;background:var(--gradient)"><span>55%+</span></div></div>
         </div>
-        <p style="margin-top:2rem"><a href="/ai-technology" style="color:#7C3AED;font-weight:600;font-size:.95rem;text-decoration:none">See Our AI Technology &rarr;</a></p>
+        <p style="margin-top:2rem"><a href="/ai-technology" style="color:#e5e7eb;font-weight:600;font-size:.95rem;text-decoration:none">See Our AI Technology &rarr;</a></p>
     </div>
 </section>
 
@@ -1178,7 +1433,7 @@
                 </div>
                 <p style="font-size:.75rem;color:var(--text-dim);margin-top:1rem;line-height:1.6">Based on the average 18% conversion lift across our customers in 2025. Your results may vary.</p>
                 <details style="margin-top:.75rem;font-size:.78rem;color:var(--text-dim)">
-                    <summary style="cursor:pointer;color:#7C3AED;font-weight:600">How we calculate this &rarr;</summary>
+                    <summary style="cursor:pointer;color:#e5e7eb;font-weight:600">How we calculate this &rarr;</summary>
                     <div style="margin-top:.5rem;line-height:1.7;padding:.75rem;background:rgba(0,0,0,0.2);border-radius:10px">
                         <strong style="color:var(--text)">The math:</strong> We take your current bookings (visitors &times; conversion rate), apply an 18% lift, and multiply the extra bookings by your average appointment value.<br><br>
                         <strong style="color:var(--text)">Where does 18% come from?</strong> We measured the booking conversion rate of 47 practices before and after installing ChatGenius. The median lift was 18.3%. The bottom quartile saw 9%, the top quartile saw 27%. We use the median because it's the most honest number.<br><br>
@@ -1391,72 +1646,8 @@
     </div>
 </section>
 
-<!-- ═══ INTEGRATION ECOSYSTEM ═══ -->
-<section id="integration-ecosystem" style="text-align:center;background:linear-gradient(180deg,transparent,rgba(139,92,246,0.02),transparent)">
-    <div class="container">
-        <div class="section-label">Ecosystem</div>
-        <h2 class="section-title">Connects to Your Entire<br><span class="gradient-text">Practice Stack</span></h2>
-        <p class="section-sub">Seamless integrations with the tools you already use. No middleware, no hassle.</p>
-        <div class="integration-logo-grid anim">
-            <div class="integration-logo"><span>&#128197;</span><small>Google Calendar</small></div>
-            <div class="integration-logo"><span>&#128198;</span><small>Calendly</small></div>
-            <div class="integration-logo"><span>&#128222;</span><small>Twilio</small></div>
-            <div class="integration-logo"><span>&#128231;</span><small>Mailchimp</small></div>
-            <div class="integration-logo"><span>&#9889;</span><small>Zapier</small></div>
-            <div class="integration-logo"><span>&#128179;</span><small>PayPal</small></div>
-            <div class="integration-logo"><span>&#128172;</span><small>WhatsApp</small></div>
-            <div class="integration-logo"><span>&#127973;</span><small>Epic</small></div>
-            <div class="integration-logo"><span>&#127981;</span><small>Cerner</small></div>
-            <div class="integration-logo"><span>&#129463;</span><small>Dentrix</small></div>
-            <div class="integration-logo"><span>&#129463;</span><small>Open Dental</small></div>
-            <div class="integration-logo"><span>&#128736;</span><small>API</small></div>
-        </div>
-        <p style="margin-top:2rem"><a href="/integrations" style="color:#7C3AED;font-weight:600;font-size:.95rem;text-decoration:none">View All Integrations &rarr;</a></p>
-    </div>
-</section>
 
-<!-- ═══ MULTI-CHANNEL ═══ -->
-<section id="multi-channel" style="text-align:center">
-    <div class="container">
-        <div class="section-label">Omnichannel</div>
-        <h2 class="section-title">One Inbox. <span class="gradient-text">Every Channel.</span></h2>
-        <p class="section-sub">Meet patients where they are. Web chat, WhatsApp, SMS, social media, and email all flow into a single unified inbox.</p>
-        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:1rem;max-width:700px;margin:0 auto" class="anim new-section-grid-3">
-            <div class="channel-icon-card"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><span>Web Chat</span></div>
-            <div class="channel-icon-card"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#25D366" stroke-width="1.5"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg><span>WhatsApp</span></div>
-            <div class="channel-icon-card"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.5"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.11 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg><span>SMS</span></div>
-            <div class="channel-icon-card"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1877F2" stroke-width="1.5"><path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/></svg><span>Facebook</span></div>
-            <div class="channel-icon-card"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E4405F" stroke-width="1.5"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg><span>Instagram</span></div>
-            <div class="channel-icon-card"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="1.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><span>Email</span></div>
-        </div>
-    </div>
-</section>
 
-<!-- ═══ PROACTIVE ENGAGEMENT ═══ -->
-<section id="proactive" style="text-align:center;background:linear-gradient(180deg,transparent,rgba(139,92,246,0.02),transparent)">
-    <div class="container">
-        <div class="section-label">Proactive AI</div>
-        <h2 class="section-title">Don't Wait for Patients to Ask —<br><span class="gradient-text">Engage Them First</span></h2>
-        <p class="section-sub">Revenue from proactive engagement, not just reactive support. Trigger conversations based on visitor behavior.</p>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;max-width:900px;margin:0 auto" class="anim new-section-grid-3">
-            <div class="feature-card" style="text-align:center;padding:2rem 1.5rem">
-                <div style="font-size:2.5rem;margin-bottom:1rem">&#128683;</div>
-                <h3>Exit Intent</h3>
-                <p>Detect when visitors are about to leave and trigger a personalized message or offer before they go.</p>
-            </div>
-            <div class="feature-card" style="text-align:center;padding:2rem 1.5rem">
-                <div style="font-size:2.5rem;margin-bottom:1rem">&#128220;</div>
-                <h3>Scroll Triggers</h3>
-                <p>Engage visitors when they scroll past key sections — like pricing or services — with relevant prompts.</p>
-            </div>
-            <div class="feature-card" style="text-align:center;padding:2rem 1.5rem">
-                <div style="font-size:2.5rem;margin-bottom:1rem">&#9200;</div>
-                <h3>Dwell Time</h3>
-                <p>When a visitor lingers on a page, start a conversation automatically — they are clearly interested.</p>
-            </div>
-        </div>
-    </div>
-</section>
 
 <!-- ═══ 5. LIVE DEMO ═══ -->
 <section id="demo">
@@ -1490,7 +1681,7 @@
     <div class="container">
         <div class="section-label">Results</div>
         <h2 class="section-title">Over 180,000 Appointments Booked<br>Through <span class="gradient-text">ChatGenius</span></h2>
-        <p class="section-sub">Here's what real practitioners say. No scripts, no stock photos. <a href="/case-studies" style="color:#7C3AED;font-weight:600;text-decoration:underline">Read 12 full case studies &rarr;</a></p>
+        <p class="section-sub">Here's what real practitioners say. No scripts, no stock photos. <a href="/case-studies" style="color:#e5e7eb;font-weight:600;text-decoration:underline">Read 12 full case studies &rarr;</a></p>
         <div class="testimonials-grid anim">
             <!-- LEFT COLUMN -->
             <!-- 1. Short emotional quote (hero card) -->
@@ -1564,27 +1755,6 @@
     </div>
 </section>
 
-<!-- ═══ INTEGRATIONS ═══ -->
-<section id="integrations">
-    <div class="container">
-        <div class="section-label">Integrations</div>
-        <h2 class="section-title">Works With the Tools<br>You Already Use</h2>
-        <p class="section-sub">One embed code for your website. One click for WhatsApp. Zero hassle.</p>
-        <div class="integrations-grid anim">
-            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#25D366" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></div><h4>WhatsApp</h4></div>
-            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1877F2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></div><h4>Messenger</h4></div>
-            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#E4405F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></div><h4>Instagram</h4></div>
-            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#21759B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg></div><h4>WordPress</h4></div>
-            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#95BF47" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg></div><h4>Shopify</h4></div>
-            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4285F4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><h4>Google Calendar</h4></div>
-            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#006BFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg></div><h4>Calendly</h4></div>
-            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0070BA" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div><h4>PayPal</h4></div>
-            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFE01B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><h4>Mailchimp</h4></div>
-            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF4A00" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><h4>Zapier</h4></div>
-            <div class="integration-card"><div class="integration-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F22F46" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg></div><h4>Twilio SMS</h4></div>
-        </div>
-    </div>
-</section>
 
 <!-- ═══ TRUST & SECURITY ═══ -->
 <section id="trust-security" style="text-align:center;background:linear-gradient(180deg,transparent,rgba(52,211,153,0.02),transparent)">
@@ -1639,7 +1809,7 @@
 </section>
 
 <!-- ═══ COMPARISON TEASER ═══ -->
-<section id="compare-teaser" style="text-align:center;background:linear-gradient(180deg,transparent,rgba(139,92,246,0.02),transparent)">
+<section id="compare-teaser" style="text-align:center;background:linear-gradient(180deg,transparent,rgba(99,102,241,0.02),transparent)">
     <div class="container">
         <div class="section-label">Compare</div>
         <h2 class="section-title">See How We <span class="gradient-text">Compare</span></h2>
@@ -1655,7 +1825,7 @@
                 </tbody>
             </table>
         </div>
-        <p style="margin-top:1.5rem"><a href="/compare" style="color:#7C3AED;font-weight:600;font-size:.95rem;text-decoration:none">Full Comparison &rarr;</a></p>
+        <p style="margin-top:1.5rem"><a href="/compare" style="color:#e5e7eb;font-weight:600;font-size:.95rem;text-decoration:none">Full Comparison &rarr;</a></p>
     </div>
 </section>
 
@@ -1666,25 +1836,25 @@
         <h2 class="section-title">12+ Pre-Built AI Agents<br><span class="gradient-text">Ready to Deploy</span></h2>
         <p class="section-sub">Choose from specialized AI agents designed for healthcare workflows. Activate in one click.</p>
         <div class="agent-scroll anim">
-            <div class="agent-mini-card"><div class="agent-icon" style="background:rgba(139,92,246,0.1)">&#128197;</div><h4>Booking Agent</h4><p>Books appointments 24/7 with calendar sync</p></div>
+            <div class="agent-mini-card"><div class="agent-icon" style="background:rgba(10,10,10,0.1)">&#128197;</div><h4>Booking Agent</h4><p>Books appointments 24/7 with calendar sync</p></div>
             <div class="agent-mini-card"><div class="agent-icon" style="background:rgba(59,130,246,0.1)">&#128270;</div><h4>FAQ Agent</h4><p>Answers patient questions from your knowledge base</p></div>
             <div class="agent-mini-card"><div class="agent-icon" style="background:rgba(236,72,153,0.1)">&#128101;</div><h4>Lead Agent</h4><p>Captures and qualifies leads automatically</p></div>
             <div class="agent-mini-card"><div class="agent-icon" style="background:rgba(52,211,153,0.1)">&#128276;</div><h4>Reminder Agent</h4><p>Smart multi-tier appointment reminders</p></div>
             <div class="agent-mini-card"><div class="agent-icon" style="background:rgba(251,191,36,0.1)">&#128257;</div><h4>Recall Agent</h4><p>Brings back lapsed patients for checkups</p></div>
             <div class="agent-mini-card"><div class="agent-icon" style="background:rgba(6,182,212,0.1)">&#128221;</div><h4>Intake Agent</h4><p>Pre-visit forms and medical history collection</p></div>
             <div class="agent-mini-card"><div class="agent-icon" style="background:rgba(248,113,113,0.1)">&#128176;</div><h4>Upsell Agent</h4><p>Suggests additional services based on context</p></div>
-            <div class="agent-mini-card"><div class="agent-icon" style="background:rgba(139,92,246,0.1)">&#127891;</div><h4>Survey Agent</h4><p>Post-visit satisfaction surveys</p></div>
+            <div class="agent-mini-card"><div class="agent-icon" style="background:rgba(10,10,10,0.1)">&#127891;</div><h4>Survey Agent</h4><p>Post-visit satisfaction surveys</p></div>
             <div class="agent-mini-card"><div class="agent-icon" style="background:rgba(59,130,246,0.1)">&#128200;</div><h4>Analytics Agent</h4><p>Insights and performance reports</p></div>
             <div class="agent-mini-card"><div class="agent-icon" style="background:rgba(52,211,153,0.1)">&#127760;</div><h4>Multi-Lang Agent</h4><p>Auto-translate to 10+ languages</p></div>
             <div class="agent-mini-card"><div class="agent-icon" style="background:rgba(236,72,153,0.1)">&#129309;</div><h4>Handoff Agent</h4><p>Smart escalation to human agents</p></div>
             <div class="agent-mini-card"><div class="agent-icon" style="background:rgba(251,191,36,0.1)">&#127873;</div><h4>Loyalty Agent</h4><p>Points program and referral tracking</p></div>
         </div>
-        <p style="margin-top:1.5rem"><a href="/agent-marketplace" style="color:#7C3AED;font-weight:600;font-size:.95rem;text-decoration:none">Explore Marketplace &rarr;</a></p>
+        <p style="margin-top:1.5rem"><a href="/agent-marketplace" style="color:#e5e7eb;font-weight:600;font-size:.95rem;text-decoration:none">Explore Marketplace &rarr;</a></p>
     </div>
 </section>
 
 <!-- ═══ PARTNER PROGRAM ═══ -->
-<section id="partner-program" style="text-align:center;background:linear-gradient(180deg,transparent,rgba(139,92,246,0.03),transparent)">
+<section id="partner-program" style="text-align:center;background:linear-gradient(180deg,transparent,rgba(10,10,10,0.03),transparent)">
     <div class="container">
         <div class="section-label" style="background:rgba(236,72,153,0.08);color:#f9a8d4;border-color:rgba(236,72,153,0.12)">Partners</div>
         <h2 class="section-title">Grow Your Agency<br>with <span class="gradient-text">ChatGenius</span></h2>
@@ -1706,26 +1876,10 @@
                 <p>Manage all your clients from a single dashboard with priority support.</p>
             </div>
         </div>
-        <p style="margin-top:2rem"><a href="/partners" class="btn-primary" style="font-size:.92rem">Become a Partner &rarr;</a></p>
+        <p style="margin-top:2rem"><a href="/partners" class="btn-neon" style="font-size:.92rem">Become a Partner &rarr;</a></p>
     </div>
 </section>
 
-<!-- ═══ VOICE AI TEASER ═══ -->
-<section id="voice-ai" style="text-align:center">
-    <div class="container">
-        <div class="section-label" style="background:rgba(6,182,212,0.08);color:#67e8f9;border-color:rgba(6,182,212,0.12)">Coming Soon</div>
-        <h2 class="section-title">Voice-Powered Patient<br><span class="gradient-text">Communication</span></h2>
-        <p class="section-sub">Talk to our AI just like a phone call. Natural voice conversations that book appointments, answer questions, and triage patients.</p>
-        <div class="anim" style="max-width:500px;margin:0 auto">
-            <div style="background:var(--card);border-radius:24px;padding:3rem 2rem;border:1px solid var(--border);text-align:center">
-                <div style="font-size:4rem;margin-bottom:1.5rem">&#127908;</div>
-                <h3 style="font-size:1.2rem;font-weight:800;margin-bottom:.75rem">Voice AI Agent</h3>
-                <p style="color:var(--text-muted);font-size:.9rem;line-height:1.8;margin-bottom:1.5rem">Patients can speak naturally to book appointments, check availability, and get instant answers. Our Voice AI understands medical terminology and handles complex scheduling.</p>
-                <a href="/voice-agent" class="btn-secondary" style="font-size:.88rem">Try Voice Demo &rarr;</a>
-            </div>
-        </div>
-    </div>
-</section>
 
 <!-- ═══ DOCTOR PORTAL ═══ -->
 <section id="doctor-portal">
@@ -1745,7 +1899,7 @@
                     <li>Accept or reschedule appointments</li>
                     <li>Zero dependency on admin or front desk staff</li>
                 </ul>
-                <div style="margin-top:1.5rem"><a href="/login?signup=1" class="btn-primary" style="font-size:.88rem;padding:.75rem 1.8rem">Try Doctor Portal Free &rarr;</a></div>
+                <div style="margin-top:1.5rem"><a href="/login?signup=1" class="btn-neon" style="font-size:.88rem;padding:.75rem 1.8rem">Try Doctor Portal Free &rarr;</a></div>
             </div>
             <div class="portal-visual">
                 <div style="font-size:.78rem;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem">Doctor Portal Preview</div>
@@ -1765,9 +1919,9 @@
                     <span class="portal-mock-badge" style="background:rgba(251,191,36,0.1);color:var(--amber)">Time Off</span>
                 </div>
                 <div style="margin-top:1rem;display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem">
-                    <div style="background:rgba(139,92,246,0.06);border-radius:10px;padding:.75rem;text-align:center;border:1px solid rgba(139,92,246,0.08)"><div style="font-size:1.1rem;font-weight:800" class="gradient-text">92%</div><div style="font-size:.65rem;color:var(--text-dim)">Show Rate</div></div>
-                    <div style="background:rgba(139,92,246,0.06);border-radius:10px;padding:.75rem;text-align:center;border:1px solid rgba(139,92,246,0.08)"><div style="font-size:1.1rem;font-weight:800" class="gradient-text">16</div><div style="font-size:.65rem;color:var(--text-dim)">This Week</div></div>
-                    <div style="background:rgba(139,92,246,0.06);border-radius:10px;padding:.75rem;text-align:center;border:1px solid rgba(139,92,246,0.08)"><div style="font-size:1.1rem;font-weight:800" class="gradient-text">4.8</div><div style="font-size:.65rem;color:var(--text-dim)">Avg Rating</div></div>
+                    <div style="background:rgba(10,10,10,0.06);border-radius:10px;padding:.75rem;text-align:center;border:1px solid rgba(10,10,10,0.08)"><div style="font-size:1.1rem;font-weight:800" class="gradient-text">92%</div><div style="font-size:.65rem;color:var(--text-dim)">Show Rate</div></div>
+                    <div style="background:rgba(10,10,10,0.06);border-radius:10px;padding:.75rem;text-align:center;border:1px solid rgba(10,10,10,0.08)"><div style="font-size:1.1rem;font-weight:800" class="gradient-text">16</div><div style="font-size:.65rem;color:var(--text-dim)">This Week</div></div>
+                    <div style="background:rgba(10,10,10,0.06);border-radius:10px;padding:.75rem;text-align:center;border:1px solid rgba(10,10,10,0.08)"><div style="font-size:1.1rem;font-weight:800" class="gradient-text">4.8</div><div style="font-size:.65rem;color:var(--text-dim)">Avg Rating</div></div>
                 </div>
             </div>
         </div>
@@ -1806,41 +1960,6 @@
     </div>
 </section>
 
-<!-- ═══ 6. USE CASES ═══ -->
-<section id="usecases">
-    <div class="container">
-        <div class="section-label">Who It's For</div>
-        <h2 class="section-title">Built for Businesses That<br>Book Appointments</h2>
-        <p class="section-sub">ChatGenius works for any business that needs to convert visitors into scheduled appointments.</p>
-        <div class="usecases-grid anim">
-            <div class="usecase-card">
-                <div class="usecase-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
-                <h3>Dental Clinics</h3>
-                <p>Book cleanings, consultations, and treatments automatically</p>
-            </div>
-            <div class="usecase-card">
-                <div class="usecase-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
-                <h3>Medical Practices</h3>
-                <p>Patient intake, appointment scheduling, and follow-ups</p>
-            </div>
-            <div class="usecase-card">
-                <div class="usecase-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></div>
-                <h3>Beauty &amp; Wellness</h3>
-                <p>Salons, spas, and wellness centers with service booking</p>
-            </div>
-            <div class="usecase-card">
-                <div class="usecase-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg></div>
-                <h3>Consulting Firms</h3>
-                <p>Schedule discovery calls and consultations automatically</p>
-            </div>
-            <div class="usecase-card">
-                <div class="usecase-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg></div>
-                <h3>Education</h3>
-                <p>Tutoring, training sessions, and campus tour bookings</p>
-            </div>
-        </div>
-    </div>
-</section>
 
 <!-- ═══ INDUSTRY PAGES ═══ -->
 <section id="industries">
@@ -2008,7 +2127,7 @@
                     <li>10 promo codes, 10 custom fields</li>
                     <li>Before/after gallery</li>
                 </ul>
-                <a href="/login?signup=1" class="price-btn price-btn-primary">Start Free Trial</a>
+                <a href="/login?signup=1" class="btn-neon" style="display:block;text-align:center;border-radius:9999px">Start Free Trial</a>
             </div>
             <div class="price-card">
                 <div class="price-name">Pro</div>
@@ -2045,11 +2164,11 @@
                     <li>Custom development (10h/quarter)</li>
                     <li>Unlimited everything</li>
                 </ul>
-                <button onclick="document.getElementById('salesModal').style.display='flex'" class="price-btn price-btn-outline" style="background:none;border:1px solid rgba(139,92,246,0.4);color:#7C3AED;cursor:pointer;width:100%;font-family:inherit;font-size:inherit;padding:.85rem 1.5rem;border-radius:12px;font-weight:600">Contact Sales</button>
+                <button onclick="document.getElementById('salesModal').style.display='flex'" class="price-btn price-btn-outline" style="background:none;border:1px solid rgba(10,10,10,0.4);color:#e5e7eb;cursor:pointer;width:100%;font-family:inherit;font-size:inherit;padding:.85rem 1.5rem;border-radius:12px;font-weight:600">Contact Sales</button>
                 <p style="text-align:center;margin-top:.5rem;font-size:.78rem;color:var(--text-dim)">12-month contract &middot; $6,708/yr</p>
             </div>
         </div>
-        <p style="text-align:center;margin-top:2rem"><a href="/pricing-plans" style="color:#7C3AED;font-weight:600;font-size:.95rem;text-decoration:none">Compare all features &rarr;</a></p>
+        <p style="text-align:center;margin-top:2rem"><a href="/pricing-plans" style="color:#e5e7eb;font-weight:600;font-size:.95rem;text-decoration:none">Compare all features &rarr;</a></p>
     </div>
 </section>
 
@@ -2104,10 +2223,10 @@
             <h2 class="section-title" style="max-width:700px;margin:0 auto 1rem">Every Week You Wait,<br>Your Phones Ring Into <span class="gradient-text">Voicemail</span></h2>
             <p class="section-sub" style="margin-bottom:1.5rem">Start your 14-day trial now — no credit card, no commitment. We'll have your chatbot live in 10 minutes and booking patients by tonight.</p>
             <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-bottom:1.5rem">
-                <a href="/login?signup=1" class="btn-primary">Start Free Trial &rarr;</a>
+                <a href="/login?signup=1" class="btn-neon">Start Free Trial &rarr;</a>
                 <a href="#demo" class="btn-secondary">Try Live Demo</a>
             </div>
-            <p style="font-size:.85rem;color:var(--text-dim)">Plus, get our free guide: <a href="#roi-calc" style="color:#7C3AED;font-weight:600;text-decoration:underline">5 Ways Clinics Lose $10K/Month to Missed Bookings</a></p>
+            <p style="font-size:.85rem;color:var(--text-dim)">Plus, get our free guide: <a href="#roi-calc" style="color:#e5e7eb;font-weight:600;text-decoration:underline">5 Ways Clinics Lose $10K/Month to Missed Bookings</a></p>
         </div>
     </div>
 </section>
@@ -2493,13 +2612,13 @@ document.getElementById('exitOverlay').addEventListener('click',function(e){if(e
 })();
 </script>
 
-<div id="salesModal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.06);backdrop-filter:blur(8px);align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
-    <div style="background:rgba(10,14,26,0.97);border:1px solid rgba(139,92,246,0.2);border-radius:24px;padding:2.5rem;max-width:480px;width:90%;position:relative;box-shadow:0 30px 80px rgba(0,0,0,0.6)">
+<div id="salesModal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(255,255,255,0.08);backdrop-filter:blur(8px);align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
+    <div style="background:rgba(10,14,26,0.97);border:1px solid rgba(10,10,10,0.2);border-radius:24px;padding:2.5rem;max-width:480px;width:90%;position:relative;box-shadow:0 30px 80px rgba(0,0,0,0.6)">
         <button onclick="document.getElementById('salesModal').style.display='none'" style="position:absolute;top:1rem;right:1.25rem;background:none;border:none;color:#6B7280;font-size:1.5rem;cursor:pointer">&times;</button>
-        <h3 style="font-size:1.4rem;font-weight:800;margin-bottom:.5rem;background:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Contact Our Sales Team</h3>
+        <h3 style="font-size:1.4rem;font-weight:800;margin-bottom:.5rem;background:linear-gradient(135deg,#6366F1,#818cf8,#a5b4fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Contact Our Sales Team</h3>
         <p style="color:#6B7280;font-size:.92rem;margin-bottom:1.75rem;line-height:1.7">Get in touch with us for Enterprise plan details, custom pricing, and tailored solutions.</p>
         <div style="display:flex;flex-direction:column;gap:1rem">
-            <a href="mailto:sales@chatgeniusx.com?subject=Enterprise%20Plan%20Inquiry&body=Hi%2C%20I'm%20interested%20in%20the%20Enterprise%20plan." style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.15);border-radius:14px;padding:1.1rem 1.25rem;display:flex;align-items:center;gap:.75rem;text-decoration:none;color:#e2e8f0;transition:background .2s">
+            <a href="mailto:sales@chatgeniusx.com?subject=Enterprise%20Plan%20Inquiry&body=Hi%2C%20I'm%20interested%20in%20the%20Enterprise%20plan." style="background:rgba(10,10,10,0.06);border:1px solid rgba(10,10,10,0.15);border-radius:14px;padding:1.1rem 1.25rem;display:flex;align-items:center;gap:.75rem;text-decoration:none;color:#e2e8f0;transition:background .2s">
                 <span style="font-size:1.3rem">&#128231;</span>
                 <div><div style="font-weight:600;font-size:.95rem">Email Us</div><div style="color:#6B7280;font-size:.82rem">sales@chatgeniusx.com</div></div>
             </a>

@@ -19,9 +19,9 @@
             padding: 1rem;
         }
         .card {
-            background: rgba(243,244,246,1);
+            background: rgba(26,26,30,1);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(243,244,246,1);
+            border: 1px solid #2a2a2e;
             border-radius: 8px;
             padding: 2.5rem;
             max-width: 500px;
@@ -74,7 +74,7 @@
             width: 100%;
             padding: 1rem;
             background: rgba(0,0,0,0.04);
-            border: 1px solid rgba(243,244,246,1);
+            border: 1px solid #2a2a2e;
             border-radius: 12px;
             color: #fff;
             font-size: 0.95rem;
@@ -84,7 +84,7 @@
         }
         textarea:focus {
             outline: none;
-            border-color: #8B5CF6;
+            border-color: #e5e7eb;
         }
         .btn {
             width: 100%;
@@ -98,12 +98,12 @@
             margin-top: 1rem;
         }
         .btn-primary {
-            background: linear-gradient(135deg, #ffffff, #e4e4e7);
+            background: linear-gradient(135deg, #2a2a2e, #1a1a1e);
             color: #09090B;
         }
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 0 35px rgba(139,92,246,0.45);
+            box-shadow: 0 0 35px rgba(10,10,10,0.45);
         }
         .thank-you {
             display: none;
@@ -122,22 +122,32 @@
             margin-bottom: 1.5rem;
         }
         .stars-display .star { cursor: default; }
-        .rating-high { color: #1A1A2E; }
+        .rating-high { color: #e5e7eb; }
         .rating-low { color: #6B7280; }
         .hidden { display: none !important; }
         .review-link {
             display: inline-block;
             margin-top: 1rem;
             padding: 0.75rem 1.5rem;
-            background: #8B5CF6;
-            border: 1px solid #8B5CF6;
+            background: rgba(99,102,241,0.9);
+            border: 1px solid #0A0A0A;
             border-radius: 12px;
             color: #FFFFFF;
             text-decoration: none;
             font-weight: 500;
         }
         .review-link:hover { background: rgba(209,213,219,1); }
-    </style>
+    
+/* ═══ NEON BUTTONS (Global) ═══ */
+.btn-neon{position:relative;display:inline-flex;align-items:center;gap:.5rem;color:#FFFFFF;padding:.85rem 2.2rem;border-radius:9999px;font-weight:600;text-decoration:none;font-size:.95rem;border:1px solid rgba(99,102,241,0.3);cursor:pointer;font-family:inherit;background:rgba(99,102,241,0.9);transition:all .4s cubic-bezier(0.22,1,0.36,1);overflow:hidden;box-shadow:0 0 20px rgba(99,102,241,0.15)}
+.btn-neon::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(165,180,252,0.8),transparent);opacity:0;transition:opacity .5s;width:75%;margin:auto}
+.btn-neon::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(99,102,241,0.6),transparent);opacity:.3;width:75%;margin:auto;transition:opacity .5s}
+.btn-neon:hover{background:rgba(99,102,241,1);border-color:rgba(99,102,241,0.5);transform:translateY(-2px);box-shadow:0 0 35px rgba(99,102,241,0.3),0 4px 15px rgba(99,102,241,0.2);color:#FFFFFF}
+.btn-neon:hover::before{opacity:1}
+.btn-neon:hover::after{opacity:.7}
+.btn-neon.neon-outline{background:transparent;color:#4F46E5;border-color:rgba(99,102,241,0.3);box-shadow:none}
+.btn-neon.neon-outline:hover{background:rgba(99,102,241,0.08);color:#4338CA;border-color:rgba(99,102,241,0.5);box-shadow:0 0 25px rgba(99,102,241,0.12)}
+</style>
 </head>
 <body>
     <div class="card">
@@ -167,7 +177,7 @@
             <h2 id="thankTitle">Thank You!</h2>
             <p class="subtitle" id="thankMessage">Your feedback helps us improve.</p>
             <div id="reviewPrompt" class="hidden">
-                <p style="color: #1A1A2E; margin-bottom: 1rem;">Would you like to share your experience publicly?</p>
+                <p style="color: #e5e7eb; margin-bottom: 1rem;">Would you like to share your experience publicly?</p>
                 <a href="#" class="review-link" id="googleReviewLink" target="_blank">
                     ⭐ Leave a Google Review
                 </a>

@@ -11,43 +11,43 @@
     <style>
         
         *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-        :root{--bg:#F9FAFB;--bg2:#F9FAFB;--card:#FFFFFF;--card-hover:#F3F4F6;--border:#E5E7EB;--border-hover:#D1D5DB;--purple:#8B5CF6;--indigo:#6366F1;--green:#10b981;--blue:#3B82F6;--orange:#f59e0b;--amber:#f59e0b;--red:#ef4444;--text:#1A1A2E;--text-muted:#6B7280;--text-dim:#6B7280;--gradient:linear-gradient(135deg,#8B5CF6,#7C3AED,#6D28D9);--gradient2:linear-gradient(135deg,#8B5CF6,#7C3AED,#6D28D9);--ease:cubic-bezier(0.22,1,0.36,1);--glow:0 4px 12px rgba(0,0,0,0.05)}
-        ::selection{background:rgba(139,92,246,0.15)}
+        :root{--bg:#0a0a0a;--bg2:#111113;--card:#141417;--card-hover:#1a1a1e;--border:#2a2a2e;--border-hover:#3a3a3e;--purple:#6366F1;--indigo:#6366F1;--green:#10b981;--blue:#3B82F6;--orange:#f59e0b;--amber:#f59e0b;--red:#ef4444;--text:#e5e7eb;--text-muted:#6B7280;--text-dim:#6B7280;--gradient:linear-gradient(135deg,#6366F1,#818cf8,#a5b4fc);--gradient2:linear-gradient(135deg,#6366F1,#818cf8,#a5b4fc);--ease:cubic-bezier(0.22,1,0.36,1);--glow:0 4px 12px rgba(0,0,0,0.05)}
+        ::selection{background:rgba(99,102,241,0.25)}
         html{scroll-behavior:smooth}
         body{font-family:'Outfit','Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;overflow-x:hidden;-webkit-font-smoothing:antialiased}
         body::after{content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:0.018;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
         .aurora{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
         .aurora div{position:absolute;border-radius:50%;filter:blur(120px);opacity:0.04;animation:aurMove 20s ease-in-out infinite}
-        .aurora div:nth-child(1){width:60vw;height:60vw;top:-20%;left:-15%;background:conic-gradient(from 0deg,#E0E7FF,#DDD6FE,#C7D2FE,#E0E7FF);animation-duration:24s}
-        .aurora div:nth-child(2){width:50vw;height:50vw;top:30%;right:-15%;background:conic-gradient(from 120deg,#DDD6FE,#C7D2FE,#E0E7FF);animation-duration:30s;animation-delay:-8s}
-        .aurora div:nth-child(3){width:45vw;height:45vw;bottom:-15%;left:20%;background:conic-gradient(from 240deg,#A5B4FC,#E0E7FF,#DDD6FE);animation-duration:26s;animation-delay:-15s}
+        .aurora div:nth-child(1){width:60vw;height:60vw;top:-20%;left:-15%;background:conic-gradient(from 0deg,rgba(99,102,241,0.15),rgba(30,30,34,0.3),rgba(99,102,241,0.1),rgba(99,102,241,0.15));animation-duration:24s}
+        .aurora div:nth-child(2){width:50vw;height:50vw;top:30%;right:-15%;background:conic-gradient(from 120deg,rgba(30,30,34,0.3),rgba(99,102,241,0.1),rgba(99,102,241,0.15));animation-duration:30s;animation-delay:-8s}
+        .aurora div:nth-child(3){width:45vw;height:45vw;bottom:-15%;left:20%;background:conic-gradient(from 240deg,rgba(99,102,241,0.2),rgba(99,102,241,0.1),rgba(30,30,34,0.3));animation-duration:26s;animation-delay:-15s}
         @keyframes aurMove{0%{transform:translate(0,0) rotate(0) scale(1)}33%{transform:translate(40px,-30px) rotate(120deg) scale(1.06)}66%{transform:translate(-30px,20px) rotate(240deg) scale(.95)}100%{transform:translate(0,0) rotate(360deg) scale(1)}}
-        nav{position:fixed;top:0;width:100%;z-index:1000;background:rgba(255,255,255,0.92);backdrop-filter:blur(24px);border-bottom:1px solid var(--border);padding:0 2rem}
+        nav{position:fixed;top:0;width:100%;z-index:1000;background:rgba(10,10,10,0.92);backdrop-filter:blur(24px);border-bottom:1px solid var(--border);padding:0 2rem}
         .nav-inner{max-width:1200px;margin:auto;display:flex;align-items:center;justify-content:space-between;height:72px}
-        .logo{font-size:1.5rem;font-weight:800;letter-spacing:-.5px;text-decoration:none;color:var(--text)}.logo span{background:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .logo{font-size:1.5rem;font-weight:800;letter-spacing:-.5px;text-decoration:none;color:var(--text)}.logo span{background:linear-gradient(135deg,#6366F1,#818cf8,#a5b4fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
         .nav-links{display:flex;gap:2rem;list-style:none;align-items:center}
-        .nav-links a{color:var(--text-muted);text-decoration:none;font-size:.88rem;font-weight:500;transition:color .3s}.nav-links a:hover{color:#1A1A2E}
+        .nav-links a{color:var(--text-muted);text-decoration:none;font-size:.88rem;font-weight:500;transition:color .3s}.nav-links a:hover{color:#e5e7eb}
         .nav-links>li{position:relative}
         .nav-dropdown-trigger{cursor:pointer;display:flex;align-items:center;gap:4px}
         .nav-dropdown-trigger::after{content:'';display:none}
         .nav-dropdown-trigger svg{width:12px;height:12px;opacity:.5;transition:transform .3s}
-        .nav-dropdown{position:absolute;top:calc(100% + 12px);left:50%;transform:translateX(-50%) translateY(8px);min-width:220px;background:#FFFFFF;backdrop-filter:blur(24px);border:1px solid #E5E7EB;border-radius:8px;padding:.5rem;opacity:0;visibility:hidden;transition:all .25s var(--ease);z-index:1001;box-shadow:0 4px 16px rgba(0,0,0,0.06)}
+        .nav-dropdown{position:absolute;top:calc(100% + 12px);left:50%;transform:translateX(-50%) translateY(8px);min-width:220px;background:#141417;backdrop-filter:blur(24px);border:1px solid #2a2a2e;border-radius:8px;padding:.5rem;opacity:0;visibility:hidden;transition:all .25s var(--ease);z-index:1001;box-shadow:0 4px 16px rgba(0,0,0,0.3)}
         .nav-links>li:hover .nav-dropdown{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
         .nav-links>li:hover .nav-dropdown-trigger svg{transform:rotate(180deg)}
         .nav-dropdown a{display:flex;align-items:center;gap:.6rem;padding:.55rem .85rem;border-radius:8px;font-size:.82rem;color:var(--text-muted);transition:all .2s}
         .nav-dropdown a::after{display:none}
-        .nav-dropdown a:hover{background:#F9FAFB;color:#1A1A2E}
+        .nav-dropdown a:hover{background:#0a0a0a;color:#e5e7eb}
         .nav-dropdown a small{font-size:.7rem;color:var(--text-dim);display:block;margin-top:1px}
         .nav-dd-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0}
 
-        .nav-btn{background:#8B5CF6;color:#FFFFFF;border:none;padding:.6rem 1.6rem;border-radius: 6px;font-weight:600;cursor:pointer;font-size:.88rem;text-decoration:none;box-shadow:0 0 20px rgba(139,92,246,0.25);font-family:inherit;transition:all .3s var(--ease)}
+        .nav-btn{background:rgba(99,102,241,0.9);color:#FFFFFF;border:1px solid rgba(99,102,241,0.3);padding:.6rem 1.6rem;border-radius:9999px;font-weight:600;cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .35s cubic-bezier(0.22,1,0.36,1);box-shadow:0 0 15px rgba(99,102,241,0.15);text-decoration:none;display:inline-flex;align-items:center;gap:.4rem;position:relative;overflow:hidden}
         .nav-btn-outline{border:1px solid var(--border);color:var(--text);padding:.55rem 1.4rem;border-radius: 6px;font-weight:500;cursor:pointer;font-size:.88rem;font-family:inherit;transition:all .3s var(--ease);text-decoration:none;background:transparent}
-        .nav-btn-outline:hover{border-color:var(--border-hover);background:#F9FAFB}
+        .nav-btn-outline:hover{border-color:var(--border-hover);background:#0a0a0a}
         section{padding:5rem 2rem;position:relative}.container{max-width:1140px;margin:auto}
         .section-label{text-transform:uppercase;font-size:.7rem;letter-spacing:4px;font-weight:700;display:inline-block;padding:.4rem 1.2rem;border-radius: 6px;margin-bottom:1rem}
         .section-title{font-size:clamp(2rem,4.5vw,3rem);font-weight:800;margin-bottom:1rem;letter-spacing:-.03em;line-height:1.15}
         .section-sub{color:var(--text-muted);max-width:620px;margin:0 auto 3rem;font-size:1.05rem;line-height:1.85}
-        .gradient-text{background:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .gradient-text{background:linear-gradient(135deg,#6366F1,#818cf8,#a5b4fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 
         .hero-sec{text-align:center;padding-top:120px}
         .hero-stat-row{display:flex;justify-content:center;gap:3rem;margin-top:2rem;flex-wrap:wrap}
@@ -63,38 +63,38 @@
 
         .int-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.25rem}
         .int-card{background:var(--card);border-radius: 8px;padding:1.5rem;border:1px solid var(--border);transition:all .4s var(--ease);cursor:default;position:relative}
-        .int-card:hover{transform:translateY(-4px);border-color:#D1D5DB}
+        .int-card:hover{transform:translateY(-4px);border-color:#3a3a3e}
         .int-card-top{display:flex;align-items:center;gap:1rem;margin-bottom:.75rem}
         .int-logo{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0}
         .int-card-info h4{font-size:.95rem;font-weight:700}
         .int-card-info .int-status{font-size:.7rem;font-weight:700;padding:.2rem .7rem;border-radius: 6px;display:inline-block;margin-top:.2rem}
         .int-card p{font-size:.82rem;color:var(--text-muted);line-height:1.7}
 
-        .status-connected{background:#F3F4F6;color:var(--green);border:1px solid #D1D5DB}
-        .status-available{background:#E5E7EB;color:var(--blue);border:1px solid #D1D5DB}
+        .status-connected{background:#1a1a1e;color:var(--green);border:1px solid #3a3a3e}
+        .status-available{background:#2a2a2e;color:var(--blue);border:1px solid #3a3a3e}
         .status-coming{background:rgba(245,158,11,0.1);color:var(--orange);border:1px solid rgba(245,158,11,0.15)}
-        .status-request{background:#E5E7EB;color:var(--purple);border:1px solid #D1D5DB;cursor:pointer}
-        .status-request:hover{background:#E5E7EB}
+        .status-request{background:#2a2a2e;color:var(--purple);border:1px solid #3a3a3e;cursor:pointer}
+        .status-request:hover{background:#2a2a2e}
 
-        .request-btn{display:inline-block;margin-top:.75rem;padding:.45rem 1.2rem;border-radius: 6px;font-size:.78rem;font-weight:600;border:1px solid #D1D5DB;background:#F3F4F6;color:var(--purple);cursor:pointer;transition:all .3s}
-        .request-btn:hover{background:#E5E7EB;border-color:#D1D5DB}
+        .request-btn{display:inline-block;margin-top:.75rem;padding:.45rem 1.2rem;border-radius: 6px;font-size:.78rem;font-weight:600;border:1px solid #3a3a3e;background:#1a1a1e;color:var(--purple);cursor:pointer;transition:all .3s}
+        .request-btn:hover{background:#2a2a2e;border-color:#3a3a3e}
 
         /* Modal */
-        .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.06);backdrop-filter:blur(8px);z-index:2000;align-items:center;justify-content:center}
+        .modal-overlay{display:none;position:fixed;inset:0;background:rgba(255,255,255,0.08);backdrop-filter:blur(8px);z-index:2000;align-items:center;justify-content:center}
         .modal-overlay.open{display:flex}
-        .modal{background:#F9FAFB;border:1px solid var(--border);border-radius: 8px;padding:2.5rem;max-width:520px;width:90%;position:relative}
+        .modal{background:#0a0a0a;border:1px solid var(--border);border-radius: 8px;padding:2.5rem;max-width:520px;width:90%;position:relative}
         .modal h3{font-size:1.3rem;font-weight:800;margin-bottom:.5rem}
         .modal p{color:var(--text-muted);font-size:.88rem;margin-bottom:1.5rem}
         .modal-close{position:absolute;top:1rem;right:1.5rem;background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer}
-        .modal-close:hover{color:#1A1A2E}
+        .modal-close:hover{color:#e5e7eb}
         .form-group{margin-bottom:1rem}
         .form-group label{display:block;font-size:.82rem;font-weight:600;margin-bottom:.4rem;color:var(--text-muted)}
-        .form-group input,.form-group select,.form-group textarea{width:100%;padding:.65rem 1rem;border-radius:8px;border:1px solid var(--border);background:#FFFFFF;color:var(--text);font-family:inherit;font-size:.88rem;transition:border-color .3s}
+        .form-group input,.form-group select,.form-group textarea{width:100%;padding:.65rem 1rem;border-radius:8px;border:1px solid var(--border);background:#141417;color:var(--text);font-family:inherit;font-size:.88rem;transition:border-color .3s}
         .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--purple)}
         .form-group textarea{min-height:80px;resize:vertical}
         .form-group select{appearance:none;cursor:pointer}
-        .form-submit{width:100%;padding:.8rem;border:none;border-radius:12px;background:#8B5CF6;color:#FFFFFF;font-weight:700;font-size:.95rem;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(139,92,246,0.3);transition:all .3s}
-        .form-submit:hover{transform:translateY(-2px);box-shadow:0 6px 25px rgba(139,92,246,0.4)}
+        .form-submit{width:100%;padding:.8rem;border:none;border-radius:12px;background:rgba(99,102,241,0.9);color:#FFFFFF;font-weight:700;font-size:.95rem;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(10,10,10,0.3);transition:all .3s}
+        .form-submit:hover{transform:translateY(-2px);box-shadow:0 6px 25px rgba(10,10,10,0.4)}
         .form-submit:disabled{opacity:.5;cursor:not-allowed;transform:none}
         .form-success{text-align:center;padding:2rem 0}
         .form-success .check{font-size:3rem;margin-bottom:1rem}
@@ -105,7 +105,7 @@
         @media(max-width:480px){.int-grid{grid-template-columns:1fr}}
     
         /* FOOTER */
-        footer{padding:3rem 2rem;border-top:1px solid var(--border);background:rgba(255,255,255,0.85)}
+        footer{padding:3rem 2rem;border-top:1px solid var(--border);background:rgba(20,20,23,0.85)}
         .footer-inner{max-width:1140px;margin:auto}
         .footer-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 1fr;gap:2rem;margin-bottom:2rem}
         .footer-col{display:flex;flex-direction:column;gap:.5rem}
@@ -114,24 +114,34 @@
         .footer-col a:hover{color:var(--text)}
         .footer-col p{color:var(--text-dim);font-size:.82rem;line-height:1.7}
         .footer-logo{font-size:1.2rem;font-weight:800;letter-spacing:-.5px}
-        .footer-logo span{background:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .footer-logo span{background:linear-gradient(135deg,#6366F1,#818cf8,#a5b4fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
         .footer-newsletter{display:flex;gap:.5rem}
-        .footer-newsletter input{flex:1;background:#FFFFFF;border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-size:.82rem;font-family:inherit}
+        .footer-newsletter input{flex:1;background:#141417;border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-size:.82rem;font-family:inherit}
         .footer-newsletter input::placeholder{color:var(--text-dim)}
-        .footer-newsletter button{background:#8B5CF6;color:#FFFFFF;border:none;padding:.5rem 1rem;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .3s}
+        .footer-newsletter button{background:rgba(99,102,241,0.9);color:#FFFFFF;border:none;padding:.5rem 1rem;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .3s}
         .footer-newsletter button:hover{transform:translateY(-1px)}
         .footer-bottom{display:flex;justify-content:space-between;align-items:center;padding-top:1.5rem;border-top:1px solid var(--border)}
         .footer-copy{color:var(--text-dim);font-size:.8rem}
         @media(max-width:900px){.footer-grid{grid-template-columns:1fr 1fr;gap:1.5rem}.footer-bottom{flex-direction:column;gap:.75rem;text-align:center}}
         @media(max-width:480px){.footer-grid{grid-template-columns:1fr}}
     
-        .hamburger{display:none;background:none;border:none;color:#1A1A2E;font-size:1.5rem;cursor:pointer;padding:.5rem}
-        .mobile-menu{display:none;position:fixed;top:72px;left:0;right:0;background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);padding:1.5rem 2rem;border-bottom:1px solid var(--border);flex-direction:column;gap:1rem;z-index:999}
+        .hamburger{display:none;background:none;border:none;color:#e5e7eb;font-size:1.5rem;cursor:pointer;padding:.5rem}
+        .mobile-menu{display:none;position:fixed;top:72px;left:0;right:0;background:rgba(20,20,23,0.95);backdrop-filter:blur(20px);padding:1.5rem 2rem;border-bottom:1px solid var(--border);flex-direction:column;gap:1rem;z-index:999}
         .mobile-menu.open{display:flex}
         .mobile-menu a{color:var(--text-muted);text-decoration:none;font-size:1rem;padding:.75rem 0;border-bottom:1px solid var(--border);font-weight:500}
         .mobile-menu a:last-child{border:none}
         @media(max-width:900px){.nav-links{display:none!important}.hamburger{display:block}}
-    </style>
+    
+/* ═══ NEON BUTTONS (Global) ═══ */
+.btn-neon{position:relative;display:inline-flex;align-items:center;gap:.5rem;color:#FFFFFF;padding:.85rem 2.2rem;border-radius:9999px;font-weight:600;text-decoration:none;font-size:.95rem;border:1px solid rgba(99,102,241,0.3);cursor:pointer;font-family:inherit;background:rgba(99,102,241,0.9);transition:all .4s cubic-bezier(0.22,1,0.36,1);overflow:hidden;box-shadow:0 0 20px rgba(99,102,241,0.15)}
+.btn-neon::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(165,180,252,0.8),transparent);opacity:0;transition:opacity .5s;width:75%;margin:auto}
+.btn-neon::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(99,102,241,0.6),transparent);opacity:.3;width:75%;margin:auto;transition:opacity .5s}
+.btn-neon:hover{background:rgba(99,102,241,1);border-color:rgba(99,102,241,0.5);transform:translateY(-2px);box-shadow:0 0 35px rgba(99,102,241,0.3),0 4px 15px rgba(99,102,241,0.2);color:#FFFFFF}
+.btn-neon:hover::before{opacity:1}
+.btn-neon:hover::after{opacity:.7}
+.btn-neon.neon-outline{background:transparent;color:#4F46E5;border-color:rgba(99,102,241,0.3);box-shadow:none}
+.btn-neon.neon-outline:hover{background:rgba(99,102,241,0.08);color:#4338CA;border-color:rgba(99,102,241,0.5);box-shadow:0 0 25px rgba(99,102,241,0.12)}
+</style>
 </head>
 <body>
 <div class="aurora"><div></div><div></div><div></div></div>
@@ -143,36 +153,36 @@
             <li>
                 <a href="#" class="nav-dropdown-trigger" onclick="return false">Product <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
                 <div class="nav-dropdown">
-                    <a href="/#features"><span class="nav-dd-icon" style="background:#E5E7EB;color:#ffffff">&#9889;</span><div>Features<small>All platform capabilities</small></div></a>
-                    <a href="/ai-technology"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#129302;</span><div>AI Technology<small>Model transparency</small></div></a>
-                    <a href="/integrations"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128268;</span><div>Integrations<small>Connect your stack</small></div></a>
-                    <a href="/trust-center"><span class="nav-dd-icon" style="background:#F3F4F6;color:#6B7280">&#128274;</span><div>Trust Center<small>Security &amp; compliance</small></div></a>
-                    <a href="/agent-marketplace"><span class="nav-dd-icon" style="background:#F3F4F6;color:#6B7280">&#129302;</span><div>Agent Marketplace<small>Pre-built AI agents</small></div></a>
-                    <a href="/voice-agent"><span class="nav-dd-icon" style="background:#F3F4F6;color:#6B7280">&#127908;</span><div>Voice AI<small>Voice-powered calls</small></div></a>
-                    <a href="/mobile-app"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128241;</span><div>Mobile App<small>iOS &amp; Android</small></div></a>
+                    <a href="/#features"><span class="nav-dd-icon" style="background:#2a2a2e;color:#ffffff">&#9889;</span><div>Features<small>All platform capabilities</small></div></a>
+                    <a href="/ai-technology"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#129302;</span><div>AI Technology<small>Model transparency</small></div></a>
+                    <a href="/integrations"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#128268;</span><div>Integrations<small>Connect your stack</small></div></a>
+                    <a href="/trust-center"><span class="nav-dd-icon" style="background:#1a1a1e;color:#6B7280">&#128274;</span><div>Trust Center<small>Security &amp; compliance</small></div></a>
+                    <a href="/agent-marketplace"><span class="nav-dd-icon" style="background:#1a1a1e;color:#6B7280">&#129302;</span><div>Agent Marketplace<small>Pre-built AI agents</small></div></a>
+                    <a href="/voice-agent"><span class="nav-dd-icon" style="background:#1a1a1e;color:#6B7280">&#127908;</span><div>Voice AI<small>Voice-powered calls</small></div></a>
+                    <a href="/mobile-app"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#128241;</span><div>Mobile App<small>iOS &amp; Android</small></div></a>
                 </div>
             </li>
             <li><a href="/pricing-plans">Pricing</a></li>
             <li>
                 <a href="#" class="nav-dropdown-trigger" onclick="return false">Resources <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
                 <div class="nav-dropdown">
-                    <a href="/developers"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128187;</span><div>API Docs<small>Developer portal</small></div></a>
-                    <a href="/compare"><span class="nav-dd-icon" style="background:#F3F4F6;color:#6B7280">&#128200;</span><div>Compare<small>vs Intercom, Tidio</small></div></a>
-                    <a href="/partners"><span class="nav-dd-icon" style="background:#F3F4F6;color:#6B7280">&#129309;</span><div>Partner Program<small>Earn commissions</small></div></a>
-                    <a href="/blog"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128221;</span><div>Blog &amp; Guides<small>Tips &amp; insights</small></div></a>
-                    <a href="/case-studies"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#128202;</span><div>Case Studies<small>Real results</small></div></a>
+                    <a href="/developers"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#128187;</span><div>API Docs<small>Developer portal</small></div></a>
+                    <a href="/compare"><span class="nav-dd-icon" style="background:#1a1a1e;color:#6B7280">&#128200;</span><div>Compare<small>vs Intercom, Tidio</small></div></a>
+                    <a href="/partners"><span class="nav-dd-icon" style="background:#1a1a1e;color:#6B7280">&#129309;</span><div>Partner Program<small>Earn commissions</small></div></a>
+                    <a href="/blog"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#128221;</span><div>Blog &amp; Guides<small>Tips &amp; insights</small></div></a>
+                    <a href="/case-studies"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#128202;</span><div>Case Studies<small>Real results</small></div></a>
                 </div>
             </li>
             <li>
                 <a href="#" class="nav-dropdown-trigger" onclick="return false">Use Cases <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></a>
                 <div class="nav-dropdown">
-                    <a href="/for-dental-clinics"><span class="nav-dd-icon" style="background:#F3F4F6;color:#6B7280">&#129463;</span><div>Dental Clinics<small>Bookings &amp; recalls</small></div></a>
-                    <a href="/for-medical-practices"><span class="nav-dd-icon" style="background:#F3F4F6;color:#374151">&#127973;</span><div>Medical Practices<small>Patient engagement</small></div></a>
-                    <a href="/for-salons-spas"><span class="nav-dd-icon" style="background:#F3F4F6;color:#6B7280">&#128135;</span><div>Salons &amp; Spas<small>Beauty appointments</small></div></a>
+                    <a href="/for-dental-clinics"><span class="nav-dd-icon" style="background:#1a1a1e;color:#6B7280">&#129463;</span><div>Dental Clinics<small>Bookings &amp; recalls</small></div></a>
+                    <a href="/for-medical-practices"><span class="nav-dd-icon" style="background:#1a1a1e;color:#9ca3af">&#127973;</span><div>Medical Practices<small>Patient engagement</small></div></a>
+                    <a href="/for-salons-spas"><span class="nav-dd-icon" style="background:#1a1a1e;color:#6B7280">&#128135;</span><div>Salons &amp; Spas<small>Beauty appointments</small></div></a>
                 </div>
             </li>
             <li><a href="/login" class="nav-btn-outline">Log In</a></li>
-            <li><a href="/login?signup=1" class="nav-btn">Start Free</a></li>
+            <li><a href="/login?signup=1" class="nav-btn btn-neon">Start Free</a></li>
         </ul>
         <button class="hamburger" onclick="document.querySelector('.mobile-menu').classList.toggle('open')">&#9776;</button>
     </div>
@@ -194,14 +204,14 @@
         <a href="/for-medical-practices">Medical</a>
         <a href="/for-salons-spas">Salons</a>
         <a href="/login">Log In</a>
-        <a href="/login?signup=1" style="color:#374151;font-weight:700">Start Free</a>
+        <a href="/login?signup=1" style="color:#9ca3af;font-weight:700">Start Free</a>
     </div>
 </nav>
 
 <!-- Hero -->
 <section class="hero-sec">
     <div class="container">
-        <div class="section-label" style="background:#F3F4F6;color:var(--purple);border:1px solid #E5E7EB">Integrations</div>
+        <div class="section-label" style="background:#1a1a1e;color:var(--purple);border:1px solid #2a2a2e">Integrations</div>
         <h1 class="section-title">Connect ChatGenius to Your<br>Entire <span class="gradient-text">Practice Stack</span></h1>
         <p class="section-sub">Seamlessly integrate with your existing tools. From scheduling and EMR systems to marketing and payments — ChatGenius works with everything you already use.</p>
         <div class="hero-stat-row">
@@ -220,7 +230,7 @@
     <!-- Calendar & Scheduling -->
     <div class="category-section">
         <div class="category-header">
-            <div class="category-icon" style="background:#E5E7EB;border:1px solid #E5E7EB">&#128197;</div>
+            <div class="category-icon" style="background:#2a2a2e;border:1px solid #2a2a2e">&#128197;</div>
             <h3>Calendar &amp; Scheduling</h3>
             <span class="category-count">2 connected</span>
         </div>
@@ -251,7 +261,7 @@
     <!-- Communication -->
     <div class="category-section">
         <div class="category-header">
-            <div class="category-icon" style="background:#F3F4F6;border:1px solid #E5E7EB">&#128172;</div>
+            <div class="category-icon" style="background:#1a1a1e;border:1px solid #2a2a2e">&#128172;</div>
             <h3>Communication</h3>
             <span class="category-count">1 connected, 2 coming soon</span>
         </div>
@@ -323,7 +333,7 @@
     <!-- EMR/EHR Systems -->
     <div class="category-section">
         <div class="category-header">
-            <div class="category-icon" style="background:#F3F4F6;border:1px solid #E5E7EB">&#127973;</div>
+            <div class="category-icon" style="background:#1a1a1e;border:1px solid #2a2a2e">&#127973;</div>
             <h3>EMR/EHR Systems</h3>
             <span class="category-count">6 integrations</span>
         </div>
@@ -341,7 +351,7 @@
             </div>
             <div class="int-card">
                 <div class="int-card-top">
-                    <div class="int-logo" style="background:#F3F4F6;border:1px solid #E5E7EB">&#127973;</div>
+                    <div class="int-logo" style="background:#1a1a1e;border:1px solid #2a2a2e">&#127973;</div>
                     <div class="int-card-info">
                         <h4>Cerner</h4>
                         <span class="int-status status-coming">Coming Soon</span>
@@ -352,7 +362,7 @@
             </div>
             <div class="int-card">
                 <div class="int-card-top">
-                    <div class="int-logo" style="background:#F3F4F6;border:1px solid #E5E7EB">&#127973;</div>
+                    <div class="int-logo" style="background:#1a1a1e;border:1px solid #2a2a2e">&#127973;</div>
                     <div class="int-card-info">
                         <h4>Athenahealth</h4>
                         <span class="int-status status-coming">Coming Soon</span>
@@ -363,7 +373,7 @@
             </div>
             <div class="int-card">
                 <div class="int-card-top">
-                    <div class="int-logo" style="background:#F3F4F6;border:1px solid #E5E7EB">&#129701;</div>
+                    <div class="int-logo" style="background:#1a1a1e;border:1px solid #2a2a2e">&#129701;</div>
                     <div class="int-card-info">
                         <h4>Dentrix</h4>
                         <span class="int-status status-coming">Coming Soon</span>
@@ -400,7 +410,7 @@
     <!-- Practice Management -->
     <div class="category-section">
         <div class="category-header">
-            <div class="category-icon" style="background:#F3F4F6;border:1px solid #E5E7EB">&#128188;</div>
+            <div class="category-icon" style="background:#1a1a1e;border:1px solid #2a2a2e">&#128188;</div>
             <h3>Practice Management</h3>
             <span class="category-count">2 coming soon</span>
         </div>
@@ -418,7 +428,7 @@
             </div>
             <div class="int-card">
                 <div class="int-card-top">
-                    <div class="int-logo" style="background:#F3F4F6;border:1px solid #E5E7EB">&#11088;</div>
+                    <div class="int-logo" style="background:#1a1a1e;border:1px solid #2a2a2e">&#11088;</div>
                     <div class="int-card-info">
                         <h4>Healthgrades</h4>
                         <span class="int-status status-coming">Coming Soon</span>
@@ -433,7 +443,7 @@
     <!-- Payment -->
     <div class="category-section">
         <div class="category-header">
-            <div class="category-icon" style="background:#F3F4F6;border:1px solid #E5E7EB">&#128179;</div>
+            <div class="category-icon" style="background:#1a1a1e;border:1px solid #2a2a2e">&#128179;</div>
             <h3>Payment</h3>
             <span class="category-count">1 connected</span>
         </div>
@@ -479,10 +489,10 @@
 <!-- CTA -->
 <section style="text-align:center">
     <div class="container">
-        <div style="background:var(--card);border-radius:8px;padding:4rem 2.5rem;border:1px solid #E5E7EB">
+        <div style="background:var(--card);border-radius:8px;padding:4rem 2.5rem;border:1px solid #2a2a2e">
             <h2 class="section-title">Need a Custom Integration?</h2>
             <p class="section-sub" style="margin-bottom:2rem">Don't see your system? We build custom integrations for Enterprise customers. Contact our team to discuss your needs.</p>
-            <a href="/login?signup=1" class="nav-btn" style="padding:.9rem 2.5rem;font-size:1rem;display:inline-block">Get Started Free</a>
+            <a href="/login?signup=1" class="nav-btn btn-neon" style="padding:.9rem 2.5rem;font-size:1rem;display:inline-block">Get Started Free</a>
         </div>
     </div>
 </section>

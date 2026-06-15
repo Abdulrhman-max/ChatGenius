@@ -12,24 +12,24 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Outfit','Inter',sans-serif;
-            background:#F9FAFB;
+            background:#0a0a0a;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
-            color: #1A1A2E;
+            color: #e5e7eb;
         }
         body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
         .card {
-            background: rgba(249,250,251,1);
+            background: rgba(20,20,23,1);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             border-radius: 8px;
             max-width: 480px;
             width: 100%;
             overflow: hidden;
-            border: 1px solid rgba(243,244,246,1);
+            border: 1px solid #2a2a2e;
             box-shadow: 0 30px 80px rgba(0,0,0,0.5);
             animation: slideUp 0.6s ease-out;
             position: relative;
@@ -44,7 +44,7 @@
             background: linear-gradient(90deg, #059669, #10b981, #34d399, #10b981, #059669);
         }
         .header {
-            background: rgba(255,255,255,1);
+            background: rgba(20,20,23,1);
             padding: 48px 32px;
             text-align: center;
             position: relative;
@@ -81,7 +81,7 @@
             to { stroke-dashoffset: 0; }
         }
         .header h1 {
-            color: #1A1A2E;
+            color: #e5e7eb;
             font-size: 26px;
             font-weight: 300;
             letter-spacing: 1px;
@@ -101,9 +101,9 @@
             line-height: 1.6;
             margin-bottom: 24px;
         }
-        .greeting strong { color: #1A1A2E; }
+        .greeting strong { color: #e5e7eb; }
         .details-card {
-            background: rgba(249,250,251,1);
+            background: rgba(20,20,23,1);
             border: 1px solid rgba(229,231,235,1);
             border-radius: 8px;
             padding: 28px;
@@ -111,7 +111,7 @@
         }
         .detail-row {
             padding: 10px 0;
-            border-bottom: 1px solid rgba(243,244,246,1);
+            border-bottom: 1px solid #2a2a2e;
         }
         .detail-row:last-child { border-bottom: none; }
         .detail-label {
@@ -123,12 +123,12 @@
         }
         .detail-value {
             font-size: 17px;
-            color: #1A1A2E;
+            color: #e5e7eb;
             font-weight: 700;
         }
         .status-badge {
             display: inline-block;
-            background: linear-gradient(135deg, #ffffff, #e4e4e7);
+            background: linear-gradient(135deg, #2a2a2e, #1a1a1e);
             color: #09090B;
             padding: 6px 16px;
             border-radius: 8px;
@@ -137,15 +137,15 @@
             letter-spacing: 0.5px;
         }
         .tips {
-            background: rgba(229,231,235,1);
-            border-left: 4px solid #ffffff;
+            background: rgba(30,30,34,1);
+            border-left: 4px solid #6366F1;
             border-radius: 0 12px 12px 0;
             padding: 20px 24px;
             margin-bottom: 24px;
         }
         .tips h3 {
             font-size: 14px;
-            color: #1A1A2E;
+            color: #e5e7eb;
             margin-bottom: 10px;
         }
         .tips ul {
@@ -168,7 +168,7 @@
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #ffffff, #d4d4d8);
+            background: linear-gradient(135deg, #2a2a2e, #1a1a1e);
         }
         .footer {
             text-align: center;
@@ -182,7 +182,7 @@
             line-height: 1.6;
         }
         .footer .brand {
-            color: #1A1A2E;
+            color: #e5e7eb;
             font-weight: 700;
         }
         .loading { text-align: center; padding: 60px 20px; }
@@ -190,7 +190,17 @@
         .error-state { text-align: center; padding: 40px 32px; }
         .error-state h2 { color: #6B7280; font-size: 20px; margin-bottom: 8px; }
         .error-state p { color: #6B7280; font-size: 14px; }
-    </style>
+    
+/* ═══ NEON BUTTONS (Global) ═══ */
+.btn-neon{position:relative;display:inline-flex;align-items:center;gap:.5rem;color:#FFFFFF;padding:.85rem 2.2rem;border-radius:9999px;font-weight:600;text-decoration:none;font-size:.95rem;border:1px solid rgba(99,102,241,0.3);cursor:pointer;font-family:inherit;background:rgba(99,102,241,0.9);transition:all .4s cubic-bezier(0.22,1,0.36,1);overflow:hidden;box-shadow:0 0 20px rgba(99,102,241,0.15)}
+.btn-neon::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(165,180,252,0.8),transparent);opacity:0;transition:opacity .5s;width:75%;margin:auto}
+.btn-neon::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(99,102,241,0.6),transparent);opacity:.3;width:75%;margin:auto;transition:opacity .5s}
+.btn-neon:hover{background:rgba(99,102,241,1);border-color:rgba(99,102,241,0.5);transform:translateY(-2px);box-shadow:0 0 35px rgba(99,102,241,0.3),0 4px 15px rgba(99,102,241,0.2);color:#FFFFFF}
+.btn-neon:hover::before{opacity:1}
+.btn-neon:hover::after{opacity:.7}
+.btn-neon.neon-outline{background:transparent;color:#4F46E5;border-color:rgba(99,102,241,0.3);box-shadow:none}
+.btn-neon.neon-outline:hover{background:rgba(99,102,241,0.08);color:#4338CA;border-color:rgba(99,102,241,0.5);box-shadow:0 0 25px rgba(99,102,241,0.12)}
+</style>
 </head>
 <body>
     <div class="card">

@@ -11,20 +11,20 @@
         html { font-size: 90%; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --primary: #8B5CF6;
-            --primary-light: #7C3AED;
+            --primary: #6366F1;
+            --primary-light: #0A0A0A;
             --success: #10b981;
             --success-bg: rgba(16, 185, 129, 0.1);
             --warning: #f59e0b;
             --warning-bg: rgba(245, 158, 11, 0.1);
             --danger: #ef4444;
             --danger-light: #f87171;
-            --bg: #F9FAFB;
-            --bg-light: #F3F4F6;
+            --bg: #0a0a0a;
+            --bg-light: #1a1a1e;
             --card: rgba(249,250,251,1);
             --card-hover: rgba(229,231,235,1);
             --border: rgba(229,231,235,1);
-            --text: #1A1A2E;
+            --text: #e5e7eb;
             --text-muted: #6B7280;
             --text-secondary: #6B7280;
         }
@@ -41,7 +41,7 @@
             display: flex;
             align-items: center;
             gap: 1rem;
-            background: #FFFFFF;
+            background: #141417;
             position: sticky;
             top: 0;
             z-index: 100;
@@ -52,7 +52,7 @@
         .back-btn {
             background: var(--card);
             border: 1px solid var(--border);
-            color: #374151;
+            color: #9ca3af;
             padding: 0.5rem 1rem;
             border-radius: 8px;
             cursor: pointer;
@@ -85,7 +85,7 @@
 
         /* ROI Hero Section */
         .roi-hero {
-            background: linear-gradient(135deg, var(--primary) 0%, #7C3AED 100%);
+            background: linear-gradient(135deg, var(--primary) 0%, #0A0A0A 100%);
             border-radius: 8px;
             padding: 2.5rem;
             text-align: center;
@@ -145,8 +145,8 @@
         }
         .revenue-card:hover { border-color: var(--primary); }
         .revenue-card.primary {
-            background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
-            border-color: #8B5CF6;
+            background: linear-gradient(135deg, rgba(10, 10, 10, 0.05) 0%, rgba(10, 10, 10, 0.05) 100%);
+            border-color: #e5e7eb;
         }
         .revenue-card .label {
             font-size: 0.75rem; color: var(--text-muted);
@@ -171,10 +171,10 @@
         }
         .section-icon.revenue { background: rgba(16, 185, 129, 0.15); color: var(--success); }
         .section-icon.loss { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
-        .section-icon.funnel { background: rgba(139, 92, 246, 0.15); color: #8B5CF6; }
-        .section-icon.insights { background: rgba(107, 114, 128, 0.15); color: #4B5563; }
+        .section-icon.funnel { background: rgba(10, 10, 10, 0.15); color: #e5e7eb; }
+        .section-icon.insights { background: rgba(107, 114, 128, 0.15); color: #9ca3af; }
         .section-icon.patients { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
-        .section-icon.automation { background: rgba(139, 92, 246, 0.15); color: var(--primary); }
+        .section-icon.automation { background: rgba(10, 10, 10, 0.15); color: var(--primary); }
         .section-title { font-size: 1.1rem; font-weight: 600; }
 
         /* Chart Container */
@@ -203,13 +203,13 @@
         .stage-label { font-size: 0.85rem; color: var(--text-secondary); min-width: 180px; }
         .stage-bar {
             height: 36px;
-            background: linear-gradient(90deg, var(--primary) 0%, #D1D5DB 100%);
+            background: linear-gradient(90deg, var(--primary) 0%, #3a3a3e 100%);
             border-radius: 8px;
             display: flex; align-items: center; justify-content: flex-end;
             padding: 0 0.75rem; min-width: 60px;
             transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .stage-bar .count { font-size: 0.85rem; font-weight: 600; color: #1A1A2E; }
+        .stage-bar .count { font-size: 0.85rem; font-weight: 600; color: #e5e7eb; }
         .stage-rate { font-size: 0.85rem; font-weight: 600; color: var(--success); min-width: 60px; text-align: right; }
         .stage-rate.na { color: var(--text-muted); }
 
@@ -309,7 +309,17 @@
             .funnel-stage { flex-wrap: wrap; }
             .stage-label { min-width: 100%; }
         }
-    </style>
+    
+/* ═══ NEON BUTTONS (Global) ═══ */
+.btn-neon{position:relative;display:inline-flex;align-items:center;gap:.5rem;color:#FFFFFF;padding:.85rem 2.2rem;border-radius:9999px;font-weight:600;text-decoration:none;font-size:.95rem;border:1px solid rgba(99,102,241,0.3);cursor:pointer;font-family:inherit;background:rgba(99,102,241,0.9);transition:all .4s cubic-bezier(0.22,1,0.36,1);overflow:hidden;box-shadow:0 0 20px rgba(99,102,241,0.15)}
+.btn-neon::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(165,180,252,0.8),transparent);opacity:0;transition:opacity .5s;width:75%;margin:auto}
+.btn-neon::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(99,102,241,0.6),transparent);opacity:.3;width:75%;margin:auto;transition:opacity .5s}
+.btn-neon:hover{background:rgba(99,102,241,1);border-color:rgba(99,102,241,0.5);transform:translateY(-2px);box-shadow:0 0 35px rgba(99,102,241,0.3),0 4px 15px rgba(99,102,241,0.2);color:#FFFFFF}
+.btn-neon:hover::before{opacity:1}
+.btn-neon:hover::after{opacity:.7}
+.btn-neon.neon-outline{background:transparent;color:#4F46E5;border-color:rgba(99,102,241,0.3);box-shadow:none}
+.btn-neon.neon-outline:hover{background:rgba(99,102,241,0.08);color:#4338CA;border-color:rgba(99,102,241,0.5);box-shadow:0 0 25px rgba(99,102,241,0.12)}
+</style>
 </head>
 <body>
     <div class="header">
@@ -605,8 +615,8 @@
                         },
                         tooltip: {
                             backgroundColor: '#1F2937',
-                            titleColor: '#F9FAFB',
-                            bodyColor: '#D1D5DB',
+                            titleColor: '#0a0a0a',
+                            bodyColor: '#3a3a3e',
                             borderColor: 'rgba(243,244,246,1)',
                             borderWidth: 1,
                             cornerRadius: 10,
@@ -672,7 +682,7 @@
                         label: 'No-Shows',
                         data: counts,
                         backgroundColor: 'rgba(239, 68, 68, 0.6)',
-                        borderColor: '#D1D5DB',
+                        borderColor: '#3a3a3e',
                         borderWidth: 1.5,
                         borderRadius: 6,
                         hoverBackgroundColor: 'rgba(239, 68, 68, 0.85)',
@@ -687,8 +697,8 @@
                         },
                         tooltip: {
                             backgroundColor: '#1F2937',
-                            titleColor: '#F9FAFB',
-                            bodyColor: '#D1D5DB',
+                            titleColor: '#0a0a0a',
+                            bodyColor: '#3a3a3e',
                             borderColor: 'rgba(243,244,246,1)',
                             borderWidth: 1,
                             cornerRadius: 10,

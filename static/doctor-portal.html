@@ -9,30 +9,30 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Outfit','Inter',sans-serif;background:#F9FAFB;color:#1A1A2E;min-height:100vh;}
+body{font-family:'Outfit','Inter',sans-serif;background:#0a0a0a;color:#e5e7eb;min-height:100vh;}
 body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-.navbar{background:#F9FAFB;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid rgba(243,244,246,1);color:#1A1A2E;padding:16px 32px;display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1;}
-.navbar h1{font-size:20px;font-weight:700;background:linear-gradient(135deg,#8B5CF6,#7C3AED,#6D28D9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.navbar{background:#0a0a0a;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid #2a2a2e;color:#e5e7eb;padding:16px 32px;display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1;}
+.navbar h1{font-size:20px;font-weight:700;background:linear-gradient(135deg,#6366F1,#818cf8,#a5b4fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 .navbar .user-info{display:flex;align-items:center;gap:12px;color:#6B7280;}
-.navbar button{background:#F3F4F6;color:#1A1A2E;border:1px solid #E5E7EB;padding:8px 16px;border-radius: 6px;cursor:pointer;font-family:'Outfit','Inter',sans-serif;font-size:13px;transition:all 0.2s;}
-.navbar button:hover{background:#E5E7EB;border-color:#D1D5DB;}
+.navbar button{background:#1a1a1e;color:#e5e7eb;border:1px solid #2a2a2e;padding:8px 16px;border-radius: 6px;cursor:pointer;font-family:'Outfit','Inter',sans-serif;font-size:13px;transition:all 0.2s;}
+.navbar button:hover{background:#2a2a2e;border-color:#3a3a3e;}
 .container{max-width:1100px;margin:24px auto;padding:0 20px;position:relative;z-index:1;}
-.tabs{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;background:#F9FAFB;border-radius: 6px;padding:6px;border:1px solid #E5E7EB;}
+.tabs{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;background:#0a0a0a;border-radius: 6px;padding:6px;border:1px solid #2a2a2e;}
 .tab{padding:10px 20px;border-radius: 6px;background:transparent;border:none;cursor:pointer;font-family:'Outfit','Inter',sans-serif;font-size:14px;color:#6B7280;transition:all 0.2s;font-weight:500;}
-.tab.active{background:#8B5CF6;color:#FFFFFF;box-shadow:0 4px 25px rgba(139,92,246,0.3);}
-.tab:hover:not(.active){color:#1A1A2E;background:#F9FAFB;}
+.tab.active{background:rgba(99,102,241,0.9);color:#FFFFFF;box-shadow:0 4px 25px rgba(99,102,241,0.3);}
+.tab:hover:not(.active){color:#e5e7eb;background:#0a0a0a;}
 .panel{display:none;}
 .panel.active{display:block;}
-.card{background:#F9FAFB;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius: 8px;padding:24px;margin-bottom:20px;border:1px solid #E5E7EB;box-shadow:0 8px 32px rgba(0,0,0,0.2);}
-.card h2{font-size:18px;margin-bottom:16px;color:#1A1A2E;font-weight:700;}
+.card{background:#0a0a0a;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius: 8px;padding:24px;margin-bottom:20px;border:1px solid #2a2a2e;box-shadow:0 8px 32px rgba(0,0,0,0.2);}
+.card h2{font-size:18px;margin-bottom:16px;color:#e5e7eb;font-weight:700;}
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;}
-.stat-card{background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:20px;text-align:center;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
-.stat-card .value{font-size:28px;font-weight:700;background:linear-gradient(135deg,#8B5CF6,#6D28D9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.stat-card{background:#0a0a0a;border:1px solid #2a2a2e;border-radius:8px;padding:20px;text-align:center;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.stat-card .value{font-size:28px;font-weight:700;background:linear-gradient(135deg,#6366F1,#a5b4fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 .stat-card .label{font-size:12px;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;margin-top:4px;}
-table{width:100%;border-collapse:collapse;background:#FFFFFF;border-radius:8px;overflow:hidden;}
-th{background:#F3F4F6;padding:10px 12px;text-align:left;font-size:12px;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;}
-td{padding:10px 12px;border-bottom:1px solid #E5E7EB;font-size:14px;color:#1A1A2E;}
-tr:hover{background:#FFFFFF;}
+table{width:100%;border-collapse:collapse;background:#141417;border-radius:8px;overflow:hidden;}
+th{background:#1a1a1e;padding:10px 12px;text-align:left;font-size:12px;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;}
+td{padding:10px 12px;border-bottom:1px solid #2a2a2e;font-size:14px;color:#e5e7eb;}
+tr:hover{background:#141417;}
 .badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;}
 .badge-green{background:rgba(16,185,129,0.1);color:#10b981;}
 .badge-red{background:rgba(239,68,68,0.1);color:#ef4444;}
@@ -40,27 +40,39 @@ tr:hover{background:#FFFFFF;}
 .badge-blue{background:rgba(59,130,246,0.1);color:#3b82f6;}
 .form-group{margin-bottom:16px;}
 .form-group label{display:block;font-size:13px;color:#6B7280;margin-bottom:4px;font-weight:600;}
-.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:12px;font-size:14px;font-family:'Outfit','Inter',sans-serif;background:#FFFFFF;color:#1A1A2E;outline:none;transition:border-color 0.2s,box-shadow 0.2s;}
-.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:#D1D5DB;box-shadow:0 0 0 4px rgba(139,92,246,0.1);}
-.form-group select option{background:#F9FAFB;color:#1A1A2E;}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 12px;border:1px solid #2a2a2e;border-radius:12px;font-size:14px;font-family:'Outfit','Inter',sans-serif;background:#141417;color:#e5e7eb;outline:none;transition:border-color 0.2s,box-shadow 0.2s;}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:#3a3a3e;box-shadow:0 0 0 4px rgba(99,102,241,0.2);}
+.form-group select option{background:#0a0a0a;color:#e5e7eb;}
 .btn{padding:10px 24px;border:none;border-radius: 6px;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;font-family:'Outfit','Inter',sans-serif;}
-.btn-primary{background:#8B5CF6;color:#FFFFFF;box-shadow:0 0 20px rgba(139,92,246,0.3);}
-.btn-primary:hover{transform:translateY(-1px);box-shadow:0 0 35px rgba(139,92,246,0.45);}
-.btn-danger{background:#E5E7EB;color:#6B7280;border:1px solid #D1D5DB;}
-.btn-danger:hover{background:#E5E7EB;}
-.toggle-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:12px;border:2px solid #E5E7EB;background:#FFFFFF;cursor:pointer;font-family:'Outfit','Inter',sans-serif;font-size:14px;font-weight:600;color:#6B7280;transition:all 0.2s;}
-.toggle-btn.active{border-color:#1A1A2E;background:#F3F4F6;color:#1A1A2E;}
+.btn-primary{display:inline-flex;align-items:center;gap:.5rem;color:#FFFFFF;padding:.95rem 2.4rem;border-radius:9999px;font-weight:700;text-decoration:none;font-size:1rem;border:1px solid rgba(99,102,241,0.3);cursor:pointer;font-family:inherit;background:rgba(99,102,241,0.9);transition:all .4s cubic-bezier(0.22,1,0.36,1);box-shadow:0 0 20px rgba(99,102,241,0.15);position:relative;overflow:hidden}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 35px rgba(99,102,241,0.3);background:rgba(99,102,241,1);border-color:rgba(99,102,241,0.5)}
+.btn-primary::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(99,102,241,0.6),transparent);opacity:.3;width:75%;margin:auto;transition:opacity .5s}
+.btn-primary:hover::before{opacity:1}.btn-primary:hover::after{opacity:.7}
+.btn-danger{background:#2a2a2e;color:#6B7280;border:1px solid #3a3a3e;}
+.btn-danger:hover{background:#2a2a2e;}
+.toggle-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:12px;border:2px solid #2a2a2e;background:#141417;cursor:pointer;font-family:'Outfit','Inter',sans-serif;font-size:14px;font-weight:600;color:#6B7280;transition:all 0.2s;}
+.toggle-btn.active{border-color:#e5e7eb;background:#1a1a1e;color:#e5e7eb;}
 .off-day-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
-.off-day-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:8px;font-size:13px;color:#1A1A2E;}
+.off-day-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#141417;border:1px solid #2a2a2e;border-radius:8px;font-size:13px;color:#e5e7eb;}
 .off-day-chip button{background:none;border:none;color:#6B7280;cursor:pointer;font-size:16px;}
 .empty{text-align:center;color:#6B7280;padding:40px;font-size:15px;}
-.login-box{max-width:400px;margin:80px auto;background:#F9FAFB;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:40px;border-radius: 8px;border:1px solid #E5E7EB;box-shadow:0 4px 16px rgba(0,0,0,0.06);text-align:center;position:relative;z-index:1;}
-.login-box h2{margin-bottom:24px;color:#1A1A2E;}
+.login-box{max-width:400px;margin:80px auto;background:#0a0a0a;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:40px;border-radius: 8px;border:1px solid #2a2a2e;box-shadow:0 4px 16px rgba(0,0,0,0.3);text-align:center;position:relative;z-index:1;}
+.login-box h2{margin-bottom:24px;color:#e5e7eb;}
 #loginError{color:#6B7280;margin-top:12px;font-size:13px;}
+
+/* ═══ NEON BUTTONS (Global) ═══ */
+.btn-neon{position:relative;display:inline-flex;align-items:center;gap:.5rem;color:#FFFFFF;padding:.85rem 2.2rem;border-radius:9999px;font-weight:600;text-decoration:none;font-size:.95rem;border:1px solid rgba(99,102,241,0.3);cursor:pointer;font-family:inherit;background:rgba(99,102,241,0.9);transition:all .4s cubic-bezier(0.22,1,0.36,1);overflow:hidden;box-shadow:0 0 20px rgba(99,102,241,0.15)}
+.btn-neon::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(165,180,252,0.8),transparent);opacity:0;transition:opacity .5s;width:75%;margin:auto}
+.btn-neon::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(99,102,241,0.6),transparent);opacity:.3;width:75%;margin:auto;transition:opacity .5s}
+.btn-neon:hover{background:rgba(99,102,241,1);border-color:rgba(99,102,241,0.5);transform:translateY(-2px);box-shadow:0 0 35px rgba(99,102,241,0.3),0 4px 15px rgba(99,102,241,0.2);color:#FFFFFF}
+.btn-neon:hover::before{opacity:1}
+.btn-neon:hover::after{opacity:.7}
+.btn-neon.neon-outline{background:transparent;color:#4F46E5;border-color:rgba(99,102,241,0.3);box-shadow:none}
+.btn-neon.neon-outline:hover{background:rgba(99,102,241,0.08);color:#4338CA;border-color:rgba(99,102,241,0.5);box-shadow:0 0 25px rgba(99,102,241,0.12)}
 </style>
 </head>
 <body>
-<div style="position:fixed;inset:0;z-index:-1;overflow:hidden"><div style="position:absolute;width:55vw;height:55vw;top:-15%;left:-10%;border-radius:50%;filter:blur(100px);opacity:0.1;background:conic-gradient(from 0deg,#E0E7FF,#DDD6FE,#C7D2FE,#E0E7FF);animation:aur 22s ease-in-out infinite"></div><div style="position:absolute;width:40vw;height:40vw;bottom:-10%;right:-5%;border-radius:50%;filter:blur(100px);opacity:0.1;background:conic-gradient(from 180deg,#d4d4d8,#a1a1aa,#ffffff);animation:aur 28s ease-in-out infinite;animation-delay:-7s"></div></div>
+<div style="position:fixed;inset:0;z-index:-1;overflow:hidden"><div style="position:absolute;width:55vw;height:55vw;top:-15%;left:-10%;border-radius:50%;filter:blur(100px);opacity:0.1;background:conic-gradient(from 0deg,rgba(99,102,241,0.15),rgba(30,30,34,0.3),rgba(99,102,241,0.1),rgba(99,102,241,0.15));animation:aur 22s ease-in-out infinite"></div><div style="position:absolute;width:40vw;height:40vw;bottom:-10%;right:-5%;border-radius:50%;filter:blur(100px);opacity:0.1;background:conic-gradient(from 180deg,rgba(99,102,241,0.1),rgba(30,30,34,0.2),rgba(99,102,241,0.15));animation:aur 28s ease-in-out infinite;animation-delay:-7s"></div></div>
 <style>@keyframes aur{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(3%,5%) scale(1.05)}66%{transform:translate(-3%,-3%) scale(0.97)}}</style>
 
 <!-- Login Screen -->
@@ -143,15 +155,15 @@ tr:hover{background:#FFFFFF;}
             <!-- Connected state -->
             <div id="doctorCalendlyConnected" style="display:none">
                 <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem">
-                    <span style="width:10px;height:10px;border-radius:50%;background:#ffffff;display:inline-block"></span>
-                    <span style="font-size:0.85rem;color:#1A1A2E">Connected</span>
+                    <span style="width:10px;height:10px;border-radius:50%;background:#141417;display:inline-block"></span>
+                    <span style="font-size:0.85rem;color:#e5e7eb">Connected</span>
                 </div>
                 <div style="font-size:0.85rem;color:#6B7280;margin-bottom:0.5rem">
-                    <span id="doctorCalendlyName" style="color:#1A1A2E;font-weight:600"></span>
+                    <span id="doctorCalendlyName" style="color:#e5e7eb;font-weight:600"></span>
                     <span id="doctorCalendlyEmail" style="margin-left:0.5rem"></span>
                 </div>
                 <div style="font-size:0.8rem;color:#6B7280;margin-bottom:1rem">
-                    Last synced: <span id="doctorCalendlyLastSync" style="color:#1A1A2E">Never</span>
+                    Last synced: <span id="doctorCalendlyLastSync" style="color:#e5e7eb">Never</span>
                 </div>
                 <button class="btn btn-danger" onclick="doctorDisconnectCalendly()">Disconnect Calendly</button>
             </div>
@@ -193,7 +205,7 @@ tr:hover{background:#FFFFFF;}
 </div>
 
 <!-- Booking Detail Modal -->
-<div id="bookingDetailModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.04);z-index:9999;justify-content:center;align-items:center">
+<div id="bookingDetailModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,0.06);z-index:9999;justify-content:center;align-items:center">
     <div style="background:#222222;border-radius:12px;padding:2rem;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
         <button onclick="closeBookingDetail()" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:1.4rem;color:#6B7280;cursor:pointer">&times;</button>
         <div id="bookingDetailContent">Loading...</div>
@@ -309,7 +321,7 @@ async function loadBookings() {
     bookings.forEach(b => {
         const isDone = b.status === 'cancelled' || b.status === 'no_show' || b.status === 'completed';
         const badge = b.status === 'confirmed' ? 'badge-green' : b.status === 'completed' ? 'badge-blue' : b.status === 'no_show' ? 'badge-red' : 'badge-yellow';
-        const bType = b.service_id ? '<span class="badge" style="background:#52525b;color:#fff">Service</span>' : '<span class="badge" style="background:#8B5CF6;color:#fff">Appointment</span>';
+        const bType = b.service_id ? '<span class="badge" style="background:#52525b;color:#fff">Service</span>' : '<span class="badge" style="background:rgba(99,102,241,0.9);color:#fff">Appointment</span>';
         const noshowBtn = isDone ? '<span style="color:#6B7280">—</span>' : `<button style="padding:5px 10px;font-size:12px;background:#52525b;color:#FFFFFF;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600" onclick="event.stopPropagation();markNoShow(${b.id})">Non-Attended</button>`;
         html += `<tr style="cursor:pointer${isDone ? ';opacity:0.5' : ''}" onclick="openBookingDetail(${b.id})"><td>${esc(b.date)}</td><td>${esc(b.time)}</td><td>${esc(b.customer_name)}</td>
             <td>${bType}</td><td>${esc(b.service)}</td><td><span class="badge ${badge}">${esc(b.status)}</span></td><td>${noshowBtn}</td></tr>`;
@@ -391,7 +403,7 @@ async function openBookingDetail(bid) {
         if (d.error) throw new Error(d.error);
         const typeBadge = d.booking_type === 'Service'
             ? `<span class="badge" style="background:#52525b;color:#fff">${esc(d.service_name)}</span>`
-            : `<span class="badge" style="background:#8B5CF6;color:#fff">Appointment</span>`;
+            : `<span class="badge" style="background:rgba(99,102,241,0.9);color:#fff">Appointment</span>`;
         const statusBadge = d.status === 'cancelled' ? 'badge-red' : d.status === 'confirmed' ? 'badge-green' : 'badge-yellow';
         const formBadge = d.form_status === 'submitted' ? '<span class="badge badge-green">Form Submitted</span>'
             : d.form_status === 'pending' ? '<span class="badge badge-yellow">Form Pending</span>'
@@ -400,7 +412,7 @@ async function openBookingDetail(bid) {
         let formHtml = '';
         if (d.form_data && d.form_data.submitted_at) {
             const f = d.form_data;
-            formHtml = `<div style="background:#F9FAFB;padding:12px;border-radius:8px;margin:8px 0">
+            formHtml = `<div style="background:#0a0a0a;padding:12px;border-radius:8px;margin:8px 0">
                 <strong>Pre-Visit Form</strong><br>
                 ${f.date_of_birth ? `DOB: ${esc(f.date_of_birth)} &nbsp;` : ''}
                 ${f.gender ? `Gender: ${esc(f.gender)}<br>` : ''}
@@ -410,14 +422,14 @@ async function openBookingDetail(bid) {
                 ${f.insurance_provider ? `Insurance: ${esc(f.insurance_provider)}<br>` : ''}
             </div>`;
         } else if (d.form_status === 'pending') {
-            formHtml = '<div style="background:#F9FAFB;padding:12px;border-radius:8px;margin:8px 0;color:#6B7280"><strong>Pre-Visit Form</strong><br>Sent but not yet filled.</div>';
+            formHtml = '<div style="background:#0a0a0a;padding:12px;border-radius:8px;margin:8px 0;color:#6B7280"><strong>Pre-Visit Form</strong><br>Sent but not yet filled.</div>';
         }
 
         let profileHtml = '';
         if (d.patient_profile) {
             const p = d.patient_profile;
             if (p.medical_history || p.allergies || p.medications) {
-                profileHtml = `<div style="background:#F9FAFB;padding:12px;border-radius:8px;margin:8px 0">
+                profileHtml = `<div style="background:#0a0a0a;padding:12px;border-radius:8px;margin:8px 0">
                     <strong>Medical Profile</strong><br>
                     ${p.medical_history ? `History: ${esc(p.medical_history)}<br>` : ''}
                     ${p.allergies ? `Allergies: ${esc(p.allergies)}<br>` : ''}
@@ -427,13 +439,13 @@ async function openBookingDetail(bid) {
         }
 
         content.innerHTML = `
-            <h2 style="margin:0 0 4px;color:#1A1A2E">${esc(d.customer_name)}</h2>
+            <h2 style="margin:0 0 4px;color:#e5e7eb">${esc(d.customer_name)}</h2>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
                 ${typeBadge} <span class="badge ${statusBadge}">${esc(d.status)}</span>
                 ${d.visit_count > 1 ? `<span class="badge badge-blue">${d.visit_count} visits</span>` : d.visit_count === 1 ? '<span class="badge badge-yellow">First visit</span>' : ''}
                 ${formBadge}
             </div>
-            <table style="width:100%;border-collapse:collapse;font-size:0.9rem;color:#374151">
+            <table style="width:100%;border-collapse:collapse;font-size:0.9rem;color:#9ca3af">
                 <tr><td style="padding:6px 0;color:#6B7280;width:120px">Email</td><td>${esc(d.customer_email) || '—'}</td></tr>
                 <tr><td style="padding:6px 0;color:#6B7280">Phone</td><td>${esc(d.customer_phone) || '—'}</td></tr>
                 <tr><td style="padding:6px 0;color:#6B7280">Date & Time</td><td>${esc(d.date)} at ${esc(d.time)}</td></tr>
